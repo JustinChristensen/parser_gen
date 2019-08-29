@@ -323,5 +323,138 @@ void expr() {
     term()
 }
 
+Conflict:
+We need a grammar that facilitates translation, and a different grammar that facilitates parsing
+
+expr: expr + term { print('+') }    <-- left recursive, would loop forever in a top down parser
+    | expr - term { print('-') }
+    | term 
+term: 0 | 1 | ...  { print('N') }
+
+ASTs:
+Abstract syntax trees, or syntax trees, resemble parse trees to an extent, but with the important
+difference that interior nodes represent constructs instead of the precise non-terminal. In an AST,
+the terminal symbols are implied by the structure:
+
+-- single non-terminals like term are replaced with their terminals
+-- AST
+data Expr 
+    = Add Expr Int     -- note the missing terminal, +, and the fact that Term has been replaced with Int
+    | Sub Expr Int     -- note the missing terminal, -  and the fact that Term has been replaced with Int
+    | Term Int
+
+with left recursion elimination the above grammar becomes:
+expr: term rest
+rest: + term { print('+') } rest
+    | - term { print('-') } rest
+    | ε
+term: 0 | 1 | ...  { print('N') }
+
+** NOTE that none head symbols of any of the production rules match the 
+non-terminal on the left hand side, so the left recursion has been eliminated **
+    
+************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************ 
+Left Recursion Elimination (adds a new non-terminal, R, to the grammar):
+A: Aa   
+ | Ab
+ | c
+   ↑ <- left recursive on non-terminal A, infinite loop
+   {A,c}
+
+becomes:
+A: cR
+R: aR
+ | bR
+ | ε
+   ↑ <- no head symbols matching the lhs non-terminal
+   {c,a,b,ε}
+************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************ 
+
+Simplifications
+
+1. Eliminating Tail Recursion
+    void rest() {
+        if (lookahead == '+') {
+            match('+'); term(); print('+'); rest();
+        } 
+        elseif (lookahead == '-') {
+            match('-'); term(); print('-'); rest();
+        }
+        else {}
+    }
+
+    becomes:
+
+    void rest() {
+        while (true) {
+            if (lookahead == '+') {
+                match('+'); term(); print('+');
+            } 
+            elseif (lookahead == '-') {
+                match('-'); term(); print('-');
+            }
+            break;
+        }
+    }
+
+    because the tail-recursive calls are identical to a goto to the beginning
+    of the procedure, rest.
+
+2. Removing the rest non-terminal procedure
+    void expr() {
+        term();
+        rest();
+    }
+    
+    becomes:
+
+    void expr() {
+        term();
+        // body of the latter rest definition
+        while (true) ...
+    }
+
+Lexical Analysis
+Grouping characters from the input stream into tokens, the basic units for parsing
+Lexeme - sequence of characters that comprises a token
+
+Adding ids, multiplication, and division:
+Order dictates how tightly operators bind to their operands
+expr: expr + term   { print('+') }    <-- expr bind least tightly
+    | expr - term   { print('-') }
+    | term 
+term: term * factor { print('*') }
+    | term / factor { print('/') }
+    | factor
+factor: ( expr ) 
+      | num         { print(num.value) }
+      | id          { print(id.lexeme) }
 
 
+* Chite space generally eliminated by the lexical analyzer, incorporating it into 
+the languages grammar would be a huge pain in the ass
+TODO: look at the formal grammars for whitespace sensitive languages like Python
+https://docs.python.org/3/reference/grammar.html
+funcdef: 'def' NAME parameters ['->' test] ':' suite
+suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
+
+* Comments are generally also eliminated by the lexical analyser, for the same reason
+as above
+
+* Note that the above is only sort of true for top down parsers written in languages
+that support higher order functions, because the procedures are relatively easy to bake 
+whitespace and comment elimination into:
+letT = elimWs(keyword("let");
+runParser letT "let // let statement"
+
+constants like "foo", 'c', and 134234234 are generally treated as single units in the grammar
+
+keyword and identifiers can look similar, in languages that allow keywords as identifiers context
+becomes extremely important (and so it must be handled by the parser):
+isKW k -> k in { "let", "in", "var" }
+id = [a-zA-Z_]\w+
+
+expr: "let" decls "in" expr
+    | "var" id
+
+parse expr "var let" <--- let would be treated as an identifier here

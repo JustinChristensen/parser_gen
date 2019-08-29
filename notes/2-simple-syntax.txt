@@ -1,0 +1,147 @@
+2. A Simple Syntax Directed Translator
+
+fragment:
+{
+    int i; 
+    int j; 
+    float[100] a; 
+    float v;
+    float x;
+
+    while (true) {
+        do i = i+1; while (a[i] < v);
+        do j = j-1; while (a[j] > v);
+        if (i >= j) break;
+        x = a[i]; a[i] = a[j]; a[j] = x;
+    }
+}
+
+intermediate representation:
+1. i = i + 1
+2. t1 = a[i]
+3. if t1 < v goto 1
+4. j = j - 1
+5. t2 = a[j]
+6. if t2 > v goto 4
+7. ifFalse i >= j goto 9
+8. goto 14
+9. x = a[i]
+10. t3 = a[j]
+11. a[i] = t3
+12. a[j] = x
+13. goto 1
+14.
+
+Context Free Grammar
+Backus-Naur Form
+
+Infix Form:
+9 - 5 + 2
+
+Postfix Form:
+9 5 - 2 +
+
+Lexical Analyzer - Splits input into basic units for syntax analysis called tokens
+Intermediate Code Generation - 
+    Syntax Trees, a representation of the source program
+    Three Address Code, an intermediate structure
+
+Three Address Code:
+Named because it's instructions are of the form x = y `op` z
+Where x, y, and z are the addresses of the operands and the result
+
+Production rules:
+An if expression of the form:
+if (expression) statement else statement
+
+Can be described using the following production:
+stmt -> "if" '(' expr ')' stmt "else" stmt
+"if", '(', ')', and "else" are terminal symbols
+stmt and expr are non-terminal symbols
+
+A CFG has four components:
+1. Terminals
+2. Non-Terminals
+3. Productions
+4. A Start Symbol 
+
+For example:
+list: list '+' digit 
+    | list '-' digit
+    | digit
+
+terminals:
++ - 0 1 2 3 4 5 6 7 8 9 
+
+epsilon:
+ε - string of zero terminals, the empty string
+
+Parse Trees:
+A: X Y Z
+        A          
+  +---  |  ---+  
+  |     |     |  
+  X     Y     Z  
+
+A: X Y 
+ | Z
+        A               A  
+  +---     ---+         |  
+  |           |         |  
+  X           Y         Z  
+
+ambiguity
+a grammar can have more than one parse tree for a string of terminals
+
+** to show that a grammar is ambiguous, all we need to do is show that a terminal string
+   is the **yield** of more than one parse tree **
+
+for example:
+string: string + string
+      | string - string
+      | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+        string                   string                           string                 
+    +--    |   ---+          +--    |   ---+                         |                   
+    |      |      |          |      |      |                         |                   
+ string    +   string     string    -   string     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 
+
+associativity of 9 - 5 + 2
+
+Parse Trees
+(9 - 5) + 2
+                       string        
+           +----------    |   ---+   
+           |              |      |   
+        string            |   string 
+    +--    |   ---+       |      |   
+    |      |      |       |      |   
+ string    |   string     |      |   
+    |      |      |       |      |   
+    |      |      |       |      |   
+    9      -      5       +      2          <--- the "yield" of terminals
+                                     
+9 - (5 + 2)
+        string                       
+    +--    |   -----------+          
+    |      |              |          
+    |      |           string        
+    |      |      +---    |   ---+   
+    |      |      |       |      |   
+ string    |   string     |   string 
+    |      |      |       |      |   
+    |      |      |       |      |   
+    9      -      5       +      2          <--- the "yield" of terminals   
+
+Ex. 2.2.1
+S : S S '+' 
+  | S S '*' 
+  | 'a'
+a) aa+a*
+    1. a = S: 'a'
+    2. b = S: 'a'
+    3. c = S: a b '+'
+    4. d = S: 'a'
+    5. e = c d '*'
+
+

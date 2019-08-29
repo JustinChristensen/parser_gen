@@ -1,0 +1,71 @@
+1. Introduction
+
+position = initial + rate * 60
+
+tokens:
+(id, 1)
+(=)
+(id, 2)
+(+)
+(id, 3)
+(*)
+(int, 60)
+
+st:
+(1, "position")
+(2, "initial")
+(3, "rate")
+
+example phases:
+1. lexical analysis (lexing, scanning)
+2. syntax analysis (parsing)
+3. semantic analysis
+4. intermediate representations
+5. optimization
+6. code generator
+
+compiler construction tools
+1. parser generators (yacc, bison, happy)
+2. scanner generators (lex, flex, alex)
+3. syntax directed translators
+4. code generator generators
+5. data flow analysis engines
+6. compiler construction toolkits
+
+RISC (Reduced Instruction-Set Computer)
+CISC (Complex Instruction-Set Computer)
+https://cs.stackexchange.com/questions/269/why-would-anyone-want-cisc
+https://en.wikipedia.org/wiki/MIPS_architecture
+https://www.mipsopen.com/resources/download/
+
+Hardware Synthesis Tools:
+Translate RTL (register transfer level) descriptions into gates
+1. Verilog
+2. VHDL (very high speed integrated circuit hardware description language)
+
+
+
+Static vs Dynamic
+static - compiler making decisions
+dynamic - decisions made at runtime
+
+Environment and State:
+names -> locations -> values
+x        0x...        "hello"
+
+Call By Value:
+The value of the variable is copied in memory to the called procedure. 
+
+Call By Reference:
+The address of the variable is passed to the called procedure
+
+Call By Name:
+Thinky thunks.
+
+Aliasing:
+p(x, y) {
+    x[2] = 1 // x[2] == y[2] == 1
+}
+int a[10];
+z = p(a, a);
+

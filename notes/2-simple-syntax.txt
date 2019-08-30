@@ -458,3 +458,96 @@ expr: "let" decls "in" expr
     | "var" id
 
 parse expr "var let" <--- let would be treated as an identifier here
+
+Symbol Tables
+data structures used by compilers to hold information about source-program constructs
+- essentially a bridge from the later phases of the compiler to the source program syntax as
+  it was written by the author
+- usually a hash table, could be other things, should probably support efficient lookup 
+- could be a stack of symbol tables if scope is needed
+- parser has the context to know whether to create or update a symbol table entry
+- without a stack, and with a global hash table, entries have to be created or destroyed upon block
+  entrance or exit, respectively.
+
+most closely nested rule:
+find x starting from the top of the stack and working outwards
+
+block stack example (using a pair of globals, for max stack size 1):
+    struct env *top, *saved;
+
+    prog: block             { top = null }
+    block: '{'              { saved = top; top = new_env(); }
+            stmts '}'       { top = saved; }
+    stmts: stmts stmt
+    stmt: block | decl
+    decl: type id           { 
+                                struct symbol *sym = new_sym();
+                                sym->id = $2
+                                sym->type = $1
+                                top->put(sym}
+                            }
+
+Two kinds of Intermediate Representations for this chapter:
+Syntax Trees - allows for better optimization in later passes
+Three Address Code
+
+Translation Scheme
+program: block                      { program.n = block.n }
+block: '{' stmts '}'                { block.n = stmts.n }
+stmts: stmts' stmt                  { stmts.n = seq(stmts'.n, stmt.n) }
+     | ε                            { stmts.n = null }
+stmt: expr ';'                      { stmt.n = eval(expr.n) }
+    | if '(' expr ')' stmt'         { stmt.n = if(expr.n, stmt'.n) }
+    | while '(' expr ')' stmt'      { stmt.n = while(expr.n, stmt'.n) }
+    | do stmt' while '(' expr ')'   { stmt.n = do(expr.n, stmt'.n) }
+    | block                         { stmt.n = block.n }
+expr: rel = expr'                   { expr.n = assign(rel.n, expr'.n) }     <---- but is it grammatically correct to have a relation on the lhs of an assignment?
+    | rel                           { expr.n = rel.n }
+rel: rel' '<' add                   { rel.n = lt(rel'.n, add.n) }
+   | rel' "<=" add                  { rel.n = lteq(rel'.n, add.n) }
+   | add                            { rel.n = add.n }
+add: add' '+' term                  { add.n = add(add'.n, term.n) }
+   | term                           { add.n = term.n }
+term: term' '*' factor              { term.n = mult(term'.n, factor.n) }
+    | factor                        { term.n = factor.n }
+factor: '(' expr ')'                { factor.n = expr.n }
+      | num                         { factor.n = num(num.value) }
+
+See: sdt.txt in this directory
+
+The number of non-terminals for expressions will be equal to the number of precedence
+levels plus one
+
+Static Checks:
+- ensuring that an identifier is declared at most once in a scope (grammar can't ensure that)
+- type checking, coercion
+
+Three Address Code
+generally, x = y `op` z
+
+Arrays: 
+x[y] = z
+x = y[z]
+
+Conditionals:
+ifFalse x goto L    <-- label "L"
+ifTrue x goto L
+goto L
+
+Labels:
+L: x = y `op` z
+goto L
+
+Assignment:
+x = y
+
+Syntax -> Three Address:
+a[i] = 2 * a[j-k]
+
+Generates:
+t3 = j - k
+t2 = a[t3]
+t1 = 2 * t2
+a[i] = t1
+
+

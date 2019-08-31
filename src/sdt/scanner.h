@@ -1,6 +1,8 @@
 #ifndef SCANNER_H_
 #define SCANNER_H_
 
+#include <stdlib.h>
+
 enum token_type {
     T_IF = 256,
     T_WHILE,

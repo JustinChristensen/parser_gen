@@ -7,15 +7,23 @@ enum token_type {
     T_IF = 256,
     T_WHILE,
     T_DO,
-    T_LTEQ,
-    T_ID
+    T_LT_EQ,
+    T_ID,
+    T_NUM
+};
+
+struct location {
+    int line;
+    int col;
 };
 
 struct token {
-    short type; 
-    union {     
+    short type;
+    struct location loc;
+    union {
         void *nothing;
         char *id;
+        int num;
     };
 };
 
@@ -24,9 +32,15 @@ struct token_list {
     size_t size;
 };
 
-struct token *token(char *input);
+struct scan_result {
+    struct token *token;
+    char *input;
+};
+
+struct scan_result *token(char *input);
 struct token_list *tokens(char *input);
-struct token *init_token(enum token_type type, void *val);
+struct token *init_token(short type, void *val);
 void free_token(struct token *token);
+char *lexeme_for(short type);
 
 #endif // SCANNER_H_

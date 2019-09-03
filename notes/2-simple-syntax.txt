@@ -2,9 +2,9 @@
 
 fragment:
 {
-    int i; 
-    int j; 
-    float[100] a; 
+    int i;
+    int j;
+    float[100] a;
     float v;
     float x;
 
@@ -42,7 +42,7 @@ Postfix Form:
 9 5 - 2 +
 
 Lexical Analyzer - Splits input into basic units for syntax analysis called tokens
-Intermediate Code Generation - 
+Intermediate Code Generation -
     Syntax Trees, a representation of the source program
     Three Address Code, an intermediate structure
 
@@ -63,32 +63,32 @@ A CFG has four components:
 1. Terminals
 2. Non-Terminals
 3. Productions
-4. A Start Symbol 
+4. A Start Symbol
 
 For example:
-list: list '+' digit 
+list: list '+' digit
     | list '-' digit
     | digit
 
 terminals:
-+ - 0 1 2 3 4 5 6 7 8 9 
++ - 0 1 2 3 4 5 6 7 8 9
 
 epsilon:
 ε - string of zero terminals, the empty string
 
 Parse Trees:
 A: X Y Z
-        A          
-  +---  |  ---+  
-  |     |     |  
-  X     Y     Z  
+        A
+  +---  |  ---+
+  |     |     |
+  X     Y     Z
 
-A: X Y 
+A: X Y
  | Z
-        A               A  
-  +---     ---+         |  
-  |           |         |  
-  X           Y         Z  
+        A               A
+  +---     ---+         |
+  |           |         |
+  X           Y         Z
 
 ambiguity
 a grammar can have more than one parse tree for a string of terminals
@@ -101,41 +101,41 @@ string: string + string
       | string - string
       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
-        string                   string                           string                 
-    +--    |   ---+          +--    |   ---+                         |                   
-    |      |      |          |      |      |                         |                   
- string    +   string     string    -   string     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 
+        string                   string                           string
+    +--    |   ---+          +--    |   ---+                         |
+    |      |      |          |      |      |                         |
+ string    +   string     string    -   string     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 associativity of 9 - 5 + 2
 
 Parse Trees
 (9 - 5) + 2
-                       string        
-           +----------    |   ---+   
-           |              |      |   
-        string            |   string 
-    +--    |   ---+       |      |   
-    |      |      |       |      |   
- string    |   string     |      |   
-    |      |      |       |      |   
-    |      |      |       |      |   
+                       string
+           +----------    |   ---+
+           |              |      |
+        string            |   string
+    +--    |   ---+       |      |
+    |      |      |       |      |
+ string    |   string     |      |
+    |      |      |       |      |
+    |      |      |       |      |
     9      -      5       +      2          <--- the "yield" of terminals
-                                     
+
 9 - (5 + 2)
-        string                       
-    +--    |   -----------+          
-    |      |              |          
-    |      |           string        
-    |      |      +---    |   ---+   
-    |      |      |       |      |   
- string    |   string     |   string 
-    |      |      |       |      |   
-    |      |      |       |      |   
-    9      -      5       +      2          <--- the "yield" of terminals   
+        string
+    +--    |   -----------+
+    |      |              |
+    |      |           string
+    |      |      +---    |   ---+
+    |      |      |       |      |
+ string    |   string     |   string
+    |      |      |       |      |
+    |      |      |       |      |
+    9      -      5       +      2          <--- the "yield" of terminals
 
 Ex. 2.2.1
-S : S S '+' 
-  | S S '*' 
+S : S S '+'
+  | S S '*'
   | 'a'
 a) aa+a*
     1. a = S: 'a'
@@ -159,15 +159,15 @@ expr = 9 - 5 + 2
 expr.t = 95-2+
 
                     expr.t = 95-2+
-           +----------    |   ---+   
-           |              |      |   
+           +----------    |   ---+
+           |              |      |
       expr.t = 95-        |   term.t = 2
-    +--    |   ---+       |      |   
-expr.t = 9 |      |       |      |   
-    |      | term.t = 5   |      |   
-term.t = 9 |      |       |      |   
-    |      |      |       |      |   
-    9      -      5       +      2          
+    +--    |   ---+       |      |
+expr.t = 9 |      |       |      |
+    |      | term.t = 5   |      |
+term.t = 9 |      |       |      |
+    |      |      |       |      |
+    9      -      5       +      2
 
 Infix to Postfix:
 
@@ -200,41 +200,41 @@ void visit(node) {
 Semantic Actions:
 expr: expr₁ + term { print('+') }
 expr: expr₁ - term { print('+') }
-expr: term 
+expr: term
 term: 0 | 1 | ...  { print('N') }
 
 
-                      +------------------------------------  expr  ----------------------------------+       
-                      |                                        |  |                                  |       
-                      |                                        |  |                                  |       
-                    expr  -----------------------------+       |  +--------------+                   |       
-       +----------    |   ---------+                   |       |                 |                   |       
-       |              |            |                   |       |                 |                   |       
-       |              |            |                   |       |                 |                   |       
-     expr             |          term                  |       |               term                  |       
-       |              |            |                   |       |                 |                   |       
-       |              |            |                   |       |                 |                   |       
-     term             |            |                   |       |                 |                   |       
-       |              |       +----+                   |       |            +----+                   |       
-  +----+              |       |    |                   |       |            |    |                   |       
-  |    |              |       |    |                   |       |            |    |                   |       
-  |    |              |       |    |                   |       |            |    |                   |       
-  9    |              -       5    |                   |       +            2    |                   |       
-       |                           |                   |                         |                   |       
-       |                           |                   |                         |                   |       
+                      +------------------------------------  expr  ----------------------------------+
+                      |                                        |  |                                  |
+                      |                                        |  |                                  |
+                    expr  -----------------------------+       |  +--------------+                   |
+       +----------    |   ---------+                   |       |                 |                   |
+       |              |            |                   |       |                 |                   |
+       |              |            |                   |       |                 |                   |
+     expr             |          term                  |       |               term                  |
+       |              |            |                   |       |                 |                   |
+       |              |            |                   |       |                 |                   |
+     term             |            |                   |       |                 |                   |
+       |              |       +----+                   |       |            +----+                   |
+  +----+              |       |    |                   |       |            |    |                   |
+  |    |              |       |    |                   |       |            |    |                   |
+  |    |              |       |    |                   |       |            |    |                   |
+  9    |              -       5    |                   |       +            2    |                   |
+       |                           |                   |                         |                   |
+       |                           |                   |                         |                   |
 { print ('9') }             { print ('5') }     { print ('-') }           { print ('2') }     { print ('+') }
 
 
-**Semantically, this prints the translation as the tree is traversed, whereas 
+**Semantically, this prints the translation as the tree is traversed, whereas
 the above semantics (with <>) builds up a string to be a printed.**
 
-We could also have built up a full AST if we needed to. Lots of possibilities with semantic actions. 
+We could also have built up a full AST if we needed to. Lots of possibilities with semantic actions.
 
 AST Example:
 data Expr
     = Add Expr Term
     | Sub Expr Term
-    | Term Int    
+    | Term Int
 
 Parsing
 The process of determining how a string of terminals can be generated by a grammar
@@ -263,7 +263,7 @@ stmt: expr ';'
 optexpr: ε
        | expr
 
-lookahead symbol: 
+lookahead symbol:
 initially the first terminals of a string
 then successive terminals after that
 
@@ -274,20 +274,20 @@ for ( ; expr ; expr ) other
  ↑  // lookahead
 
 // doesn't begin with "expr", backtrack 1
--> "expr" ';'                     
+-> "expr" ';'
    "if" '(' "expr" ')' stmt
    "for" '(' optexpr ';' optexpr ';' optexpr ')' stmt
    "other"
 
 // doesn't begin with "if", backtrack 1
-   "expr" ';'                     
+   "expr" ';'
 -> "if" '(' "expr" ')' stmt
    "for" '(' optexpr ';' optexpr ';' optexpr ')' stmt
    "other"
 
 // sweet, we found a production that begins with "for"
 // try match the rest
-   "expr" ';'                     
+   "expr" ';'
    "if" '(' "expr" ')' stmt
 -> "for" '(' optexpr ';' optexpr ';' optexpr ')' stmt
    "other"
@@ -295,7 +295,7 @@ for ( ; expr ; expr ) other
 Predictive Parsing
 The simplest form of recursive descent parsing, where the lookahead symbol
 is guaranteed to uniquely determine the flow of control. The sequence of procedure
-calls forms an implicit parse tree that can be used to form an explicit one, if the semantic 
+calls forms an implicit parse tree that can be used to form an explicit one, if the semantic
 actions will it so.
 
 match(for)
@@ -309,7 +309,7 @@ match(')')
 match(stmt) -> match(other)
 
 every time we match a terminal we can advance the lookahead symbol
-e.g. if (match(lookahead, ';')) 
+e.g. if (match(lookahead, ';'))
         lookahead = next();
 
 a _translation scheme_ is formed by extending a _grammar_ (adding semantic actions to it)
@@ -328,7 +328,7 @@ We need a grammar that facilitates translation, and a different grammar that fac
 
 expr: expr + term { print('+') }    <-- left recursive, would loop forever in a top down parser
     | expr - term { print('-') }
-    | term 
+    | term
 term: 0 | 1 | ...  { print('N') }
 
 ASTs:
@@ -338,7 +338,7 @@ the terminal symbols are implied by the structure:
 
 -- single non-terminals like term are replaced with their terminals
 -- AST
-data Expr 
+data Expr
     = Add Expr Int     -- note the missing terminal, +, and the fact that Term has been replaced with Int
     | Sub Expr Int     -- note the missing terminal, -  and the fact that Term has been replaced with Int
     | Term Int
@@ -350,12 +350,12 @@ rest: + term { print('+') } rest
     | ε
 term: 0 | 1 | ...  { print('N') }
 
-** NOTE that none head symbols of any of the production rules match the 
+** NOTE that none head symbols of any of the production rules match the
 non-terminal on the left hand side, so the left recursion has been eliminated **
-    
-************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************ 
+
+************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************
 Left Recursion Elimination (adds a new non-terminal, R, to the grammar):
-A: Aa   
+A: Aa
  | Ab
  | c
    ↑ <- left recursive on non-terminal A, infinite loop
@@ -368,7 +368,7 @@ R: aR
  | ε
    ↑ <- no head symbols matching the lhs non-terminal
    {c,a,b,ε}
-************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************ 
+************ AVOIDING INFINITE LOOPS IN TOP DOWN PARSERS ************
 
 Simplifications
 
@@ -376,7 +376,7 @@ Simplifications
     void rest() {
         if (lookahead == '+') {
             match('+'); term(); print('+'); rest();
-        } 
+        }
         elseif (lookahead == '-') {
             match('-'); term(); print('-'); rest();
         }
@@ -389,7 +389,7 @@ Simplifications
         while (true) {
             if (lookahead == '+') {
                 match('+'); term(); print('+');
-            } 
+            }
             elseif (lookahead == '-') {
                 match('-'); term(); print('-');
             }
@@ -405,7 +405,7 @@ Simplifications
         term();
         rest();
     }
-    
+
     becomes:
 
     void expr() {
@@ -422,16 +422,16 @@ Adding ids, multiplication, and division:
 Order dictates how tightly operators bind to their operands
 expr: expr + term   { print('+') }    <-- expr bind least tightly
     | expr - term   { print('-') }
-    | term 
+    | term
 term: term * factor { print('*') }
     | term / factor { print('/') }
     | factor
-factor: ( expr ) 
+factor: ( expr )
       | num         { print(num.value) }
       | id          { print(id.lexeme) }
 
 
-* Chite space generally eliminated by the lexical analyzer, incorporating it into 
+* Chite space generally eliminated by the lexical analyzer, incorporating it into
 the languages grammar would be a huge pain in the ass
 TODO: look at the formal grammars for whitespace sensitive languages like Python
 https://docs.python.org/3/reference/grammar.html
@@ -442,7 +442,7 @@ suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
 as above
 
 * Note that the above is only sort of true for top down parsers written in languages
-that support higher order functions, because the procedures are relatively easy to bake 
+that support higher order functions, because the procedures are relatively easy to bake
 whitespace and comment elimination into:
 letT = elimWs(keyword("let");
 runParser letT "let // let statement"
@@ -463,7 +463,7 @@ Symbol Tables
 data structures used by compilers to hold information about source-program constructs
 - essentially a bridge from the later phases of the compiler to the source program syntax as
   it was written by the author
-- usually a hash table, could be other things, should probably support efficient lookup 
+- usually a hash table, could be other things, should probably support efficient lookup
 - could be a stack of symbol tables if scope is needed
 - parser has the context to know whether to create or update a symbol table entry
 - without a stack, and with a global hash table, entries have to be created or destroyed upon block
@@ -480,7 +480,7 @@ block stack example (using a pair of globals, for max stack size 1):
             stmts '}'       { top = saved; }
     stmts: stmts stmt
     stmt: block | decl
-    decl: type id           { 
+    decl: type id           {
                                 struct symbol *sym = new_sym();
                                 sym->id = $2
                                 sym->type = $1
@@ -525,7 +525,7 @@ Static Checks:
 Three Address Code
 generally, x = y `op` z
 
-Arrays: 
+Arrays:
 x[y] = z
 x = y[z]
 
@@ -551,3 +551,46 @@ t1 = 2 * t2
 a[i] = t1
 
 
+Given the left recursive grammar:
+add: add + num
+   | num
+
+And:
+An abstract syntax tree is just a parse tree with extra syntactic noise removed.
+
+        add
+       /   \
+     add    \        <-- lower binds more tightly, i.e. (3 + 4) + 5
+     /  \    \
+   add   \    \
+    |     \    \
+    3  +  4  +  5
+
+Problem:
+Eliminating left recursion leads to a parse tree that doesn't reflect the left associativity semantics of
+a left-recursive binary operation:
+add: num add'
+add': + num add'
+    | e
+
+   add
+    |   \
+    |    add'
+    |     |   \
+    |     |    add'         <-- lower binds more tightly, i.e. 3 + (4 + 5)
+    |     |     |  \
+    |     |     |   add'
+    |     |     |    |
+    |     |     |    e
+    3  +  4  +  5
+
+https://cs.stackexchange.com/questions/43066/removing-left-recursion-in-grammar-while-maintaining-left-association-of-operato
+
+       lteq_rel
+       /    \
+     lt_rel  \
+    /   \     \
+add_rel  \     \
+  |       \     \
+  |       |      \
+ add  <  add  <=  add

@@ -3,24 +3,32 @@
 #include "parser.h"
 #include "scanner.h"
 
-bool peek(struct parse_context *context, short token_type) {
-    return context->lookahead->type == token_type;
+void *sast(struct parse_context *context, void *ast) {
+    context->ast = ast;
+    return ast;
 }
 
-struct parse_context *expect(struct parse_context *context, short expected_token_type) {
-    short actual_token_type = context->lookahead->type;
+struct token *peek(struct parse_context *context, short token_type) {
+    struct token *token = NULL;
+    if (context->lookahead->type == token_type) {
+        token = context->lookahead;
+    }
+    return token;
+}
 
-    if (actual_token_type == expected_token_type) {
+struct token *expect(struct parse_context *context, short expected_token_type) {
+    struct token *token = NULL;
+    if (peek(context, expected_token_type)) {
         struct scan_result res = token(context->input);
         free_token(context->lookahead);
-        context->lookahead = scan_result->token;
+        token = context->lookahead = scan_result->token;
         context->input = scan_result->input;
         free(res);
     } else {
-        context = parse_error(context, expected_token_type);
+        parse_error(context, expected_token_type);
     }
 
-    return context;
+    return token;
 }
 
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type) {
@@ -44,17 +52,12 @@ char *display_parse_error(struct parse_error *parse_error) {
     return display_str;
 }
 
-bool has_error(struct parse_context *context) {
-    return context->parse_error != NULL;
-}
-
 struct program *program(struct parse_context *context) {
     struct program *program = NULL;
     struct block *block = NULL;
 
     if (block = block(context)) {
-        program = init_program(block);
-        context->ast = program;
+        program = sast(context, init_program(block));
     }
 
     return program;
@@ -94,26 +97,90 @@ struct stmt *stmt(struct parse_context *context) {
     }
 
     if (stmt_val) {
-        stmt = init_stmt(stmt_type, stmt_val);
-        context->ast = stmt;
+        stmt = sast(context, init_stmt(stmt_type, stmt_val));
     }
 
     return stmt;
 }
 
 struct expr_stmt *expr_stmt(struct parse_context *context) {
+    struct expr_stmt *expr_stmt = NULL;
+    struct expr *expr = NULL;
+
+    if (expr = expr(context)) {
+        if (expect(context, ';')) {
+            expr_stmt = sast(context, init_expr_stmt(expr));
+        }
+    }
+
+    return expr_stmt;
 }
 
 struct if_stmt *if_stmt(struct parse_context *context) {
+    struct if_stmt *if_stmt = NULL;
+
+    if (expect(context, T_IF) && expect(context, '(')) {
+        struct expr *expr = NULL;
+        if (expr = expr(context)) {
+            if (expect(context, ')')) {
+                struct stmt *stmt = NULL;
+                if (stmt = stmt(context)) {
+                    if_stmt = sast(context, init_if_stmt(expr, stmt));
+                }
+            }
+        }
+    }
+
+    return if_stmt;
 }
 
 struct while_stmt *while_stmt(struct parse_context *context) {
+    struct while_stmt *while_stmt = NULL;
+
+    if (expect(context, T_WHILE) && expect(context, '(')) {
+        struct expr *expr = NULL;
+        if (expr = expr(context)) {
+            if (expect(context, ')')) {
+                struct stmt *stmt = NULL;
+                if (stmt = stmt(context)) {
+                    while_stmt = sast(context, init_while_stmt(expr, stmt));
+                }
+            }
+        }
+    }
+
+    return while_stmt;
 }
 
 struct do_stmt *do_stmt(struct parse_context *context) {
+    struct do_stmt *do_stmt = NULL;
+
+    if (expect(context, T_DO)) {
+        struct stmt *stmt = NULL;
+        if (stmt = stmt(context)) {
+            if (expect(context, T_WHILE) && expect(context, '(')) {
+                struct expr *expr = NULL;
+                if (expr = expr(context)) {
+                    if (expect(context, ')') && expect(context, ';')) {
+                        do_stmt = sast(context, init_do_stmt(stmt, expr));
+                    }
+                }
+            }
+        }
+    }
+
+    return do_stmt;
 }
 
 struct block_stmt *block_stmt(struct parse_context *context) {
+    struct block_stmt *block_stmt = NULL;
+    struct block *block = NULL;
+
+    if (block = block(context)) {
+        block_stmt = sast(context, init_block_stmt(block));
+    }
+
+    return block_stmt;
 }
 
 struct expr *expr(struct parse_context *context) {
@@ -125,120 +192,124 @@ struct expr *expr(struct parse_context *context) {
         void *expr_val expr_val;
 
         if (peek(context, '=')) {
-            expr_type = ASSIGN;
-            expr_val = assign_expr(context);
+            expect(context, '=');
+            struct expr *rhs = NULL;
+
+            if (rhs = expr(context)) {
+                expr_type = ASSIGN;
+                expr_val = sast(context, init_assign_expr(rel, expr));
+            }
         } else {
             expr_type = REL;
-            expr_val = init_rel_expr(rel);
+            expr_val = sast(context, init_rel_expr(rel));
         }
 
         if (expr_val) {
-            expr = init_expr(expr_type, expr_val);
-            context->ast = expr;
+            expr = sast(context, init_expr(expr_type, expr_val));
         }
     }
 
     return expr;
 }
 
-struct assign_expr *assign_expr(struct parse_context *context) {
-}
-
 struct rel *rel(struct parse_context *context) {
     struct rel *rel = NULL;
-    struct add *head = NULL;
+    struct add *add = NULL;
 
-    if (head = add(context)) {
-        rel = rel_rest(context, head);
+    if (add = add(context)) {
+        rel = rel_rest(context, add);
     }
 
     return rel;
 }
 
-struct rel *rel_rest(struct parse_context *context, struct add *head) {
-    struct rel *rel = NULL;
-    enum rel_type rel_type;
-    void *rel_val = NULL;
-    struct add *add = NULL;
+struct rel *rel_rest(struct parse_context *context, struct add *add) {
+    enum rel_type = ADD;
+    void *rel_val = sast(context, init_add_rel(add));
+    struct rel *rel = sast(context, init_rel(rel_type, rel_val));
 
-    if (peek(context, '<')) {
-        context = expect(context, '<');
-        rel_type = LT;
-        if (add = add(context)) {
-            rel_val = init_lt_rel(head, add);
+    while (true) {
+        if (peek(context, '<')) {
+            expect(context, '<');
+            if (add = add(context)) {
+                rel_type = LT;
+                rel_val = sast(context, init_lt_rel(rel, add));
+                rel = sast(context, init_rel(rel_type, rel));
+                continue;
+            }
+        } else if (peek(context, T_LT_EQ)) {
+            expect(context, T_LT_EQ);
+            if (add = add(context)) {
+                rel_type = LT_EQ;
+                rel_val = sast(context, init_lteq_rel(rel, add));
+                rel = sast(context, init_rel(rel_type, rel_val));
+                continue;
+            }
         }
-        rel = rel_rest(context, head);
-    } else if (peek(context, T_LT_EQ)) {
-        context = expect(context, T_LT_EQ);
-        rel_type = LT_EQ;
-        if (add = add(context)) {
-            rel_val = init_lteq_rel(, add);
-        }
-        rel = rel_rest(context, head);
-    } else {
-        rel_type = ADD;
-        rel_val = init_add_rel(head);
-    }
+        break;
+    };
 
-    if (rel_val) {
-        rel = init_rel(rel_type, rel_val);
-        context->ast = rel;
-    }
+    return rel;
 }
-
 
 struct add *add(struct parse_context *context) {
     struct add *add = NULL;
-    enum add_type add_type;
-    void *add_val = NULL;
+    struct term *term = NULL;
 
-    if (peek(context, '+')) {
-        add_type = PLUS;
-        add_val = plus_add(context);
-    } else {
-        add_type = TERM;
-        add_val = term_add(context);
-    }
-
-    if (add_val) {
-        add = init_add(add_type, add_val);
-        context->ast = add;
+    if (term = term(context)) {
+        add = add_rest(context, term);
     }
 
     return add;
 }
 
-struct plus_add *plus_add(struct parse_context *context) {
-}
+struct add *add_rest(struct parse_context *context, struct term *term) {
+    enum add_type = TERM;
+    void *add_val = sast(context, init_term_add(term));
+    struct add *add = sast(context, init_add(add_type, add_val));
 
-struct term_add *term_add(struct parse_context *context) {
+    while (peek(context, '+')) {
+        expect(context, '+');
+        if (term = term(context)) {
+            add_type = PLUS;
+            add_val = sast(context, init_plus_add(add, term));
+            add = sast(context, init_add(add_type, add_val));
+            continue;
+        }
+        break;
+    };
+
+    return add;
 }
 
 struct term *term(struct parse_context *context) {
     struct term *term = NULL;
-    enum term_type term_type;
-    void *term_val = NULL;
+    struct factor *factor = NULL;
 
-    if (peek(context, '*')) {
-        term_type = MULT;
-        term_val = mult_term(context);
-    } else {
-        term_type = FACTOR;
-        term_val = factor_term(context);
-    }
-
-    if (term_val) {
-        term = init_term(term_type, term_val);
-        context->ast = term;
+    if (factor = factor(context)) {
+        term = term_rest(context, factor);
     }
 
     return term;
 }
 
-struct mult_term *mult_term(struct parse_context *context) {
-}
+struct term *term_rest(struct parse_context *context, struct factor *factor) {
+    enum term_type = FACTOR;
+    void *term_val = sast(context, init_factor_term(factor));
+    struct term *term = sast(context, init_term(term_type, term_val));
 
-struct factor_term *factor_term(struct parse_context *context) {
+    while (peek(context, '*')) {
+        expect(context, '*');
+        if (factor = factor(context)) {
+            term_type = MULT;
+            term_val = sast(context, init_mult_term(term, factor));
+            term = sast(context, init_term(term_type, term_val));
+            continue;
+        }
+        break;
+    };
+
+    return add;
 }
 
 struct factor *factor(struct parse_context *context) {
@@ -258,21 +329,46 @@ struct factor *factor(struct parse_context *context) {
     }
 
     if (factor_val) {
-        term = init_factor(factor_type, factor_val);
-        context->ast = factor;
+        factor = sast(context, init_factor(factor_type, factor_val));
     }
 
     return factor;
 }
 
 struct subexpr_factor *subexpr_factor(struct parse_context *context) {
+    struct subexpr_factor *subexpr_factor = NULL;
+
+    if (expect(context, '(')) {
+        struct expr *expr = NULL;
+        if (expr = expr(context)) {
+            if (expect(context, ')')) {
+                subexpr_factor = sast(context, init_subexpr_factor(expr));
+            }
+        }
+    }
+
+    return subexpr_factor;
 }
 
 struct num_factor *num_factor(struct parse_context *context) {
+    struct num_factor *num_factor = NULL;
+    struct token *token = NULL;
 
+    if (token = peek(context, T_NUM)) {
+        num_factor = sast(context, init_num_factor(token_val(token)));
+    }
+
+    return num_factor;
 }
 
 struct id_factor *id_factor(struct parse_context *context) {
+    struct id_factor *id_factor = NULL;
+    struct token *token = NULL;
 
+    if (token = peek(context, T_ID)) {
+        id_factor = sast(context, init_id_factor(token_val(token)));
+    }
+
+    return id_factor;
 }
 

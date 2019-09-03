@@ -55,18 +55,18 @@
  *  | bR
  *  | ε
  * -------------
- * 1. rel: rel' '<' add
- *       | rel' '<=' add
- *       | add
+ * 1. rel: rel' '<' add   { lt_rel }
+ *       | rel' '<=' add  { lteq_rel }
+ *       | add            { add_rel }
  *
  *    A = rel
- *    a = '<' add
- *    b = '<=' add
- *    c = add
+ *    a = '<' add { lt_rel }
+ *    b = '<=' add { lteq_rel }
+ *    c = add { add_rel }
  *
- *    rel: add rel_rest
- *    rel_rest: '<' add rel_rest
- *            | '<= add rel_rest
+ *    rel: add { add_rel } rel_rest
+ *    rel_rest: '<' add { lt_rel } rel_rest
+ *            | '<= add { lteq_rel } rel_rest
  *            | ε
  *
  * 2. add: add' '+' term
@@ -90,6 +90,7 @@
  *    term: factor term_rest
  *    term_rest: '*' factor term_rest
  *             | ε
+ *
  */
 
 /**
@@ -146,13 +147,12 @@ struct while_stmt *while_stmt(struct parse_context *context);
 struct do_stmt *do_stmt(struct parse_context *context);
 struct block_stmt *block_stmt(struct parse_context *context);
 struct expr *expr(struct parse_context *context);
-struct assign_expr *assign_expr(struct parse_context *context);
 struct rel *rel(struct parse_context *context);
-struct rel *rel_rest(struct parse_context *context, struct add *head);
+struct rel *rel_rest(struct parse_context *context, struct add *add);
 struct add *add(struct parse_context *context);
-struct add *add_rest(struct parse_context *context, struct term *head);
+struct add *add_rest(struct parse_context *context, struct term *add);
 struct term *term(struct parse_context *context);
-struct term *term_rest(struct parse_context *context, struct factor *head);
+struct term *term_rest(struct parse_context *context, struct factor *add);
 struct factor *factor(struct parse_context *context);
 struct subexpr_factor *subexpr_factor(struct parse_context *context);
 struct num_factor *num_factor(struct parse_context *context);
@@ -161,10 +161,10 @@ struct id_factor *id_factor(struct parse_context *context);
 // parser for instruction list
 struct instruction_list *instructions(struct parse_context *context);
 
+void *sast(struct parse_context *context, void *ast);
 bool peek(struct parse_context *context, short token_type);
 struct parse_context *expect(struct parse_context *context, short expected_token_type);
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type);
-bool has_error(struct parse_context *context);
 char *display_parse_error(struct *parse_error);
 void free_parse_context(struct parse_context *parse_context);
 void free_parse_error(struct parse_error *parse_error);

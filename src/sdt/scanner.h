@@ -4,7 +4,8 @@
 #include <stdlib.h>
 
 enum token_type {
-    T_IF = 256,
+    T_EOF = 256
+    T_IF,
     T_WHILE,
     T_DO,
     T_LT_EQ,
@@ -40,7 +41,9 @@ struct scan_result {
 struct scan_result *token(char *input);
 struct token_list *tokens(char *input);
 struct token *init_token(short type, void *val);
-void free_token(struct token *token);
+short token_type(struct token *token);
+void *token_val(struct token *token);
 char *lexeme_for(short type);
+void free_token(struct token *token);
 
 #endif // SCANNER_H_

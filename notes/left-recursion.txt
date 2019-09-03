@@ -1,0 +1,59 @@
++-----------------------------------+
+|    Eliminating Left Recursion     |
++-----------------------------------+
+
+
+ 1. A: Aa         A = expr           expr: expr + term
+     | Ab         a = + term             | expr - term
+     | c          b = - term             | term
+                  c = term
+                                     term: id
+                                         | num
+
+
+
+
+ 2. A: cR                            expr: term rest
+
+    R: aR                            rest: + term rest
+     | bR                                | - term rest
+     | e                                 | e
+
+                                     term: id
+                                         | num
+
+
+
+ 1. Left Recursive Parse Tree                                                      2. Right Recursive Parse Tree
+
+
+                                                                                     +------expr ----+
+                                                                                     |               |
+                                                                                     |               |
+                                                                                     |               |
+                           +-------------expr -----+                                 |       +-----rest -------------+
+                           |               |       |                                 |       |       |               |
+                           |               |       |                                 |       |       |               |
+                           |               |       |                                 |       |       |               |
+           +-------------expr -----+       |       |                                 |       |       |       +-----rest -------------+
+           |               |       |       |       |                                 |       |       |       |       |               |
+           |               |       |       |       |                                 |       |       |       |       |               |
+           |               |       |       |       |                                 |       |       |       |       |               |
+   +-----expr -----+       |       |       |       |                                 |       |       |       |       |       +-----rest
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+ term      |     term      |     term      |     term                              term      |     term      |     term      |     term
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+  id       |      num      |      num      |      num                               id       |      num      |      num      |      num
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   |       |       |       |       |       |       |                                 |       |       |       |       |       |       |
+   x       +       3       -       6       +       9                                 x       +       3       -       6       +       9
+
+ - Grows to the left (unbalanced)                                                   - Grows to the right (unbalanced)
+ - Depth of 6                                                                       - Depth of 7 (adding a non-terminal increases the height)
+
+

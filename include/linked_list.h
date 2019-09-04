@@ -19,6 +19,6 @@ struct list *append(struct list *list, void *val);
 struct node *head(struct list *list);
 void *value(struct node *node);
 bool empty(struct list *list);
-void free_list(struct list *list);
+void free_list(struct list *list, void (*free_val) (void *val));
 
 #endif // LINKED_LIST_H_

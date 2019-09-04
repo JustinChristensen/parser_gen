@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include "ast.h"
 #include "scanner.h"
 
 /**
@@ -127,7 +128,8 @@ struct parse_context {
     struct token *lookahead;
     char *input;
     void *ast;
-    struct *parse_error;
+    void (*free_ast)(void *ast);
+    struct parse_error *error;
 };
 
 /**
@@ -162,8 +164,8 @@ struct id_factor *id_factor(struct parse_context *context);
 struct instruction_list *instructions(struct parse_context *context);
 
 void *sast(struct parse_context *context, void *ast, void (*free_ast) (void *ast));
-bool peek(struct parse_context *context, short token_type);
-struct parse_context *expect(struct parse_context *context, short expected_token_type);
+struct token *peek(struct parse_context *context, short token_type);
+struct token *expect(struct parse_context *context, short expected_token_type);
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type);
 char *display_parse_error(struct parse_context *context);
 struct parse_context *init_parse_context(char *input);

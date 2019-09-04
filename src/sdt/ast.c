@@ -1,5 +1,8 @@
 #include <linked_list.h>
+#include <assert.h>
 #include "ast.h"
+
+#define FREEFN (void (*) (void *))
 
 struct program *init_program(struct block *block) {
     struct program *program = malloc(sizeof *program);
@@ -282,8 +285,7 @@ void free_program(struct program *program) {
 }
 
 void free_block(struct block *block) {
-    struct node *node = NULL;
-    free_list(block->stmts, free_stmt);
+    free_list(block->stmts, FREEFN free_stmt);
     block->stmts = NULL;
     free(block);
 }

@@ -1,17 +1,17 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdbool.h>
-#include "linked_list.h"
+#include <linked_list.h>
 
-struct node_list *init_list() {
-    struct node_list *list = malloc(*list);
+struct list *init_list() {
+    struct list *list = malloc(sizeof *list);
     assert(list != NULL);
     list->head = list->last = NULL;
     return list;
 }
 
-struct node_list *append(struct node_list *list, void *val) {
-    struct node *node = malloc(*node);
+struct list *append(struct list *list, void *val) {
+    struct node *node = malloc(sizeof *node);
     assert(node != NULL);
 
     node->val = val;
@@ -27,7 +27,7 @@ struct node_list *append(struct node_list *list, void *val) {
     return list;
 }
 
-struct node *head(struct node_list *list) {
+struct node *head(struct list *list) {
     return list->head;
 }
 
@@ -35,11 +35,11 @@ void *value(struct node *node) {
     return node->val;
 }
 
-bool empty(struct node_list *list) {
+bool empty(struct list *list) {
     return list->last == NULL;
 }
 
-void free_list(struct node_list *list, void (*free_val) (void *val)) {
+void free_list(struct list *list, void (*free_val) (void *val)) {
     struct node *node, *next = NULL;
 
     for (node = head(list); node; node = next) {

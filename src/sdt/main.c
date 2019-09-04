@@ -13,7 +13,7 @@ struct args {
 struct option_descriptor {
     struct option option;
     char *description;
-}:
+};
 
 enum opt_values {
     VERSION = 256
@@ -25,10 +25,13 @@ struct option_descriptor opt_descs[] = {
     { { NULL,        0,           NULL,  0 },       NULL }
 };
 
-void options(struct option **options, struct option_descriptor *opt_descs) {
+struct option *options(struct option_descriptor *opt_descs) {
+    static struct option opts[sizeof opt_descs / sizeof *opt_descs];
+
     for (int i = 0; i < sizeof opt_descs; i++) {
-        (*options)[0] = opt_descs[i][0];
+        opts[i] = opt_descs[i].option;
     }
+    return opts;
 }
 
 #define FLAG_INDENT "    "
@@ -40,7 +43,7 @@ void print_usage(char *prog_name, FILE *handle) {
     for (int i = 0; i < sizeof opt_descs; i++) {
         struct option opt = opt_descs[i].option;
         char *desc  = opt_descs[i].description;
-        fprintf(handle, "%-s--%-30s\t%-s", FLAG_INDENT, opt.name, DESC_SEP, desc);
+        fprintf(handle, "%-s--%-30s%-s%-s", FLAG_INDENT, opt.name, DESC_SEP, desc);
     }
     fprintf(handle, "\n");
 }
@@ -50,13 +53,10 @@ void print_version() {
 }
 
 struct args read_args(int argc, char *argv[]) {
-    struct args = { 0, NULL };
-    struct option opts[sizeof opt_descs];
+    struct args args = { 0, NULL };
     int f;
 
-    options(&opts, opt_descs);
-
-    while ((f = getopt_long(argc, argv, "h", opts, NULL)) != -1) {
+    while ((f = getopt_long(argc, argv, "h", options(opt_descs), NULL)) != -1) {
         switch (f) {
             case 'h':
                 print_usage(argv[0], stdout);
@@ -80,10 +80,10 @@ struct args read_args(int argc, char *argv[]) {
 
 #define BUFFER_SIZE 1000000
 int main(int argc, char *argv[]) {
-    struct args = read_args(argc, argv);
+    struct args args = read_args(argc, argv);
     FILE *in;
 
-    if (args.pos_arg_size != 0) {
+    if (args.pos_size != 0) {
         in = stdin;
     } else {
         in = fopen(args.pos[0], "r");
@@ -91,12 +91,13 @@ int main(int argc, char *argv[]) {
 
     if (in) {
         char input[BUFFER_SIZE] = "";
-        fread(input, *input, BUFFER_SIZE, in);
+        size_t nread = fread(input, *input, BUFFER_SIZE, in);
+        input[nread] = 0;
 
         struct parse_context *context = init_parse_context(input);
-        struct program *program;
+        struct program *ast;
 
-        if (program = program(context)) {
+        if ((ast = program(context))) {
             printf("it worked!\n");
         } else {
             fprintf(stderr, "%s", display_parse_error(context));

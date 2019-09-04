@@ -8,7 +8,7 @@
 #include "scanner.h"
 
 struct scan_result *init_scan_result(struct token *token, char *input) {
-    struct scan_result *scan_result = malloc(*scan_result);
+    struct scan_result *scan_result = malloc(sizeof *scan_result);
     assert(scan_result != NULL);
     scan_result->token = token;
     scan_result->input = input;
@@ -16,10 +16,11 @@ struct scan_result *init_scan_result(struct token *token, char *input) {
 }
 
 struct location empty_loc() {
-    return { 0, 0 };
+    struct location loc = { 0, 0 };
+    return loc;
 }
 
-void *free_scan_result(struct scan_result *scan_result) {
+void free_scan_result(struct scan_result *scan_result) {
     free_token(scan_result->token);
     scan_result->token = NULL;
     free(scan_result);
@@ -30,10 +31,15 @@ char *spaces(char *input) {
     return input;
 }
 
-struct scan_result *single(char *input, char *keyword, struct location loc, enum token_type type) {
+char *character(char *input, char c) {
+    if (*input == c) input++;
+    return input;
+}
+
+struct scan_result *single(char *input, struct location loc) {
     struct scan_result *scan_result = NULL;
     struct token *token = NULL;
-    loc->col++;
+    loc.col++;
     token = init_token(*input, loc, NULL);
     scan_result = init_scan_result(token, input + 1);
     return scan_result;
@@ -42,7 +48,7 @@ struct scan_result *single(char *input, char *keyword, struct location loc, enum
 struct scan_result *keyword(char *input, char *keyword, struct location loc, enum token_type type) {
     struct scan_result *scan_result = NULL;
 
-    if (scan_result = string(input, keyword, loc, type)) {
+    if ((scan_result = string(input, keyword, loc, type))) {
         if (isalnum(*scan_result->input)) {
             free_scan_result(scan_result);
             scan_result = NULL;
@@ -58,7 +64,7 @@ struct scan_result *string(char *input, char *string, struct location loc, enum 
     if (strcmp(input, string) == 0) {
         struct token *token = NULL;
         size_t slen = strlen(string);
-        loc->col += slen;
+        loc.col += slen;
         token = init_token(type, loc, NULL);
         scan_result = init_scan_result(token, input + slen);
     }
@@ -66,29 +72,29 @@ struct scan_result *string(char *input, char *string, struct location loc, enum 
     return scan_result;
 }
 
-struct scan_result *number(char *input, char *string, struct location loc, enum token_type type) {
+struct scan_result *number(char *input, struct location loc) {
     char *prev = input;
     struct scan_result *scan_result = NULL;
     errno = 0;
     long num = strtol(input, &input, 0);
     if (!errno) {
-        loc->col += input - prev;
-        struct token *token = init_token(T_NUM, num, loc);
+        loc.col += input - prev;
+        struct token *token = init_token(T_NUM, loc, &num);
         scan_result = init_scan_result(token, input);
     }
     return scan_result;
 }
 
-struct scan_result *identifier(char *input, char *string, struct location loc, enum token_type type) {
+struct scan_result *identifier(char *input, struct location loc) {
     struct scan_result *scan_result = NULL;
 
     if (isalpha(*input)) {
         char *prev = input;
         while (isalnum(*input)) input++;
         size_t slen = input - prev;
-        loc->col += slen;
+        loc.col += slen;
         char *id = strndup(prev, slen);
-        struct token *token = init_token(T_ID, id, loc);
+        struct token *token = init_token(T_ID, loc, id);
         scan_result = init_scan_result(token, input);
     }
 
@@ -100,25 +106,32 @@ struct scan_result *token(char *input, struct location loc) {
     struct scan_result *scan_result = NULL;
 
     input = spaces(input);
-    loc->col += input - prev;
+    loc.col += input - prev;
 
-    if (input = character(input, '\n')) {
-        loc->line++;
-        loc->col = 0;
+    if ((input = character(input, '\n'))) {
+        loc.line++;
+        loc.col = 0;
 
-        if      (scan_result = keyword(input, "if", loc, T_IF)) {}
-        else if (scan_result = keyword(input, "while", loc, T_WHILE)) {}
-        else if (scan_result = keyword(input, "do", loc, T_DO)) {}
-        else if (scan_result = string(input, "<=", loc, T_LT_EQ)) {}
-        else if (scan_result = number(input, loc, T_NUM)) {}
-        else if (scan_result = identifier(input, loc, T_ID)) {}
-        else    {scan_result = single(input, loc); }
+        if      ((scan_result = keyword(input, "if", loc, T_IF))) {}
+        else if ((scan_result = keyword(input, "while", loc, T_WHILE))) {}
+        else if ((scan_result = keyword(input, "do", loc, T_DO))) {}
+        else if ((scan_result = string(input, "<=", loc, T_LT_EQ))) {}
+        else if ((scan_result = number(input, loc))) {}
+        else if ((scan_result = identifier(input, loc))) {}
+        else    { scan_result = single(input, loc); }
     }
 
     return scan_result;
 }
 
 struct list *tokens(char *input) {
+    struct list *list = init_list();
+    struct scan_result *result = token(input, empty_loc());
+
+    do append(list, result->token);
+    while ((result = token(input = result->input, token_loc(result->token))));
+
+    return list;
 }
 
 struct token *init_token(short type, struct location loc, void *val) {
@@ -130,7 +143,7 @@ struct token *init_token(short type, struct location loc, void *val) {
             token->id = val;
             break;
         case T_NUM:
-            token->num = val;
+            token->num = *((long *) val);
             break;
         default:
             token->nothing = NULL;
@@ -159,7 +172,7 @@ void *token_val(struct token *token) {
             val = token->id;
             break;
         case T_NUM:
-            val = token->num;
+            val = &token->num;
             break;
     };
 
@@ -170,14 +183,13 @@ char *lexeme_for(short type) {
     char *lexeme;
 
     switch (type) {
-        case T_EOF:   lexeme = "end of file";  break;
         case T_IF:    lexeme = "if";           break;
         case T_WHILE: lexeme = "while";        break;
         case T_DO:    lexeme = "do";           break;
         case T_LT_EQ: lexeme = "<=";           break;
         case T_ID:    lexeme = "[identifier]"; break;
         default:
-            lexeme = calloc(2, sizeof *le);
+            lexeme = calloc(2, sizeof *lexeme);
             lexeme[0] = type;
             break;
     };

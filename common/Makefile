@@ -6,7 +6,7 @@ LDFLAGS :=
 all: $(LIB)
 
 $(LIB): linked_list.c
-	$(CC) -shared $(CFLAGS) -o $@ $+ $(LDFLAGS)
+	$(CC) -shared -I../include $(CFLAGS) -o $@ $+ $(LDFLAGS)
 
 .PHONY: clean
 clean:

@@ -1,0 +1,4 @@
+sdt
+*.o
+*.dSYM
+*.so

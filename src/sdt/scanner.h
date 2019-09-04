@@ -1,11 +1,11 @@
 #ifndef SCANNER_H_
 #define SCANNER_H_
 
+#include <linked_list.h>
 #include <stdlib.h>
 
 enum token_type {
-    T_EOF = 256
-    T_IF,
+    T_IF = 256,
     T_WHILE,
     T_DO,
     T_LT_EQ,
@@ -24,13 +24,8 @@ struct token {
     union {
         void *nothing;
         char *id;
-        int num;
+        long num;
     };
-};
-
-struct token_list {
-    struct token *head;
-    size_t size;
 };
 
 struct scan_result {
@@ -38,12 +33,24 @@ struct scan_result {
     char *input;
 };
 
-struct scan_result *token(char *input);
-struct token_list *tokens(char *input);
-struct token *init_token(short type, void *val);
+struct scan_result *init_scan_result(struct token *token, char *input);
+struct location empty_loc();
+void *free_scan_result(struct scan_result *scan_result);
+char *spaces(char *input);
+struct input *character(char *input, char c);
+struct scan_result *single(char *input, struct location loc);
+struct scan_result *keyword(char *input, char *keyword, struct location loc, enum token_type type);
+struct scan_result *string(char *input, char *string, struct location loc, enum token_type type);
+struct scan_result *number(char *input, struct location loc, enum token_type type);
+struct scan_result *identifier(char *input, struct location loc, enum token_type type);
+struct scan_result *token(char *input, struct location loc);
+struct list *tokens(char *input);
+struct token *init_token(short type, struct location loc, void *val);
+void free_token(struct token *token);
 short token_type(struct token *token);
+struct location token_loc(struct token *token);
+short token_val(struct token *token);
 void *token_val(struct token *token);
 char *lexeme_for(short type);
-void free_token(struct token *token);
 
 #endif // SCANNER_H_

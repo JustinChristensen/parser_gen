@@ -1,6 +1,6 @@
 PROG := sdt
-CFLAGS := -Wall -g -O0
-LDFLAGS :=
+CFLAGS := -Wall -g -O0 -linclude
+LDFLAGS := -lcommon
 
 .PHONY: all
 all: $(PROG)

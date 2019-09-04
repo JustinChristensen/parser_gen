@@ -1,3 +1,4 @@
+#include <linked_list.h>
 #include "ast.h"
 
 struct program *init_program(struct block *block) {
@@ -10,12 +11,14 @@ struct program *init_program(struct block *block) {
 struct block *init_block() {
     struct block *block = malloc(sizeof *block);
     assert(block != NULL);
-    block->size = 0;
+    block->stmts = init_list();
     return block;
 }
 
-// struct block *append_stmt(struct block *block, struct stmt *stmt) {
-// }
+struct block *append_stmt(struct block *block, struct stmt *stmt) {
+    append(block->stmts, stmt);
+    return block;
+}
 
 struct stmt *init_stmt(enum stmt_type type, void *val) {
     struct stmt *stmt = malloc(sizeof *stmt);
@@ -259,7 +262,7 @@ struct subexpr_factor *init_subexpr_factor(struct expr *expr) {
     return subexpr_factor;
 }
 
-struct num_factor *init_num_factor(int num) {
+struct num_factor *init_num_factor(long num) {
     struct num_factor *num_factor = malloc(sizeof *num_factor);
     assert(num_factor != NULL);
     num_factor->num = num;
@@ -279,11 +282,9 @@ void free_program(struct program *program) {
 }
 
 void free_block(struct block *block) {
-    for (int i = 0; i < block->size; i++) {
-        free_stmt(block->stmts[i]);
-        block->stmts[i] = NULL;
-    }
-
+    struct node *node = NULL;
+    free_list(block->stmts, free_stmt);
+    block->stmts = NULL;
     free(block);
 }
 

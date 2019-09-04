@@ -2,6 +2,7 @@
 #define AST_H_
 
 #include <stdlib.h>
+#include <linked_list.h>
 
 /**
  * Syntax Tree:
@@ -16,8 +17,7 @@ struct program {
 #define MAX_STATEMENTS 128
 
 struct block {
-    struct stmt *stmts[MAX_STATEMENTS];
-    size_t size;
+    struct list *stmts;
 };
 
 enum stmt_type {
@@ -178,7 +178,7 @@ struct subexpr_factor {
 };
 
 struct num_factor {
-    int num;
+    long num;
 };
 
 struct id_factor {
@@ -210,7 +210,7 @@ struct mult_term *init_mult_term(struct term *term, struct factor *factor);
 struct factor_term *init_factor_term(struct factor *factor);
 struct factor *init_factor(enum factor_type type, void *val);
 struct subexpr_factor *init_subexpr_factor(struct expr *expr);
-struct num_factor *init_num_factor(int num);
+struct num_factor *init_num_factor(long num);
 struct id_factor *init_id_factor(char *id);
 
 void free_program(struct program *program);

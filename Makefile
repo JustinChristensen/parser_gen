@@ -1,5 +1,6 @@
 TARGETS := all clean
 SUBDIRS := \
+common \
 src/sdt
 
 $(TARGETS): $(SUBDIRS)

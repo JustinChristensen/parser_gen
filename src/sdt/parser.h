@@ -161,13 +161,13 @@ struct id_factor *id_factor(struct parse_context *context);
 // parser for instruction list
 struct instruction_list *instructions(struct parse_context *context);
 
-void *sast(struct parse_context *context, void *ast);
+void *sast(struct parse_context *context, void *ast, void (*free_ast) (void *ast));
 bool peek(struct parse_context *context, short token_type);
 struct parse_context *expect(struct parse_context *context, short expected_token_type);
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type);
-char *display_parse_error(struct *parse_error);
-void free_parse_context(struct parse_context *parse_context);
-void free_parse_error(struct parse_error *parse_error);
+char *display_parse_error(struct parse_context *context);
+struct parse_context *init_parse_context(char *input);
+void free_parse_context(struct parse_context *context);
 
 #endif // PARSER_H_
 

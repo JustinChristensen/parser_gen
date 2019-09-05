@@ -1,20 +1,21 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <macros.h>
 #include "ast.h"
 #include "parser.h"
 #include "scanner.h"
 
-#define FREEFN (void (*) (void *))
-
-struct parse_context *init_parse_context(char *input) {
+struct parse_context *init_parse_context(char *input, bool debug) {
     struct parse_context *context = malloc(sizeof *context);
     assert(context != NULL);
 
-    struct scan_result *scan_result = token(input, empty_loc());
-    context->lookahead = scan_result->token;
-    context->input = scan_result->input;
+    struct scan_context scan_context_ = scan(scan_context(NULL, empty_loc(), input));
+
+    context->scan_context = scan_context_;
+    context->lookahead = token(context->scan_context);
     context->ast = context->error = NULL;
-    free(scan_result);
+    context->debug = debug;
 
     return context;
 }
@@ -43,27 +44,37 @@ struct token *peek(struct parse_context *context, short token_type) {
 
 struct token *expect(struct parse_context *context, short expected_token_type) {
     struct token *next = NULL;
+    struct scan_context scan_context = context->scan_context;
 
     if (peek(context, expected_token_type)) {
-        struct scan_result *scan_result = token(context->input, token_loc(context->lookahead));
+        if (context->debug) {
+            printf("success: expected -> '%s', got -> ", lexeme_for(expected_token_type));
+            display_token(token(scan_context));
+            printf("\n");
+        }
+        scan_context = scan(context->scan_context);
         free_token(context->lookahead);
-        next = context->lookahead = scan_result->token;
-        context->input = scan_result->input;
-        free(scan_result);
+        next = context->lookahead = token(scan_context);
     } else {
+        if (context->debug) {
+            printf("failure: expected -> '%s', got -> ", lexeme_for(expected_token_type));
+            display_token(token(scan_context));
+            printf("\n");
+        }
         parse_error(context, expected_token_type);
     }
+
+    context->scan_context = scan_context;
 
     return next;
 }
 
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type) {
-    struct token *lookahead = context->lookahead;
     struct parse_error *parse_error = malloc(sizeof *parse_error);
     assert(parse_error != NULL);
-    parse_error->loc = lookahead->loc;
+    parse_error->loc = token_loc(context->lookahead);
     parse_error->expected = expected_token_type;
-    parse_error->actual = lookahead->type;
+    parse_error->actual = token_type(context->lookahead);
     context->error = parse_error;
     return context;
 }
@@ -83,19 +94,27 @@ struct program *program(struct parse_context *context) {
     struct program *program_ = NULL;
     struct block *block_ = NULL;
 
-    if ((block_ = block(context))) {
-        program_ = sast(context, init_program(block_), FREEFN free_program);
+    if ((block_ = block(context)) && expect(context, T_EOF)) {
+        program_ = sast(context, init_program(block_), VOIDFN1 free_program);
     }
 
     return program_;
 }
 
 struct block *block(struct parse_context *context) {
-    struct block *block_ = sast(context, init_block(), FREEFN free_block);
-    struct stmt *stmt_ = NULL;
+    struct block *block_ = NULL;
 
-    while ((stmt_ = stmt(context))) {
-        append_stmt(block_, stmt_);
+    if (expect(context, '{')) {
+        struct stmt *stmt_ = NULL;
+        block_ = sast(context, init_block(), VOIDFN1 free_block);
+
+        while ((stmt_ = stmt(context))) {
+            append_stmt(block_, stmt_);
+        }
+
+        if (!expect(context, '}')) {
+            block_ = NULL;
+        }
     }
 
     return block_;
@@ -124,7 +143,7 @@ struct stmt *stmt(struct parse_context *context) {
     }
 
     if (stmt_val) {
-        stmt = sast(context, init_stmt(stmt_type, stmt_val), FREEFN free_stmt);
+        stmt = sast(context, init_stmt(stmt_type, stmt_val), VOIDFN1 free_stmt);
     }
 
     return stmt;
@@ -135,7 +154,7 @@ struct expr_stmt *expr_stmt(struct parse_context *context) {
     struct expr *expr_ = NULL;
 
     if ((expr_ = expr(context)) && expect(context, ';')) {
-        expr_stmt_ = sast(context, init_expr_stmt(expr_), FREEFN free_expr_stmt);
+        expr_stmt_ = sast(context, init_expr_stmt(expr_), VOIDFN1 free_expr_stmt);
     }
 
     return expr_stmt_;
@@ -149,7 +168,7 @@ struct if_stmt *if_stmt(struct parse_context *context) {
         if ((expr_ = expr(context)) && expect(context, ')')) {
             struct stmt *stmt_ = NULL;
             if ((stmt_ = stmt(context))) {
-                if_stmt_ = sast(context, init_if_stmt(expr_, stmt_), FREEFN free_if_stmt);
+                if_stmt_ = sast(context, init_if_stmt(expr_, stmt_), VOIDFN1 free_if_stmt);
             }
         }
     }
@@ -165,7 +184,7 @@ struct while_stmt *while_stmt(struct parse_context *context) {
         if ((expr_ = expr(context)) && expect(context, ')')) {
             struct stmt *stmt_ = NULL;
             if ((stmt_ = stmt(context))) {
-                while_stmt_ = sast(context, init_while_stmt(expr_, stmt_), FREEFN free_while_stmt);
+                while_stmt_ = sast(context, init_while_stmt(expr_, stmt_), VOIDFN1 free_while_stmt);
             }
         }
     }
@@ -182,7 +201,7 @@ struct do_stmt *do_stmt(struct parse_context *context) {
             if (expect(context, T_WHILE) && expect(context, '(')) {
                 struct expr *expr_ = NULL;
                 if ((expr_ = expr(context)) && expect(context, ')') && expect(context, ';')) {
-                    do_stmt_ = sast(context, init_do_stmt(stmt_, expr_), FREEFN free_do_stmt);
+                    do_stmt_ = sast(context, init_do_stmt(stmt_, expr_), VOIDFN1 free_do_stmt);
                 }
             }
         }
@@ -196,7 +215,7 @@ struct block_stmt *block_stmt(struct parse_context *context) {
     struct block *block_ = NULL;
 
     if ((block_ = block(context))) {
-        block_stmt_ = sast(context, init_block_stmt(block_), FREEFN free_block_stmt);
+        block_stmt_ = sast(context, init_block_stmt(block_), VOIDFN1 free_block_stmt);
     }
 
     return block_stmt_;
@@ -215,15 +234,15 @@ struct expr *expr(struct parse_context *context) {
 
             if ((rhs = expr(context))) {
                 expr_type = ASSIGN;
-                expr_val = sast(context, init_assign_expr(rel_, expr_), FREEFN free_assign_expr);
+                expr_val = sast(context, init_assign_expr(rel_, expr_), VOIDFN1 free_assign_expr);
             }
         } else {
             expr_type = REL;
-            expr_val = sast(context, init_rel_expr(rel_), FREEFN free_rel_expr);
+            expr_val = sast(context, init_rel_expr(rel_), VOIDFN1 free_rel_expr);
         }
 
         if (expr_val) {
-            expr_ = sast(context, init_expr(expr_type, expr_val), FREEFN free_expr);
+            expr_ = sast(context, init_expr(expr_type, expr_val), VOIDFN1 free_expr);
         }
     }
 
@@ -243,22 +262,22 @@ struct rel *rel(struct parse_context *context) {
 
 struct rel *rel_rest(struct parse_context *context, struct add *add_) {
     enum rel_type rel_type = ADD;
-    void *rel_val = sast(context, init_add_rel(add_), FREEFN free_add_rel);
-    struct rel *rel_ = sast(context, init_rel(rel_type, rel_val), FREEFN free_rel);
+    void *rel_val = sast(context, init_add_rel(add_), VOIDFN1 free_add_rel);
+    struct rel *rel_ = sast(context, init_rel(rel_type, rel_val), VOIDFN1 free_rel);
 
     while (true) {
         if (peek(context, '<') && expect(context, '<')) {
             if ((add_ = add(context))) {
                 rel_type = LT;
-                rel_val = sast(context, init_lt_rel(rel_, add_), FREEFN free_lt_rel);
-                rel_ = sast(context, init_rel(rel_type, rel_), FREEFN free_rel);
+                rel_val = sast(context, init_lt_rel(rel_, add_), VOIDFN1 free_lt_rel);
+                rel_ = sast(context, init_rel(rel_type, rel_), VOIDFN1 free_rel);
                 continue;
             }
         } else if (peek(context, T_LT_EQ) && expect(context, T_LT_EQ)) {
             if ((add_ = add(context))) {
                 rel_type = LT_EQ;
-                rel_val = sast(context, init_lteq_rel(rel_, add_), FREEFN free_lteq_rel);
-                rel_ = sast(context, init_rel(rel_type, rel_val), FREEFN free_rel);
+                rel_val = sast(context, init_lteq_rel(rel_, add_), VOIDFN1 free_lteq_rel);
+                rel_ = sast(context, init_rel(rel_type, rel_val), VOIDFN1 free_rel);
                 continue;
             }
         }
@@ -281,14 +300,14 @@ struct add *add(struct parse_context *context) {
 
 struct add *add_rest(struct parse_context *context, struct term *term_) {
     enum add_type add_type = TERM;
-    void *add_val = sast(context, init_term_add(term_), FREEFN free_term_add);
-    struct add *add_ = sast(context, init_add(add_type, add_val), FREEFN free_add);
+    void *add_val = sast(context, init_term_add(term_), VOIDFN1 free_term_add);
+    struct add *add_ = sast(context, init_add(add_type, add_val), VOIDFN1 free_add);
 
     while (peek(context, '+') && expect(context, '+')) {
         if ((term_ = term(context))) {
             add_type = PLUS;
-            add_val = sast(context, init_plus_add(add_, term_), FREEFN free_plus_add);
-            add_ = sast(context, init_add(add_type, add_val), FREEFN free_add);
+            add_val = sast(context, init_plus_add(add_, term_), VOIDFN1 free_plus_add);
+            add_ = sast(context, init_add(add_type, add_val), VOIDFN1 free_add);
             continue;
         }
         break;
@@ -310,14 +329,14 @@ struct term *term(struct parse_context *context) {
 
 struct term *term_rest(struct parse_context *context, struct factor *factor_) {
     enum term_type term_type = FACTOR;
-    void *term_val = sast(context, init_factor_term(factor_), FREEFN free_factor_term);
-    struct term *term_ = sast(context, init_term(term_type, term_val), FREEFN free_term);
+    void *term_val = sast(context, init_factor_term(factor_), VOIDFN1 free_factor_term);
+    struct term *term_ = sast(context, init_term(term_type, term_val), VOIDFN1 free_term);
 
     while (peek(context, '*') && expect(context, '*')) {
         if ((factor_ = factor(context))) {
             term_type = MULT;
-            term_val = sast(context, init_mult_term(term_, factor_), FREEFN free_mult_term);
-            term_ = sast(context, init_term(term_type, term_val), FREEFN free_term);
+            term_val = sast(context, init_mult_term(term_, factor_), VOIDFN1 free_mult_term);
+            term_ = sast(context, init_term(term_type, term_val), VOIDFN1 free_term);
             continue;
         }
         break;
@@ -337,13 +356,13 @@ struct factor *factor(struct parse_context *context) {
     } else if (peek(context, T_NUM)) {
         factor_type = NUM;
         factor_val = num_factor(context);
-    } else {
+    } else if (peek(context, T_ID)) {
         factor_type = ID;
         factor_val = id_factor(context);
     }
 
     if (factor_val) {
-        factor = sast(context, init_factor(factor_type, factor_val), FREEFN free_factor);
+        factor = sast(context, init_factor(factor_type, factor_val), VOIDFN1 free_factor);
     }
 
     return factor;
@@ -355,7 +374,7 @@ struct subexpr_factor *subexpr_factor(struct parse_context *context) {
     if (expect(context, '(')) {
         struct expr *expr_ = NULL;
         if ((expr_ = expr(context)) && expect(context, ')')) {
-            subexpr_factor_ = sast(context, init_subexpr_factor(expr_), FREEFN free_subexpr_factor);
+            subexpr_factor_ = sast(context, init_subexpr_factor(expr_), VOIDFN1 free_subexpr_factor);
         }
     }
 
@@ -366,8 +385,8 @@ struct num_factor *num_factor(struct parse_context *context) {
     struct num_factor *num_factor_ = NULL;
     struct token *token = NULL;
 
-    if ((token = peek(context, T_NUM))) {
-        num_factor_ = sast(context, init_num_factor(*((long*) token_val(token))), FREEFN free_num_factor);
+    if ((token = expect(context, T_NUM))) {
+        num_factor_ = sast(context, init_num_factor(token_val(token)), VOIDFN1 free_num_factor);
     }
 
     return num_factor_;
@@ -377,8 +396,8 @@ struct id_factor *id_factor(struct parse_context *context) {
     struct id_factor *id_factor_ = NULL;
     struct token *token = NULL;
 
-    if ((token = peek(context, T_ID))) {
-        id_factor_ = sast(context, init_id_factor(token_val(token)), FREEFN free_id_factor);
+    if ((token = expect(context, T_ID))) {
+        id_factor_ = sast(context, init_id_factor(token_val(token)), VOIDFN1 free_id_factor);
     }
 
     return id_factor_;

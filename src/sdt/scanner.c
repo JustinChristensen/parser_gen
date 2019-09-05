@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <linked_list.h>
 #include <ctype.h>
 #include <string.h>
@@ -7,131 +9,149 @@
 #include <errno.h>
 #include "scanner.h"
 
-struct scan_result *init_scan_result(struct token *token, char *input) {
-    struct scan_result *scan_result = malloc(sizeof *scan_result);
-    assert(scan_result != NULL);
-    scan_result->token = token;
-    scan_result->input = input;
-    return scan_result;
+struct scan_context scan_context(struct token *token, struct location loc, char *input) {
+    struct scan_context scan_context = { token, loc, input };
+    return scan_context;
+}
+
+bool scanned(struct scan_context context) {
+    return context.token != NULL;
 }
 
 struct location empty_loc() {
-    struct location loc = { 0, 0 };
+    struct location loc = { 1, 1 };
     return loc;
 }
 
-void free_scan_result(struct scan_result *scan_result) {
-    free_token(scan_result->token);
-    scan_result->token = NULL;
-    free(scan_result);
+struct scan_context eof(struct scan_context context) {
+    context.token = NULL;
+
+    if (*context.input == '\0') {
+        struct token *token = init_token(T_EOF, context.loc, NULL);
+        context.loc.col++;
+        context.input++;
+        context.token = token;
+    }
+
+    return context;
 }
 
-char *spaces(char *input) {
-    while (isblank(*input)) input++;
-    return input;
+struct scan_context single(struct scan_context context) {
+    context.token = NULL;
+    context.token = init_token(*context.input, context.loc, NULL);
+    context.loc.col++;
+    context.input++;
+    return context;
 }
 
-char *character(char *input, char c) {
-    if (*input == c) input++;
-    return input;
-}
+struct scan_context keyword(struct scan_context context, char *keyword, enum token_type type) {
+    context.token = NULL;
+    struct scan_context next = string(context, keyword, type);
 
-struct scan_result *single(char *input, struct location loc) {
-    struct scan_result *scan_result = NULL;
-    struct token *token = NULL;
-    loc.col++;
-    token = init_token(*input, loc, NULL);
-    scan_result = init_scan_result(token, input + 1);
-    return scan_result;
-}
-
-struct scan_result *keyword(char *input, char *keyword, struct location loc, enum token_type type) {
-    struct scan_result *scan_result = NULL;
-
-    if ((scan_result = string(input, keyword, loc, type))) {
-        if (isalnum(*scan_result->input)) {
-            free_scan_result(scan_result);
-            scan_result = NULL;
+    if (scanned(next)) {
+        if (isalnum(*next.input)) {
+            free_token(next.token);
+            next = context;
         }
     }
 
-    return scan_result;
+    return next;
 }
 
-struct scan_result *string(char *input, char *string, struct location loc, enum token_type type) {
-    struct scan_result *scan_result = NULL;
+struct scan_context string(struct scan_context context, char *string, enum token_type type) {
+    context.token = NULL;
+    size_t slen = strlen(string);
 
-    if (strcmp(input, string) == 0) {
-        struct token *token = NULL;
-        size_t slen = strlen(string);
-        loc.col += slen;
-        token = init_token(type, loc, NULL);
-        scan_result = init_scan_result(token, input + slen);
+    if (strncmp(string, context.input, slen) == 0) {
+        context.token = init_token(type, context.loc, NULL);
+        context.loc.col += slen;
+        context.input += slen;
     }
 
-    return scan_result;
+    return context;
 }
 
-struct scan_result *number(char *input, struct location loc) {
-    char *prev = input;
-    struct scan_result *scan_result = NULL;
+struct scan_context number(struct scan_context context) {
+    context.token = NULL;
+    char *prev = context.input;
+    long *num = malloc(sizeof *num);
     errno = 0;
-    long num = strtol(input, &input, 0);
+    *num = strtol(context.input, &context.input, 0);
     if (!errno) {
-        loc.col += input - prev;
-        struct token *token = init_token(T_NUM, loc, &num);
-        scan_result = init_scan_result(token, input);
+        context.token = init_token(T_NUM, context.loc, num);
+        context.loc.col += context.input - prev;
     }
-    return scan_result;
+    return context;
 }
 
-struct scan_result *identifier(char *input, struct location loc) {
-    struct scan_result *scan_result = NULL;
+struct scan_context identifier(struct scan_context context) {
+    context.token = NULL;
 
-    if (isalpha(*input)) {
-        char *prev = input;
-        while (isalnum(*input)) input++;
-        size_t slen = input - prev;
-        loc.col += slen;
+    if (isalpha(*context.input)) {
+        char *prev = context.input;
+        while (isalnum(*context.input)) context.input++;
+        size_t slen = context.input - prev;
         char *id = strndup(prev, slen);
-        struct token *token = init_token(T_ID, loc, id);
-        scan_result = init_scan_result(token, input);
+        context.token = init_token(T_ID, context.loc, id);
+        context.loc.col += slen;
     }
 
-    return scan_result;
+    return context;
 }
 
-struct scan_result *token(char *input, struct location loc) {
-    char *prev = input;
-    struct scan_result *scan_result = NULL;
+struct scan_context scan(struct scan_context context) {
+    context.token = NULL;
 
-    input = spaces(input);
-    loc.col += input - prev;
+    while (isspace(*context.input)) {
+        if (*context.input == '\n') {
+            context.loc.line++;
+            context.loc.col = 1;
+        } else {
+            context.loc.col++;
+        }
 
-    if ((input = character(input, '\n'))) {
-        loc.line++;
-        loc.col = 0;
-
-        if      ((scan_result = keyword(input, "if", loc, T_IF))) {}
-        else if ((scan_result = keyword(input, "while", loc, T_WHILE))) {}
-        else if ((scan_result = keyword(input, "do", loc, T_DO))) {}
-        else if ((scan_result = string(input, "<=", loc, T_LT_EQ))) {}
-        else if ((scan_result = number(input, loc))) {}
-        else if ((scan_result = identifier(input, loc))) {}
-        else    { scan_result = single(input, loc); }
+        context.input++;
     }
 
-    return scan_result;
+    if      (scanned(context = eof(context)));
+    else if (scanned(context = keyword(context, "if", T_IF)));
+    else if (scanned(context = keyword(context, "while", T_WHILE)));
+    else if (scanned(context = keyword(context, "do", T_DO)));
+    else if (scanned(context = string(context, "<=", T_LT_EQ)));
+    else if (scanned(context = number(context)));
+    else if (scanned(context = identifier(context)));
+    else (context = single(context));
+
+    return context;
+}
+
+struct token *token(struct scan_context context) {
+    return context.token;
 }
 
 struct list *tokens(char *input) {
     struct list *list = init_list();
-    struct scan_result *result = token(input, empty_loc());
+    struct scan_context context = scan(scan_context(NULL, empty_loc(), input));
 
-    do append(list, result->token);
-    while ((result = token(input = result->input, token_loc(result->token))));
+    if (scanned(context)) {
+        do { append(list, token(context)); }
+        while (token_type(token(context)) != T_EOF && scanned(context = scan(context)));
+    }
 
     return list;
+}
+
+void display_token(struct token *token) {
+    printf("type: %d", token->type);
+
+    switch (token->type) {
+        case T_ID:
+            printf(", value: %s", token->id);
+            break;
+        case T_NUM:
+            printf(", value: %ld", *token->num);
+            break;
+    }
 }
 
 struct token *init_token(short type, struct location loc, void *val) {
@@ -143,7 +163,7 @@ struct token *init_token(short type, struct location loc, void *val) {
             token->id = val;
             break;
         case T_NUM:
-            token->num = *((long *) val);
+            token->num = (long *) val;
             break;
         default:
             token->nothing = NULL;
@@ -172,7 +192,7 @@ void *token_val(struct token *token) {
             val = token->id;
             break;
         case T_NUM:
-            val = &token->num;
+            val = token->num;
             break;
     };
 
@@ -183,11 +203,13 @@ char *lexeme_for(short type) {
     char *lexeme;
 
     switch (type) {
-        case T_IF:    lexeme = "if";           break;
-        case T_WHILE: lexeme = "while";        break;
-        case T_DO:    lexeme = "do";           break;
-        case T_LT_EQ: lexeme = "<=";           break;
-        case T_ID:    lexeme = "[identifier]"; break;
+        case T_EOF:   lexeme = "[end of file]"; break;
+        case T_IF:    lexeme = "if";            break;
+        case T_WHILE: lexeme = "while";         break;
+        case T_DO:    lexeme = "do";            break;
+        case T_LT_EQ: lexeme = "<=";            break;
+        case T_NUM:   lexeme = "[number]";  break;
+        case T_ID:    lexeme = "[identifier]";  break;
         default:
             lexeme = calloc(2, sizeof *lexeme);
             lexeme[0] = type;
@@ -201,6 +223,9 @@ void free_token(struct token *token) {
     switch (token->type) {
         case T_ID:
             free(token->id);
+            break;
+        case T_NUM:
+            free(token->num);
             break;
     };
 

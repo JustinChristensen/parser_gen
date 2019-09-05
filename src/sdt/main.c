@@ -1,13 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <macros.h>
 #include <getopt.h>
 #include <ctype.h>
 #include <string.h>
+#include <unistd.h>
+#include <linked_list.h>
+#include "scanner.h"
 #include "parser.h"
 
 struct args {
     int pos_size;
     char **pos;
+    bool scan_only;
+    bool debug_parser;
 };
 
 struct option_descriptor {
@@ -16,13 +22,17 @@ struct option_descriptor {
 };
 
 enum opt_values {
-    VERSION = 256
+    VERSION = 256,
+    SCAN_ONLY,
+    DEBUG
 };
 
 struct option_descriptor opt_descs[] = {
-    { { "help",     no_argument,  NULL,  'h' },     "Print help" },
-    { { "version",  no_argument,  NULL,  VERSION }, "Print version information" },
-    { { NULL,        0,           NULL,  0 },       NULL }
+    { { "help",      no_argument,  NULL,  'h' },       "Print help" },
+    { { "version",   no_argument,  NULL,  VERSION },   "Print version information" },
+    { { "scan-only", no_argument,  NULL,  SCAN_ONLY }, "Print the result of scanning the input stream" },
+    { { "debug",     no_argument,  NULL,  DEBUG },     "Print debug information during parsing" },
+    { { NULL,         0,           NULL,  0 },          NULL }
 };
 
 struct option *options(struct option_descriptor *opt_descs) {
@@ -34,16 +44,18 @@ struct option *options(struct option_descriptor *opt_descs) {
     return opts;
 }
 
-#define FLAG_INDENT "    "
+#define FLAG_INDENT " "
 #define DESC_SEP "    "
 
 void print_usage(char *prog_name, FILE *handle) {
     fprintf(handle, "usage: %-s [options]\n\n", prog_name);
     fprintf(handle, "options:\n");
-    for (int i = 0; i < sizeof opt_descs; i++) {
-        struct option opt = opt_descs[i].option;
+    for (int i = 0; i < sizeof opt_descs / sizeof *opt_descs; i++) {
         char *desc  = opt_descs[i].description;
-        fprintf(handle, "%-s--%-30s%-s%-s", FLAG_INDENT, opt.name, DESC_SEP, desc);
+        if (desc) {
+            struct option opt = opt_descs[i].option;
+            fprintf(handle, "%-s--%-24s%-s%-s\n", FLAG_INDENT, opt.name, DESC_SEP, desc);
+        }
     }
     fprintf(handle, "\n");
 }
@@ -53,7 +65,12 @@ void print_version() {
 }
 
 struct args read_args(int argc, char *argv[]) {
-    struct args args = { 0, NULL };
+    struct args args = {
+        .pos_size = 0,
+        .pos = NULL,
+        .scan_only = false,
+        .debug_parser = false
+    };
     int f;
 
     while ((f = getopt_long(argc, argv, "h", options(opt_descs), NULL)) != -1) {
@@ -65,6 +82,12 @@ struct args read_args(int argc, char *argv[]) {
             case VERSION:
                 print_version();
                 exit(EXIT_SUCCESS);
+                break;
+            case SCAN_ONLY:
+                args.scan_only = true;
+                break;
+            case DEBUG:
+                args.debug_parser = true;
                 break;
             default:
                 print_usage(argv[0], stderr);
@@ -81,31 +104,47 @@ struct args read_args(int argc, char *argv[]) {
 #define BUFFER_SIZE 1000000
 int main(int argc, char *argv[]) {
     struct args args = read_args(argc, argv);
-    FILE *in;
+    FILE *in = NULL;
 
-    if (args.pos_size != 0) {
-        in = stdin;
+    if (args.pos_size == 0) {
+        if (!isatty(STDIN_FILENO)) {
+            in = stdin;
+        }
     } else {
         in = fopen(args.pos[0], "r");
     }
 
     if (in) {
         char input[BUFFER_SIZE] = "";
-        size_t nread = fread(input, *input, BUFFER_SIZE, in);
-        input[nread] = 0;
+        size_t nread = fread(input, sizeof *input, BUFFER_SIZE, in);
+        input[nread] = '\0';
 
-        struct parse_context *context = init_parse_context(input);
-        struct program *ast;
 
-        if ((ast = program(context))) {
-            printf("it worked!\n");
+        if (args.scan_only) {
+            struct list *tokens_ = tokens(input);
+
+            for (struct node *node = head(tokens_); node; node = node->next) {
+                display_token(value(node));
+            }
+
+            free_list(tokens_, VOIDFN1 free_token);
         } else {
-            fprintf(stderr, "%s", display_parse_error(context));
-            free_parse_context(context);
-            return EXIT_FAILURE;
+            struct parse_context *context = init_parse_context(input, args.debug_parser);
+            struct program *ast;
+
+            if ((ast = program(context))) {
+                printf("it worked!\n");
+                free_parse_context(context);
+            } else {
+                fprintf(stderr, "%s", display_parse_error(context));
+                free_parse_context(context);
+                return EXIT_FAILURE;
+            }
         }
 
         fclose(in);
+    } else {
+        fprintf(stderr, "no input file\n");
     }
 
     return EXIT_SUCCESS;

@@ -125,11 +125,12 @@ struct parse_error {
 };
 
 struct parse_context {
+    struct scan_context scan_context;
     struct token *lookahead;
-    char *input;
     void *ast;
     void (*free_ast)(void *ast);
     struct parse_error *error;
+    bool debug;
 };
 
 /**
@@ -168,7 +169,7 @@ struct token *peek(struct parse_context *context, short token_type);
 struct token *expect(struct parse_context *context, short expected_token_type);
 struct parse_context *parse_error(struct parse_context *context, short expected_token_type);
 char *display_parse_error(struct parse_context *context);
-struct parse_context *init_parse_context(char *input);
+struct parse_context *init_parse_context(char *input, bool debug);
 void free_parse_context(struct parse_context *context);
 
 #endif // PARSER_H_

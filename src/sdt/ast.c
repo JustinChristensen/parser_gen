@@ -1,8 +1,7 @@
 #include <linked_list.h>
 #include <assert.h>
+#include <macros.h>
 #include "ast.h"
-
-#define FREEFN (void (*) (void *))
 
 struct program *init_program(struct block *block) {
     struct program *program = malloc(sizeof *program);
@@ -265,7 +264,7 @@ struct subexpr_factor *init_subexpr_factor(struct expr *expr) {
     return subexpr_factor;
 }
 
-struct num_factor *init_num_factor(long num) {
+struct num_factor *init_num_factor(long *num) {
     struct num_factor *num_factor = malloc(sizeof *num_factor);
     assert(num_factor != NULL);
     num_factor->num = num;
@@ -285,7 +284,7 @@ void free_program(struct program *program) {
 }
 
 void free_block(struct block *block) {
-    free_list(block->stmts, FREEFN free_stmt);
+    free_list(block->stmts, VOIDFN1 free_stmt);
     block->stmts = NULL;
     free(block);
 }

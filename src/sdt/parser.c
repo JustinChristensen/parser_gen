@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -6,16 +7,16 @@
 #include "parser.h"
 #include "scanner.h"
 
-struct parse_context *init_parse_context(char *input, bool debug) {
-    struct parse_context *context = malloc(sizeof *context);
-    assert(context != NULL);
-
+struct parse_context parse_context(char *input, bool debug) {
     struct scan_context scan_context_ = scan(scan_context(NULL, empty_loc(), input));
 
-    context->scan_context = scan_context_;
-    context->lookahead = token(context->scan_context);
-    context->ast = context->error = NULL;
-    context->debug = debug;
+    struct parse_context context = {
+        .scan_context = scan_context_,
+        .lookahead = token(scan_context_),
+        .ast = NULL,
+        .error = NULL,
+        .debug = debug,
+    };
 
     return context;
 }
@@ -25,7 +26,6 @@ void free_parse_context(struct parse_context *context) {
     (*context->free_ast)(context->ast);
     free(context->error);
     context->error = context->ast = context->lookahead = NULL;
-    free(context);
 }
 
 void *sast(struct parse_context *context, void *ast, void (*free_ast) (void *ast)) {
@@ -234,7 +234,7 @@ struct expr *expr(struct parse_context *context) {
 
             if ((rhs = expr(context))) {
                 expr_type = ASSIGN;
-                expr_val = sast(context, init_assign_expr(rel_, expr_), VOIDFN1 free_assign_expr);
+                expr_val = sast(context, init_assign_expr(rel_, rhs), VOIDFN1 free_assign_expr);
             }
         } else {
             expr_type = REL;
@@ -270,7 +270,7 @@ struct rel *rel_rest(struct parse_context *context, struct add *add_) {
             if ((add_ = add(context))) {
                 rel_type = LT;
                 rel_val = sast(context, init_lt_rel(rel_, add_), VOIDFN1 free_lt_rel);
-                rel_ = sast(context, init_rel(rel_type, rel_), VOIDFN1 free_rel);
+                rel_ = sast(context, init_rel(rel_type, rel_val), VOIDFN1 free_rel);
                 continue;
             }
         } else if (peek(context, T_LT_EQ) && expect(context, T_LT_EQ)) {

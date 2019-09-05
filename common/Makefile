@@ -1,6 +1,6 @@
 LIB := libcommon.so
 CFLAGS := -Wall -g -O0
-LDFLAGS :=
+LDFLAGS := -fpic
 
 .PHONY: all
 all: $(LIB)

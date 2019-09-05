@@ -119,25 +119,25 @@ int main(int argc, char *argv[]) {
         size_t nread = fread(input, sizeof *input, BUFFER_SIZE, in);
         input[nread] = '\0';
 
-
         if (args.scan_only) {
             struct list *tokens_ = tokens(input);
 
             for (struct node *node = head(tokens_); node; node = node->next) {
                 display_token(value(node));
+                printf("\n");
             }
 
             free_list(tokens_, VOIDFN1 free_token);
         } else {
-            struct parse_context *context = init_parse_context(input, args.debug_parser);
+            struct parse_context context = parse_context(input, args.debug_parser);
             struct program *ast;
 
-            if ((ast = program(context))) {
+            if ((ast = program(&context))) {
                 printf("it worked!\n");
-                free_parse_context(context);
+                free_parse_context(&context);
             } else {
-                fprintf(stderr, "%s", display_parse_error(context));
-                free_parse_context(context);
+                fprintf(stderr, "%s", display_parse_error(&context));
+                free_parse_context(&context);
                 return EXIT_FAILURE;
             }
         }

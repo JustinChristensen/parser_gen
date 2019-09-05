@@ -75,11 +75,12 @@ struct scan_context number(struct scan_context context) {
     context.token = NULL;
     char *prev = context.input;
     long *num = malloc(sizeof *num);
-    errno = 0;
     *num = strtol(context.input, &context.input, 0);
-    if (!errno) {
+    if (context.input != prev) {
         context.token = init_token(T_NUM, context.loc, num);
         context.loc.col += context.input - prev;
+    } else {
+        free(num);
     }
     return context;
 }

@@ -109,11 +109,13 @@ struct block *block(struct parse_context *context) {
 
     if (expect(context, '{')) {
         struct stmt *stmt_ = NULL;
-        block_ = sast(context, init_block(), VOIDFN1 free_block);
+        block_ = init_block();
 
         while ((stmt_ = stmt(context))) {
             append_stmt(block_, stmt_);
         }
+
+        sast(context, block_, VOIDFN1 free_block);
 
         if (context->error || !expect(context, '}')) {
             block_ = NULL;

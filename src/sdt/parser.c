@@ -42,25 +42,25 @@ struct token *peek(struct parse_context *context, short token_type) {
     return token;
 }
 
+static void print_tokens(char *preamble, struct parse_context *context, short expected_token_type) {
+    char *expected = lexeme_for(expected_token_type);
+    printf("%s: expected -> '%s', got -> ", preamble, expected);
+    free(expected);
+    display_token(token(context->scan_context));
+    printf("\n");
+}
+
 struct token *expect(struct parse_context *context, short expected_token_type) {
     struct token *next = NULL;
     struct scan_context scan_context = context->scan_context;
 
     if (peek(context, expected_token_type)) {
-        if (context->debug) {
-            printf("success: expected -> '%s', got -> ", lexeme_for(expected_token_type));
-            display_token(token(scan_context));
-            printf("\n");
-        }
-        scan_context = scan(context->scan_context);
+        if (context->debug) print_tokens("success", context, expected_token_type);
+        scan_context = scan(scan_context);
         free_token(context->lookahead);
         next = context->lookahead = token(scan_context);
     } else {
-        if (context->debug) {
-            printf("failure: expected -> '%s', got -> ", lexeme_for(expected_token_type));
-            display_token(token(scan_context));
-            printf("\n");
-        }
+        if (context->debug) print_tokens("failure", context, expected_token_type);
         parse_error(context, expected_token_type);
     }
 
@@ -75,19 +75,22 @@ struct parse_context *parse_error(struct parse_context *context, short expected_
     parse_error->loc = token_loc(context->lookahead);
     parse_error->expected = expected_token_type;
     parse_error->actual = token_type(context->lookahead);
+    if (context->error) free(context->error);
     context->error = parse_error;
+
     return context;
 }
 
 #define PARSE_ERROR_FMT "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| Line %d, Column %d\n|\n"
 
-char *display_parse_error(struct parse_context *context) {
+void display_parse_error(struct parse_context *context) {
     struct parse_error *parse_error = context->error;
-    char *display_str;
-    asprintf(&display_str, PARSE_ERROR_FMT,
-        lexeme_for(parse_error->actual), lexeme_for(parse_error->expected),
+    char *actual = lexeme_for(parse_error->actual);
+    char *expected = lexeme_for(parse_error->expected);
+    fprintf(stderr, PARSE_ERROR_FMT, actual, expected,
         parse_error->loc.line, parse_error->loc.col);
-    return display_str;
+    free(actual);
+    free(expected);
 }
 
 struct program *program(struct parse_context *context) {
@@ -112,7 +115,7 @@ struct block *block(struct parse_context *context) {
             append_stmt(block_, stmt_);
         }
 
-        if (!expect(context, '}')) {
+        if (context->error || !expect(context, '}')) {
             block_ = NULL;
         }
     }

@@ -201,18 +201,18 @@ void *token_val(struct token *token) {
 }
 
 char *lexeme_for(short type) {
-    char *lexeme;
+    char *lexeme = calloc(50, sizeof *lexeme);
+    assert(lexeme != NULL);
 
     switch (type) {
-        case T_EOF:   lexeme = "[end of file]"; break;
-        case T_IF:    lexeme = "if";            break;
-        case T_WHILE: lexeme = "while";         break;
-        case T_DO:    lexeme = "do";            break;
-        case T_LT_EQ: lexeme = "<=";            break;
-        case T_NUM:   lexeme = "[number]";  break;
-        case T_ID:    lexeme = "[identifier]";  break;
+        case T_EOF:   strcpy(lexeme, "[end of file]"); break;
+        case T_IF:    strcpy(lexeme, "if");            break;
+        case T_WHILE: strcpy(lexeme, "while");         break;
+        case T_DO:    strcpy(lexeme, "do");            break;
+        case T_LT_EQ: strcpy(lexeme, "<=");            break;
+        case T_NUM:   strcpy(lexeme, "[number]");      break;
+        case T_ID:    strcpy(lexeme, "[identifier]");  break;
         default:
-            lexeme = calloc(2, sizeof *lexeme);
             lexeme[0] = type;
             break;
     };

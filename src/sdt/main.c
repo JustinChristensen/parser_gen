@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
                 printf("it worked!\n");
                 free_parse_context(&context);
             } else {
-                fprintf(stderr, "%s", display_parse_error(&context));
+                display_parse_error(&context);
                 free_parse_context(&context);
                 return EXIT_FAILURE;
             }

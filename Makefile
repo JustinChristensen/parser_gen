@@ -1,4 +1,4 @@
-TARGETS := all clean
+TARGETS := all run clean
 SUBDIRS := \
 common \
 src/sdt

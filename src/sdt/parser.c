@@ -7,15 +7,14 @@
 #include "parser.h"
 #include "scanner.h"
 
-struct parse_context parse_context(char *input, bool debug) {
+struct parse_context parse_context(char *input) {
     struct scan_context scan_context_ = scan(scan_context(NULL, empty_loc(), input));
 
     struct parse_context context = {
         .scan_context = scan_context_,
         .lookahead = token(scan_context_),
         .ast = NULL,
-        .error = NULL,
-        .debug = debug,
+        .error = NULL
     };
 
     return context;
@@ -42,6 +41,7 @@ struct token *peek(struct parse_context *context, short token_type) {
     return token;
 }
 
+#ifdef DEBUG
 static void print_tokens(char *preamble, struct parse_context *context, short expected_token_type) {
     char *expected = lexeme_for(expected_token_type);
     printf("%s: expected -> '%s', got -> ", preamble, expected);
@@ -49,18 +49,23 @@ static void print_tokens(char *preamble, struct parse_context *context, short ex
     display_token(token(context->scan_context));
     printf("\n");
 }
+#endif
 
 struct token *expect(struct parse_context *context, short expected_token_type) {
     struct token *next = NULL;
     struct scan_context scan_context = context->scan_context;
 
     if (peek(context, expected_token_type)) {
-        if (context->debug) print_tokens("success", context, expected_token_type);
+#ifdef DEBUG
+        print_tokens("success", context, expected_token_type);
+#endif
         scan_context = scan(scan_context);
         free_token(context->lookahead);
         next = context->lookahead = token(scan_context);
     } else {
-        if (context->debug) print_tokens("failure", context, expected_token_type);
+#ifdef DEBUG
+        print_tokens("failure", context, expected_token_type);
+#endif
         parse_error(context, expected_token_type);
     }
 

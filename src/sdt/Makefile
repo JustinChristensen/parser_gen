@@ -8,7 +8,13 @@ VALGRIND := valgrind
 all: $(PROG)
 
 $(PROG): main.c ast.c scanner.c parser.c
-	$(CC) -I../../include $(CFLAGS) -o $@ $+ $(LDFLAGS)
+	$(CC) -o $@ -I../../include $(CFLAGS) $+ $(LDFLAGS)
+
+.PHONY: run
+run: export DYLD_LIBRARY_PATH := $(LIBCOMMON_DIR)
+run: export LD_LIBRARY_PATH := $(LIBCOMMON_DIR)
+run: $(PROG)
+	./$(PROG) ./program.txt
 
 .PHONY: check-leaks
 check-leaks: export LD_LIBRARY_PATH := $(LIBCOMMON_DIR)

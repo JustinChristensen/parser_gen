@@ -13,7 +13,6 @@ struct args {
     int pos_size;
     char **pos;
     bool scan_only;
-    bool debug_parser;
 };
 
 struct option_descriptor {
@@ -23,15 +22,13 @@ struct option_descriptor {
 
 enum opt_values {
     VERSION = 256,
-    SCAN_ONLY,
-    DEBUG
+    SCAN_ONLY
 };
 
 static struct option_descriptor opt_descs[] = {
     { { "help",      no_argument,  NULL,  'h' },       "Print help" },
     { { "version",   no_argument,  NULL,  VERSION },   "Print version information" },
     { { "scan-only", no_argument,  NULL,  SCAN_ONLY }, "Print the result of scanning the input stream" },
-    { { "debug",     no_argument,  NULL,  DEBUG },     "Print debug information during parsing" },
     { { NULL,         0,           NULL,  0 },          NULL }
 };
 
@@ -69,8 +66,7 @@ struct args read_args(int argc, char *argv[]) {
     struct args args = {
         .pos_size = 0,
         .pos = NULL,
-        .scan_only = false,
-        .debug_parser = false
+        .scan_only = false
     };
     size_t num_descs = sizeof(opt_descs) / sizeof((opt_descs)[0]);
     int f;
@@ -87,9 +83,6 @@ struct args read_args(int argc, char *argv[]) {
                 break;
             case SCAN_ONLY:
                 args.scan_only = true;
-                break;
-            case DEBUG:
-                args.debug_parser = true;
                 break;
             default:
                 print_usage(argv[0], stderr, num_descs);
@@ -131,7 +124,7 @@ int main(int argc, char *argv[]) {
 
             free_list(tokens_, VOIDFN1 free_token);
         } else {
-            struct parse_context context = parse_context(input, args.debug_parser);
+            struct parse_context context = parse_context(input);
             struct program *ast;
 
             if ((ast = program(&context))) {

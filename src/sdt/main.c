@@ -10,11 +10,16 @@
 #include "parser.h"
 #include "dot.h"
 
+enum output_fmt {
+    OUTPUT_AST,
+    OUTPUT_INPUT,
+    OUTPUT_TOKENS
+};
+
 struct args {
     int pos_size;
     char **pos;
-    bool scan_only;
-    bool output_dot;
+    enum output_fmt output;
 };
 
 struct option_descriptor {
@@ -23,18 +28,15 @@ struct option_descriptor {
 };
 
 enum opt_values {
-    VERSION = 256,
-    SCAN_ONLY,
-    OUTPUT_DOT
+    VERSION = 256
 };
 
-#define NUM_DESCS 5
+#define NUM_DESCS 4
 static struct option_descriptor opt_descs[] = {
-    { { "help",      no_argument,  NULL,  'h' },        "Print help" },
-    { { "version",   no_argument,  NULL,  VERSION },    "Print version information" },
-    { { "scan-only", no_argument,  NULL,  SCAN_ONLY },  "Print the result of scanning the input stream" },
-    { { "dot",       no_argument,  NULL,  OUTPUT_DOT }, "Print the resulting AST as dot" },
-    { { NULL,         0,           NULL,  0 },          NULL }
+    { { "format",    required_argument,  NULL,  'f' },        "Output format: ast, input, or tokens" },
+    { { "version",   no_argument,        NULL,  VERSION },    "Print version information" },
+    { { "help",      no_argument,        NULL,  'h' },        "Print help" },
+    { { NULL,         0,                 NULL,  0 },          NULL }
 };
 
 static struct option opts[NUM_DESCS];
@@ -57,7 +59,13 @@ void print_usage(char *prog_name, FILE *handle) {
         char *desc  = opt_descs[i].description;
         if (desc) {
             struct option opt = opt_descs[i].option;
-            fprintf(handle, "%-s--%-24s%-s%-s\n", FLAG_INDENT, opt.name, DESC_SEP, desc);
+            char flag[2] = { opt.val, '\0' };
+            const char *f = opt.name, *d = "--";
+            if (f == NULL) {
+                f = flag;
+                d = " -";
+            }
+            fprintf(handle, "%-s%s%-24s%-s%-s\n", FLAG_INDENT, d, f, DESC_SEP, desc);
         }
     }
     fprintf(handle, "\n");
@@ -71,12 +79,20 @@ struct args read_args(int argc, char *argv[]) {
     struct args args = {
         .pos_size = 0,
         .pos = NULL,
-        .scan_only = false,
-        .output_dot = false
+        .output = OUTPUT_INPUT
     };
     int f;
-    while ((f = getopt_long(argc, argv, "h", options(opt_descs), NULL)) != -1) {
+    while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {
         switch (f) {
+            case 'f':
+                if (strcmp("ast", optarg) == 0) {
+                    args.output = OUTPUT_AST;
+                } else if (strcmp("input", optarg) == 0) {
+                    args.output = OUTPUT_INPUT;
+                } else if (strcmp("tokens", optarg) == 0) {
+                    args.output = OUTPUT_TOKENS;
+                }
+                break;
             case 'h':
                 print_usage(argv[0], stdout);
                 exit(EXIT_SUCCESS);
@@ -84,12 +100,6 @@ struct args read_args(int argc, char *argv[]) {
             case VERSION:
                 print_version();
                 exit(EXIT_SUCCESS);
-                break;
-            case SCAN_ONLY:
-                args.scan_only = true;
-                break;
-            case OUTPUT_DOT:
-                args.output_dot = true;
                 break;
             default:
                 print_usage(argv[0], stderr);
@@ -121,11 +131,7 @@ int main(int argc, char *argv[]) {
         size_t nread = fread(input, sizeof *input, BUFFER_SIZE, in);
         input[nread] = '\0';
 
-        if (args.scan_only && args.output_dot) {
-            fprintf(stderr, "warning: both --scan-only and --dot provided, preferring --scan-only\n");
-        }
-
-        if (args.scan_only) {
+        if (args.output == OUTPUT_TOKENS) {
             struct list *tokens_ = tokens(input);
 
             for (struct node *node = head(tokens_); node; node = node->next) {
@@ -139,7 +145,7 @@ int main(int argc, char *argv[]) {
             struct program *ast;
 
             if ((ast = program(&context))) {
-                if (args.output_dot) {
+                if (args.output == OUTPUT_AST) {
                     print_dot(stdout, ast, input, TOGRAPHFN program_to_graph);
                 } else {
                     printf("it worked!\n");

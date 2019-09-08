@@ -1,4 +1,5 @@
 PROG := sdt
+DOT := dot
 VALGRIND := valgrind
 LIBBASE_DIR := ../../base
 INCLUDEPATHS := -I$(LIBBASE_DIR) -I/usr/local/include/graphviz -I/usr/include/graphviz
@@ -18,6 +19,12 @@ run: export DYLD_LIBRARY_PATH := $(LIBBASE_DIR)
 run: export LD_LIBRARY_PATH := $(LIBBASE_DIR)
 run: $(PROG)
 	./$(PROG) ./program.txt
+
+program.dot: $(PROG)
+	./$(PROG) --format=ast program.txt > program.dot
+
+program.svg: program.dot
+	$(DOT) -Tsvg program.dot > program.svg
 
 .PHONY: check-leaks
 check-leaks: export LD_LIBRARY_PATH := $(LIBBASE_DIR)

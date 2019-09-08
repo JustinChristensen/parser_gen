@@ -2,11 +2,10 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <linked_list.h>
+#include <base/linked_list.h>
 #include <ctype.h>
 #include <string.h>
 #include <inttypes.h>
-#include <errno.h>
 #include "scanner.h"
 
 struct scan_context scan_context(struct token *token, struct location loc, char *input) {

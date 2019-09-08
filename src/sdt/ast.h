@@ -2,7 +2,7 @@
 #define AST_H_
 
 #include <stdlib.h>
-#include <linked_list.h>
+#include <base/linked_list.h>
 
 /**
  * Syntax Tree:

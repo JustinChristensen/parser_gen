@@ -1,7 +1,7 @@
 #ifndef SCANNER_H_
 #define SCANNER_H_
 
-#include <linked_list.h>
+#include <base/linked_list.h>
 #include <stdlib.h>
 #include <stdbool.h>
 

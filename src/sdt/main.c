@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <macros.h>
 #include <getopt.h>
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
-#include <linked_list.h>
+#include <base/macros.h>
+#include <base/linked_list.h>
 #include "scanner.h"
 #include "parser.h"
 #include "dot.h"
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
 
             if ((ast = program(&context))) {
                 if (args.output_dot) {
-                    print_dot(stdout, ast, TOGRAPHFN program_to_graph);
+                    print_dot(stdout, ast, input, TOGRAPHFN program_to_graph);
                 } else {
                     printf("it worked!\n");
                 }

@@ -1,12 +1,12 @@
-LIB := libcommon.so
+LIB := libbase.so
 CFLAGS := -Wall -g -O0
 LDFLAGS := -fpic
 
 .PHONY: all
 all: $(LIB)
 
-$(LIB): linked_list.c
-	$(CC) -shared -I../include $(CFLAGS) -o $@ $+ $(LDFLAGS)
+$(LIB): graphviz.c linked_list.c string.c
+	$(CC) -shared $(CFLAGS) -o $@ $+ $(LDFLAGS)
 
 .PHONY: run
 run: ;

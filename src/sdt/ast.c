@@ -1,6 +1,6 @@
-#include <linked_list.h>
 #include <assert.h>
-#include <macros.h>
+#include <base/linked_list.h>
+#include <base/macros.h>
 #include "ast.h"
 
 struct program *init_program(struct block *block) {

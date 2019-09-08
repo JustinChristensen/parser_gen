@@ -1,9 +1,9 @@
 PROG := sdt
 VALGRIND := valgrind
-LIBCOMMON_DIR := ../../common
-INCLUDEPATHS := -I../../include -I/usr/local/include/graphviz -I/usr/include/graphviz
-LIBPATHS := -L$(LIBCOMMON_DIR)
-LIBS := -lcommon -lcgraph
+LIBBASE_DIR := ../../base
+INCLUDEPATHS := -I$(LIBBASE_DIR) -I/usr/local/include/graphviz -I/usr/include/graphviz
+LIBPATHS := -L$(LIBBASE_DIR)
+LIBS := -lbase -lcgraph
 CFLAGS := -Wall -g -O0
 LDFLAGS :=
 
@@ -14,13 +14,13 @@ $(PROG): main.c ast.c dot.c parser.c scanner.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: run
-run: export DYLD_LIBRARY_PATH := $(LIBCOMMON_DIR)
-run: export LD_LIBRARY_PATH := $(LIBCOMMON_DIR)
+run: export DYLD_LIBRARY_PATH := $(LIBBASE_DIR)
+run: export LD_LIBRARY_PATH := $(LIBBASE_DIR)
 run: $(PROG)
 	./$(PROG) ./program.txt
 
 .PHONY: check-leaks
-check-leaks: export LD_LIBRARY_PATH := $(LIBCOMMON_DIR)
+check-leaks: export LD_LIBRARY_PATH := $(LIBBASE_DIR)
 check-leaks: $(PROG)
 	$(VALGRIND) --leak-check=full ./$(PROG) ./program.txt
 

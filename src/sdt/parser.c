@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <macros.h>
+#include <base/macros.h>
 #include "ast.h"
 #include "parser.h"
 #include "scanner.h"

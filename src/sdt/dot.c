@@ -1,28 +1,38 @@
 #include <cgraph.h>
 #include <stdio.h>
-#include <linked_list.h>
+#include <base/linked_list.h>
+#include <base/graphviz.h>
 #include "dot.h"
 
-void print_dot(FILE *handle, void *ast, void (*to_graph) (Agraph_t *graph, Agnode_t *parent, void *ast)) {
-    Agraph_t *graph = agopen("ast", Agundirected, NULL);
+void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t *graph, Agnode_t *parent, void *ast)) {
+    Agraph_t *topg = agopen("top", Agundirected, NULL);
+    Agraph_t *astg = agsubg(topg, "ast", 1);
+    Agraph_t *inputg = agsubg(topg, "input", 1);
 
-    agattr(graph, AGNODE, "label", "\\N");
-    agattr(graph, AGNODE, "style", "dashed");
-    agattr(graph, AGNODE, "color", "#aaaaaa");
-    agattr(graph, AGNODE, "shape", "box");
-    agattr(graph, AGNODE, "fontname", "sans-serif");
-    agattr(graph, AGNODE, "fontsize", "12");
-    agattr(graph, AGNODE, "fontcolor", "#222222");
-    agattr(graph, AGEDGE, "style", "dashed");
-    agattr(graph, AGEDGE, "color", "#aaaaaa");
+    agattr(topg, AGRAPH, "pad", "0.4,0.3");
+    agattr(topg, AGNODE, "label", "\\N");
+    agattr(topg, AGNODE, "style", "dashed");
+    agattr(topg, AGNODE, "color", "#aaaaaa");
+    agattr(topg, AGNODE, "shape", "box");
+    agattr(topg, AGNODE, "fontname", "verdana");
+    agattr(topg, AGNODE, "fontsize", "10");
+    agattr(topg, AGNODE, "fontcolor", "#222222");
+    agattr(topg, AGEDGE, "style", "dashed");
+    agattr(topg, AGEDGE, "color", "#aaaaaa");
 
-    (*to_graph)(graph, NULL, ast);
+    (*to_graph)(astg, NULL, ast);
 
-    if (agwrite(graph, stdout) == EOF) {
+    Agnode_t *inputn = agnode(inputg, "input", 1);
+    agset(inputn, "fontname", "monospace");
+    char *input_label = left_justify(input);
+    agset(inputn, "label", input_label);
+    free(input_label);
+
+    if (agwrite(topg, stdout) == EOF) {
         fprintf(stderr, "printing dot file failed\n");
     }
 
-    agclose(graph);
+    agclose(topg);
 }
 
 static int uid = 0;

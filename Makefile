@@ -1,6 +1,6 @@
 TARGETS := all run clean
 SUBDIRS := \
-common \
+base \
 src/sdt
 
 $(TARGETS): $(SUBDIRS)

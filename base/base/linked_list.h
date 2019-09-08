@@ -1,5 +1,5 @@
-#ifndef LINKED_LIST_H_
-#define LINKED_LIST_H_ 1
+#ifndef BASE_LINKED_LIST_H_
+#define BASE_LINKED_LIST_H_ 1
 
 #include <stdbool.h>
 
@@ -21,4 +21,4 @@ void *value(struct node *node);
 bool empty(struct list *list);
 void free_list(struct list *list, void (*free_val) (void *val));
 
-#endif // LINKED_LIST_H_
+#endif // BASE_LINKED_LIST_H_

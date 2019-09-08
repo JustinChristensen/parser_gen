@@ -27,7 +27,7 @@ struct token {
     union {
         void *nothing;
         char *id;
-        long *num;
+        char *num;
     };
 };
 

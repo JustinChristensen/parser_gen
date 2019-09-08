@@ -264,7 +264,7 @@ struct subexpr_factor *init_subexpr_factor(struct expr *expr) {
     return subexpr_factor;
 }
 
-struct num_factor *init_num_factor(long *num) {
+struct num_factor *init_num_factor(char *num) {
     struct num_factor *num_factor = malloc(sizeof *num_factor);
     assert(num_factor != NULL);
     num_factor->num = num;
@@ -311,8 +311,6 @@ void free_stmt(struct stmt *stmt) {
             free_block_stmt(stmt->block_stmt);
             stmt->block_stmt = NULL;
             break;
-        default:
-            break;
     };
 
     free(stmt);
@@ -356,8 +354,6 @@ void free_expr(struct expr *expr) {
             free_rel_expr(expr->rel_expr);
             expr->rel_expr = NULL;
             break;
-        default:
-            break;
     };
 
     free(expr);
@@ -387,8 +383,6 @@ void free_rel(struct rel *rel) {
         case ADD:
             free_add_rel(rel->add_rel);
             rel->add_rel = NULL;
-            break;
-        default:
             break;
     };
 
@@ -422,8 +416,6 @@ void free_add(struct add *add) {
             free_term_add(add->term_add);
             add->term_add = NULL;
             break;
-        default:
-            break;
     };
 
     free(add);
@@ -449,8 +441,6 @@ void free_term(struct term *term) {
         case FACTOR:
             free_factor_term(term->factor_term);
             term->factor_term = NULL;
-            break;
-        default:
             break;
     };
 
@@ -482,8 +472,6 @@ void free_factor(struct factor *factor) {
             free_id_factor(factor->id_factor);
             factor->id_factor = NULL;
             break;
-        default:
-            break;
     };
 
     free(factor);
@@ -495,6 +483,7 @@ void free_subexpr_factor(struct subexpr_factor *factor) {
 }
 
 void free_num_factor(struct num_factor *factor) {
+    free(factor->num);
     free(factor);
 }
 

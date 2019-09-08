@@ -1,15 +1,15 @@
 PROG := graphviz-test
 CFLAGS := -Wall -O0
 LDFLAGS :=
-INCLUDES := -I/usr/local/include/graphviz
-LIBPATHS := -L/usr/local/lib
+INCLUDEPATHS := -I/usr/local/include/graphviz
+LIBPATHS :=
 LIBS := -lcgraph
 CHROME := open -a Google\ Chrome.app
 DOT := dot
 
 .PHONY: all
 all: main.c
-	$(CC) $(INCLUDES) $(CFLAGS) -o $(PROG) $+ $(LIBPATHS) $(LIBS)
+	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $(PROG) $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: run
 run: all

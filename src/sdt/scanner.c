@@ -73,15 +73,16 @@ struct scan_context string(struct scan_context context, char *string, enum token
 
 struct scan_context number(struct scan_context context) {
     context.token = NULL;
-    char *prev = context.input;
-    long *num = malloc(sizeof *num);
-    *num = strtol(context.input, &context.input, 0);
-    if (context.input != prev) {
+
+    if (isdigit(*context.input)) {
+        char *prev = context.input;
+        while (isdigit(*context.input)) context.input++;
+        size_t slen = context.input - prev;
+        char *num = strndup(prev, slen);
         context.token = init_token(T_NUM, context.loc, num);
-        context.loc.col += context.input - prev;
-    } else {
-        free(num);
+        context.loc.col += slen;
     }
+
     return context;
 }
 
@@ -150,7 +151,7 @@ void display_token(struct token *token) {
             printf(", value: %s", token->id);
             break;
         case T_NUM:
-            printf(", value: %ld", *token->num);
+            printf(", value: %s", token->num);
             break;
     }
 }
@@ -164,7 +165,7 @@ struct token *init_token(short type, struct location loc, void *val) {
             token->id = val;
             break;
         case T_NUM:
-            token->num = (long *) val;
+            token->num = val;
             break;
         default:
             token->nothing = NULL;

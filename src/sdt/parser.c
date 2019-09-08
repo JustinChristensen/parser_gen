@@ -60,7 +60,7 @@ struct token *expect(struct parse_context *context, short expected_token_type) {
         print_tokens("success", context, expected_token_type);
 #endif
         scan_context = scan(scan_context);
-        free_token(context->lookahead);
+        free(context->lookahead);
         next = context->lookahead = token(scan_context);
     } else {
 #ifdef DEBUG
@@ -395,8 +395,9 @@ struct num_factor *num_factor(struct parse_context *context) {
     struct num_factor *num_factor_ = NULL;
     struct token *token = NULL;
 
-    if ((token = expect(context, T_NUM))) {
+    if ((token = peek(context, T_NUM))) {
         num_factor_ = sast(context, init_num_factor(token_val(token)), VOIDFN1 free_num_factor);
+        expect(context, T_NUM);
     }
 
     return num_factor_;
@@ -406,8 +407,9 @@ struct id_factor *id_factor(struct parse_context *context) {
     struct id_factor *id_factor_ = NULL;
     struct token *token = NULL;
 
-    if ((token = expect(context, T_ID))) {
+    if ((token = peek(context, T_ID))) {
         id_factor_ = sast(context, init_id_factor(token_val(token)), VOIDFN1 free_id_factor);
+        expect(context, T_ID);
     }
 
     return id_factor_;

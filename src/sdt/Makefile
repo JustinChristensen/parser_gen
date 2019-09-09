@@ -11,7 +11,7 @@ LDFLAGS :=
 .PHONY: all
 all: $(PROG)
 
-$(PROG): main.c ast.c dot.c parser.c scanner.c source.c
+$(PROG): main.c ast.c dot.c gensource.c parser.c scanner.c source.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: run

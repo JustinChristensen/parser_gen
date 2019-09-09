@@ -6,10 +6,16 @@
 #include <unistd.h>
 #include <base/macros.h>
 #include <base/linked_list.h>
+#include "gensource.h"
 #include "scanner.h"
 #include "parser.h"
 #include "source.h"
 #include "dot.h"
+
+enum cmd {
+    PARSE,
+    GENERATE
+};
 
 enum output_fmt {
     OUTPUT_AST,
@@ -20,6 +26,7 @@ enum output_fmt {
 struct args {
     int pos_size;
     char **pos;
+    enum cmd cmd;
     enum output_fmt output;
 };
 
@@ -50,11 +57,14 @@ struct option *options(struct option_descriptor *opt_descs) {
     return opts;
 }
 
-#define FLAG_INDENT " "
+#define FLAG_INDENT "   "
 #define DESC_SEP "    "
 
 void print_usage(char *prog_name, FILE *handle) {
     fprintf(handle, "usage: %-s [options]\n\n", prog_name);
+    fprintf(handle, "subcommands:\n");
+    fprintf(handle, "%-s%s%-24s%-s\n", FLAG_INDENT, "generate", DESC_SEP, "generate source");
+    fprintf(handle, "\n");
     fprintf(handle, "options:\n");
     for (int i = 0; i < NUM_DESCS; i++) {
         char *desc  = opt_descs[i].description;
@@ -80,8 +90,19 @@ struct args read_args(int argc, char *argv[]) {
     struct args args = {
         .pos_size = 0,
         .pos = NULL,
-        .output = OUTPUT_SOURCE
+        .cmd = PARSE,
+        .output = OUTPUT_SOURCE,
     };
+
+    if (argc > 0) {
+        if (strcmp("generate", argv[1]) == 0) {
+            char *prog = argv[0];
+            args.cmd = GENERATE;
+            argc--;
+            *argv++ = prog;
+        }
+    }
+
     int f;
     while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {
         switch (f) {
@@ -114,54 +135,71 @@ struct args read_args(int argc, char *argv[]) {
     return args;
 }
 
+void output_ast(struct program *ast, char *input, enum output_fmt format) {
+    if (format == OUTPUT_AST) {
+        print_dot(stdout, ast, input, TOGRAPHFN program_to_graph);
+    } else {
+        print_source(stdout, ast, TOSOURCEFN program_to_source);
+    }
+}
+
 #define BUFFER_SIZE 1000000
 int main(int argc, char *argv[]) {
     struct args args = read_args(argc, argv);
-    FILE *in = NULL;
 
-    if (args.pos_size == 0) {
-        if (!isatty(STDIN_FILENO)) {
-            in = stdin;
-        }
+    if (args.cmd == GENERATE) {
+        struct gendims dims = {
+            .minw = 3,
+            .maxw = 10,
+            .mind = 2,
+            .maxd = 20
+        };
+        struct program *program = gen_program(dims);
+        output_ast(program, NULL, args.output);
+        free_program(program);
     } else {
-        in = fopen(args.pos[0], "r");
-    }
+        FILE *in = NULL;
 
-    if (in) {
-        char input[BUFFER_SIZE] = "";
-        size_t nread = fread(input, sizeof *input, BUFFER_SIZE, in);
-        input[nread] = '\0';
-
-        if (args.output == OUTPUT_TOKENS) {
-            struct list *tokens_ = tokens(input);
-
-            for (struct node *node = head(tokens_); node; node = next(node)) {
-                display_token(value(node));
-                printf("\n");
+        if (args.pos_size == 0) {
+            if (!isatty(STDIN_FILENO)) {
+                in = stdin;
             }
-
-            free_list(tokens_, VOIDFN1 free_token);
         } else {
-            struct parse_context context = parse_context(input);
-            struct program *ast;
-
-            if ((ast = program(&context))) {
-                if (args.output == OUTPUT_AST) {
-                    print_dot(stdout, ast, input, TOGRAPHFN program_to_graph);
-                } else {
-                    print_source(stdout, ast, TOSOURCEFN program_to_source);
-                }
-                free_parse_context(&context);
-            } else {
-                display_parse_error(&context);
-                free_parse_context(&context);
-                return EXIT_FAILURE;
-            }
+            in = fopen(args.pos[0], "r");
         }
 
-        fclose(in);
-    } else {
-        fprintf(stderr, "no input file\n");
+        if (in) {
+            char input[BUFFER_SIZE] = "";
+            size_t nread = fread(input, sizeof *input, BUFFER_SIZE, in);
+            input[nread] = '\0';
+
+            if (args.output == OUTPUT_TOKENS) {
+                struct list *tokens_ = tokens(input);
+
+                for (struct node *node = head(tokens_); node; node = next(node)) {
+                    display_token(value(node));
+                    printf("\n");
+                }
+
+                free_list(tokens_, VOIDFN1 free_token);
+            } else {
+                struct parse_context context = parse_context(input);
+                struct program *ast;
+
+                if ((ast = program(&context))) {
+                    output_ast(ast, input, args.output);
+                    free_parse_context(&context);
+                } else {
+                    display_parse_error(&context);
+                    free_parse_context(&context);
+                    return EXIT_FAILURE;
+                }
+            }
+
+            fclose(in);
+        } else {
+            fprintf(stderr, "no input file\n");
+        }
     }
 
     return EXIT_SUCCESS;

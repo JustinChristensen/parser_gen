@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <base/linked_list.h>
 #include <base/string.h>
+#include "ast.h"
 #include "source.h"
 
 #define BUFFER_SIZE 1000000

@@ -1,5 +1,5 @@
-#ifndef PARSER_H_
-#define PARSER_H_
+#ifndef SDT_PARSER_H_
+#define SDT_PARSER_H_
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -171,5 +171,5 @@ void display_parse_error(struct parse_context *context);
 struct parse_context parse_context(char *input);
 void free_parse_context(struct parse_context *context);
 
-#endif // PARSER_H_
+#endif // SDT_PARSER_H_
 

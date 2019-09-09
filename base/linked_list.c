@@ -31,6 +31,10 @@ struct node *head(struct list *list) {
     return list->head;
 }
 
+struct node *next(struct node *node) {
+    return node->next;
+}
+
 void *value(struct node *node) {
     return node->val;
 }

@@ -1,6 +1,7 @@
 #ifndef SDT_DOT_H_
 #define SDT_DOT_H_ 1
 
+#include <stdio.h>
 #include <cgraph.h>
 #include "ast.h"
 

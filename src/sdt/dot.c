@@ -54,9 +54,8 @@ void program_to_graph(Agraph_t *graph, Agnode_t *parent, struct program *program
 void block_to_graph(Agraph_t *graph, Agnode_t *parent, struct block *block) {
     Agnode_t *block_node = append_node(graph, parent, "block");
 
-    for (struct node *node = head(block->stmts), *next; node; node = next) {
+    for (struct node *node = head(block->stmts); node; node = next(node)) {
         stmt_to_graph(graph, block_node, value(node));
-        next = node->next;
     }
 }
 

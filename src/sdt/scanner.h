@@ -1,5 +1,5 @@
-#ifndef SCANNER_H_
-#define SCANNER_H_
+#ifndef SDT_SCANNER_H_
+#define SDT_SCANNER_H_
 
 #include <base/linked_list.h>
 #include <stdlib.h>

@@ -8,11 +8,12 @@
 #include <base/linked_list.h>
 #include "scanner.h"
 #include "parser.h"
+#include "source.h"
 #include "dot.h"
 
 enum output_fmt {
     OUTPUT_AST,
-    OUTPUT_INPUT,
+    OUTPUT_SOURCE,
     OUTPUT_TOKENS
 };
 
@@ -79,7 +80,7 @@ struct args read_args(int argc, char *argv[]) {
     struct args args = {
         .pos_size = 0,
         .pos = NULL,
-        .output = OUTPUT_INPUT
+        .output = OUTPUT_SOURCE
     };
     int f;
     while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {
@@ -87,8 +88,8 @@ struct args read_args(int argc, char *argv[]) {
             case 'f':
                 if (strcmp("ast", optarg) == 0) {
                     args.output = OUTPUT_AST;
-                } else if (strcmp("input", optarg) == 0) {
-                    args.output = OUTPUT_INPUT;
+                } else if (strcmp("source", optarg) == 0) {
+                    args.output = OUTPUT_SOURCE;
                 } else if (strcmp("tokens", optarg) == 0) {
                     args.output = OUTPUT_TOKENS;
                 }
@@ -134,7 +135,7 @@ int main(int argc, char *argv[]) {
         if (args.output == OUTPUT_TOKENS) {
             struct list *tokens_ = tokens(input);
 
-            for (struct node *node = head(tokens_); node; node = node->next) {
+            for (struct node *node = head(tokens_); node; node = next(node)) {
                 display_token(value(node));
                 printf("\n");
             }
@@ -148,7 +149,7 @@ int main(int argc, char *argv[]) {
                 if (args.output == OUTPUT_AST) {
                     print_dot(stdout, ast, input, TOGRAPHFN program_to_graph);
                 } else {
-                    printf("it worked!\n");
+                    print_source(stdout, ast, TOSOURCEFN program_to_source);
                 }
                 free_parse_context(&context);
             } else {

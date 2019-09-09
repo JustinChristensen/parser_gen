@@ -11,3 +11,25 @@ struct sizenl numlines(char *str) {
 
     return stats;
 }
+
+char *repeat(char *str, char c, int times) {
+    while (times-- > 0) *str++ = c;
+    *str = '\0';
+    return str;
+}
+
+char *put(char *str, char *s) {
+    while (*s != '\0') {
+        *str++ = *s++;
+    }
+    *str = '\0';
+    return str;
+}
+
+char *putln(char *str, char *s) {
+    str = put(str, s);
+    *str++ = '\n';
+    *str = '\0';
+    return str;
+}
+

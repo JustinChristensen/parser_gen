@@ -1,5 +1,5 @@
-#ifndef AST_H_
-#define AST_H_
+#ifndef SDT_AST_H_
+#define SDT_AST_H_
 
 #include <stdlib.h>
 #include <base/linked_list.h>
@@ -239,4 +239,4 @@ void free_subexpr_factor(struct subexpr_factor *factor);
 void free_num_factor(struct num_factor *factor);
 void free_id_factor(struct id_factor *factor);
 
-#endif // AST_H_
+#endif // SDT_AST_H_

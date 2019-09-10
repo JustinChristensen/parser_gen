@@ -151,8 +151,8 @@ int main(int argc, char *argv[]) {
         struct gendims dims = {
             .minw = 3,
             .maxw = 10,
-            .mind = 2,
-            .maxd = 20
+            .mind = 30,
+            .maxd = 40
         };
         struct program *program = gen_program(dims);
         output_ast(program, NULL, args.output);

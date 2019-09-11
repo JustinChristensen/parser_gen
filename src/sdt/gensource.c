@@ -67,6 +67,10 @@ min
 1        id_factor
 
 Hrm, not even close...
+We can't write this to generate based on "node" depth, but rather
+on the minimum valid syntax tree
+program - block
+program - block - stmt - expr - rel - add - term - factor
 */
 
 static bool falling(int depth) {

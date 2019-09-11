@@ -62,8 +62,8 @@ struct option *options(struct option_descriptor *opt_descs) {
 
 void print_usage(char *prog_name, FILE *handle) {
     fprintf(handle, "usage: %-s [options]\n\n", prog_name);
-    fprintf(handle, "subcommands:\n");
-    fprintf(handle, "%-s%s%-24s%-s\n", FLAG_INDENT, "generate", DESC_SEP, "generate source");
+    // fprintf(handle, "subcommands:\n");
+    // fprintf(handle, "%-s%s%-24s%-s\n", FLAG_INDENT, "generate", DESC_SEP, "generate source");
     fprintf(handle, "\n");
     fprintf(handle, "options:\n");
     for (int i = 0; i < NUM_DESCS; i++) {
@@ -94,14 +94,14 @@ struct args read_args(int argc, char *argv[]) {
         .output = OUTPUT_SOURCE,
     };
 
-    if (argc > 0) {
-        if (strcmp("generate", argv[1]) == 0) {
-            char *prog = argv[0];
-            args.cmd = GENERATE;
-            argc--;
-            *argv++ = prog;
-        }
-    }
+    // if (argc > 0) {
+    //     if (strcmp("generate", argv[1]) == 0) {
+    //         char *prog = argv[0];
+    //         args.cmd = GENERATE;
+    //         argc--;
+    //         *argv++ = prog;
+    //     }
+    // }
 
     int f;
     while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {

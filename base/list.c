@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdbool.h>
-#include "base/linked_list.h"
+#include "base/list.h"
 
 struct list *init_list() {
     struct list *list = malloc(sizeof *list);
@@ -47,7 +47,7 @@ void free_list(struct list *list, void (*free_val) (void *val)) {
     struct node *node, *next = NULL;
 
     for (node = head(list); node; node = next) {
-        (*free_val)(node->val);
+        if (free_val) (*free_val)(node->val);
         next = node->next;
         free(node);
     }

@@ -1,6 +1,6 @@
 #include <cgraph.h>
 #include <stdio.h>
-#include <base/linked_list.h>
+#include <base/list.h>
 #include <base/graphviz.h>
 #include "dot.h"
 

@@ -1,0 +1,236 @@
+3. Lexical Analysis
+
+Terminology:
+token - a pair consisting of the token name (type) and an optional value
+pattern - a description of the form that lexemes for the token may take
+lexeme - sequence of characters in the source program that matches the pattern
+
+Regular expressions are a notation for specifying lexeme patterns
+
+Strings and languages:
+alphabet - finite set of symbols, such as {0, 1}, or {a, ..., z}
+string - finite sequence of symbols drawn from an alphabet
+|s| - length of string s
+language - a _countable_ set of strings over some fixed alphabet
+prefix/suffix/substring/proper prefix/proper suffix/subsequence (i.e. baan in banana)
+
+string x, string y
+xy - concatenation (product)
+
+exponentiation:
+s⁰ = { ε }
+∀i > 0 s(i) = s(i-1)s
+s*
+
+Three operations on languages (in order of ascending precedence):
+L ∪ D   Union (or |)
+LD      Concatenation
+L*      Closure
+
+More:
+L+      Positive Closure
+L⁴      4 character strings
+L?      0 or 1
+[ab]    Character class
+
+[ab] == a | b
+
+Regular Definition for C-like identifier:
+letter_     -> [A-Za-z_]
+digit       -> [0-9]
+identifier  -> letter_ (letter_ ∪ digit_)*
+
+Transition Diagrams
+see float-td.txt
+
+Lex implements the longest match rule, i.e.
+case
+cases <- identifier
+
+Finite Automata:
+1. recognizers, either yes or no about input
+2. two flavors: non-deterministic, or deterministic
+
+Non-Deterministic Finite Automata (NFA):
+- symbols can label one or more edges out of a state, and ε is a valid label
+
+Deterministic Finite Automata (NFA)
+- symbols can only label one edge out of a given state
+
+Formal Definitions
+NFA:
+- set of states S
+- set of input symbols Σ, the alphabet (without ε)
+- transition function that computes, for each state, and for each symbol in
+    Σ ∪  { ε }, a set of next states
+- a state s₀, the start state
+- a set of final states (or accepting states), F
+
+Can be represented by a graph or a table.
+
+For:
+(a|b)*abb
+
+Transition Graph:
+               a
+         +---------+
+         |         |
+         +->       |
+   start    +-----+     a    +-----+     b    +-----+     b    +-----+
+----------->|  0  |--------->|  1  |--------->|  2  |--------->| (3) |
+            +-----+          +-----+          +-----+          +-----+
+         +->       |
+         |         |
+         +---------+
+               b
+
+Transition Table:
+state   a       b      ε
+  0   {0,1}    {0}     ∅      <-   if I'm in state 0, and I'm given the input symbol 'a', then transition to
+  1     ∅      {2}     ∅           BOTH states 0 and 1, i.e. an NFA can be in more than one state at a given time
+  2     ∅      {3}     ∅           and can transition to more than one state
+  3     ∅       ∅      ∅
+
+An NFA recognizes an input string if at least ONE of it's current states is a final state.
+
+The _language_ of an NFA is the set of strings it recognizes (where there is at least one path from
+    the start state to an accepting state)
+
+
+DFA:
+- no ε transitions
+- for each state s, and symbol a, there is exactly one edge labeled by a out of s
+
+Every NFA can be convered to a DFA
+
+DFA for (a|b)*abb
+                                        b
+                  +-----------------------------------------------+
+                  |                                               |
+                  v                                               |
+   start    +-----+     a    +-----+     b    +-----+     b    +-----+
+----------->|  0  |--------->|  1  |--------->|  2  |--------->| (3) |
+            +-----+       +->+-----+<---------+-----+          +-----+
+         +->      |     a |     |  ^     a                        |
+         |        |       |     |  |                              |
+         +--------+       +-----+  +------------------------------+
+               b                                 a
+
+Regular Expressions
+- Start by constructing an NFA
+- Simulate the NFA with ε-closure(s), ε-closure(T), and move(T, a) operations
+    where s is a single state, T represents the set of current states, and a represents the current input symbol
+    - ε-closure moves on edges labeled with ε
+    - move moves on edges labeled by a
+- Cache the result. The intuition is that being in states {1, 2, 3} is distinct from {2, 3}, and
+    so you can view an NFA as being deterministic given an input symbol, a, like a DFA
+
+NFA Simulation Algorithm:
+
+struct set F = final_states;
+
+struct state s0 = initial_state;
+struct set S = eps_closure(s0);
+char c = getc(input);
+while (c != EOF) {
+    S = eps_closure(move(S, c));
+    c = getc(input);
+}
+
+// at least one state in F is a final state
+if (intersection(S, F) != nullset) {
+    return true;
+} else {
+    return false;
+}
+
+TODO: implement set
+- test performance of stack vs tree implementation
+
+An NFA state is "important" if it has at least one non-ε transition out of it
+
+Three types of nodes for basic regular expression operators:
+struct cat_node  <- concatenation
+struct or_node   <- alternation
+struct star_node <- kleene closure
+
+Optimizations:
+
+(a|b)*abb
+
+                                          +------  +  -------+
+                                          |                  |
+                                          |                  |
+                                 +------  +  -------+        |
+                                 |                  |        |
+                                 |                  |        |
+                          +----  +  -------+        |        |
+                          |                |        |        |
+                          |                |        |        |
+                          *                |        |        |
+                          |                |        |        |
+                          |                |        |        |
+                    +---  |  ---+          |        |        |
+                    |           |          |        |        |
+                    |           |          |        |        |
+       symbol       a           b          a        b        b
+     position       1           2          3        4        5
+
+Parsing the expression into a syntax tree is probably a precondition for these...
+Non-ε nodes also get a position number attached
+
+nullable(n) is true if the subexpression of a syntax tree node n has ε in it's language, i.e. x|ε
+firstpos(n) is the set of positions in the node's subtree that correspond to the first symbol of
+    at least one string of the language rooted at n, i.e. (f1o2o3)|(b4a5r6) -> {1,4}
+lastpos(n) is the set of positions in the node's subtree that correspond to the last symbol of
+    at least one string of the language rooted at n, i.e. (f1o2o3)|(b4a5r6) -> {3,6}
+followpos(n) wat
+
+Using the subexpression n = (a|b)*a in the above syntax tree:
+nullable(n) = false
+firstpos(n) = {1,2,3}
+lastpos(n) = {3}
+followpos(n) = {1,2,3}
+
+For followpos(n), consider the string ...ac... where c is either a or b and a is position 1,
+a.1 could be "followed by" a or b corresponding to position 1 or 2, or it could be followed by
+the terminating a from position three, so followpos(n) = {1,2,3}
+
+followpos(n) is the set of possible positions following the first position of the tree rooted at n
+
+1. Constructing a DFA directly from a regular expression
+
+With the above tools:
+firstpos(root) becomes the start state A, then compute dfatrans[A, a], and dfatrans[A, b]
+using the union of followpos(x) and followpos(y) for the two follow positions
+
+struct table dfa_trans = { ... }
+struct set dfa_states = firstpos(root)
+for (state S in dfa_states) {
+    if (unmarked(S)) {
+        mark(S)
+        for (symbol in alphabet) {
+            struct set fpos = union(followpos(corresponding(S, symbol)))
+            if (fpos not in dfa_states) {
+                push(dfa_states, fpos)
+            }
+            dfa_trans[S, symbol] = U
+        }
+    }
+}
+
+TODO: set and set equality
+
+2. Minimizing the number of DFA states via combining
+
+- many distinct DFAs can represent the same language
+- two dfas can be said to be "the same up to state names" if they have the same number of states
+    and the same transitions on each state (only the state names differ)
+- there is only one unique "minimal" DFA for a given language, meaning it has the least number of states but
+    recognizes the same language
+
+3. A more compact representation of the transition table
+
+
+https://en.wikipedia.org/wiki/Nondeterministic_finite_automaton
+https://swtch.com/~rsc/regexp/regexp1.html

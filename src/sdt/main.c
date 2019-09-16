@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <base/macros.h>
-#include <base/linked_list.h>
+#include <base/list.h>
 #include "gensource.h"
 #include "scanner.h"
 #include "parser.h"

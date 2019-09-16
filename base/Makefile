@@ -5,7 +5,7 @@ LDFLAGS := -fpic
 .PHONY: all
 all: $(LIB)
 
-$(LIB): graphviz.c linked_list.c random.c string.c
+$(LIB): graphviz.c list.c queue.c random.c string.c stack.c
 	$(CC) -shared $(CFLAGS) -o $@ $+ $(LDFLAGS)
 
 .PHONY: run

@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <base/linked_list.h>
+#include <base/list.h>
 #include <base/string.h>
 #include "ast.h"
 #include "source.h"

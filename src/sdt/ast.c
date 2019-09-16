@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <base/linked_list.h>
+#include <base/list.h>
 #include <base/macros.h>
 #include "ast.h"
 

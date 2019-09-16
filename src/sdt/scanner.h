@@ -1,7 +1,7 @@
 #ifndef SDT_SCANNER_H_
 #define SDT_SCANNER_H_
 
-#include <base/linked_list.h>
+#include <base/list.h>
 #include <stdlib.h>
 #include <stdbool.h>
 

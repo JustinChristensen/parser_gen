@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+typedef struct list list;
+
 struct list {
     struct node *head;
     struct node *last;

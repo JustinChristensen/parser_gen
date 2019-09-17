@@ -1,21 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <base/macros.h>
 #include <base/list.h>
+#include <base/args.h>
 #include "gensource.h"
 #include "scanner.h"
 #include "parser.h"
 #include "source.h"
 #include "dot.h"
 
-enum cmd {
+enum command_key {
     PARSE,
     GENERATE
 };
+
+enum arg_key {
+    FORMAT
+}
 
 enum output_fmt {
     OUTPUT_AST,
@@ -24,116 +28,11 @@ enum output_fmt {
 };
 
 struct args {
+    enum command_key cmd;
+    enum output_fmt output;
     int pos_size;
     char **pos;
-    enum cmd cmd;
-    enum output_fmt output;
 };
-
-struct option_descriptor {
-    struct option option;
-    char *description;
-};
-
-enum opt_values {
-    VERSION = 256
-};
-
-#define NUM_DESCS 4
-static struct option_descriptor opt_descs[] = {
-    { { "format",    required_argument,  NULL,  'f' },        "Output format: ast, input, or tokens" },
-    { { "version",   no_argument,        NULL,  VERSION },    "Print version information" },
-    { { "help",      no_argument,        NULL,  'h' },        "Print help" },
-    { { NULL,         0,                 NULL,  0 },          NULL }
-};
-
-static struct option opts[NUM_DESCS];
-
-struct option *options(struct option_descriptor *opt_descs) {
-    for (int i = 0; i < NUM_DESCS; i++) {
-        opts[i] = opt_descs[i].option;
-    }
-
-    return opts;
-}
-
-#define FLAG_INDENT "   "
-#define DESC_SEP "    "
-
-void print_usage(char *prog_name, FILE *handle) {
-    fprintf(handle, "usage: %-s [options]\n\n", prog_name);
-    // fprintf(handle, "subcommands:\n");
-    // fprintf(handle, "%-s%s%-24s%-s\n", FLAG_INDENT, "generate", DESC_SEP, "generate source");
-    fprintf(handle, "\n");
-    fprintf(handle, "options:\n");
-    for (int i = 0; i < NUM_DESCS; i++) {
-        char *desc  = opt_descs[i].description;
-        if (desc) {
-            struct option opt = opt_descs[i].option;
-            char flag[2] = { opt.val, '\0' };
-            const char *f = opt.name, *d = "--";
-            if (f == NULL) {
-                f = flag;
-                d = " -";
-            }
-            fprintf(handle, "%-s%s%-24s%-s%-s\n", FLAG_INDENT, d, f, DESC_SEP, desc);
-        }
-    }
-    fprintf(handle, "\n");
-}
-
-void print_version() {
-    printf("1.0.0\n");
-}
-
-struct args read_args(int argc, char *argv[]) {
-    struct args args = {
-        .pos_size = 0,
-        .pos = NULL,
-        .cmd = PARSE,
-        .output = OUTPUT_SOURCE,
-    };
-
-    // if (argc > 0) {
-    //     if (strcmp("generate", argv[1]) == 0) {
-    //         char *prog = argv[0];
-    //         args.cmd = GENERATE;
-    //         argc--;
-    //         *argv++ = prog;
-    //     }
-    // }
-
-    int f;
-    while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {
-        switch (f) {
-            case 'f':
-                if (strcmp("ast", optarg) == 0) {
-                    args.output = OUTPUT_AST;
-                } else if (strcmp("source", optarg) == 0) {
-                    args.output = OUTPUT_SOURCE;
-                } else if (strcmp("tokens", optarg) == 0) {
-                    args.output = OUTPUT_TOKENS;
-                }
-                break;
-            case 'h':
-                print_usage(argv[0], stdout);
-                exit(EXIT_SUCCESS);
-                break;
-            case VERSION:
-                print_version();
-                exit(EXIT_SUCCESS);
-                break;
-            default:
-                print_usage(argv[0], stderr);
-                exit(EXIT_FAILURE);
-        }
-    }
-
-    args.pos_size = argc - optind;
-    args.pos = argv + optind;
-
-    return args;
-}
 
 void output_ast(struct program *ast, char *input, enum output_fmt format) {
     if (format == OUTPUT_AST) {
@@ -144,6 +43,64 @@ void output_ast(struct program *ast, char *input, enum output_fmt format) {
 }
 
 #define BUFFER_SIZE 1000000
+
+struct args read_args(int argc, char **argv) {
+    struct arg format_arg = { FORMAT, "format", "f", required_argument, "Output format: ast, input, or tokens" };
+
+    struct cmd cmds = {
+        PARSE,
+        NULL,
+        { help_and_version, format_arg },
+        {
+            {
+                GENERATE,
+                "generate",
+                "Generate source",
+                { help_and_version, format_arg },
+                NULL
+            }
+        },
+        "Parse the source program"
+    };
+
+    struct arg_reader reader = arg_reader(&cmds, "1.0.0", argc, argv);
+
+    struct args args = {
+        .cmd = PARSE,
+        .output = OUTPUT_SOURCE
+        .pos_size = 0,
+        .pos = NULL,
+    };
+
+    args.cmd = findcmd(reader);
+
+    int key;
+    while ((key = readarg(reader)) != DONE) {
+        switch (args.cmd) {
+            case PARSE:
+            case GENERATE:
+                switch (k) {
+                    case FORMAT:
+                        char *val = argval(reader);
+                        if (strcmp("ast", val) == 0) {
+                            args.output = OUTPUT_AST;
+                        } else if (strcmp("source", val) == 0) {
+                            args.output = OUTPUT_SOURCE;
+                        } else if (strcmp("tokens", val) == 0) {
+                            args.output = OUTPUT_TOKENS;
+                        }
+                        break;
+                }
+                break;
+        }
+    }
+
+    args.pos = argv(reader);
+    args.pos_size = argc(reader);
+
+    return args;
+}
+
 int main(int argc, char *argv[]) {
     struct args args = read_args(argc, argv);
 

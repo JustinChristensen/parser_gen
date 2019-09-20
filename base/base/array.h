@@ -6,14 +6,13 @@
 #include "base/tuple.h"
 
 struct array {
-    void *arr;
     size_t size;
+    void *arr;
 };
 
-struct array array(size_t size);
+struct array array(size_t size, void *arr);
 struct tuple2 partition(void *arr, size_t size, bool (*predicate) (void *el));
 void *first(struct array arr);
 size_t size(struct array arr);
-void free_array(struct array arr);
 
 #endif // BASE_ARRAY_H_

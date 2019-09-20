@@ -3,65 +3,118 @@
 #include "base/tuple.h"
 #include <stdbool.h>
 
-struct arg_reader arg_reader(struct cmd *cmds, char *version, int argc, char **argv) {
-    struct arg_reader context = {
-        .cmd = cmds,
+struct args_context init_args_context(struct cmd **cmd_path, char *version, int argc, char **argv) {
+    struct args_context context = {
+        .cmd_path = cmd_path,
         .version = version,
+        .argc = argc,
         .argv = argv,
-        .argc = argc
+        .optstring = NULL,
+        .options = NULL,
+        .val_table = NULL
     };
 
     return context;
 }
 
-int findcmd(struct args_context context) {
-    if (context.argc > 2) {
-        int argc = context.argc;
-        char **argv = context.argv;
-        char *prog = context.argv[0];
-        struct cmd *subcmds = context.cmd->subcmds;
+struct argv run_args_reader(
+    void *out_val,
+    struct cmd *cmd, char *version,
+    int argc, char **argv,
+    void (*cmd_not_found) (struct args_context *context),
+    void (*read_args) (void *out_val, struct args_context *context)
+) {
+    if (read_args) {
+        struct cmd *cmd_path[16] = { NULL };
+        struct args_context context = init_args_context(cmd_path, version, argc, argv);
+        int cmdkey = findcmd(&context, cmds);
 
-        while (subcmds && *argv[1] != '-') {
-            size_t nsubs = sizeof(subcmds) / sizeof (subcmds[0]);
-            struct cmd *found = NULL;
+        if (cmdkey != DONE) {
+            char optstring[OPTSTRING_SIZE] = "";
+            struct option options[OPTIONS_SIZE];
+            struct val_assoc val_table[OPTIONS_SIZE];
 
-            for (int i = 0; i < nsubs; i++) {
-                if (strcmp(subcmds[i].cmd, argv[1]) == 0) {
-                    found = subcmds[i];
-                    ++argv = prog;
-                    argc--;
-                }
-            }
+            context.optstring = optstring;
+            context.options = options;
+            context.val_table = val_table;
 
-            if (found) subcmds = found->subcmds;
+            determine_options(&context);
 
-            context.cmd = found;
+            (*read_args)(out_val, cmdkey, &context);
+        } else if (cmd_not_found) {
+            (*cmd_not_found)(&context);
         }
-
-        context.argc = argc;
-        context.argv = argv;
     }
-
-    if (!context.cmd) {
-        return print_usage(stderr, context);
-    }
-
-    return context.cmd.key;
 }
 
-int readarg(struct args_context context) {
+int findcmd(struct args_context *context, struct cmd *cmd) {
+    int cmdkey = cmd.key;
+    struct **cmd_path = context->cmd_path;
+    *cmd_path++ = cmd;
+
+    if (context->argc > 2) {
+        int argc = context->argc;
+        char **argv = context->argv;
+        char *prog = argv[0];
+
+        while (cmd && *argv[1] != '-') {
+            struct cmd *subcmds = cmd->subcmds;
+
+            if (subcmds) {
+                while ((*subcmds).key != DONE) {
+                    if (strcmp(*subcmds.cmd, argv[1]) == 0) {
+                        cmd = *subcmds;
+                        *cmd_path++ = cmd;
+                        argv++;
+                        argc--;
+                        argv[0] = prog;
+                    }
+                }
+            } else {
+                cmd = NULL;
+                cmdkey = DONE;
+            }
+        }
+
+        context->argc = argc;
+        context->argv = argv;
+    }
+
+    return cmdkey;
+}
+
+struct option arg_to_option(struct arg arg, int *flag) {
+    struct option opt = {
+        .name = arg.lname,
+        .has_arg = arg.has_val,
+        .flag = flag,
+        .val = arg.key
+    };
+
+    return opt;
+}
+
+void determine_options(struct args_context *context) {
+}
+
+int readarg(struct arg_reader reader) {
 }
 
 char *argval() {
     return optarg;
 }
 
-int argc(struct args_context context) {
-    return context.argc;
+int argc(struct arg_reader reader) {
+    return reader.argc;
 }
 
-int argv(struct args_context context) {
-    return context.argv;
+int argv(struct arg_reader reader) {
+    return reader.argv;
+}
+
+void cmd_not_found(struct args_context *context) {
+    print_usage(stderr, context);
+    exit(EXIT_FAILURE);
 }
 
 #define FLAG_INDENT "   "

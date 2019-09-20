@@ -2,7 +2,7 @@
 #include "base/array.h"
 #include "base/tuple.h"
 
-struct array array(size_t size) {
+struct array array(void *arr, size_t size) {
     void arr = calloc(sizeof *arr, size);
     assert(arr != NULL);
     struct array array = { arr, size };

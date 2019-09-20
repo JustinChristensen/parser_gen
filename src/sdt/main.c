@@ -42,28 +42,51 @@ void output_ast(struct program *ast, char *input, enum output_fmt format) {
     }
 }
 
+void read_args(struct args *args, int cmd, struct args_context *context) {
+    int key;
+    while ((key = readarg(context)) != DONE) {
+        switch (cmd) {
+            case PARSE:
+            case GENERATE:
+                switch (k) {
+                    case FORMAT:
+                        char *val = argval(reader);
+                        if (strcmp("ast", val) == 0) {
+                            args->output = OUTPUT_AST;
+                        } else if (strcmp("source", val) == 0) {
+                            args->output = OUTPUT_SOURCE;
+                        } else if (strcmp("tokens", val) == 0) {
+                            args->output = OUTPUT_TOKENS;
+                        }
+                        break;
+                }
+                break;
+        }
+    }
+
+    args->pos = argv(context);
+    args->pos_size = argc(context);
+
+    return args;
+}
+
 #define BUFFER_SIZE 1000000
 
-struct args read_args(int argc, char **argv) {
-    struct arg format_arg = { FORMAT, "format", "f", required_argument, "Output format: ast, input, or tokens" };
-
+int main(int argc, char *argv[]) {
     struct cmd cmds = {
         PARSE,
         NULL,
-        { help_and_version, format_arg },
         {
-            {
-                GENERATE,
-                "generate",
-                "Generate source",
-                { help_and_version, format_arg },
-                NULL
-            }
+            help_and_version,
+            { FORMAT, "format", "f", required_argument, true, "Output format: ast, input, or tokens" },
+            end_arg
+        },
+        {
+            { GENERATE, "generate", NULL, NULL, "Generate source" },
+            end_cmd
         },
         "Parse the source program"
     };
-
-    struct arg_reader reader = arg_reader(&cmds, "1.0.0", argc, argv);
 
     struct args args = {
         .cmd = PARSE,
@@ -72,37 +95,7 @@ struct args read_args(int argc, char **argv) {
         .pos = NULL,
     };
 
-    args.cmd = findcmd(reader);
-
-    int key;
-    while ((key = readarg(reader)) != DONE) {
-        switch (args.cmd) {
-            case PARSE:
-            case GENERATE:
-                switch (k) {
-                    case FORMAT:
-                        char *val = argval(reader);
-                        if (strcmp("ast", val) == 0) {
-                            args.output = OUTPUT_AST;
-                        } else if (strcmp("source", val) == 0) {
-                            args.output = OUTPUT_SOURCE;
-                        } else if (strcmp("tokens", val) == 0) {
-                            args.output = OUTPUT_TOKENS;
-                        }
-                        break;
-                }
-                break;
-        }
-    }
-
-    args.pos = argv(reader);
-    args.pos_size = argc(reader);
-
-    return args;
-}
-
-int main(int argc, char *argv[]) {
-    struct args args = read_args(argc, argv);
+    run_args_reader(&args, &cmds, "1.0.0", argc, argv, cmd_not_found, ARG_READER_FN read_args);
 
     if (args.cmd == GENERATE) {
         struct gendims dims = {

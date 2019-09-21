@@ -1,6 +1,4 @@
 #include "base/args.h"
-#include "base/array.h"
-#include "base/tuple.h"
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
@@ -179,15 +177,15 @@ void print_usage(FILE *handle, struct args_context *context) {
     struct cmd **cmd_path = context->cmd_path + 1;
     struct cmd *cmd = context->cmd;
     char *prog = context->argv[0];
+    struct cmd *sub = cmd->subcmds;
 
     fprintf(handle, "usage: %s", prog);
     while (*cmd_path != NULL) {
         fprintf(handle, " %s", (*cmd_path)->cmd);
         cmd_path++;
     }
+    if (sub) fprintf(handle, " [subcommand]");
     fprintf(handle, " [options]\n\n");
-
-    struct cmd *sub = cmd->subcmds;
 
     if (sub) {
         fprintf(handle, "subcommands:\n");

@@ -72,15 +72,16 @@ enum {
     MISSING_ARG     = -5
 };
 
-#define help_arg { HELP, "help", 0, no_argument, "Print help" }
-#define version_arg { VERSION, "version", 0, no_argument, "Print version" }
-#define help_and_version_args help_arg, version_arg
-#define end_arg { END, NULL, 0, no_argument, NULL }
-#define end_cmd { END, NULL, 0, NULL, NULL }
 #define ARG_FN (void (*) (void *, int, struct args_context *))
 #define CMD &(struct cmd)
 #define CMDS (struct cmd[])
 #define ARGS (struct arg[])
+
+struct arg help_arg = { HELP, "help", 0, no_argument, "Print help" };
+struct arg version_arg = { VERSION, "version", 0, no_argument, "Print version" };
+#define help_and_version_args help_arg, version_arg
+struct arg end_arg = { END, NULL, 0, no_argument, NULL };
+struct cmd end_cmd = { END, NULL, 0, NULL, NULL };
 
 void run_args(
     void *out_val,

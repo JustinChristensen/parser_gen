@@ -13,6 +13,8 @@ struct args {
 };
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
+    int key;
+    while ((key = readarg(context)) != END);
     args->cmd = cmd;
     args->pos = argv(context);
     args->pos_size = argc(context);

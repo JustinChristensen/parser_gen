@@ -44,7 +44,7 @@ void output_ast(struct program *ast, char *input, enum output_fmt format) {
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
-    while ((key = readarg(context)) != DONE) {
+    while ((key = readarg(context)) != END) {
         switch (cmd) {
             case PARSE:
             case GENERATE:
@@ -73,21 +73,6 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 #define BUFFER_SIZE 1000000
 
 int main(int argc, char *argv[]) {
-    struct cmd cmds = {
-        PARSE,
-        NULL,
-        {
-            help_and_version,
-            { FORMAT, "format", "f", required_argument, true, "Output format: ast, input, or tokens" },
-            end_arg
-        },
-        {
-            { GENERATE, "generate", NULL, NULL, "Generate source" },
-            end_cmd
-        },
-        "Parse the source program"
-    };
-
     struct args args = {
         .cmd = PARSE,
         .output = OUTPUT_SOURCE
@@ -95,7 +80,32 @@ int main(int argc, char *argv[]) {
         .pos = NULL,
     };
 
-    run_args_reader(&args, &cmds, "1.0.0", argc, argv, cmd_not_found, ARG_READER_FN read_args);
+    struct arg fmt_arg = { FORMAT, "format", "f", required_argument, "Output format: ast, input, or tokens" };
+
+    run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, default_handlers, CMD {
+        PARSE,
+        NULL,
+        ARGS {
+            help_and_version_args,
+            fmt_arg,
+            end_arg
+        },
+        CMDS {
+            {
+                GENERATE,
+                "generate",
+                ARGS {
+                    help_and_version_args,
+                    fmt_arg,
+                    end_arg
+                },
+                NULL,
+                "Generate source"
+            },
+            end_cmd
+        },
+        "Parse the source program"
+    });
 
     if (args.cmd == GENERATE) {
         struct gendims dims = {

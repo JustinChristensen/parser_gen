@@ -22,11 +22,13 @@ void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t 
 
     (*to_graph)(astg, NULL, ast);
 
-    Agnode_t *inputn = agnode(inputg, "input", 1);
-    agset(inputn, "fontname", "monospace");
-    char *input_label = left_justify(input);
-    agset(inputn, "label", input_label);
-    free(input_label);
+    if (input) {
+        Agnode_t *inputn = agnode(inputg, "input", 1);
+        agset(inputn, "fontname", "monospace");
+        char *input_label = left_justify(input);
+        agset(inputn, "label", input_label);
+        free(input_label);
+    }
 
     if (agwrite(topg, stdout) == EOF) {
         fprintf(stderr, "printing dot file failed\n");

@@ -19,7 +19,7 @@ enum command_key {
 
 enum arg_key {
     FORMAT
-}
+};
 
 enum output_fmt {
     OUTPUT_AST,
@@ -44,19 +44,24 @@ void output_ast(struct program *ast, char *input, enum output_fmt format) {
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
+
+    args->cmd = cmd;
+
     while ((key = readarg(context)) != END) {
         switch (cmd) {
             case PARSE:
             case GENERATE:
-                switch (k) {
+                switch (key) {
                     case FORMAT:
-                        char *val = argval(reader);
-                        if (strcmp("ast", val) == 0) {
+                        if (strcmp("dot", argval(context)) == 0) {
                             args->output = OUTPUT_AST;
-                        } else if (strcmp("source", val) == 0) {
+                        } else if (strcmp("source", argval(context)) == 0) {
                             args->output = OUTPUT_SOURCE;
-                        } else if (strcmp("tokens", val) == 0) {
+                        } else if (strcmp("tokens", argval(context)) == 0) {
                             args->output = OUTPUT_TOKENS;
+                        } else {
+                            print_usage(stderr, context);
+                            exit(EXIT_FAILURE);
                         }
                         break;
                 }
@@ -66,8 +71,6 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 
     args->pos = argv(context);
     args->pos_size = argc(context);
-
-    return args;
 }
 
 #define BUFFER_SIZE 1000000
@@ -75,14 +78,14 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = PARSE,
-        .output = OUTPUT_SOURCE
+        .output = OUTPUT_SOURCE,
         .pos_size = 0,
         .pos = NULL,
     };
 
-    struct arg fmt_arg = { FORMAT, "format", "f", required_argument, "Output format: ast, input, or tokens" };
+    struct arg fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, input, or tokens" };
 
-    run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, default_handlers, CMD {
+    run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         PARSE,
         NULL,
         ARGS {

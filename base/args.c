@@ -2,16 +2,26 @@
 #include "base/array.h"
 #include "base/tuple.h"
 #include <stdbool.h>
+#include <string.h>
+#include <assert.h>
 
-struct args_context init_args(char *version, struct args_handlers handlers, struct cmd *cmd) {
+struct args_context init_args_context(
+    struct cmd *cmd, char *version,
+    struct args_handlers *handlers,
+    struct cmd **cmd_path,
+    int argc, char **argv
+) {
     return (struct args_context) {
         .cmd = cmd,
         .version = version,
         .handlers = handlers,
-
-        .cmd_path = NULL,
-        .argc = 0,
-        .argv = NULL
+        .cmd_path = cmd_path,
+        .argc = argc,
+        .argv = argv,
+        .flag = -1,
+        .optstring = NULL,
+        .options = NULL,
+        .val_table = NULL
     };
 }
 
@@ -23,73 +33,51 @@ void run_args(
     struct args_handlers *handlers,
     struct cmd *cmd
 ) {
-    // if handlers is null, use default handlers
-    // if read args
-    //      create the context
-    //      find the command, storing the command path for later (when printing usage), i.e. rails generate model
-    //      if the command was found
-    //          initialize getopt related storage (optstring, options, etc)
-    //          compute the getopt stuff
-    //          run read args with the out value, found command key, and context
-    //      if the command was not found
-    //          run the command not found handler
-    //
-    //  read args
-    //      while read arg
-    //          if arg has a handler (help, version, missing arg, unknown option), run the handler
-    //          else, return arg key to caller
+    assert(read_args != NULL);
 
-    if (handlers.read_args) {
-        struct args_context context = init_args_context(&cmd, version, argc, argv);
-
-        findcmd(&context);
-
-        if (context.cmd) {
-            char optstring[OPTSTRING_SIZE] = "";
-            struct option options[OPTIONS_SIZE];
-            struct val_assoc val_table[OPTIONS_SIZE];
-
-            determine_options(&context, optstring, options, val_table);
-
-            (*handlers.read_args)(out_val, context.cmd.key, &context);
-        } else if (cmd_not_found) {
-            (*handlers.cmd_not_found)(&context);
-        }
-    }
-}
-
-struct args_handlers default_handlers() {
-    return (struct args_handlers) {
-        .cmd_not_found = cmd_not_found,
+    if (!handlers) (handlers = &(struct args_handlers) {
         .help_found = help_found,
         .version_found = version_found,
-        .missing_arg_found = cmd_not_found,
-        .unknown_option_found = cmd_not_found
-    };
+        .missing_arg_found = missing_arg_found,
+        .unknown_option_found = unknown_option_found
+    });
+
+    struct cmd *cmd_path[32] = { NULL };
+    struct args_context context = init_args_context(cmd, version, handlers, cmd_path, argc, argv);
+
+    findcmd(&context);
+
+    char optstring[OPTSTRING_SIZE];
+    struct option options[OPTIONS_SIZE];
+    struct val_assoc val_table[OPTIONS_SIZE];
+    determine_options(&context, optstring, options, val_table);
+
+    (*read_args)(out_val, context.cmd->key, &context);
 }
 
 void findcmd(struct args_context *context) {
-    if (context->argc > 2) {
-        struct cmd *cmd = context->cmd;
+    struct cmd *cmd = context->cmd;
+    struct cmd **cmd_path = context->cmd_path;
+
+    *cmd_path++ = cmd;
+
+    if (context->argc > 1) {
         int argc = context->argc;
         char **argv = context->argv;
         char *prog = argv[0];
+        struct cmd *sub = cmd->subcmds;
 
-        while (cmd && *argv[1] != '-') {
-            struct cmd *sub = cmd->subcmds;
-            cmd = NULL;
-
-            while (sub && sub->key != END) {
-                if (strcmp(sub->cmd, argv[1]) == 0) {
-                    cmd = sub
-                    argv++;
-                    argc--;
-                    argv[0] = prog;
-                    break;
-                }
-
-                sub++;
+        while (sub && sub->key != END) {
+            if (strcmp(sub->cmd, argv[1]) == 0) {
+                cmd = sub;
+                *cmd_path++ = sub;
+                argv++;
+                argc--;
+                argv[0] = prog;
+                break;
             }
+
+            sub++;
         }
 
         context->argc = argc;
@@ -98,16 +86,20 @@ void findcmd(struct args_context *context) {
     }
 }
 
-struct option arg_to_option(struct arg arg, int *flag) {
+struct option arg_to_option(struct arg *arg, int *flag) {
     return (struct option) {
-        .name = arg.lname,
-        .has_arg = arg.has_val,
+        .name = arg->lname,
+        .has_arg = arg->has_val,
         .flag = flag,
-        .val = arg.key
+        .val = arg->key
     };
 }
 
 void determine_options(struct args_context *context, char *optstring, struct option *options, struct val_assoc *val_table) {
+    context->optstring = optstring;
+    context->options = options;
+    context->val_table = val_table;
+
     struct arg *arg = context->cmd->args;
 
     while (arg && arg->key != END) {
@@ -120,36 +112,122 @@ void determine_options(struct args_context *context, char *optstring, struct opt
                 *optstring++ = ':';
             }
 
-            struct val_assoc va = { arg->sname, arg->key };
-            *val_table++ = va
+            *val_table++ =  (struct val_assoc) { arg->sname, arg->key };
         }
 
         arg++;
     }
 
-    context->optstring = optstring;
-    context->options = options;
-    context->val_table = val_table;
+    *options++ = (struct option) { NULL, 0, NULL, 0 };
+
+    *val_table++ = (struct val_assoc) { '?', UNKNOWN_OPTION };
+    *val_table++ = (struct val_assoc) { ':', MISSING_ARG };
+    *val_table++ = (struct val_assoc) { END, END };
 }
 
-int readarg(struct arg_reader reader) {
+int readarg(struct args_context *context) {
+    int key = getopt_long(context->argc, context->argv, context->optstring, context->options, NULL);
+
+    if (key == 0) {
+        key = context->flag;
+    } else {
+        struct val_assoc *val_table = context->val_table;
+
+        while (key != END && val_table->key != END) {
+            if (val_table->key == key) {
+                key = val_table->val;
+                break;
+            }
+
+            val_table++;
+        }
+    }
+
+    struct args_handlers *handlers = context->handlers;
+
+    switch (key) {
+        case HELP:
+            if (handlers->help_found) (*handlers->help_found)(context);
+            break;
+        case VERSION:
+            if (handlers->version_found) (*handlers->version_found)(context);
+            break;
+        case MISSING_ARG:
+            if (handlers->missing_arg_found) (*handlers->missing_arg_found)(context);
+            break;
+        case UNKNOWN_OPTION:
+            if (handlers->unknown_option_found) (*handlers->unknown_option_found)(context);
+            break;
+    }
+
+    return key;
 }
 
 char *argval() {
     return optarg;
 }
 
-int argc(struct arg_reader reader) {
-    return reader.argc;
+int argc(struct args_context *context) {
+    return context->argc - optind;
 }
 
-int argv(struct arg_reader reader) {
-    return reader.argv;
+char **argv(struct args_context *context) {
+    return context->argv + optind;
 }
 
-void cmd_not_found(struct args_context *context) {
-    print_usage(stderr, context);
-    exit(EXIT_FAILURE);
+void print_usage(FILE *handle, struct args_context *context) {
+    struct cmd **cmd_path = context->cmd_path + 1;
+    struct cmd *cmd = context->cmd;
+    char *prog = context->argv[0];
+
+    fprintf(handle, "usage: %s", prog);
+    while (*cmd_path != NULL) {
+        fprintf(handle, " %s", (*cmd_path)->cmd);
+        cmd_path++;
+    }
+    fprintf(handle, " [options]\n\n");
+
+    struct cmd *sub = cmd->subcmds;
+
+    if (sub) {
+        fprintf(handle, "subcommands:\n");
+
+        while (sub->key != END) {
+            fprintf(handle, SUBCMD_HELP_FMT, sub->cmd, sub->desc);
+            fprintf(handle, "\n");
+            sub++;
+        }
+        fprintf(handle, "\n");
+    }
+
+    fprintf(handle, "options:\n");
+    struct arg *arg = cmd->args;
+    while (arg->key != END) {
+        char flag[128] = "";
+        char *f = flag;
+
+        if (arg->sname) {
+            *f++ = '-';
+            *f++ = arg->sname;
+            if (arg->lname) *f++ = ',';
+        }
+
+        if (arg->lname) {
+            *f++ = '-';
+            *f++ = '-';
+            strcpy(f, arg->lname);
+        }
+
+        fprintf(handle, ARG_HELP_FMT, flag, arg->desc);
+        fprintf(handle, "\n");
+        arg++;
+    }
+
+    fprintf(handle, "\n");
+}
+
+void print_version(struct args_context *context) {
+    printf("%s\n", context->version ? context->version : "(missing)");
 }
 
 void help_found(struct args_context *context) {
@@ -162,66 +240,14 @@ void version_found(struct args_context *context) {
     exit(EXIT_SUCCESS);
 }
 
-#define FLAG_INDENT "   "
-#define DESC_SEP "    "
-
-void print_usage(char *prog_name, FILE *handle) {
-    fprintf(handle, "usage: %-s [options]\n\n", prog_name);
-    // fprintf(handle, "subcommands:\n");
-    // fprintf(handle, "%-s%s%-24s%-s\n", FLAG_INDENT, "generate", DESC_SEP, "generate source");
-    fprintf(handle, "\n");
-    fprintf(handle, "options:\n");
-    for (int i = 0; i < NUM_DESCS; i++) {
-        char *desc  = opt_descs[i].description;
-        if (desc) {
-            struct option opt = opt_descs[i].option;
-            char flag[2] = { opt.val, '\0' };
-            const char *f = opt.name, *d = "--";
-            if (f == NULL) {
-                f = flag;
-                d = " -";
-            }
-            fprintf(handle, "%-s%s%-24s%-s%-s\n", FLAG_INDENT, d, f, DESC_SEP, desc);
-        }
-    }
-    fprintf(handle, "\n");
+void missing_arg_found(struct args_context *context) {
+    print_usage(stderr, context);
+    exit(EXIT_FAILURE);
 }
 
-struct args read_args(int argc, char *argv[]) {
-    struct args args = {
-        .pos_size = 0,
-        .pos = NULL,
-        .cmd = PARSE,
-        .output = OUTPUT_SOURCE,
-    };
-
-    // if (argc > 0) {
-    //     if (strcmp("generate", argv[1]) == 0) {
-    //         char *prog = argv[0];
-    //         args.cmd = GENERATE;
-    //         argc--;
-    //         *argv++ = prog;
-    //     }
-    // }
-
-    int f;
-    while ((f = getopt_long(argc, argv, "fh", options(opt_descs), NULL)) != -1) {
-            case 'h':
-                print_usage(argv[0], stdout);
-                exit(EXIT_SUCCESS);
-                break;
-            case VERSION:
-                print_version();
-                exit(EXIT_SUCCESS);
-                break;
-    }
-
-                default:
-                    print_usage(argv[0], stderr);
-                    exit(EXIT_FAILURE);
-    args.pos_size = argc - optind;
-    args.pos = argv + optind;
-
-    return args;
+void unknown_option_found(struct args_context *context) {
+    print_usage(stderr, context);
+    exit(EXIT_FAILURE);
 }
+
 

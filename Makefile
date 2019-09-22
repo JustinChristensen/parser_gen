@@ -1,7 +1,7 @@
 TARGETS := all run clean
 SUBDIRS := \
 base \
-src/lex \
+src/auto \
 src/sdt
 
 $(TARGETS): $(SUBDIRS)

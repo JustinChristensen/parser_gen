@@ -30,7 +30,7 @@ enum output_fmt {
 struct args {
     enum command_key cmd;
     enum output_fmt output;
-    int pos_size;
+    int posc;
     char **pos;
 };
 
@@ -53,11 +53,11 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
             case GENERATE:
                 switch (key) {
                     case FORMAT:
-                        if (strcmp("dot", argval(context)) == 0) {
+                        if (strcmp("dot", argval()) == 0) {
                             args->output = OUTPUT_AST;
-                        } else if (strcmp("source", argval(context)) == 0) {
+                        } else if (strcmp("source", argval()) == 0) {
                             args->output = OUTPUT_SOURCE;
-                        } else if (strcmp("tokens", argval(context)) == 0) {
+                        } else if (strcmp("tokens", argval()) == 0) {
                             args->output = OUTPUT_TOKENS;
                         } else {
                             print_usage(stderr, context);
@@ -70,7 +70,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     }
 
     args->pos = argv(context);
-    args->pos_size = argc(context);
+    args->posc = argc(context);
 }
 
 #define BUFFER_SIZE 1000000
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = PARSE,
         .output = OUTPUT_SOURCE,
-        .pos_size = 0,
+        .posc = 0,
         .pos = NULL,
     };
 
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     } else {
         FILE *in = NULL;
 
-        if (args.pos_size == 0) {
+        if (args.posc == 0) {
             if (!isatty(STDIN_FILENO)) {
                 in = stdin;
             }

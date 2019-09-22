@@ -1,4 +1,4 @@
-PROG := lex
+PROG := auto
 LIBBASE_DIR := ../../base
 INCLUDEPATHS := -I$(LIBBASE_DIR)
 LIBPATHS := -L$(LIBBASE_DIR)

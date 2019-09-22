@@ -186,6 +186,7 @@ void print_usage(FILE *handle, struct args_context *context) {
     }
     if (sub) fprintf(handle, " [subcommand]");
     fprintf(handle, " [options]\n\n");
+    fprintf(handle, "%s\n\n", cmd->desc);
 
     if (sub) {
         fprintf(handle, "subcommands:\n");

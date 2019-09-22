@@ -80,8 +80,8 @@ enum {
 struct arg help_arg = { HELP, "help", 0, no_argument, "Print help" };
 struct arg version_arg = { VERSION, "version", 0, no_argument, "Print version" };
 #define help_and_version_args help_arg, version_arg
-struct arg end_arg = { END, NULL, 0, no_argument, NULL };
-struct cmd end_cmd = { END, NULL, 0, NULL, NULL };
+const struct arg end_arg = { END, NULL, 0, no_argument, NULL };
+const struct cmd end_cmd = { END, NULL, 0, NULL, NULL };
 
 void run_args(
     void *out_val,

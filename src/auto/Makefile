@@ -9,7 +9,7 @@ LDFLAGS :=
 .PHONY: all
 all: $(PROG)
 
-$(PROG): main.c
+$(PROG): main.c ast.c parser.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: run

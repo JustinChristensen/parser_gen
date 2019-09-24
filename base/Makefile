@@ -5,7 +5,7 @@ LDFLAGS := -fpic
 .PHONY: all
 all: $(LIB)
 
-$(LIB): graphviz.c args.c list.c random.c string.c tuple.c
+$(LIB): args.c either.c graphviz.c list.c random.c string.c tuple.c
 	$(CC) -shared $(CFLAGS) -o $@ $+ $(LDFLAGS)
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(LIB)" ~/lib/

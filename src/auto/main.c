@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
+#include "ast.h"
+#include "parser.h"
 
 enum command_key {
     AUTO
@@ -37,6 +39,18 @@ int main(int argc, char *argv[]) {
         NULL,
         "Construct and simulate automata"
     });
+
+    if (args.cmd == AUTO) {
+        struct parse_context context = parse_context("(a|b)*abb");
+
+        if (parse_expr(context)) {
+            struct expr ast = gexpr(context);
+            printf("ast type: %d\n", ast.type);
+        } else {
+            print_error(gerror(context));
+            return EXIT_FAILURE;
+        }
+    }
 
     return EXIT_SUCCESS;
 }

@@ -12,32 +12,44 @@
  *
  * Regular Expression Grammar:
  *
- * expr: expr '|' expr
+ * expr: expr | expr
  *     | expr expr
- *     | expr '*'
- *     | '(' expr ')'
+ *     | expr *
+ *     | ( expr )
  *     | a
- *     | e
+ *     | ε
  *
- * Without Left Recursion:
+ * See: indirect-left-recursion.txt
  *
- *  A: Aa
- *   | Ab
- *   | c
- *  -------------
- *  A: cR
- *  R: aR
- *   | bR
- *   | e
+ * expr: ( expr ) ops cat
+ *     | a ops cat
+ *     | | expr ops cat
+ *     | * ops cat
+ *     | cat
  *
- * expr: '(' expr ')' expr_rest
- *     | a expr_rest
- *     | e expr_rest
+ * ops: | expr ops
+ *    | expr ops
+ *    | * ops
+ *    | ε
  *
- * expr_rest: '|' expr expr_rest
- *         | expr expr_rest
- *         | '*' expr_rest
- *         | e
+ * cat: ops cat
+ *    | ε
+ *
+ * or -----
+ *
+ * ops: | expr ops ops2
+ *    | * ops cat
+ *    | ( expr ) ops cat
+ *    | a ops ops cat
+ *
+ * expr: ( expr ) ops
+ *     | a ops
+ *     | ops
+ *
+ * cat: ops cat
+ *     | ε
+ *
+ * -----
  *
  * TODO: extensions
  * zero or one: ?
@@ -45,13 +57,16 @@
  * character classes: [a-zA-Z]
  */
 
+#define EXPR_MAX 5000
+#define OPERATOR_OFFSET (-256)
+
 enum token_type {
-    ALT = 256,
-    STAR,
-    LPAREN,
-    RPAREN,
-    PRINTABLE
-}
+    SYMBOL = -1,
+    ALT = ('|' + OPERATOR_OFFSET),
+    STAR = ('*' + OPERATOR_OFFSET),
+    RPAREN = (')' + OPERATOR_OFFSET),
+    LPAREN = ('(' + OPERATOR_OFFSET)
+};
 
 struct scan_context {
     char *input;
@@ -67,11 +82,12 @@ struct parse_error {
 };
 
 struct parse_context {
+    struct expr *exprbuf;
     struct scan_context scan_context;
-    char lookahead;
+    int lookahead;
     int lookahead_col;
     bool has_error;
-    struct expr expr;
+    struct expr *expr;
     struct parse_error error;
 };
 
@@ -79,13 +95,29 @@ struct scan_context scan_context(char *input);
 struct scan_context scan(struct scan_context context);
 int token(struct scan_context context);
 int token_col(struct scan_context context);
-struct parse_context parse_context(char *input);
-int peek(struct parse_context *context, int expected, bool (*is) (int c));
-int expect(struct parse_context *context, int expected, bool (*is) (int c));
-bool is_tail_terminal(struct parse_context *context);
+struct parse_context parse_context(char *input, struct expr *exprbuf);
+bool peek(struct parse_context *context, int expected, int (*is) (int c));
+bool expect(struct parse_context *context, int expected, int (*is) (int c));
+int is_symbol(int c);
+int lookahead(struct parse_context *context);
+/**
+ * expr: ( expr ) ops cat
+ *     | a ops cat
+ *     | | expr ops cat
+ *     | * ops cat
+ *     | cat
+ *
+ * ops: | expr ops
+ *    | expr ops
+ *    | * ops
+ *    | ε
+ *
+ * cat: ops cat
+ *    | ε
+ */
 bool parse_expr(struct parse_context *context);
 void sexpr(struct parse_context *context, struct expr expr);
-struct expr gexpr(struct parse_context *context);
+struct expr *gexpr(struct parse_context *context);
 bool has_error(struct parse_context *context);
 struct parse_error gerror(struct parse_context *context);
 char *lexeme_for(char *symbuf, int token);

@@ -1,45 +1,45 @@
 #include "ast.h"
 
-struct expr alt_expr(struct expr lexpr, struct expr rexpr) {
+struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {
     return (struct expr) {
-        .type = ALT,
+        .type = ALT_EXPR,
         .lexpr = lexpr,
         .rexpr = rexpr
     };
 }
 
-struct expr cat_expr(struct expr lexpr, struct expr rexpr) {
+struct expr cat_expr(struct expr *lexpr, struct expr *rexpr) {
     return (struct expr) {
-        .type = CAT,
+        .type = CAT_EXPR,
         .lexpr = lexpr,
         .rexpr = rexpr
     };
 }
 
-struct expr star_expr(struct expr expr) {
+struct expr star_expr(struct expr *expr) {
     return (struct expr) {
-        .type = STAR,
+        .type = STAR_EXPR,
         .expr = expr
     };
 }
 
-struct expr sub_expr(struct expr expr) {
+struct expr sub_expr(struct expr *expr) {
     return (struct expr) {
-        .type = SUBEXPR,
+        .type = SUB_EXPR,
         .expr = expr
     };
 }
 
 struct expr symbol_expr(char symbol) {
     return (struct expr) {
-        .type = SYMBOL,
+        .type = SYMBOL_EXPR,
         .symbol = symbol
     };
 }
 
 struct expr empty_expr() {
     return (struct expr) {
-        .type = EMPTY
+        .type = EMPTY_EXPR
     };
 }
 

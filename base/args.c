@@ -100,6 +100,10 @@ void determine_options(struct args_context *context, char *optstring, struct opt
 
     struct arg *arg = context->cmd->args;
 
+    // leading ':' suppresses error and causes ':' to be returned
+    // when there's a missing option argument, i.e. foo missing in -x foo
+    *optstring++ = ':';
+
     while (arg && arg->key != END) {
         *options++ = arg_to_option(arg, &context->flag);
 

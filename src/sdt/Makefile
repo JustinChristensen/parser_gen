@@ -5,7 +5,7 @@ LIBBASE_DIR := ../../base
 INCLUDEPATHS := -I$(LIBBASE_DIR) -I/usr/local/include/graphviz -I/usr/include/graphviz
 LIBPATHS := -L$(LIBBASE_DIR)
 LIBS := -lbase -lcgraph
-CFLAGS := -Wall -g -O0
+override CFLAGS := -Wall -g -O0 $(CFLAGS)
 LDFLAGS :=
 
 .PHONY: all

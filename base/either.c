@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "base/either.h"
 
 struct either either(void *left, void *right) {

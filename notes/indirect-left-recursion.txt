@@ -1,0 +1,211 @@
+Removing Direct Left Recursion:
+
+Original Grammar
+A is a nonterminal that has left recursive rules
+a, b, c, d, e, and f represent sequences of terminals and non-terminals
+
+    A: Aa | Ab | Ac | d | e | f
+
+1. Replace this nonterminal with the following two terminals:
+
+    A: dT | eT | fT
+    T: aT | bT | cT | ε
+
+   Where T is a non-terminal representing the "tail" of the string to be matched
+
+Removing Indirect Left Recursion:
+
+    expr: expr | expr
+        | expr expr
+        | expr *
+        | ( expr )
+        | a
+        | ε
+
+Establish a precedence order for the set of non-terminals
+
+    A: ...
+    B: ...
+
+    and
+
+    A > B
+
+For each nonterminal X (A):
+    1. Let Y be the next non-terminal (B)
+           Repeat:
+               For each rule in X:
+                   Let a, B be the leading symbol of the rule and the remaining symbols, respectively
+                   If a is Y, and X > Y:
+                       Remove the rule
+                       For each rule in Y:
+                           Let b be the rule
+                           Add the rule bB to X
+    2. Remove direct left recursion from X (using the above method)
+
+For example:
+
+    expr: expr | expr
+        | expr expr
+        | expr *
+        | ( expr )
+        | a
+        | ε
+
+- There's only one non-terminal, so it's in order
+1. There's only one non-terminal, so we can't assign Y, goto 2
+2. Removing direct left recursion:
+
+    expr: ( expr ) ops
+        | a ops
+        | ops
+
+    ops: | expr ops
+       | expr ops
+       | * ops
+       | ε
+
+    expr > ops
+
+1. X = expr, Y = ops
+   For the final rule of expr
+   a = ops, and B is ε
+   a equals Y and X > Y
+   Remove the rule:
+
+    expr: ( expr ) ops
+        | a ops
+
+    ops: | expr ops
+       | expr ops
+       | * ops
+       | ε
+
+    expr > ops
+
+   Since B is just ε, we just copy the rules from ops to expr
+
+    expr: ( expr ) ops
+        | a ops
+        | | expr ops
+        | expr ops
+        | * ops | ε
+
+    ops: | expr ops
+       | expr ops
+       | * ops
+       | ε
+
+    expr > ops
+
+2. Remove direct left recursion from X (expr) again
+
+    expr: ( expr ) ops cat
+        | a ops cat
+        | | expr ops cat
+        | * ops cat
+        | cat
+
+    ops: | expr ops
+       | expr ops
+       | * ops
+       | ε
+
+    cat: ops cat
+       | ε
+
+    expr > ops
+
+Done! Final Grammar:
+
+    expr: ( expr ) ops cat
+        | a ops cat
+        | | expr ops cat
+        | * ops cat
+        | cat
+
+    ops: | expr ops
+       | expr ops
+       | * ops
+       | ε
+
+    cat: ops cat
+       | ε
+
+Trying it out with (a|b)*abb
+                   ↓
+1.  (a|b)*abb      ( expr ) ops cat
+                       ↓
+2.  a|b)*abb       ( expr ) ops cat
+                        ↓
+3.  |b)*abb        ( a ops cat ) ops cat
+                          ↓
+4.  b)*abb         ( a | expr ops cat ) ops cat
+                            ↓
+5.  )*abb          ( a | a ops cat ops cat ) ops cat
+                               ↓
+6.  )*abb          ( a | a  ε cat ops cat ) ops cat
+                                 ↓
+7.  )*abb          ( a | a  ε ε ops cat ) ops cat
+                                   ↓
+8.  )*abb          ( a | a  ε ε ε cat ) ops cat
+                                    ↓
+9.  )*abb          ( a | a  ε ε ε ε ) ops cat
+                                       ↓
+10. *abb           ( a | a  ε ε ε ε ) ops cat
+                                        ↓
+11. abb            ( a | a  ε ε ε ε ) * ops cat
+                                           ↓
+12. bb             ( a | a  ε ε ε ε ) * a ops cat cat
+                                             ↓
+13. b              ( a | a  ε ε ε ε ) * a a ops cat cat cat
+                                               ↓
+14.                ( a | a  ε ε ε ε ) * a a a ops cat cat cat cat
+
+15.                ( a | a  ε ε ε ε ) * a a a ε ε ε ε ε
+
+16.                ( a | a ) * a a a
+
+In the event ops > expr:
+
+    ops: | expr ops
+       | expr ops      ←  a = expr, B = ops
+       | * ops
+       | ε
+
+    expr: ( expr ) ops
+        | a ops
+        | ops
+
+    ops > expr
+
+Omit the problem rule, and add the rules from expr to ops, followed by B:
+
+    ops: | expr ops
+       | * ops
+       | ( expr ) ops
+       | a ops ops
+       | ops ops
+       | ops
+
+    expr: ( expr ) ops
+        | a ops
+        | ops
+
+    ops > expr
+
+Remove left recursion from ops
+
+    ops: | expr ops ops2
+       | * ops cat
+       | ( expr ) ops cat
+       | a ops ops cat
+
+    expr: ( expr ) ops
+        | a ops
+        | ops
+
+    cat: ops cat
+        | ε
+
+

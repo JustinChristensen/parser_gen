@@ -40,14 +40,16 @@ int main(int argc, char *argv[]) {
         "Construct and simulate automata"
     });
 
-    if (args.cmd == AUTO) {
-        struct parse_context context = parse_context("(a|b)*abb");
+    if (args.cmd == AUTO && args.posc > 0) {
+        struct expr exprbuf[EXPR_MAX];
+        struct parse_context context = parse_context(args.pos[0], exprbuf);
 
-        if (parse_expr(context)) {
-            struct expr ast = gexpr(context);
-            printf("ast type: %d\n", ast.type);
+        if (parse_expr(&context)) {
+            struct expr *ast = gexpr(&context);
+            printf("ast type: %d\n", ast->type);
+            printf("constructed %ld expressions\n", context.exprbuf - exprbuf);
         } else {
-            print_error(gerror(context));
+            print_error(gerror(&context));
             return EXIT_FAILURE;
         }
     }

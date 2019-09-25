@@ -3,7 +3,7 @@ LIBBASE_DIR := ../../base
 INCLUDEPATHS := -I$(LIBBASE_DIR)
 LIBPATHS := -L$(LIBBASE_DIR)
 LIBS := -lbase
-CFLAGS := -Wall -g -O0
+override CFLAGS := -Wall -g -O0 $(CFLAGS)
 LDFLAGS :=
 
 .PHONY: all

@@ -5,51 +5,16 @@
 #include "ast.h"
 
 /**
- * In order of descending precedence:
- * alternation
- * concatenation
- * kleene
+ * Grammar:
  *
- * Regular Expression Grammar:
- *
- * expr: expr | expr
- *     | expr expr
- *     | expr *
- *     | ( expr )
- *     | a
- *     | ε
- *
- * See: indirect-left-recursion.txt
- *
- * expr: ( expr ) ops cat
- *     | a ops cat
- *     | | expr ops cat
- *     | * ops cat
- *     | cat
- *
- * ops: | expr ops
- *    | expr ops
- *    | * ops
- *    | ε
- *
- * cat: ops cat
- *    | ε
- *
- * or -----
- *
- * ops: | expr ops ops2
- *    | * ops cat
- *    | ( expr ) ops cat
- *    | a ops ops cat
- *
- * expr: ( expr ) ops
- *     | a ops
- *     | ops
- *
- * cat: ops cat
- *     | ε
- *
- * -----
+ * regex: exprs eof
+ * exprs: ε { empty } exprs_tail
+ * exprs_tail: expr exprs_tail
+ *           | ε
+ * expr: ( exprs ) { sub } { cat }
+ *     | a { sym } { cat }
+ *     | * { star }
+ *     | + exprs { alt }
  *
  * TODO: extensions
  * zero or one: ?
@@ -100,22 +65,9 @@ bool peek(struct parse_context *context, int expected, int (*is) (int c));
 bool expect(struct parse_context *context, int expected, int (*is) (int c));
 int is_symbol(int c);
 int lookahead(struct parse_context *context);
-/**
- * expr: ( expr ) ops cat
- *     | a ops cat
- *     | | expr ops cat
- *     | * ops cat
- *     | cat
- *
- * ops: | expr ops
- *    | expr ops
- *    | * ops
- *    | ε
- *
- * cat: ops cat
- *    | ε
- */
-bool parse_expr(struct parse_context *context);
+bool parse_regex(struct parse_context *context);
+bool parse_exprs(struct parse_context *context);
+bool parse_expr(struct parse_context *context, struct expr *lexpr);
 void sexpr(struct parse_context *context, struct expr expr);
 struct expr *gexpr(struct parse_context *context);
 bool has_error(struct parse_context *context);

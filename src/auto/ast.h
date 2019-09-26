@@ -3,12 +3,12 @@
 
 enum expr_type {
     NULL_EXPR,
+    EMPTY_EXPR,
     ALT_EXPR,
     CAT_EXPR,
     STAR_EXPR,
     SUB_EXPR,
-    SYMBOL_EXPR,
-    EMPTY_EXPR
+    SYMBOL_EXPR
 };
 
 struct expr {

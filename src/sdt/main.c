@@ -6,6 +6,7 @@
 #include <base/macros.h>
 #include <base/list.h>
 #include <base/args.h>
+#include <base/graphviz.h>
 #include "gensource.h"
 #include "scanner.h"
 #include "parser.h"

@@ -89,7 +89,8 @@ For example:
         | a ops
         | | expr ops
         | expr ops
-        | * ops | ε
+        | * ops
+        | ε
 
     ops: | expr ops
        | expr ops
@@ -196,7 +197,7 @@ Omit the problem rule, and add the rules from expr to ops, followed by B:
 
 Remove left recursion from ops
 
-    ops: | expr ops ops2
+    ops: | expr ops cat
        | * ops cat
        | ( expr ) ops cat
        | a ops ops cat
@@ -207,5 +208,3 @@ Remove left recursion from ops
 
     cat: ops cat
         | ε
-
-

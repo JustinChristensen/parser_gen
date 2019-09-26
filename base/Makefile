@@ -1,12 +1,13 @@
 LIB := libbase.so
+INCLUDEPATHS := -I/usr/local/include/graphviz -I/usr/include/graphviz
 CFLAGS := -Wall -g -O0
-LDFLAGS := -fpic
+LIBS := -lcgraph
 
 .PHONY: all
 all: $(LIB)
 
 $(LIB): args.c either.c graphviz.c list.c random.c string.c tuple.c
-	$(CC) -shared $(CFLAGS) -o $@ $+ $(LDFLAGS)
+	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBS) -fpic $(LDFLAGS)
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(LIB)" ~/lib/
 

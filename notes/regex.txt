@@ -1,0 +1,97 @@
+(a|b)*abb
+
++ = cat node
+| = alt node
+* = star node
+
+                                          +------  +  -------+
+                                          |                  |
+                                          |                  |
+                                 +------  +  -------+        |
+                                 |                  |        |
+                                 |                  |        |
+                          +----  +  -------+        |        |
+                          |                |        |        |
+                          |                |        |        |
+                          *                |        |        |
+                          |                |        |        |
+                          |                |        |        |
+                    +---  |  ---+          |        |        |
+                    |           |          |        |        |
+                    |           |          |        |        |
+       symbol       a           b          a        b        b
+     position       1           2          3        4        5
+
+
+expr: expr | expr { alt }
+    | expr expr { cat }
+    | expr * { star }
+    | ( expr ) { sub }
+    | a { sym }
+    | ε { empty }
+
+expr: ε { empty } | alt
+alt: alt + cat { alt } | cat
+cat: cat factor { cat } | factor
+factor: factor * { star } | ( expr ) { sub } | a { sym }
+
+expr: ε { empty } | alt
+alt: cat alt_tail
+alt_tail: + cat { alt } alt_tail | ε
+cat: factor cat_tail
+cat_tail: factor { cat } cat_tail | ε
+factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
+factor_tail: * { star } factor_tail | ε
+
+aa+b*    expr
+aa+b*    alt
+aa+b*    cat alt_tail
+aa+b*    factor cat_tail alt_tail
+aa+b*    a { sym } factor_tail cat_tail alt_tail
+a+b*     a { sym } ε cat_tail alt_tail
+a+b*     a { sym } ε factor { cat } cat_tail alt_tail
+a+b*     a { sym } ε a { sym } factor_tail { cat } cat_tail alt_tail
++b*      a { sym } ε a { sym } ε { cat } cat_tail alt_tail
++b*      a { sym } ε a { sym } ε { cat } ε + cat { alt } alt_tail
+b*       a { sym } ε a { sym } ε { cat } ε + factor cat_tail { alt } alt_tail
+b*       a { sym } ε a { sym } ε { cat } ε + a { sym } factor_tail cat_tail { alt } alt_tail
+*        a { sym } ε a { sym } ε { cat } ε + a { sym } * { star } factor_tail cat_tail { alt } alt_tail
+         a { sym } ε a { sym } ε { cat } ε + a { sym } * { star } ε ε { alt } ε
+
+         { sym } { sym } { cat } { sym } { star } { alt }
+
+
+regex: exprs eof
+exprs: ε { empty } exprs_tail
+exprs_tail: expr exprs_tail
+          | ε
+expr: a { sym } { cat }
+    | ( exprs ) { sub } { cat }
+    | * { star } { cat }
+    | + exprs { alt }
+
+a|b             regex
+a|b             exprs eof
+a|b             ε { empty } expr { cat } exprs_tail eof
+a|b             ε { empty } a { sym } { cat } exprs_tail eof
+|b             ε { empty } a { sym } { cat } + expr { alt } { cat } exprs_tail eof
+
+(a+b)*abb       regex
+(a+b)*abb       exprs eof
+(a+b)*abb       ε { empty } expr { cat } exprs_tail eof
+(a+b)*abb       ε { empty } ( exprs ) { sub } { cat } exprs_tail eof
+a+b)*abb        ε { empty } ( ε { empty } exprs_tail ) { sub } { cat } exprs_tail eof
+a+b)*abb        ε { empty } ( ε { empty } expr { cat } exprs_tail ) { sub } { cat } exprs_tail eof
+a+b)*abb        ε { empty } ( ε { empty } a { sym } { cat } exprs_tail ) { sub } { cat } exprs_tail eof
++b)*abb        ε { empty } ( ε { empty } a { sym } { cat } expr { cat } exprs_tail ) { sub } { cat } exprs_tail eof
++b)*abb        ε { empty } ( ε { empty } a { sym } { cat } + expr { alt } { cat } exprs_tail ) { sub } { cat } exprs_tail eof
+b)*abb         ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } exprs_tail ) { sub } { cat } exprs_tail eof
+)*abb          ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } ε ) { sub } { cat } expr { cat } exprs eof
+*abb           ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } ε ) { sub } { cat } * { star } { cat } exprs eof
+abb            ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } ε ) { sub } { cat } * { star } { cat } expr { cat } exprs eof
+abb            ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } ε ) { sub } { cat } * { star } { cat } a { sym } { cat } exprs eof
+bb             ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt } { cat } ε ) { sub } { cat } * { star } { cat } a { sym } { cat } exprs eof
+
+εa|b
+(alt (cat ε a) b)
+

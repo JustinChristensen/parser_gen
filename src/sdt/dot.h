@@ -1,13 +1,9 @@
 #ifndef SDT_DOT_H_
 #define SDT_DOT_H_ 1
 
-#include <stdio.h>
 #include <cgraph.h>
 #include "ast.h"
 
-#define TOGRAPHFN (void (*) (Agraph_t *, Agnode_t *, void *))
-
-void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t *graph, Agnode_t *parent, void *ast));
 void program_to_graph(Agraph_t *graph, Agnode_t *parent, struct program *program);
 void block_to_graph(Agraph_t *graph, Agnode_t *parent, struct block *block);
 void stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct stmt *stmt);

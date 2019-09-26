@@ -76,8 +76,6 @@ struct parse_context parse_context(char *input, struct expr *exprbuf) {
         .error = (struct parse_error) { 0, 0, 0 }
     };
 
-    sexpr(&context, empty_expr());
-
     return context;
 }
 
@@ -130,47 +128,45 @@ int lookahead(struct parse_context *context) {
     return context->lookahead;
 }
 
-bool parse_expr(struct parse_context *context) {
-    bool success = true;
+bool parse_regex(struct parse_context *context) {
+    if (parse_exprs(context) && expect(context, '\0', NULL)) {
+        return true;
+    }
 
-    if (peek(context, '\0', NULL)) return success;
+    return false;
+}
 
-    if (peek(context, LPAREN, NULL)) {
-        expect(context, LPAREN, NULL);
-        if (parse_expr(context) && expect(context, RPAREN, NULL)) {
+bool parse_exprs(struct parse_context *context) {
+    sexpr(context, empty_expr());
+    while (parse_expr(context, gexpr(context)));
+    return true;
+}
+
+bool parse_expr(struct parse_context *context, struct expr *lexpr) {
+    if (peek(context, LPAREN, NULL) && expect(context, LPAREN, NULL)) {
+        parse_exprs(context);
+        if (expect(context, RPAREN, NULL)) {
             sexpr(context, sub_expr(gexpr(context)));
-        } else {
-            success = false;
+            sexpr(context, cat_expr(lexpr, gexpr(context)));
+            return true;
         }
     } else if (peek(context, SYMBOL, is_symbol)) {
         int sym = lookahead(context);
         expect(context, SYMBOL, is_symbol);
         sexpr(context, symbol_expr((char) sym));
+        sexpr(context, cat_expr(lexpr, gexpr(context)));
+        return true;
+    } else if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
+        sexpr(context, star_expr(lexpr));
+        return true;
+    } else if (peek(context, ALT, NULL) &&
+        expect(context, ALT, NULL)) {
+        parse_exprs(context);
+        sexpr(context, alt_expr(lexpr, gexpr(context)));
+        return true;
     }
 
-    while (!peek(context, '\0', NULL)) {
-        struct expr *lexpr = gexpr(context);
-
-        if (peek(context, ALT, NULL)) {
-            expect(context, ALT, NULL);
-            if (parse_expr(context)) {
-                sexpr(context, alt_expr(lexpr, gexpr(context)));
-                continue;
-            }
-        } else if (parse_expr(context)) {
-            sexpr(context, cat_expr(lexpr, gexpr(context)));
-            continue;
-        } else if (peek(context, STAR, NULL)) {
-            expect(context, STAR, NULL);
-            sexpr(context, star_expr(lexpr));
-            continue;
-        }
-
-        success = false;
-        break;
-    }
-
-    return success;
+    return false;
 }
 
 void sexpr(struct parse_context *context, struct expr expr) {

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <base/args.h>
 #include <base/graphviz.h>
 #include "ast.h"
@@ -54,6 +55,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     args->posc = argc(context);
 }
 
+#define BUFFER_SIZE 4096
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = AUTO,
@@ -88,9 +90,12 @@ int main(int argc, char *argv[]) {
         "Construct and simulate automata"
     });
 
-    if (args.cmd == PRINT && args.posc > 0) {
+    if (args.cmd == PRINT && !isatty(STDIN_FILENO)) {
         struct expr exprbuf[EXPR_MAX];
-        struct parse_context context = parse_context(args.pos[0], exprbuf);
+        char input[BUFFER_SIZE] = "";
+        size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
+        input[nread] = '\0';
+        struct parse_context context = parse_context(input, exprbuf);
 
         if (parse_regex(&context)) {
             struct expr *expr = gexpr(&context);

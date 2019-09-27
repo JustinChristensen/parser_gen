@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
         .pos = NULL,
     };
 
-    struct arg fmt_arg = { FORMAT, "format", 'f', optional_argument, "Output format: dot or tree" };
+    struct arg fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot or tree" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         AUTO,

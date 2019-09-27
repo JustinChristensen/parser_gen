@@ -35,6 +35,7 @@ alt: alt + cat { alt } | cat
 cat: cat factor { cat } | factor
 factor: factor * { star } | ( expr ) { sub } | a { sym }
 
+regex: expr eof
 expr: ε { empty } | alt
 alt: cat alt_tail
 alt_tail: + cat { alt } alt_tail | ε
@@ -95,3 +96,28 @@ bb             ε { empty } ( ε { empty } a { sym } { cat } + a { sym } { alt }
 εa|b
 (alt (cat ε a) b)
 
+
+
+regex: expr eof
+expr: ε { empty } | alt
+alt: cat alt_tail
+alt_tail: + cat { alt } alt_tail | ε
+cat: factor cat_tail
+cat_tail: factor { cat } cat_tail | ε
+factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
+factor_tail: * { star } factor_tail | ε
+
+foo*    regex
+foo*    expr eof
+foo*    alt
+foo*    cat alt_tail
+foo*    factor cat_tail alt_tail
+foo*    a { sym } factor_tail cat_tail alt_tail
+oo*     a { sym } ε factor { cat } cat_tail alt_tail
+oo*     a { sym } ε a { sym } factor_tail { cat } cat_tail alt_tail
+o*      a { sym } ε a { sym } ε { cat } cat_tail alt_tail
+o*      a { sym } ε a { sym } ε { cat } factor { cat } cat_tail alt_tail
+o*      a { sym } ε a { sym } ε { cat } a { sym } factor_tail { cat } cat_tail alt_tail
+*       a { sym } ε a { sym } ε { cat } a { sym } * { star } factor_tail { cat } cat_tail alt_tail
+        a { sym } ε a { sym } ε { cat } a { sym } * { star } ε { cat } ε ε
+        a { sym } a { sym } { cat } a { sym } * { star } { cat }

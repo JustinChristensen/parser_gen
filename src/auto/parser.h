@@ -7,14 +7,14 @@
 /**
  * Grammar:
  *
- * regex: exprs eof
- * exprs: ε { empty } exprs_tail
- * exprs_tail: expr exprs_tail
- *           | ε
- * expr: ( exprs ) { sub } { cat }
- *     | a { sym } { cat }
- *     | * { star }
- *     | + exprs { alt }
+ * regex: expr eof
+ * expr: ε { empty } | alt
+ * alt: cat alt_tail
+ * alt_tail: + cat { alt } alt_tail | ε
+ * cat: factor cat_tail
+ * cat_tail: factor { cat } cat_tail | ε
+ * factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
+ * factor_tail: * { star } factor_tail | ε
  *
  * TODO: extensions
  * zero or one: ?
@@ -66,8 +66,10 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c));
 int is_symbol(int c);
 int lookahead(struct parse_context *context);
 bool parse_regex(struct parse_context *context);
-bool parse_exprs(struct parse_context *context);
-bool parse_expr(struct parse_context *context, struct expr *lexpr);
+bool parse_expr(struct parse_context *context);
+bool parse_alt(struct parse_context *context, struct expr *lexpr);
+bool parse_cat(struct parse_context *context, struct expr *lexpr);
+bool parse_factor(struct parse_context *context);
 void sexpr(struct parse_context *context, struct expr expr);
 struct expr *gexpr(struct parse_context *context);
 bool has_error(struct parse_context *context);

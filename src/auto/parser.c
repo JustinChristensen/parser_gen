@@ -129,40 +129,84 @@ int lookahead(struct parse_context *context) {
 }
 
 bool parse_regex(struct parse_context *context) {
-    if (parse_exprs(context) && expect(context, '\0', NULL)) {
+    if (parse_expr(context) && expect(context, '\0', NULL)) {
         return true;
     }
 
     return false;
 }
 
-bool parse_exprs(struct parse_context *context) {
+bool parse_expr(struct parse_context *context) {
     sexpr(context, empty_expr());
-    while (parse_expr(context, gexpr(context)));
+    parse_alt(context, gexpr(context));
     return true;
 }
 
-bool parse_expr(struct parse_context *context, struct expr *lexpr) {
-    if (peek(context, LPAREN, NULL) && expect(context, LPAREN, NULL)) {
-        parse_exprs(context);
-        if (expect(context, RPAREN, NULL)) {
-            sexpr(context, sub_expr(gexpr(context)));
-            sexpr(context, cat_expr(lexpr, gexpr(context)));
-            return true;
+bool parse_alt(struct parse_context *context, struct expr *lexpr) {
+    if (parse_cat(context, lexpr)) {
+        while (true) {
+            lexpr = gexpr(context);
+
+            if (peek(context, ALT, NULL) &&
+                expect(context, ALT, NULL) &&
+                parse_expr(context)) {
+                sexpr(context, alt_expr(lexpr, gexpr(context)));
+                continue;
+            }
+
+            break;
         }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_cat(struct parse_context *context, struct expr *lexpr) {
+    if (parse_factor(context)) {
+        while (true) {
+            lexpr = gexpr(context);
+
+            if (parse_factor(context)) {
+                sexpr(context, cat_expr(lexpr, gexpr(context)));
+                continue;
+            }
+
+            break;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_factor(struct parse_context *context) {
+    bool has_head = false;
+
+    if (peek(context, LPAREN, NULL) &&
+        expect(context, LPAREN, NULL) &&
+        parse_expr(context) && expect(context, RPAREN, NULL)) {
+        sexpr(context, sub_expr(gexpr(context)));
+        has_head = true;
     } else if (peek(context, SYMBOL, is_symbol)) {
         int sym = lookahead(context);
         expect(context, SYMBOL, is_symbol);
         sexpr(context, symbol_expr((char) sym));
-        sexpr(context, cat_expr(lexpr, gexpr(context)));
-        return true;
-    } else if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
-        sexpr(context, star_expr(lexpr));
-        return true;
-    } else if (peek(context, ALT, NULL) &&
-        expect(context, ALT, NULL)) {
-        parse_exprs(context);
-        sexpr(context, alt_expr(lexpr, gexpr(context)));
+        has_head = true;
+    }
+
+    if (has_head) {
+        while (true) {
+            if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
+                sexpr(context, star_expr(gexpr(context)));
+                continue;
+            }
+
+            break;
+        }
+
         return true;
     }
 

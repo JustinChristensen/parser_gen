@@ -2,7 +2,6 @@
 #define AUTO_PARSER_H_ 1
 
 #include <stdbool.h>
-#include "ast.h"
 
 /**
  * Grammar:
@@ -22,7 +21,6 @@
  * character classes: [a-zA-Z]
  */
 
-#define EXPR_MAX 5000
 #define OPERATOR_OFFSET (-256)
 
 enum token_type {
@@ -47,12 +45,11 @@ struct parse_error {
 };
 
 struct parse_context {
-    struct expr *exprbuf;
     struct scan_context scan_context;
+    void *result_context;
     int lookahead;
     int lookahead_col;
     bool has_error;
-    struct expr *expr;
     struct parse_error error;
 };
 
@@ -60,21 +57,15 @@ struct scan_context scan_context(char *input);
 struct scan_context scan(struct scan_context context);
 int token(struct scan_context context);
 int token_col(struct scan_context context);
-struct parse_context parse_context(char *input, struct expr *exprbuf);
+struct parse_context parse_context(char *input, void *result_context);
 bool peek(struct parse_context *context, int expected, int (*is) (int c));
 bool expect(struct parse_context *context, int expected, int (*is) (int c));
 int is_symbol(int c);
 int lookahead(struct parse_context *context);
-bool parse_regex(struct parse_context *context);
-bool parse_expr(struct parse_context *context);
-bool parse_alt(struct parse_context *context, struct expr *lexpr);
-bool parse_cat(struct parse_context *context, struct expr *lexpr);
-bool parse_factor(struct parse_context *context);
-void sexpr(struct parse_context *context, struct expr expr);
-struct expr *gexpr(struct parse_context *context);
-bool has_error(struct parse_context *context);
-struct parse_error gerror(struct parse_context *context);
+bool has_parse_error(struct parse_context *context);
+struct parse_error parse_error(struct parse_context *context);
+struct parse_error nullperr();
 char *lexeme_for(char *symbuf, int token);
-void print_error(struct parse_error error);
+void print_parse_error(struct parse_error error);
 
 #endif // AUTO_PARSER_H_

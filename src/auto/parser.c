@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include "parser.h"
-#include "ast.h"
 
 struct scan_context scan_context(char *input) {
     return (struct scan_context) {
@@ -63,17 +62,16 @@ int token_col(struct scan_context context) {
     return context.token_col;
 }
 
-struct parse_context parse_context(char *input, struct expr *exprbuf) {
+struct parse_context parse_context(char *input, void *result_context) {
     struct scan_context scontext = scan(scan_context(input));
 
     struct parse_context context = {
-        .exprbuf = exprbuf,
         .scan_context = scontext,
+        .result_context = result_context,
         .lookahead = token(scontext),
         .lookahead_col = token_col(scontext),
         .has_error = false,
-        .expr = NULL,
-        .error = (struct parse_error) { 0, 0, 0 }
+        .error = nullperr()
     };
 
     return context;
@@ -128,106 +126,15 @@ int lookahead(struct parse_context *context) {
     return context->lookahead;
 }
 
-bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, '\0', NULL)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_expr(struct parse_context *context) {
-    sexpr(context, empty_expr());
-    parse_alt(context, gexpr(context));
-    return true;
-}
-
-bool parse_alt(struct parse_context *context, struct expr *lexpr) {
-    if (parse_cat(context, lexpr)) {
-        while (true) {
-            lexpr = gexpr(context);
-
-            if (peek(context, ALT, NULL) &&
-                expect(context, ALT, NULL) &&
-                parse_expr(context)) {
-                sexpr(context, alt_expr(lexpr, gexpr(context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_cat(struct parse_context *context, struct expr *lexpr) {
-    if (parse_factor(context)) {
-        while (true) {
-            lexpr = gexpr(context);
-
-            if (parse_factor(context)) {
-                sexpr(context, cat_expr(lexpr, gexpr(context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_factor(struct parse_context *context) {
-    bool has_head = false;
-
-    if (peek(context, LPAREN, NULL) &&
-        expect(context, LPAREN, NULL) &&
-        parse_expr(context) && expect(context, RPAREN, NULL)) {
-        sexpr(context, sub_expr(gexpr(context)));
-        has_head = true;
-    } else if (peek(context, SYMBOL, is_symbol)) {
-        int sym = lookahead(context);
-        expect(context, SYMBOL, is_symbol);
-        sexpr(context, symbol_expr((char) sym));
-        has_head = true;
-    }
-
-    if (has_head) {
-        while (true) {
-            if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
-                sexpr(context, star_expr(gexpr(context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-void sexpr(struct parse_context *context, struct expr expr) {
-    *context->exprbuf = expr;
-    context->expr = context->exprbuf;
-    context->exprbuf++;
-}
-
-struct expr *gexpr(struct parse_context *context) {
-    return context->expr;
-}
-
-bool has_error(struct parse_context *context) {
+bool has_parse_error(struct parse_context *context) {
     return context->has_error;
 }
 
-struct parse_error gerror(struct parse_context *context) {
+struct parse_error nullperr() {
+    return (struct parse_error) { 0, 0, 0 };
+}
+
+struct parse_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
@@ -248,7 +155,7 @@ char *lexeme_for(char *symbuf, int token) {
 
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
-void print_error(struct parse_error error) {
+void print_parse_error(struct parse_error error) {
     char symbuf[2] = { 0, 0 };
 
     fprintf(stderr, ERROR_FMT_STRING,

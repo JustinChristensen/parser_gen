@@ -15,7 +15,7 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             fprintf(stderr, "null expression encountered\n");
             break;
         case EMPTY_EXPR:
-            append_node(graph, parent, "ε");
+            append_node(graph, parent, "e");
             break;
         case ALT_EXPR:
             parent = append_node(graph, parent, "|");

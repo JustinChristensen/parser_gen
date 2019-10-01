@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
         ARGS {
             help_and_version_args,
             fmt_arg,
-            end_arg
+            END_ARGS
         },
         CMDS {
             {
@@ -101,12 +101,12 @@ int main(int argc, char *argv[]) {
                 ARGS {
                     help_and_version_args,
                     fmt_arg,
-                    end_arg
+                    END_ARGS
                 },
                 NULL,
                 "Generate source"
             },
-            end_cmd
+            END_CMDS
         },
         "Parse the source program"
     });

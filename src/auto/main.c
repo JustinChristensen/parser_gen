@@ -5,17 +5,20 @@
 #include <base/args.h>
 #include <base/graphviz.h>
 #include "ast.h"
+#include "nfa.h"
 #include "dot.h"
 #include "parser.h"
 #include "print_ast.h"
 
 enum command_key {
     AUTO,
-    PRINT
+    PRINT,
+    NFA
 };
 
 enum arg_key {
-    FORMAT
+    FORMAT,
+    NFA_STATE_TABLE
 };
 
 enum output_fmt {
@@ -26,6 +29,7 @@ enum output_fmt {
 struct args {
     enum command_key cmd;
     enum output_fmt output;
+    bool state_table;
     int posc;
     char **pos;
 };
@@ -48,6 +52,13 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                         break;
                 }
                 break;
+            case NFA:
+                switch (key) {
+                    case NFA_STATE_TABLE:
+                        args->state_table = true;
+                        break;
+                }
+                break;
         }
     }
     args->cmd = cmd;
@@ -60,6 +71,7 @@ int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = AUTO,
         .output = OUTPUT_TREE,
+        .state_table = false,
         .posc = 0,
         .pos = NULL,
     };
@@ -71,7 +83,7 @@ int main(int argc, char *argv[]) {
         NULL,
         ARGS {
             help_and_version_args,
-            end_arg
+            END_ARGS
         },
         CMDS {
              {
@@ -80,36 +92,70 @@ int main(int argc, char *argv[]) {
                 ARGS {
                     help_and_version_args,
                     fmt_arg,
-                    end_arg
+                    END_ARGS
                 },
                 NULL,
                 "Print the syntax tree for each regular expression"
             },
-            end_cmd
+             {
+                NFA,
+                "nfa",
+                ARGS {
+                    help_and_version_args,
+                    { NFA_STATE_TABLE, NULL, 's', no_argument, "Print the state table" },
+                    END_ARGS
+                },
+                NULL,
+                "Construct and simulate an NFA"
+            },
+            END_CMDS
         },
         "Construct and simulate automata"
     });
 
-    if (args.cmd == PRINT && !isatty(STDIN_FILENO)) {
-        struct expr exprbuf[EXPR_MAX];
+    if (!isatty(STDIN_FILENO)) {
         char input[BUFFER_SIZE] = "";
         size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
         input[nread] = '\0';
-        struct parse_context context = parse_context(input, exprbuf);
 
-        if (parse_regex(&context)) {
-            struct expr *expr = gexpr(&context);
+        if (args.cmd == PRINT) {
+            struct expr exprbuf[EXPR_MAX];
+            struct expr_context result = expr_context(exprbuf);
+            struct parse_context context = parse_context(input, &result);
 
-            if (args.output == OUTPUT_TREE) {
-                printf("expr type: %d\n", expr->type);
-                printf("constructed %ld expressions\n", context.exprbuf - exprbuf);
-                print_expr(expr);
+            if (parse_regex(&context)) {
+                struct expr *expr = gexpr(&result);
+
+                if (args.output == OUTPUT_TREE) {
+                    printf("expr type: %d\n", expr->type);
+                    printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
+                    print_expr(expr);
+                } else {
+                    print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+                }
             } else {
-                print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+                print_parse_error(parse_error(&context));
+                return EXIT_FAILURE;
             }
-        } else {
-            print_error(gerror(&context));
-            return EXIT_FAILURE;
+        } else if (args.cmd == NFA) {
+            struct nfa_state statebuf[STATE_MAX];
+            struct nfa_context context = nfa_context(statebuf);
+            struct nfa_context *nfa = &context;
+
+            nfa_regex(input, nfa);
+
+            if (!has_nfa_error(nfa)) {
+                if (args.state_table) {
+                    struct nfa_machine mach = gmachine(nfa);
+                    printf("start state: %p, end state: %p\n", mach.start, mach.end);
+                    print_state_table(statebuf, context.statebuf);
+                } else {
+                    printf("nfa success! made %ld states\n", context.statebuf - statebuf);
+                }
+            } else {
+                print_nfa_error(nfa_error(&context));
+                return EXIT_FAILURE;
+            }
         }
     }
 

@@ -121,3 +121,40 @@ o*      a { sym } ε a { sym } ε { cat } a { sym } factor_tail { cat } cat_tail
 *       a { sym } ε a { sym } ε { cat } a { sym } * { star } factor_tail { cat } cat_tail alt_tail
         a { sym } ε a { sym } ε { cat } a { sym } * { star } ε { cat } ε ε
         a { sym } a { sym } { cat } a { sym } * { star } { cat }
+
+(a|b)*abb
+{ ε } '(' { ε } 'a' { sym } { cat } { ε } 'a' { sym } { cat } { alt } ')' { sub } { cat } { star } { ε }
+
+
+
+regex: expr eof
+expr: ε { empty } alt { cat }
+alt: cat alt_tail
+alt_tail: | cat { alt } alt_tail | ε
+cat: factor cat_tail
+cat_tail: factor { cat } cat_tail | ε
+factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
+factor_tail: * { star } factor_tail | ε
+
+(a|bb)*     expr eof
+(a|bb)*     ε { empty } alt { cat }
+(a|bb)*     ε { empty } cat alt_tail { cat }
+(a|bb)*     ε { empty } factor cat_tail alt_tail { cat }
+(a|bb)*     ε { empty } ( expr ) { sub } factor_tail cat_tail alt_tail { cat }
+a|bb)*      ε { empty } ( ε { empty } alt { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+a|bb)*      ε { empty } ( ε { empty } cat alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+a|bb)*      ε { empty } ( ε { empty } factor cat_tail alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+a|bb)*      ε { empty } ( ε { empty } a { sym } factor_tail cat_tail alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+|bb)*       ε { empty } ( ε { empty } a { sym } ε cat_tail alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+|bb)*       ε { empty } ( ε { empty } a { sym } ε ε alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+|bb)*       ε { empty } ( ε { empty } a { sym } ε ε | cat { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+bb)*        ε { empty } ( ε { empty } a { sym } ε ε | factor cat_tail { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+bb)*        ε { empty } ( ε { empty } a { sym } ε ε | a { sym } factor_tail cat_tail { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+b)*         ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε cat_tail { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+b)*         ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε factor { cat } cat_tail { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+b)*         ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε a { sym } factor_tail { cat } cat_tail { alt } alt_tail { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+)*          ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε a { sym } ε { cat } ε { alt } ε { cat } ) { sub } factor_tail cat_tail alt_tail { cat }
+*           ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε a { sym } ε { cat } ε { alt } ε { cat } ) { sub } * { star } factor_tail cat_tail alt_tail { cat }
+            ε { empty } ( ε { empty } a { sym } ε ε | a { sym } ε a { sym } ε { cat } ε { alt } ε { cat } ) { sub } * { star } ε ε ε { cat }
+            { empty } { empty } { sym }         { sym } { sym } { cat } { alt } { cat } { sub } { star } { cat }
+            { empty } { empty } { sym } { cat } { sym } { sym } { cat } { alt } { cat } { sub } { star } { cat }

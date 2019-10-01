@@ -5,11 +5,11 @@
 #include "dot.h"
 
 void program_to_graph(Agraph_t *graph, Agnode_t *parent, struct program *program) {
-    block_to_graph(graph, append_node(graph, NULL, "program"), program->block);
+    block_to_graph(graph, append_node(graph, NULL, "program", NULL), program->block);
 }
 
 void block_to_graph(Agraph_t *graph, Agnode_t *parent, struct block *block) {
-    Agnode_t *block_node = append_node(graph, parent, "block");
+    Agnode_t *block_node = append_node(graph, parent, "block", NULL);
 
     for (struct node *node = head(block->stmts); node; node = next(node)) {
         stmt_to_graph(graph, block_node, value(node));
@@ -37,30 +37,30 @@ void stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct stmt *stmt) {
 }
 
 void expr_stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr_stmt *stmt) {
-    Agnode_t *stmt_node = append_node(graph, parent, "expr_stmt");
+    Agnode_t *stmt_node = append_node(graph, parent, "expr_stmt", NULL);
     expr_to_graph(graph, stmt_node, stmt->expr);
 }
 
 void if_stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct if_stmt *stmt) {
-    Agnode_t *stmt_node = append_node(graph, parent, "if_stmt");
+    Agnode_t *stmt_node = append_node(graph, parent, "if_stmt", NULL);
     expr_to_graph(graph, stmt_node, stmt->expr);
     stmt_to_graph(graph, stmt_node, stmt->stmt);
 }
 
 void while_stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct while_stmt *stmt) {
-    Agnode_t *stmt_node = append_node(graph, parent, "while_stmt");
+    Agnode_t *stmt_node = append_node(graph, parent, "while_stmt", NULL);
     expr_to_graph(graph, stmt_node, stmt->expr);
     stmt_to_graph(graph, stmt_node, stmt->stmt);
 }
 
 void do_stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct do_stmt *stmt) {
-    Agnode_t *stmt_node = append_node(graph, parent, "do_stmt");
+    Agnode_t *stmt_node = append_node(graph, parent, "do_stmt", NULL);
     stmt_to_graph(graph, stmt_node, stmt->stmt);
     expr_to_graph(graph, stmt_node, stmt->expr);
 }
 
 void block_stmt_to_graph(Agraph_t *graph, Agnode_t *parent, struct block_stmt *stmt) {
-    Agnode_t *stmt_node = append_node(graph, parent, "block_stmt");
+    Agnode_t *stmt_node = append_node(graph, parent, "block_stmt", NULL);
     block_to_graph(graph, stmt_node, stmt->block);
 }
 
@@ -76,13 +76,13 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
 }
 
 void assign_expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct assign_expr *expr) {
-    Agnode_t *expr_node = append_node(graph, parent, "=");
+    Agnode_t *expr_node = append_node(graph, parent, "=", NULL);
     rel_to_graph(graph, expr_node, expr->rel);
     expr_to_graph(graph, expr_node, expr->expr);
 }
 
 void rel_expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct rel_expr *expr) {
-    Agnode_t *expr_node = append_node(graph, parent, "rel");
+    Agnode_t *expr_node = append_node(graph, parent, "rel", NULL);
     rel_to_graph(graph, expr_node, expr->rel);
 }
 
@@ -101,19 +101,19 @@ void rel_to_graph(Agraph_t *graph, Agnode_t *parent, struct rel *rel) {
 }
 
 void lt_rel_to_graph(Agraph_t *graph, Agnode_t *parent, struct lt_rel *rel) {
-    Agnode_t *rel_node = append_node(graph, parent, "<");
+    Agnode_t *rel_node = append_node(graph, parent, "<", NULL);
     rel_to_graph(graph, rel_node, rel->rel);
     add_to_graph(graph, rel_node, rel->add);
 }
 
 void lteq_rel_to_graph(Agraph_t *graph, Agnode_t *parent, struct lteq_rel *rel) {
-    Agnode_t *rel_node = append_node(graph, parent, "<=");
+    Agnode_t *rel_node = append_node(graph, parent, "<=", NULL);
     rel_to_graph(graph, rel_node, rel->rel);
     add_to_graph(graph, rel_node, rel->add);
 }
 
 void add_rel_to_graph(Agraph_t *graph, Agnode_t *parent, struct add_rel *rel) {
-    Agnode_t *rel_node = append_node(graph, parent, "add");
+    Agnode_t *rel_node = append_node(graph, parent, "add", NULL);
     add_to_graph(graph, rel_node, rel->add);
 }
 
@@ -129,13 +129,13 @@ void add_to_graph(Agraph_t *graph, Agnode_t *parent, struct add *add) {
 }
 
 void plus_add_to_graph(Agraph_t *graph, Agnode_t *parent, struct plus_add *add) {
-    Agnode_t *add_node = append_node(graph, parent, "+");
+    Agnode_t *add_node = append_node(graph, parent, "+", NULL);
     add_to_graph(graph, add_node, add->add);
     term_to_graph(graph, add_node, add->term);
 }
 
 void term_add_to_graph(Agraph_t *graph, Agnode_t *parent, struct term_add *add) {
-    Agnode_t *add_node_ = append_node(graph, parent, "term");
+    Agnode_t *add_node_ = append_node(graph, parent, "term", NULL);
     term_to_graph(graph, add_node_, add->term);
 }
 
@@ -151,13 +151,13 @@ void term_to_graph(Agraph_t *graph, Agnode_t *parent, struct term *term) {
 }
 
 void mult_term_to_graph(Agraph_t *graph, Agnode_t *parent, struct mult_term *term) {
-    Agnode_t *term_node = append_node(graph, parent, "*");
+    Agnode_t *term_node = append_node(graph, parent, "*", NULL);
     term_to_graph(graph, term_node, term->term);
     factor_to_graph(graph, term_node, term->factor);
 }
 
 void factor_term_to_graph(Agraph_t *graph, Agnode_t *parent, struct factor_term *term) {
-    Agnode_t *term_node = append_node(graph, parent, "factor");
+    Agnode_t *term_node = append_node(graph, parent, "factor", NULL);
     factor_to_graph(graph, term_node, term->factor);
 }
 
@@ -176,14 +176,14 @@ void factor_to_graph(Agraph_t *graph, Agnode_t *parent, struct factor *factor) {
 }
 
 void subexpr_factor_to_graph(Agraph_t *graph, Agnode_t *parent, struct subexpr_factor *factor) {
-    Agnode_t *factor_node = append_node(graph, parent, "(expr)");
+    Agnode_t *factor_node = append_node(graph, parent, "(expr)", NULL);
     expr_to_graph(graph, factor_node, factor->expr);
 }
 
 void num_factor_to_graph(Agraph_t *graph, Agnode_t *parent, struct num_factor *factor) {
-    append_node(graph, parent, factor->num);
+    append_node(graph, parent, factor->num, NULL);
 }
 
 void id_factor_to_graph(Agraph_t *graph, Agnode_t *parent, struct id_factor *factor) {
-    append_node(graph, parent, factor->id);
+    append_node(graph, parent, factor->id, NULL);
 }

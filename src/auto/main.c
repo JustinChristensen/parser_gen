@@ -13,12 +13,13 @@
 enum command_key {
     AUTO,
     PRINT,
-    NFA
+    NFA,
+    NFA_TABLE,
+    NFA_DOT
 };
 
 enum arg_key {
     FORMAT,
-    NFA_STATE_TABLE
 };
 
 enum output_fmt {
@@ -49,13 +50,6 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                             print_usage(stderr, context);
                             exit(EXIT_FAILURE);
                         }
-                        break;
-                }
-                break;
-            case NFA:
-                switch (key) {
-                    case NFA_STATE_TABLE:
-                        args->state_table = true;
                         break;
                 }
                 break;
@@ -97,15 +91,36 @@ int main(int argc, char *argv[]) {
                 NULL,
                 "Print the syntax tree for each regular expression"
             },
-             {
+            {
                 NFA,
                 "nfa",
                 ARGS {
                     help_and_version_args,
-                    { NFA_STATE_TABLE, NULL, 's', no_argument, "Print the state table" },
                     END_ARGS
                 },
-                NULL,
+                CMDS {
+                    {
+                        NFA_TABLE,
+                        "table",
+                        ARGS {
+                            help_and_version_args,
+                            END_ARGS
+                        },
+                        NULL,
+                        "Print the state table for the nfa"
+                    },
+                    {
+                        NFA_DOT,
+                        "dot",
+                        ARGS {
+                            help_and_version_args,
+                            END_ARGS
+                        },
+                        NULL,
+                        "Print dot"
+                    },
+                    END_CMDS
+                },
                 "Construct and simulate an NFA"
             },
             END_CMDS
@@ -137,7 +152,7 @@ int main(int argc, char *argv[]) {
                 print_parse_error(parse_error(&context));
                 return EXIT_FAILURE;
             }
-        } else if (args.cmd == NFA) {
+        } else if (args.cmd == NFA || args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
             struct nfa_state statebuf[STATE_MAX];
             struct nfa_context context = nfa_context(statebuf);
             struct nfa_context *nfa = &context;
@@ -145,10 +160,13 @@ int main(int argc, char *argv[]) {
             nfa_regex(input, nfa);
 
             if (!has_nfa_error(nfa)) {
-                if (args.state_table) {
-                    struct nfa_machine mach = gmachine(nfa);
+                struct nfa_machine mach = gmachine(nfa);
+
+                if (args.cmd == NFA_TABLE) {
                     printf("start state: %p, end state: %p\n", mach.start, mach.end);
                     print_state_table(statebuf, context.statebuf);
+                } else if (args.cmd == NFA_DOT) {
+                    nfa_to_graph(statebuf, mach.start);
                 } else {
                     printf("nfa success! made %ld states\n", context.statebuf - statebuf);
                 }

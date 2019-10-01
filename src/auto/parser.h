@@ -7,10 +7,10 @@
  * Grammar:
  *
  * regex: expr eof
- * expr: ε { empty } | alt
+ * expr: alt
  * alt: cat alt_tail
  * alt_tail: + cat { alt } alt_tail | ε
- * cat: factor cat_tail
+ * cat: ε { empty } factor cat_tail { cat }
  * cat_tail: factor { cat } cat_tail | ε
  * factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
  * factor_tail: * { star } factor_tail | ε

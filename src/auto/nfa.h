@@ -15,6 +15,7 @@
  */
 
 #include <stdbool.h>
+#include "parser.h"
 
 #define STATE_MAX 10000
 

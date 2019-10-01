@@ -24,25 +24,33 @@ char *left_justify(char *str) {
     return newstr;
 }
 
+void default_styles(Agraph_t *graph) {
+    agattr(graph, AGRAPH, "pad", "0.4,0.3");
+    agattr(graph, AGNODE, "label", "\\N");
+    agattr(graph, AGNODE, "style", "dashed");
+    agattr(graph, AGNODE, "color", "#aaaaaa");
+    agattr(graph, AGNODE, "shape", "box");
+    agattr(graph, AGNODE, "fontname", "verdana");
+    agattr(graph, AGNODE, "fontsize", "10");
+    agattr(graph, AGNODE, "fontcolor", "#222222");
+    agattr(graph, AGEDGE, "label", "\\N");
+    agattr(graph, AGEDGE, "fontname", "verdana");
+    agattr(graph, AGEDGE, "fontsize", "10");
+    agattr(graph, AGEDGE, "fontcolor", "#aaaaaa");
+    agattr(graph, AGEDGE, "style", "dashed");
+    agattr(graph, AGEDGE, "color", "#aaaaaa");
+}
+
 void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t *graph, Agnode_t *parent, void *ast)) {
     Agraph_t *topg = agopen("top", Agundirected, NULL);
     Agraph_t *astg = agsubg(topg, "ast", 1);
     Agraph_t *inputg;
 
+    default_styles(topg);
+
     if (input) {
         inputg = agsubg(topg, "input", 1);
     }
-
-    agattr(topg, AGRAPH, "pad", "0.4,0.3");
-    agattr(topg, AGNODE, "label", "\\N");
-    agattr(topg, AGNODE, "style", "dashed");
-    agattr(topg, AGNODE, "color", "#aaaaaa");
-    agattr(topg, AGNODE, "shape", "box");
-    agattr(topg, AGNODE, "fontname", "verdana");
-    agattr(topg, AGNODE, "fontsize", "10");
-    agattr(topg, AGNODE, "fontcolor", "#222222");
-    agattr(topg, AGEDGE, "style", "dashed");
-    agattr(topg, AGEDGE, "color", "#aaaaaa");
 
     (*to_graph)(astg, NULL, ast);
 
@@ -64,12 +72,15 @@ void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t 
 static int uid = 0;
 #define NAMEBUFSIZE 16
 
-Agnode_t *append_node(Agraph_t *graph, Agnode_t *parent, char *label) {
+Agnode_t *append_node(Agraph_t *graph, Agnode_t *parent, char *label, char *elabel) {
     static char namebuf[NAMEBUFSIZE];
     sprintf(namebuf, "n%d", uid++);
     Agnode_t *node = agnode(graph, namebuf, 1);
     agset(node, "label", label);
-    if (parent) agedge(graph, parent, node, NULL, 1);
+    if (parent) {
+        Agedge_t *edge = agedge(graph, parent, node, NULL, 1);
+        if (elabel) agset(edge, "label", elabel);
+    }
     return node;
 }
 

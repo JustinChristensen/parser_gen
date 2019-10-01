@@ -88,6 +88,7 @@ struct nfa_machine alt_machine(struct nfa_context *context, struct nfa_machine l
 }
 
 struct nfa_machine cat_machine(struct nfa_machine first, struct nfa_machine second) {
+    *second.end = *first.end;
     *first.end = *second.start;
 #ifdef DEBUG
     printf("cat machine\n");
@@ -119,9 +120,7 @@ bool nfa_from_regex(struct parse_context *context) {
 }
 
 bool nfa_from_expr(struct parse_context *context) {
-    struct nfa_context *nfa_context = context->result_context;
-    smachine(nfa_context, empty_machine(nfa_context));
-    nfa_from_alt(context, gmachine(nfa_context));
+    nfa_from_alt(context, gmachine(context->result_context));
     return true;
 }
 
@@ -151,6 +150,10 @@ bool nfa_from_alt(struct parse_context *context, struct nfa_machine lmachine) {
 bool nfa_from_cat(struct parse_context *context, struct nfa_machine lmachine) {
     struct nfa_context *nfa_context = context->result_context;
 
+    struct nfa_machine empty = empty_machine(nfa_context);
+
+    smachine(nfa_context, empty);
+
     if (nfa_from_factor(context)) {
         while (true) {
             lmachine = gmachine(nfa_context);
@@ -162,6 +165,8 @@ bool nfa_from_cat(struct parse_context *context, struct nfa_machine lmachine) {
 
             break;
         }
+
+        smachine(nfa_context, cat_machine(empty, gmachine(nfa_context)));
 
         return true;
     }
@@ -176,7 +181,6 @@ bool nfa_from_factor(struct parse_context *context) {
     if (peek(context, LPAREN, NULL) &&
         expect(context, LPAREN, NULL) &&
         nfa_from_expr(context) && expect(context, RPAREN, NULL)) {
-        // smachine(nfa_context, cat_machine(lmachine, gmachine(nfa_context)));
         has_head = true;
     } else if (peek(context, SYMBOL, is_symbol)) {
         int sym = lookahead(context);
@@ -254,7 +258,7 @@ void print_state_table(struct nfa_state *start, struct nfa_state *end) {
                 printf("accept");
                 break;
             case EPSILON_STATE:
-                printf("empty %p", start->next);
+                printf("eps %p", start->next);
                 break;
             case BRANCH_STATE:
                 printf("branch %p %p", start->left, start->right);

@@ -1,6 +1,7 @@
 #include "base/args.h"
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 struct args_context init_args_context(
@@ -45,7 +46,7 @@ void run_args(
 
     findcmd(&context);
 
-    char optstring[OPTSTRING_SIZE];
+    char optstring[OPTSTRING_SIZE] = "";
     struct option options[OPTIONS_SIZE];
     struct val_assoc val_table[OPTIONS_SIZE];
     determine_options(&context, optstring, options, val_table);
@@ -68,14 +69,14 @@ void findcmd(struct args_context *context) {
         while (sub && sub->key != END) {
             if (strcmp(sub->cmd, argv[1]) == 0) {
                 cmd = sub;
-                *cmd_path++ = sub;
+                *cmd_path++ = cmd;
+                sub = cmd->subcmds;
                 argv++;
                 argc--;
                 argv[0] = prog;
-                break;
+            } else {
+                sub++;
             }
-
-            sub++;
         }
 
         context->argc = argc;

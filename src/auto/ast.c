@@ -62,7 +62,6 @@ bool parse_regex(struct parse_context *context) {
 }
 
 bool parse_expr(struct parse_context *context) {
-    sexpr(context->result_context, empty_expr());
     parse_alt(context, gexpr(context->result_context));
     return true;
 }
@@ -89,6 +88,9 @@ bool parse_alt(struct parse_context *context, struct expr *lexpr) {
 }
 
 bool parse_cat(struct parse_context *context, struct expr *lexpr) {
+    sexpr(context->result_context, empty_expr());
+    struct expr *empty = gexpr(context->result_context);
+
     if (parse_factor(context)) {
         while (true) {
             lexpr = gexpr(context->result_context);
@@ -100,6 +102,8 @@ bool parse_cat(struct parse_context *context, struct expr *lexpr) {
 
             break;
         }
+
+        sexpr(context->result_context, cat_expr(empty, gexpr(context->result_context)));
 
         return true;
     }

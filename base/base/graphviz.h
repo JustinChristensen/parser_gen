@@ -7,6 +7,7 @@
 
 char *left_justify(char *str);
 void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t *graph, Agnode_t *parent, void *ast));
-Agnode_t *append_node(Agraph_t *graph, Agnode_t *parent, char *label);
+void default_styles(Agraph_t *graph);
+Agnode_t *append_node(Agraph_t *graph, Agnode_t *parent, char *label, char *elabel);
 
 #endif // BASE_GRAPHVIZ_H_

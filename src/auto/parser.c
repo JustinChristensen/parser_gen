@@ -145,6 +145,7 @@ char *lexeme_for(char *symbuf, int token) {
         case LPAREN:    symbuf = "("; break;
         case RPAREN:    symbuf = ")"; break;
         case SYMBOL:    symbuf = "symbol"; break;
+        case '\0':      symbuf = "eof"; break;
         default:
             symbuf[0] = token;
             break;

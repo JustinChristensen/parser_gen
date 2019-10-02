@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <base/args.h>
+#include <base/stack.h>
 #include <base/graphviz.h>
 #include "ast.h"
 #include "nfa.h"

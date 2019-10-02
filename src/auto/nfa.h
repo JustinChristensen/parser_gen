@@ -15,6 +15,7 @@
  */
 
 #include <stdbool.h>
+#include <base/set.h>
 #include "parser.h"
 
 #define STATE_MAX 10000
@@ -60,7 +61,6 @@ struct nfa_state epsilon_state(struct nfa_state *next);
 struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right);
 struct nfa_state symbol_state(char symbol);
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state);
-
 void point(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1);
 void patch(struct nfa machine, struct nfa_state *state);
 void smachine(struct nfa_context *context, struct nfa machine);
@@ -80,6 +80,9 @@ bool has_nfa_error(struct nfa_context *context);
 struct nfa_error nfa_error(struct nfa_context *context);
 void print_nfa_error(struct nfa_error error);
 void free_nfa_context(struct nfa_context *context);
+struct set *eps_closure0(struct nfa_context *context, struct nfa_state *state);
+struct set *eps_closure(struct nfa_context *context, struct set *states);
+struct set *move(struct nfa_context *context, struct set *states);
 bool nfa_match(char *str, struct nfa_context *context);
 
 void print_state_table(struct nfa_state *start, struct nfa_state *end);

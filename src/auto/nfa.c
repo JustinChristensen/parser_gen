@@ -256,6 +256,15 @@ void free_nfa_context(struct nfa_context *context) {
     free(context);
 }
 
+struct set *eps_closure0(struct nfa_context *context, struct nfa_state *state) {
+}
+
+struct set *eps_closure(struct nfa_context *context, struct set *states) {
+}
+
+struct set *move(struct nfa_context *context, struct set *states) {
+}
+
 bool nfa_match(char *str, struct nfa_context *context) {
     return true;
 }

@@ -37,9 +37,10 @@ struct nfa_state {
     };
 };
 
-struct nfa_machine {
+struct nfa {
     struct nfa_state *start;
-    struct nfa_state *end;
+    struct nfa_state **end;
+    struct nfa_state **end1;
 };
 
 struct nfa_error {
@@ -48,7 +49,7 @@ struct nfa_error {
 
 struct nfa_context {
     struct nfa_state *statebuf;
-    struct nfa_machine nfa;
+    struct nfa nfa;
     bool has_error;
     struct nfa_error error;
 };
@@ -57,20 +58,22 @@ struct nfa_context nfa_context(struct nfa_state *statebuf);
 struct nfa_state accepting_state();
 struct nfa_state epsilon_state(struct nfa_state *next);
 struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right);
-struct nfa_state symbol_state(struct nfa_state *next, char symbol);
+struct nfa_state symbol_state(char symbol);
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state);
 
-void smachine(struct nfa_context *context, struct nfa_machine machine);
-struct nfa_machine gmachine(struct nfa_context *context);
-struct nfa_machine empty_machine(struct nfa_context *context);
-struct nfa_machine symbol_machine(struct nfa_context *context, char symbol);
-struct nfa_machine alt_machine(struct nfa_context *context, struct nfa_machine left, struct nfa_machine right);
-struct nfa_machine cat_machine(struct nfa_machine first, struct nfa_machine second);
-struct nfa_machine closure_machine(struct nfa_context *context, struct nfa_machine inner);
+void point(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1);
+void patch(struct nfa machine, struct nfa_state *state);
+void smachine(struct nfa_context *context, struct nfa machine);
+struct nfa gmachine(struct nfa_context *context);
+struct nfa empty_machine(struct nfa_context *context);
+struct nfa symbol_machine(struct nfa_context *context, char symbol);
+struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right);
+struct nfa cat_machine(struct nfa first, struct nfa second);
+struct nfa closure_machine(struct nfa_context *context, struct nfa inner);
 bool nfa_from_regex(struct parse_context *context);
 bool nfa_from_expr(struct parse_context *context);
-bool nfa_from_alt(struct parse_context *context, struct nfa_machine lmachine);
-bool nfa_from_cat(struct parse_context *context, struct nfa_machine lmachine);
+bool nfa_from_alt(struct parse_context *context, struct nfa lmachine);
+bool nfa_from_cat(struct parse_context *context, struct nfa lmachine);
 bool nfa_from_factor(struct parse_context *context);
 struct nfa_context *nfa_regex(char *regex, struct nfa_context *context);
 bool has_nfa_error(struct nfa_context *context);

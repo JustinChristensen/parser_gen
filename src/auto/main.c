@@ -160,10 +160,10 @@ int main(int argc, char *argv[]) {
             nfa_regex(input, nfa);
 
             if (!has_nfa_error(nfa)) {
-                struct nfa_machine mach = gmachine(nfa);
+                struct nfa mach = gmachine(nfa);
 
                 if (args.cmd == NFA_TABLE) {
-                    printf("start state: %p, end state: %p\n", mach.start, mach.end);
+                    printf("start state: %p, end state: %p\n", mach.start, *mach.end);
                     print_state_table(statebuf, context.statebuf);
                 } else if (args.cmd == NFA_DOT) {
                     nfa_to_graph(statebuf, mach.start);

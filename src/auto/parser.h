@@ -12,8 +12,17 @@
  * alt_tail: + cat { alt } alt_tail | ε
  * cat: ε { empty } factor cat_tail { cat }
  * cat_tail: factor { cat } cat_tail | ε
- * factor: ( expr ) { sub } factor_tail | a { sym } factor_tail
- * factor_tail: * { star } factor_tail | ε
+ * factor: ( expr ) { sub } factor_tail
+ *       | [ insymbolseq ] { class } factor_tail
+ *       | . { dotall } factor_tail
+ *       | a { sym } factor_tail
+ * factor_tail: * { star } factor_tail
+ *            | + { plus } factor_tail
+ *            | ? { optional } factor_tail | ε
+ * insymbolseq: ^ symbolseq_tail { invert }
+ *            | symbolseq_tail
+ * symbolseq_tail: symbol { and } symbolseq_tail | ε
+ * symbol: a { sym } | a-z { symrange }
  *
  * TODO: extensions
  * zero or one: ?
@@ -25,10 +34,16 @@
 
 enum token_type {
     SYMBOL = -1,
+    INVERT = ('^' + OPERATOR_OFFSET),
     ALT = ('|' + OPERATOR_OFFSET),
     STAR = ('*' + OPERATOR_OFFSET),
+    PLUS = ('+' + OPERATOR_OFFSET),
+    OPTIONAL = ('?' + OPERATOR_OFFSET),
+    DOTALL = ('.' + OPERATOR_OFFSET),
+    LPAREN = ('(' + OPERATOR_OFFSET),
     RPAREN = (')' + OPERATOR_OFFSET),
-    LPAREN = ('(' + OPERATOR_OFFSET)
+    LBRACKET = ('[' + OPERATOR_OFFSET),
+    RBRACKET = (']' + OPERATOR_OFFSET)
 };
 
 struct scan_context {

@@ -34,11 +34,11 @@ struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right) {
     };
 }
 
-struct nfa_state symbol_state(struct nfa_state *next, char symbol) {
+struct nfa_state symbol_state(char symbol) {
     return (struct nfa_state) {
         .type = SYMBOL_STATE,
         .symbol = symbol,
-        .next = next
+        .next = NULL
     };
 }
 
@@ -47,72 +47,82 @@ struct nfa_state *setst(struct nfa_context *context, struct nfa_state state) {
     return context->statebuf++;
 }
 
-void smachine(struct nfa_context *context, struct nfa_machine machine) {
+void point(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1) {
+    machine->end = end;
+    machine->end1 = end1;
+}
+
+void patch(struct nfa machine, struct nfa_state *state) {
+    *machine.end = state;
+    if (machine.end1) *machine.end1 = *machine.end;
+}
+
+void smachine(struct nfa_context *context, struct nfa machine) {
     context->nfa = machine;
 }
 
-struct nfa_machine gmachine(struct nfa_context *context) {
+struct nfa gmachine(struct nfa_context *context) {
     return context->nfa;
 }
 
-struct nfa_machine empty_machine(struct nfa_context *context) {
-    struct nfa_machine machine;
+struct nfa empty_machine(struct nfa_context *context) {
+    struct nfa machine;
 #ifdef DEBUG
     printf("empty machine\n");
 #endif
-    machine.end = setst(context, accepting_state());
-    machine.start = setst(context, epsilon_state(machine.end));
+    machine.start = setst(context, epsilon_state(NULL));
+    point(&machine, &machine.start->next, NULL);
     return machine;
 }
 
-struct nfa_machine symbol_machine(struct nfa_context *context, char symbol) {
-    struct nfa_machine machine;
+struct nfa symbol_machine(struct nfa_context *context, char symbol) {
+    struct nfa machine;
 #ifdef DEBUG
     printf("symbol machine: %c\n", symbol);
 #endif
-    machine.end = setst(context, accepting_state());
-    machine.start = setst(context, symbol_state(machine.end, symbol));
+    machine.start = setst(context, symbol_state(symbol));
+    point(&machine, &machine.start->next, NULL);
     return machine;
 }
 
-struct nfa_machine alt_machine(struct nfa_context *context, struct nfa_machine left, struct nfa_machine right) {
-    struct nfa_machine machine;
+struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right) {
+    struct nfa machine;
 #ifdef DEBUG
     printf("alt machine\n");
 #endif
-    machine.end = setst(context, accepting_state());
-    *left.end = epsilon_state(machine.end);
-    *right.end = epsilon_state(machine.end);
     machine.start = setst(context, branch_state(left.start, right.start));
+    patch(left, setst(context, epsilon_state(NULL)));
+    patch(right, setst(context, epsilon_state(NULL)));
+    point(&machine, &(*left.end)->next, &(*right.end)->next);
     return machine;
 }
 
-struct nfa_machine cat_machine(struct nfa_machine first, struct nfa_machine second) {
-    *second.end = *first.end;
-    *first.end = *second.start;
+struct nfa cat_machine(struct nfa first, struct nfa second) {
+    struct nfa machine;
 #ifdef DEBUG
     printf("cat machine\n");
 #endif
-
-    return (struct nfa_machine) {
-        .start = first.start,
-        .end = second.end
-    };
+    patch(first, second.start);
+    machine.start = first.start;
+    point(&machine, second.end, second.end1);
+    return machine;
 }
 
-struct nfa_machine closure_machine(struct nfa_context *context, struct nfa_machine inner) {
-    struct nfa_machine machine;
+struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
+    struct nfa machine;
 #ifdef DEBUG
     printf("closure machine\n");
 #endif
-    machine.end = setst(context, accepting_state());
-    *inner.end = branch_state(inner.start, machine.end);
-    machine.start = setst(context, branch_state(inner.start, machine.end));
+    machine.start = setst(context, branch_state(inner.start, NULL));
+    patch(inner, setst(context, branch_state(inner.start, NULL)));
+    point(&machine, &machine.start->right, &(*inner.end)->right);
     return machine;
 }
 
 bool nfa_from_regex(struct parse_context *context) {
+    struct nfa_context *nfa_context = context->result_context;
     if (nfa_from_expr(context) && expect(context, '\0', NULL)) {
+        patch(gmachine(nfa_context), setst(nfa_context, accepting_state()));
         return true;
     }
 
@@ -124,7 +134,7 @@ bool nfa_from_expr(struct parse_context *context) {
     return true;
 }
 
-bool nfa_from_alt(struct parse_context *context, struct nfa_machine lmachine) {
+bool nfa_from_alt(struct parse_context *context, struct nfa lmachine) {
     struct nfa_context *nfa_context = context->result_context;
 
     if (nfa_from_cat(context, lmachine)) {
@@ -147,10 +157,10 @@ bool nfa_from_alt(struct parse_context *context, struct nfa_machine lmachine) {
     return false;
 }
 
-bool nfa_from_cat(struct parse_context *context, struct nfa_machine lmachine) {
+bool nfa_from_cat(struct parse_context *context, struct nfa lmachine) {
     struct nfa_context *nfa_context = context->result_context;
 
-    struct nfa_machine empty = empty_machine(nfa_context);
+    struct nfa empty = empty_machine(nfa_context);
 
     smachine(nfa_context, empty);
 
@@ -214,7 +224,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
     }
 
     if (!has_nfa_error(context)) {
-        struct nfa_machine lmachine = gmachine(context);
+        struct nfa lmachine = gmachine(context);
         struct parse_context pcontext = parse_context(regex, context);
 
         if (!nfa_from_regex(&pcontext)) {

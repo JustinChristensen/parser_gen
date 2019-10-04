@@ -138,39 +138,46 @@ int main(int argc, char *argv[]) {
     });
 
     if (args.cmd != NFA) {
-        if (!isatty(STDIN_FILENO)) {
-            char input[BUFFER_SIZE] = "";
-            size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
-            input[nread] = '\0';
+        // if (!isatty(STDIN_FILENO)) {
+        //     char input[BUFFER_SIZE] = "";
+        //     size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
+        //     input[nread] = '\0';
 
-            if (args.cmd == PRINT) {
-                struct expr exprbuf[EXPR_MAX];
-                struct expr_context result = expr_context(exprbuf);
-                struct parse_context context = parse_context(input, &result);
+        //     if (args.cmd == PRINT) {
+        //         struct expr exprbuf[EXPR_MAX];
+        //         struct expr_context result = expr_context(exprbuf);
+        //         struct parse_context context = parse_context(input, &result);
 
-                if (parse_regex(&context)) {
-                    struct expr *expr = gexpr(&result);
+        //         if (parse_regex(&context)) {
+        //             struct expr *expr = gexpr(&result);
 
-                    if (args.output == OUTPUT_TREE) {
-                        printf("expr type: %d\n", expr->type);
-                        printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
-                        print_expr(expr);
-                    } else {
-                        print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
-                    }
-                } else {
-                    print_parse_error(parse_error(&context));
-                    return EXIT_FAILURE;
-                }
-            } else if (args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
+        //             if (args.output == OUTPUT_TREE) {
+        //                 printf("expr type: %d\n", expr->type);
+        //                 printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
+        //                 print_expr(expr);
+        //             } else {
+        //                 print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+        //             }
+        //         } else {
+        //             print_parse_error(parse_error(&context));
+        //             return EXIT_FAILURE;
+        //         }
+        //  } else if (args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
+            if (args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
                 struct nfa_state statebuf[STATE_MAX];
                 struct nfa_context context = nfa_context(statebuf);
                 struct nfa_context *nfa = &context;
 
-                nfa_regex(input, nfa);
+                nfa_regex("if", nfa);
+                nfa_regex("else", nfa);
+                nfa_regex("for", nfa);
+                nfa_regex("while", nfa);
+                nfa_regex("do", nfa);
 
                 if (!has_nfa_error(nfa)) {
                     struct nfa mach = gmachine(nfa);
+
+                    printf("%s\n", nfa_match("while", &context) ? "match" : "no match");
 
                     if (args.cmd == NFA_TABLE) {
                         printf("start state: %p, end state: %p\n", mach.start, *mach.end);
@@ -184,7 +191,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-    }
+    // }
 
     if (args.cmd == NFA) {
         FILE *in = NULL;

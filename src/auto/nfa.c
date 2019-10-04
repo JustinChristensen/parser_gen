@@ -162,9 +162,7 @@ struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
 }
 
 bool nfa_from_regex(struct parse_context *context) {
-    struct nfa_context *nfa_context = context->result_context;
     if (nfa_from_expr(context) && expect(context, '\0', NULL)) {
-        patch(gmachine(nfa_context), setst(nfa_context, accepting_state()));
         return true;
     }
 
@@ -279,11 +277,20 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
         struct nfa lmachine = gmachine(context);
         struct parse_context pcontext = parse_context(regex, context);
 
+        if (lmachine.end) {
+            context->statebuf--;
+            context->numstates--;
+        }
+
         if (!nfa_from_regex(&pcontext)) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
-        } else if (lmachine.end) {
-            smachine(context, alt_machine(context, lmachine, gmachine(context)));
+        } else {
+            if (lmachine.end) {
+                smachine(context, alt_machine(context, lmachine, gmachine(context)));
+            }
+
+            patch(gmachine(context), setst(context, accepting_state()));
         }
     }
 

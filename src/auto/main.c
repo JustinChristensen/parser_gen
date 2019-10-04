@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <base/args.h>
-#include <base/stack.h>
 #include <base/graphviz.h>
 #include "ast.h"
 #include "nfa.h"
@@ -21,6 +20,7 @@ enum command_key {
 
 enum arg_key {
     FORMAT,
+    REGEX
 };
 
 enum output_fmt {
@@ -32,6 +32,7 @@ struct args {
     enum command_key cmd;
     enum output_fmt output;
     bool state_table;
+    char *regex;
     int posc;
     char **pos;
 };
@@ -54,6 +55,11 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                         break;
                 }
                 break;
+            case NFA:
+                if (key == REGEX) {
+                    args->regex = argval();
+                }
+                break;
         }
     }
     args->cmd = cmd;
@@ -67,6 +73,7 @@ int main(int argc, char *argv[]) {
         .cmd = AUTO,
         .output = OUTPUT_TREE,
         .state_table = false,
+        .regex = NULL,
         .posc = 0,
         .pos = NULL,
     };
@@ -85,8 +92,8 @@ int main(int argc, char *argv[]) {
                 PRINT,
                 "print",
                 ARGS {
-                    help_and_version_args,
                     fmt_arg,
+                    help_and_version_args,
                     END_ARGS
                 },
                 NULL,
@@ -96,6 +103,7 @@ int main(int argc, char *argv[]) {
                 NFA,
                 "nfa",
                 ARGS {
+                    { REGEX, NULL, 'r', required_argument, "Regular expression" },
                     help_and_version_args,
                     END_ARGS
                 },
@@ -129,52 +137,90 @@ int main(int argc, char *argv[]) {
         "Construct and simulate automata"
     });
 
-    if (!isatty(STDIN_FILENO)) {
-        char input[BUFFER_SIZE] = "";
-        size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
-        input[nread] = '\0';
+    if (args.cmd != NFA) {
+        if (!isatty(STDIN_FILENO)) {
+            char input[BUFFER_SIZE] = "";
+            size_t nread = fread(input, sizeof *input, BUFFER_SIZE, stdin);
+            input[nread] = '\0';
 
-        if (args.cmd == PRINT) {
-            struct expr exprbuf[EXPR_MAX];
-            struct expr_context result = expr_context(exprbuf);
-            struct parse_context context = parse_context(input, &result);
+            if (args.cmd == PRINT) {
+                struct expr exprbuf[EXPR_MAX];
+                struct expr_context result = expr_context(exprbuf);
+                struct parse_context context = parse_context(input, &result);
 
-            if (parse_regex(&context)) {
-                struct expr *expr = gexpr(&result);
+                if (parse_regex(&context)) {
+                    struct expr *expr = gexpr(&result);
 
-                if (args.output == OUTPUT_TREE) {
-                    printf("expr type: %d\n", expr->type);
-                    printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
-                    print_expr(expr);
+                    if (args.output == OUTPUT_TREE) {
+                        printf("expr type: %d\n", expr->type);
+                        printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
+                        print_expr(expr);
+                    } else {
+                        print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+                    }
                 } else {
-                    print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+                    print_parse_error(parse_error(&context));
+                    return EXIT_FAILURE;
                 }
-            } else {
-                print_parse_error(parse_error(&context));
-                return EXIT_FAILURE;
+            } else if (args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
+                struct nfa_state statebuf[STATE_MAX];
+                struct nfa_context context = nfa_context(statebuf);
+                struct nfa_context *nfa = &context;
+
+                nfa_regex(input, nfa);
+
+                if (!has_nfa_error(nfa)) {
+                    struct nfa mach = gmachine(nfa);
+
+                    if (args.cmd == NFA_TABLE) {
+                        printf("start state: %p, end state: %p\n", mach.start, *mach.end);
+                        print_state_table(statebuf, context.statebuf);
+                    } else if (args.cmd == NFA_DOT) {
+                        nfa_to_graph(mach.start);
+                    }
+                } else {
+                    print_nfa_error(nfa_error(&context));
+                    return EXIT_FAILURE;
+                }
             }
-        } else if (args.cmd == NFA || args.cmd == NFA_TABLE || args.cmd == NFA_DOT) {
+        }
+    }
+
+    if (args.cmd == NFA) {
+        FILE *in = NULL;
+
+        if (args.posc == 0) {
+            if (!isatty(STDIN_FILENO)) {
+                in = stdin;
+            }
+        } else {
+            in = fopen(args.pos[0], "r");
+        }
+
+        if (in) {
             struct nfa_state statebuf[STATE_MAX];
             struct nfa_context context = nfa_context(statebuf);
             struct nfa_context *nfa = &context;
 
-            nfa_regex(input, nfa);
+            nfa_regex(args.regex, nfa);
 
             if (!has_nfa_error(nfa)) {
-                struct nfa mach = gmachine(nfa);
-
-                if (args.cmd == NFA_TABLE) {
-                    printf("start state: %p, end state: %p\n", mach.start, *mach.end);
-                    print_state_table(statebuf, context.statebuf);
-                } else if (args.cmd == NFA_DOT) {
-                    nfa_to_graph(statebuf, mach.start);
-                } else {
-                    printf("nfa success! made %ld states\n", context.statebuf - statebuf);
+                char buf[BUFSIZ];
+                printf("regex: %s\n", args.regex);
+                while (fgets(buf, BUFSIZ, in)) {
+                    buf[strlen(buf) - 1] = '\0';
+                    bool matches = nfa_match(buf, &context);
+                    printf("%s %s\n", buf, matches ? "matches" : "does not match");
                 }
             } else {
                 print_nfa_error(nfa_error(&context));
                 return EXIT_FAILURE;
             }
+
+            fclose(in);
+        } else {
+            fprintf(stderr, "no input file\n");
+            return EXIT_FAILURE;
         }
     }
 

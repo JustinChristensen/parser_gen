@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
+#include <base/list.h>
 #include "parser.h"
 #include "nfa.h"
 
 struct nfa_context nfa_context(struct nfa_state *statebuf) {
     return (struct nfa_context) {
         .statebuf = statebuf,
+        .numstates = 0,
         .has_error = false,
         .error = { nullperr() }
     };
@@ -42,8 +45,12 @@ struct nfa_state symbol_state(char symbol) {
     };
 }
 
+int uid = 0;
+
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state) {
+    state.id = uid++;
     *context->statebuf = state;
+    context->numstates++;
     return context->statebuf++;
 }
 
@@ -256,36 +263,128 @@ void free_nfa_context(struct nfa_context *context) {
     free(context);
 }
 
-struct set *eps_closure0(struct nfa_context *context, struct nfa_state *state) {
+void eps_closure(struct list *nstates, struct nfa_state *state, bool *already_on) {
+    if (already_on[state->id]) return;
+
+    push(nstates, state);
+    already_on[state->id] = true;
+
+    switch (state->type) {
+        case EPSILON_STATE:
+            eps_closure(nstates, state->next, already_on);
+            break;
+        case BRANCH_STATE:
+            eps_closure(nstates, state->left, already_on);
+            eps_closure(nstates, state->right, already_on);
+            break;
+        case ACCEPTING_STATE:
+        case SYMBOL_STATE:
+            break;
+    }
 }
 
-struct set *eps_closure(struct nfa_context *context, struct set *states) {
+void move(struct list *nstates, struct list *cstates, char c, bool *already_on) {
+    struct node *node;
+    struct nfa_state *state;
+    while ((node = pop(cstates)) && (state = value(node))) {
+        if (state->type == SYMBOL_STATE && state->symbol == c) {
+            eps_closure(nstates, state->next, already_on);
+        }
+
+        free_node(node, NULL);
+    }
 }
 
-struct set *move(struct nfa_context *context, struct set *states) {
+bool accepts(struct list *cstates, struct nfa_state *accept) {
+    struct node *node;
+    struct nfa_state *state;
+    while ((node = pop(cstates)) && (state = value(node))) {
+        if (state == accept) {
+            return true;
+        }
+
+        free_node(node, NULL);
+    }
+    return false;
 }
 
 bool nfa_match(char *str, struct nfa_context *context) {
-    return true;
+    struct nfa nfa = context->nfa;
+    size_t numstates = context->numstates;
+    bool *already_on = calloc(numstates, sizeof *already_on);
+    struct list *cstates = init_list();
+    struct list *nstates = init_list();
+
+    eps_closure(cstates, nfa.start, already_on);
+
+#ifdef DEBUG
+    print_state_table(context->statebuf - numstates, context->statebuf);
+    print_nfa_states(cstates);
+#endif
+    char c;
+    struct list *t;
+    while ((c = *str++) != '\0') {
+        memset(already_on, false, numstates);
+        move(nstates, cstates, c, already_on);
+        t = cstates;
+        cstates = nstates;
+        nstates = t;
+#ifdef DEBUG
+        print_nfa_states(cstates);
+#endif
+    }
+
+    bool result = accepts(cstates, *nfa.end);
+
+    free(already_on);
+    free_list(nstates, NULL);
+    free_list(cstates, NULL);
+
+    return result;
+}
+
+void print_nfa_states(struct list *cstates) {
+    struct node *node;
+
+    if (!empty(cstates)) {
+        printf("{");
+        node = head(cstates);
+        print_state(value(node));
+        for (node = node->next; node; node = node->next) {
+            printf(", ");
+            print_state(value(node));
+        }
+        printf("}");
+    } else {
+        printf("empty");
+    }
+
+    printf("\n");
+}
+
+void print_state(struct nfa_state *state) {
+    printf("(%d, ", state->id);
+    switch (state->type) {
+        case ACCEPTING_STATE:
+            printf("accept");
+            break;
+        case EPSILON_STATE:
+            printf("eps, %p", state->next);
+            break;
+        case BRANCH_STATE:
+            printf("branch, %p, %p", state->left, state->right);
+            break;
+        case SYMBOL_STATE:
+            printf("symbol, %p, %c", state->next, state->symbol);
+            break;
+    }
+    printf(")");
 }
 
 void print_state_table(struct nfa_state *start, struct nfa_state *end) {
     while (start != end) {
         printf("%p: ", start);
-        switch (start->type) {
-            case ACCEPTING_STATE:
-                printf("accept");
-                break;
-            case EPSILON_STATE:
-                printf("eps %p", start->next);
-                break;
-            case BRANCH_STATE:
-                printf("branch %p %p", start->left, start->right);
-                break;
-            case SYMBOL_STATE:
-                printf("symbol %p %c", start->next, start->symbol);
-                break;
-        }
+        print_state(start);
         printf("\n");
         start++;
     }

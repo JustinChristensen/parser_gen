@@ -1,5 +1,6 @@
 #include <cgraph.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <base/graphviz.h>
 #include "dot.h"
@@ -44,7 +45,7 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
     }
 }
 
-void nfa_to_graph(struct nfa_state *statebuf, struct nfa_state *state) {
+void nfa_to_graph(struct nfa_state *state) {
     Agnode_t *nodes[STATE_MAX] = { NULL };
 
     Agraph_t *graph = agopen("top", Agdirected, NULL);
@@ -53,7 +54,7 @@ void nfa_to_graph(struct nfa_state *statebuf, struct nfa_state *state) {
 
     agattr(graph, AGRAPH, "rankdir", "LR");
 
-    nfa_state_to_graph(graph, nodes, statebuf, state, NULL, NULL);
+    nfa_state_to_graph(graph, nodes, state, NULL, NULL);
 
     if (agwrite(graph, stdout) == EOF) {
         fprintf(stderr, "printing dot file failed\n");
@@ -62,24 +63,20 @@ void nfa_to_graph(struct nfa_state *statebuf, struct nfa_state *state) {
     agclose(graph);
 }
 
-static int uid = 0;
 #define NAMEBUFSIZE 16
 
-void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *statebuf, struct nfa_state *to, Agnode_t *from, char *edge_label) {
-    if (!nodes[to - statebuf]) {
+void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to, Agnode_t *from, char *edge_label) {
+    if (!nodes[to->id]) {
         static char namebuf[NAMEBUFSIZE] = "";
         char symbuf[2] = "";
 
         // create a node
-        sprintf(namebuf, "n%d", uid);
-        Agnode_t *node = nodes[to - statebuf] = agnode(graph, namebuf, 1);
+        sprintf(namebuf, "n%d", to->id);
+        Agnode_t *node = nodes[to->id] = agnode(graph, namebuf, 1);
 
         // set the node label
-        sprintf(namebuf, "%d", uid);
+        sprintf(namebuf, "%d", to->id);
         agset(node, "label", namebuf);
-
-        // increment the uid
-        uid++;
 
         switch (to->type) {
             case ACCEPTING_STATE:
@@ -87,26 +84,26 @@ void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *sta
                 agset(node, "fontcolor", "red");
                 break;
             case EPSILON_STATE:
-                nfa_state_to_graph(graph, nodes, statebuf, to->next, node, "ε");
+                nfa_state_to_graph(graph, nodes, to->next, node, "ε");
                 break;
             case BRANCH_STATE:
                 agset(node, "color", "darkgreen");
                 agset(node, "fontcolor", "darkgreen");
-                nfa_state_to_graph(graph, nodes, statebuf, to->left, node, "ε");
-                nfa_state_to_graph(graph, nodes, statebuf, to->right, node, "ε");
+                nfa_state_to_graph(graph, nodes, to->left, node, "ε");
+                nfa_state_to_graph(graph, nodes, to->right, node, "ε");
                 break;
             case SYMBOL_STATE:
                 agset(node, "color", "blue");
                 agset(node, "fontcolor", "blue");
                 symbuf[0] = to->symbol;
-                nfa_state_to_graph(graph, nodes, statebuf, to->next, node, symbuf);
+                nfa_state_to_graph(graph, nodes, to->next, node, symbuf);
                 break;
         }
     }
 
     // make an arrow
     if (from) {
-        Agedge_t *edge = agedge(graph, from, nodes[to - statebuf], NULL, 1);
+        Agedge_t *edge = agedge(graph, from, nodes[to->id], NULL, 1);
         agset(edge, "label", edge_label);
     }
 }

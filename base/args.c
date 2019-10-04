@@ -57,32 +57,29 @@ void run_args(
 void findcmd(struct args_context *context) {
     struct cmd *cmd = context->cmd;
     struct cmd **cmd_path = context->cmd_path;
+    int argc = context->argc;
+    char **argv = context->argv;
+    char *prog = argv[0];
+    struct cmd *sub = cmd->subcmds;
 
     *cmd_path++ = cmd;
 
-    if (context->argc > 1) {
-        int argc = context->argc;
-        char **argv = context->argv;
-        char *prog = argv[0];
-        struct cmd *sub = cmd->subcmds;
-
-        while (sub && sub->key != END) {
-            if (strcmp(sub->cmd, argv[1]) == 0) {
-                cmd = sub;
-                *cmd_path++ = cmd;
-                sub = cmd->subcmds;
-                argv++;
-                argc--;
-                argv[0] = prog;
-            } else {
-                sub++;
-            }
+    while (sub && argc > 1 && sub->key != END) {
+        if (strcmp(sub->cmd, argv[1]) == 0) {
+            cmd = sub;
+            *cmd_path++ = cmd;
+            sub = cmd->subcmds;
+            argv++;
+            argc--;
+            argv[0] = prog;
+        } else {
+            sub++;
         }
-
-        context->argc = argc;
-        context->argv = argv;
-        context->cmd = cmd;
     }
+
+    context->argc = argc;
+    context->argv = argv;
+    context->cmd = cmd;
 }
 
 struct option arg_to_option(struct arg *arg, int *flag) {

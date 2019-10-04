@@ -13,16 +13,16 @@ struct stack *init_stack(size_t elem_size, size_t size, float growth_factor) {
     assert(stack != NULL);
     void *buf = calloc(size, elem_size);
     assert(buf != NULL);
-    *stack = (struct stack) { buf, 0, size, elem_size, growth_factor };
+    *stack = (struct stack) { buf, 0, size, size, elem_size, growth_factor };
     return stack;
 }
 
-static void *pos(struct stack *stack) {
-    return stack->buf + stack->i * stack->elem_size;
+void *at(size_t i, struct stack *stack) {
+    return stack->buf + i * stack->elem_size;
 }
 
 void *top(struct stack *stack) {
-    return pos(stack);
+    return at(stack->i - 1, stack);
 }
 
 void *bottom(struct stack *stack) {
@@ -45,7 +45,7 @@ static bool should_grow(struct stack *stack) {
 }
 
 static bool should_shrink(struct stack *stack) {
-    return stack->size > 1 && stack->i / (float) stack->size < SHRINK_SIZE;
+    return stack->size > stack->isize && stack->i / (float) stack->size < SHRINK_SIZE;
 }
 
 static void ensure_memory(struct stack *stack) {
@@ -56,21 +56,24 @@ static void ensure_memory(struct stack *stack) {
     }
 }
 
-void push(void *elem, struct stack *stack) {
+void spush(void *elem, struct stack *stack) {
     ensure_memory(stack);
-    memcpy(pos(stack), elem, stack->elem_size);
+    memcpy(at(stack->i, stack), elem, stack->elem_size);
     stack->i++;
 }
 
-void *pop(struct stack *stack) {
+void *spop(struct stack *stack) {
     ensure_memory(stack);
     stack->i--;
-    return pos(stack);
+    return at(stack->i, stack);
 }
 
-void clear(struct stack *stack) {
-    stack->i = 0;
-    memset(stack->buf, 0, stack->size * stack->elem_size);
+size_t ssize(struct stack *stack) {
+    return stack->i;
+}
+
+bool istop(void *elem, struct stack *stack) {
+    return top(stack) == elem;
 }
 
 bool sempty(struct stack *stack) {

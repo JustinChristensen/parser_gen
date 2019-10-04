@@ -15,7 +15,7 @@
  */
 
 #include <stdbool.h>
-#include <base/set.h>
+#include <base/list.h>
 #include "parser.h"
 
 #define STATE_MAX 10000
@@ -29,6 +29,7 @@ enum nfa_state_type {
 
 struct nfa_state {
     enum nfa_state_type type;
+    int id;
     union {
         // epsilon, symbol
         struct { struct nfa_state *next; char symbol; };
@@ -50,6 +51,7 @@ struct nfa_error {
 
 struct nfa_context {
     struct nfa_state *statebuf;
+    size_t numstates;
     struct nfa nfa;
     bool has_error;
     struct nfa_error error;
@@ -80,11 +82,12 @@ bool has_nfa_error(struct nfa_context *context);
 struct nfa_error nfa_error(struct nfa_context *context);
 void print_nfa_error(struct nfa_error error);
 void free_nfa_context(struct nfa_context *context);
-struct set *eps_closure0(struct nfa_context *context, struct nfa_state *state);
-struct set *eps_closure(struct nfa_context *context, struct set *states);
-struct set *move(struct nfa_context *context, struct set *states);
+void eps_closure(struct list *nstates, struct nfa_state *state, bool *already_on);
+void move(struct list *nstates, struct list *cstates, char c, bool *already_on);
+bool accepts(struct list *cstates, struct nfa_state *accept);
 bool nfa_match(char *str, struct nfa_context *context);
-
+void print_nfa_states(struct list *cstates);
+void print_state(struct nfa_state *state);
 void print_state_table(struct nfa_state *start, struct nfa_state *end);
 
 #endif // AUTO_NFA_H_ 1

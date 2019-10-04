@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <assert.h>
 #include "parser.h"
 
 struct scan_context scan_context(char *input) {
@@ -82,12 +83,34 @@ int token_col(struct scan_context context) {
     return context.token_col;
 }
 
-struct parse_context parse_context(char *input, void *result_context) {
+void noopaction(void *result_context, union rval _) {}
+
+union rval getval(struct parse_context *context) {
+    return (*context->getval)(context->result_context);
+}
+
+void do_action(struct parse_context *context, enum action_type action, union rval lval) {
+    (*context->actions[action])(context->result_context, lval);
+}
+
+struct parse_context parse_context(
+    char *input,
+    void *result_context,
+    union rval (*getval)(void *result_context),
+    void (*const *actions)(void *result_context, union rval lval)
+) {
+    assert(input != NULL);
+    assert(result_context != NULL);
+    assert(actions != NULL);
+    assert(getval != NULL);
+
     struct scan_context scontext = scan(scan_context(input));
 
     struct parse_context context = {
         .scan_context = scontext,
         .result_context = result_context,
+        .actions = actions,
+        .getval = getval,
         .lookahead = token(scontext),
         .lookahead_col = token_col(scontext),
         .has_error = false,
@@ -129,6 +152,106 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
 
         return false;
     }
+}
+
+bool parse_regex(struct parse_context *context) {
+    if (parse_expr(context) && expect(context, '\0', NULL)) {
+        do_action(context, DO_REGEX, NULL);
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_expr(struct parse_context *context) {
+    parse_alt(context, gexpr(context->result_context));
+    return true;
+}
+
+bool parse_alt(struct parse_context *context, union rval lval) {
+    if (parse_cat(context, lval)) {
+        while (true) {
+            lval = getval(context);
+
+            if (peek(context, ALT, NULL) &&
+                expect(context, ALT, NULL) &&
+                parse_expr(context)) {
+                do_action(context, DO_ALT, lval);
+                continue;
+            }
+
+            break;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_cat(struct parse_context *context, union rval lval) {
+    do_action(context, DO_EMPTY, NULL);
+    union rval empty = getval(context);
+
+    if (parse_factor(context)) {
+        while (true) {
+            lval = getval(context);
+
+            if (parse_factor(context)) {
+                do_action(context, DO_CAT, lval);
+                continue;
+            }
+
+            break;
+        }
+
+        do_action(context, DO_CAT, empty);
+
+        return true;
+    }
+
+    return false;
+}
+
+bool parse_factor(struct parse_context *context) {
+    bool has_head = false;
+
+    if (peek(context, LPAREN, NULL) &&
+        expect(context, LPAREN, NULL) &&
+        parse_expr(context) && expect(context, RPAREN, NULL)) {
+        do_action(context, DO_SUB, NULL);
+        has_head = true;
+    } else if (peek(context, DOTALL, NULL)) {
+        expect(context, DOTALL, NULL);
+        do_action(context, DO_DOTALL, NULL);
+        has_head = true;
+    } else if (peek(context, SYMBOL, is_symbol)) {
+        int sym = lookahead(context);
+        expect(context, SYMBOL, is_symbol);
+        do_action(context, DO_SYMBOL, (char) sym);
+        has_head = true;
+    }
+
+    if (has_head) {
+        while (true) {
+            if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
+                do_action(context, DO_STAR, NULL);
+                continue;
+            } else if (peek(context, PLUS, NULL) && expect(context, PLUS, NULL)) {
+                do_action(context, DO_PLUS, NULL);
+                continue;
+            } else if (peek(context, OPTIONAL, NULL) && expect(context, OPTIONAL, NULL)) {
+                do_action(context, DO_OPTIONAL, NULL);
+                continue;
+            }
+
+            break;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 int is_symbol(int c) {

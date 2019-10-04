@@ -3,6 +3,17 @@
 #include "ast.h"
 #include "parser.h"
 
+expr_actions[DO_REGEX] = noopaction;
+expr_actions[DO_EMPTY] = do_empty_expr;
+expr_actions[DO_ALT] = do_alt_expr;
+expr_actions[DO_CAT] = do_cat_expr;
+expr_actions[DO_SUB] = do_sub_expr;
+expr_actions[DO_DOTALL] = do_dotall_expr;
+expr_actions[DO_SYMBOL] = do_symbol_expr;
+expr_actions[DO_STAR] = do_star_expr;
+expr_actions[DO_PLUS] = do_plus_expr;
+expr_actions[DO_OPTIONAL] = do_optional_expr;
+
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {
     return (struct expr) {
         .type = ALT_EXPR,
@@ -73,112 +84,6 @@ struct expr_context expr_context(struct expr *exprbuf) {
     };
 }
 
-bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, '\0', NULL)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_expr(struct parse_context *context) {
-    parse_alt(context, gexpr(context->result_context));
-    return true;
-}
-
-bool parse_alt(struct parse_context *context, struct expr *lexpr) {
-    struct expr_context *expr_context = context->result_context;
-
-    if (parse_cat(context, lexpr)) {
-        while (true) {
-            lexpr = gexpr(expr_context);
-
-            if (peek(context, ALT, NULL) &&
-                expect(context, ALT, NULL) &&
-                parse_expr(context)) {
-                sexpr(expr_context, alt_expr(lexpr, gexpr(expr_context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_cat(struct parse_context *context, struct expr *lexpr) {
-    struct expr_context *expr_context = context->result_context;
-
-    sexpr(expr_context, empty_expr());
-    struct expr *empty = gexpr(expr_context);
-
-    if (parse_factor(context)) {
-        while (true) {
-            lexpr = gexpr(expr_context);
-
-            if (parse_factor(context)) {
-                sexpr(expr_context, cat_expr(lexpr, gexpr(expr_context)));
-                continue;
-            }
-
-            break;
-        }
-
-        sexpr(expr_context, cat_expr(empty, gexpr(expr_context)));
-
-        return true;
-    }
-
-    return false;
-}
-
-bool parse_factor(struct parse_context *context) {
-    struct expr_context *expr_context = context->result_context;
-    bool has_head = false;
-
-    if (peek(context, LPAREN, NULL) &&
-        expect(context, LPAREN, NULL) &&
-        parse_expr(context) && expect(context, RPAREN, NULL)) {
-        sexpr(expr_context, sub_expr(gexpr(expr_context)));
-        has_head = true;
-    } else if (peek(context, DOTALL, NULL)) {
-        expect(context, DOTALL, NULL);
-        sexpr(expr_context, dotall_expr());
-        has_head = true;
-    } else if (peek(context, SYMBOL, is_symbol)) {
-        int sym = lookahead(context);
-        expect(context, SYMBOL, is_symbol);
-        sexpr(expr_context, symbol_expr((char) sym));
-        has_head = true;
-    }
-
-    if (has_head) {
-        while (true) {
-            struct expr *lexpr = gexpr(expr_context);
-
-            if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
-                sexpr(expr_context, star_expr(lexpr));
-                continue;
-            } else if (peek(context, PLUS, NULL) && expect(context, PLUS, NULL)) {
-                sexpr(expr_context, plus_expr(lexpr));
-                continue;
-            } else if (peek(context, OPTIONAL, NULL) && expect(context, OPTIONAL, NULL)) {
-                sexpr(expr_context, optional_expr(lexpr));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 void sexpr(struct expr_context *context, struct expr expr) {
     *context->exprbuf = expr;
     context->expr = context->exprbuf;
@@ -187,5 +92,41 @@ void sexpr(struct expr_context *context, struct expr expr) {
 
 struct expr *gexpr(struct expr_context *context) {
     return context->expr;
+}
+
+void do_empty_expr(struct expr_context *context, union rval _) {
+    sexpr(context, empty_expr());
+}
+
+void do_alt_expr(struct expr_context *context, union rval lexpr) {
+    sexpr(context, alt_expr(lexpr.expr, gexpr(context)));
+}
+
+void do_cat_expr(struct expr_context *context, union rval lexpr) {
+    sexpr(context, cat_expr(lexpr.expr, gexpr(context)));
+}
+
+void do_sub_expr(struct expr_context *context, union rval _) {
+    sexpr(context, sub_expr(gexpr(context)));
+}
+
+void do_dotall_expr(struct expr_context *context, union rval _) {
+    sexpr(context, dotall_expr());
+}
+
+void do_symbol_expr(struct expr_context *context, union rval sym) {
+    sexpr(context, symbol_expr(sym.sym));
+}
+
+void do_star_expr(struct expr_context *context, union rval _) {
+    sexpr(context, star_expr(gexpr(context)));
+}
+
+void do_plus_expr(struct expr_context *context, union rval _) {
+    sexpr(context, plus_expr(gexpr(context)));
+}
+
+void do_optional_expr(struct expr_context *context, union rval _) {
+    sexpr(context, optional_expr(gexpr(context)));
 }
 

@@ -7,6 +7,17 @@
 #include "parser.h"
 #include "nfa.h"
 
+nfa_actions[DO_REGEX] = noopaction;
+nfa_actions[DO_EMPTY] = do_empty_nfa;
+nfa_actions[DO_ALT] = do_alt_nfa;
+nfa_actions[DO_CAT] = do_cat_nfa;
+nfa_actions[DO_SUB] = noopaction;
+nfa_actions[DO_DOTALL] = do_dotall_nfa;
+nfa_actions[DO_SYMBOL] = do_symbol_nfa;
+nfa_actions[DO_STAR] = do_star_nfa;
+nfa_actions[DO_PLUS] = do_plus_nfa;
+nfa_actions[DO_OPTIONAL] = do_optional_nfa;
+
 struct nfa_context nfa_context(struct nfa_state *statebuf) {
     return (struct nfa_context) {
         .statebuf = statebuf,
@@ -161,135 +172,25 @@ struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
     return optional_machine(context, posclosure_machine(context, inner));
 }
 
-bool nfa_from_regex(struct parse_context *context) {
-    if (nfa_from_expr(context) && expect(context, '\0', NULL)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool nfa_from_expr(struct parse_context *context) {
-    nfa_from_alt(context, gmachine(context->result_context));
-    return true;
-}
-
-bool nfa_from_alt(struct parse_context *context, struct nfa lmachine) {
-    struct nfa_context *nfa_context = context->result_context;
-
-    if (nfa_from_cat(context, lmachine)) {
-        while (true) {
-            lmachine = gmachine(nfa_context);
-
-            if (peek(context, ALT, NULL) &&
-                expect(context, ALT, NULL) &&
-                nfa_from_expr(context)) {
-                smachine(nfa_context, alt_machine(nfa_context, lmachine, gmachine(nfa_context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
-bool nfa_from_cat(struct parse_context *context, struct nfa lmachine) {
-    struct nfa_context *nfa_context = context->result_context;
-
-    struct nfa empty = empty_machine(nfa_context);
-
-    smachine(nfa_context, empty);
-
-    if (nfa_from_factor(context)) {
-        while (true) {
-            lmachine = gmachine(nfa_context);
-
-            if (nfa_from_factor(context)) {
-                smachine(nfa_context, cat_machine(lmachine, gmachine(nfa_context)));
-                continue;
-            }
-
-            break;
-        }
-
-        smachine(nfa_context, cat_machine(empty, gmachine(nfa_context)));
-
-        return true;
-    }
-
-    return false;
-}
-
-bool nfa_from_factor(struct parse_context *context) {
-    struct nfa_context *nfa_context = context->result_context;
-    bool has_head = false;
-
-    if (peek(context, LPAREN, NULL) &&
-        expect(context, LPAREN, NULL) &&
-        nfa_from_expr(context) && expect(context, RPAREN, NULL)) {
-        has_head = true;
-    } else if (peek(context, DOTALL, NULL)) {
-        expect(context, DOTALL, NULL);
-        smachine(nfa_context, dotall_machine(nfa_context));
-        has_head = true;
-    } else if (peek(context, SYMBOL, is_symbol)) {
-        int sym = lookahead(context);
-        expect(context, SYMBOL, is_symbol);
-        smachine(nfa_context, symbol_machine(nfa_context, (char) sym));
-        has_head = true;
-    }
-
-    if (has_head) {
-        while (true) {
-            if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
-                smachine(nfa_context, closure_machine(nfa_context, gmachine(nfa_context)));
-                continue;
-            } else if (peek(context, PLUS, NULL) && expect(context, PLUS, NULL)) {
-                smachine(nfa_context, posclosure_machine(nfa_context, gmachine(nfa_context)));
-                continue;
-            } else if (peek(context, OPTIONAL, NULL) && expect(context, OPTIONAL, NULL)) {
-                smachine(nfa_context, optional_machine(nfa_context, gmachine(nfa_context)));
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
-    if (!context) {
-        struct nfa_state *statebuf = calloc(STATE_MAX, sizeof *statebuf);
-        assert(statebuf != NULL);
-        context = malloc(sizeof *context);
-        *context = nfa_context(statebuf);
-    }
+    assert(context != NULL);
 
     if (!has_nfa_error(context)) {
         struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(regex, context);
+        struct parse_context pcontext = parse_context(regex, context, gmachine, nfa_actions);
 
+        // overwrite the previous accepting state if we're
+        // chaining nfa_regex calls to create alt machines
         if (lmachine.end) {
             context->statebuf--;
             context->numstates--;
         }
 
-        if (!nfa_from_regex(&pcontext)) {
+        if (!parse_regex(&pcontext)) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {
-            if (lmachine.end) {
-                smachine(context, alt_machine(context, lmachine, gmachine(context)));
-            }
-
+            if (lmachine.end) do_alt_nfa(context, lmachine);
             patch(gmachine(context), setst(context, accepting_state()));
         }
     }
@@ -394,6 +295,38 @@ bool nfa_match(char *str, struct nfa_context *context) {
     free_list(cstates, NULL);
 
     return result;
+}
+
+void do_empty_nfa(struct nfa_context *context, union rval _) {
+    smachine(context, empty_machine(context));
+}
+
+void do_alt_nfa(struct nfa_context *context, union rval lnfa) {
+    smachine(context, alt_machine(context, lnfa.mach, gmachine(nfa_context)));
+}
+
+void do_cat_nfa(struct nfa_context *context, union rval lnfa) {
+    smachine(context, cat_machine(lnfa.mach, gmachine(context)));
+}
+
+void do_dotall_nfa(struct nfa_context *context, union rval _) {
+    smachine(context, dotall_machine(context));
+}
+
+void do_symbol_nfa(struct nfnfantext *context, union rval sym) {
+    smachine(context, symbol_machine(context, sym.sym));
+}
+
+void do_star_nfa(struct nfa_context *context, union rval _) {
+    smachine(context, closure_machine(context, gmachine(context)));
+}
+
+void do_plus_nfa(struct nfa_context *context, union rval _) {
+    smachine(context, posclosure_machine(context, gmachine(context)));
+}
+
+void do_optional_nfa(struct nfa_context *context, union rval _) {
+    smachine(context, optional_machine(context, gmachine(context)));
 }
 
 void print_nfa_states(struct list *cstates) {

@@ -38,6 +38,7 @@ struct expr_context {
     struct parse_error error;
 };
 
+// expr constructors
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr);
 struct expr cat_expr(struct expr *lexpr, struct expr *rexpr);
 struct expr star_expr(struct expr *expr);
@@ -48,14 +49,24 @@ struct expr symbol_expr(char symbol);
 struct expr dotall_expr();
 struct expr empty_expr();
 
+// expr context
 struct expr_context expr_context(struct expr *exprbuf);
-bool parse_regex(struct parse_context *context);
-bool parse_expr(struct parse_context *context);
-bool parse_alt(struct parse_context *context, struct expr *lexpr);
-bool parse_cat(struct parse_context *context, struct expr *lexpr);
-bool parse_factor(struct parse_context *context);
 void sexpr(struct expr_context *context, struct expr expr);
 struct expr *gexpr(struct expr_context *context);
+
+// parse actions
+void do_empty_expr(struct expr_context *context, union rval _);
+void do_alt_expr(struct expr_context *context, union rval lexpr);
+void do_cat_expr(struct expr_context *context, union rval lexpr);
+void do_sub_expr(struct expr_context *context, union rval _);
+void do_dotall_expr(struct expr_context *context, union rval _);
+void do_symbol_expr(struct expr_context *context, union rval _);
+void do_star_expr(struct expr_context *context, union rval _);
+void do_plus_expr(struct expr_context *context, union rval _);
+void do_optional_expr(struct expr_context *context, union rval _);
+
+// parse action table
+void (*const expr_actions[NUMACTIONS])(struct expr_context *context, union rval lval);
 
 #endif // AUTO_AST_H_
 

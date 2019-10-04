@@ -13,6 +13,15 @@ struct scan_context scan_context(char *input) {
     };
 }
 
+struct scan_context consume(struct scan_context context, char c) {
+    while (*context.input == c || isblank(*context.input)) {
+        context.input++;
+        context.input_col++;
+    }
+
+    return context;
+}
+
 struct scan_context scan(struct scan_context context) {
     while (isblank(*context.input)) {
         context.input_col++;
@@ -25,31 +34,42 @@ struct scan_context scan(struct scan_context context) {
     printf("%s\n", context.input);
 #endif
 
-    switch (*context.input) {
-        case '*':
-            context.token = STAR;
-            break;
-        case '|':
-            context.token = ALT;
-            break;
-        case '(':
-            context.token = LPAREN;
-            break;
-        case ')':
-            context.token = RPAREN;
-            break;
-        default:
-            if (*context.input == '\\') {
-                context.input++;
-                context.input_col++;
-            }
+    if (*context.input == '*') {
+        context = consume(context, '*');
+        context.token = STAR;
+    } else if (*context.input == '+') {
+        context = consume(context, '+');
+        context.token = PLUS;
+    } else if (*context.input == '?') {
+        context = consume(context, '?');
+        context.token = OPTIONAL;
+    } else {
+        switch (*context.input) {
+            case '.':
+                context.token = DOTALL;
+                break;
+            case '|':
+                context.token = ALT;
+                break;
+            case '(':
+                context.token = LPAREN;
+                break;
+            case ')':
+                context.token = RPAREN;
+                break;
+            default:
+                if (*context.input == '\\') {
+                    context.input++;
+                    context.input_col++;
+                }
 
-            context.token = *context.input;
-            break;
+                context.token = *context.input;
+                break;
+        }
+
+        context.input++;
+        context.input_col++;
     }
-
-    context.input++;
-    context.input_col++;
 
     return context;
 }
@@ -112,13 +132,6 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
 }
 
 int is_symbol(int c) {
-    switch (c + OPERATOR_OFFSET) {
-        case ALT:
-        case STAR:
-        case LPAREN:
-        case RPAREN:
-            return false;
-    }
     return isprint(c);
 }
 
@@ -142,6 +155,9 @@ char *lexeme_for(char *symbuf, int token) {
     switch (token) {
         case ALT:       symbuf = "|"; break;
         case STAR:      symbuf = "*"; break;
+        case PLUS:      symbuf = "+"; break;
+        case OPTIONAL:  symbuf = "?"; break;
+        case DOTALL:    symbuf = "."; break;
         case LPAREN:    symbuf = "("; break;
         case RPAREN:    symbuf = ")"; break;
         case SYMBOL:    symbuf = "symbol"; break;

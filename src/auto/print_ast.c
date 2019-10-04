@@ -32,6 +32,10 @@ void print_expr(struct expr *expr) {
                     indent(indent_level);
                     printf("ε");
                     break;
+                case DOTALL_EXPR:
+                    indent(indent_level);
+                    printf(".");
+                    break;
                 case ALT_EXPR:
                     indent(indent_level);
                     printf("|");
@@ -51,6 +55,20 @@ void print_expr(struct expr *expr) {
                 case STAR_EXPR:
                     indent(indent_level);
                     printf("*");
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
+                case PLUS_EXPR:
+                    indent(indent_level);
+                    printf("+");
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
+                case OPTIONAL_EXPR:
+                    indent(indent_level);
+                    printf("?");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;

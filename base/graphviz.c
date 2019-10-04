@@ -33,7 +33,7 @@ void default_styles(Agraph_t *graph) {
     agattr(graph, AGNODE, "fontname", "verdana");
     agattr(graph, AGNODE, "fontsize", "10");
     agattr(graph, AGNODE, "fontcolor", "#222222");
-    agattr(graph, AGEDGE, "label", "\\N");
+    agattr(graph, AGEDGE, "label", "");
     agattr(graph, AGEDGE, "fontname", "verdana");
     agattr(graph, AGEDGE, "fontsize", "10");
     agattr(graph, AGEDGE, "fontcolor", "#aaaaaa");

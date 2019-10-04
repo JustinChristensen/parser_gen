@@ -20,6 +20,9 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
         case EMPTY_EXPR:
             append_node(graph, parent, "ε", NULL);
             break;
+        case DOTALL_EXPR:
+            append_node(graph, parent, ".", NULL);
+            break;
         case ALT_EXPR:
             parent = append_node(graph, parent, "|", NULL);
             expr_to_graph(graph, parent, expr->lexpr);
@@ -32,6 +35,14 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             break;
         case STAR_EXPR:
             parent = append_node(graph, parent, "*", NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
+        case PLUS_EXPR:
+            parent = append_node(graph, parent, "+", NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
+        case OPTIONAL_EXPR:
+            parent = append_node(graph, parent, "?", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
         case SUB_EXPR:
@@ -91,6 +102,12 @@ void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to,
                 agset(node, "fontcolor", "darkgreen");
                 nfa_state_to_graph(graph, nodes, to->left, node, "ε");
                 nfa_state_to_graph(graph, nodes, to->right, node, "ε");
+                break;
+            case DOTALL_STATE:
+                agset(node, "color", "pink");
+                agset(node, "fontcolor", "pink");
+                symbuf[0] = '.';
+                nfa_state_to_graph(graph, nodes, to->next, node, symbuf);
                 break;
             case SYMBOL_STATE:
                 agset(node, "color", "blue");

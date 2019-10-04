@@ -24,14 +24,15 @@ enum nfa_state_type {
     ACCEPTING_STATE,
     EPSILON_STATE,
     BRANCH_STATE,
-    SYMBOL_STATE
+    SYMBOL_STATE,
+    DOTALL_STATE
 };
 
 struct nfa_state {
     enum nfa_state_type type;
     int id;
     union {
-        // epsilon, symbol
+        // epsilon, dotall, symbol
         struct { struct nfa_state *next; char symbol; };
         // branch
         struct { struct nfa_state *left; struct nfa_state *right; };
@@ -60,6 +61,7 @@ struct nfa_context {
 struct nfa_context nfa_context(struct nfa_state *statebuf);
 struct nfa_state accepting_state();
 struct nfa_state epsilon_state(struct nfa_state *next);
+struct nfa_state dotall_state(struct nfa_state *next);
 struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right);
 struct nfa_state symbol_state(char symbol);
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state);

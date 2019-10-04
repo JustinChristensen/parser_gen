@@ -25,8 +25,6 @@
  * symbol: a { sym } | a-z { symrange }
  *
  * TODO: extensions
- * zero or one: ?
- * one or more: +
  * character classes: [a-zA-Z]
  */
 
@@ -34,16 +32,13 @@
 
 enum token_type {
     SYMBOL = -1,
-    INVERT = ('^' + OPERATOR_OFFSET),
     ALT = ('|' + OPERATOR_OFFSET),
     STAR = ('*' + OPERATOR_OFFSET),
     PLUS = ('+' + OPERATOR_OFFSET),
     OPTIONAL = ('?' + OPERATOR_OFFSET),
     DOTALL = ('.' + OPERATOR_OFFSET),
     LPAREN = ('(' + OPERATOR_OFFSET),
-    RPAREN = (')' + OPERATOR_OFFSET),
-    LBRACKET = ('[' + OPERATOR_OFFSET),
-    RBRACKET = (']' + OPERATOR_OFFSET)
+    RPAREN = (')' + OPERATOR_OFFSET)
 };
 
 struct scan_context {
@@ -69,6 +64,7 @@ struct parse_context {
 };
 
 struct scan_context scan_context(char *input);
+struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
 int token(struct scan_context context);
 int token_col(struct scan_context context);

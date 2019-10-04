@@ -8,9 +8,12 @@
 enum expr_type {
     NULL_EXPR,
     EMPTY_EXPR,
+    DOTALL_EXPR,
     ALT_EXPR,
     CAT_EXPR,
     STAR_EXPR,
+    PLUS_EXPR,
+    OPTIONAL_EXPR,
     SUB_EXPR,
     SYMBOL_EXPR
 };
@@ -20,11 +23,11 @@ struct expr {
     union {
         // alt, cat
         struct { struct expr *lexpr; struct expr *rexpr; };
-        // star, sub
+        // star, plus, optional, sub
         struct { struct expr *expr; };
         // sym
         struct { char symbol; };
-        // empty
+        // empty, dotall
     };
 };
 
@@ -38,8 +41,11 @@ struct expr_context {
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr);
 struct expr cat_expr(struct expr *lexpr, struct expr *rexpr);
 struct expr star_expr(struct expr *expr);
+struct expr plus_expr(struct expr *expr);
+struct expr optional_expr(struct expr *expr);
 struct expr sub_expr(struct expr *expr);
 struct expr symbol_expr(char symbol);
+struct expr dotall_expr();
 struct expr empty_expr();
 
 struct expr_context expr_context(struct expr *exprbuf);

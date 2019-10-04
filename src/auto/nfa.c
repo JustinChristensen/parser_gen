@@ -29,6 +29,13 @@ struct nfa_state epsilon_state(struct nfa_state *next) {
     };
 }
 
+struct nfa_state dotall_state(struct nfa_state *next) {
+    return (struct nfa_state) {
+        .type = DOTALL_STATE,
+        .next = next
+    };
+}
+
 struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right) {
     return (struct nfa_state) {
         .type = BRANCH_STATE,
@@ -82,6 +89,16 @@ struct nfa empty_machine(struct nfa_context *context) {
     return machine;
 }
 
+struct nfa dotall_machine(struct nfa_context *context) {
+    struct nfa machine;
+#ifdef DEBUG
+    printf("dotall machine\n");
+#endif
+    machine.start = setst(context, dotall_state(NULL));
+    point(&machine, &machine.start->next, NULL);
+    return machine;
+}
+
 struct nfa symbol_machine(struct nfa_context *context, char symbol) {
     struct nfa machine;
 #ifdef DEBUG
@@ -115,15 +132,33 @@ struct nfa cat_machine(struct nfa first, struct nfa second) {
     return machine;
 }
 
-struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
+struct nfa posclosure_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
+#ifdef DEBUG
+    printf("positive closure machine\n");
+#endif
+    machine.start = inner.start;
+    patch(inner, setst(context, branch_state(inner.start, NULL)));
+    point(&machine, &(*inner.end)->right, NULL);
+    return machine;
+}
+
+struct nfa optional_machine(struct nfa_context *context, struct nfa inner) {
+    struct nfa machine;
+#ifdef DEBUG
+    printf("optional machine\n");
+#endif
+    patch(inner, setst(context, epsilon_state(NULL)));
+    machine.start = setst(context, branch_state(inner.start, NULL));
+    point(&machine, &(*inner.end)->next, &machine.start->right);
+    return machine;
+}
+
+struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
 #ifdef DEBUG
     printf("closure machine\n");
 #endif
-    machine.start = setst(context, branch_state(inner.start, NULL));
-    patch(inner, setst(context, branch_state(inner.start, NULL)));
-    point(&machine, &machine.start->right, &(*inner.end)->right);
-    return machine;
+    return optional_machine(context, posclosure_machine(context, inner));
 }
 
 bool nfa_from_regex(struct parse_context *context) {
@@ -199,6 +234,10 @@ bool nfa_from_factor(struct parse_context *context) {
         expect(context, LPAREN, NULL) &&
         nfa_from_expr(context) && expect(context, RPAREN, NULL)) {
         has_head = true;
+    } else if (peek(context, DOTALL, NULL)) {
+        expect(context, DOTALL, NULL);
+        smachine(nfa_context, dotall_machine(nfa_context));
+        has_head = true;
     } else if (peek(context, SYMBOL, is_symbol)) {
         int sym = lookahead(context);
         expect(context, SYMBOL, is_symbol);
@@ -210,6 +249,12 @@ bool nfa_from_factor(struct parse_context *context) {
         while (true) {
             if (peek(context, STAR, NULL) && expect(context, STAR, NULL)) {
                 smachine(nfa_context, closure_machine(nfa_context, gmachine(nfa_context)));
+                continue;
+            } else if (peek(context, PLUS, NULL) && expect(context, PLUS, NULL)) {
+                smachine(nfa_context, posclosure_machine(nfa_context, gmachine(nfa_context)));
+                continue;
+            } else if (peek(context, OPTIONAL, NULL) && expect(context, OPTIONAL, NULL)) {
+                smachine(nfa_context, optional_machine(nfa_context, gmachine(nfa_context)));
                 continue;
             }
 
@@ -278,6 +323,7 @@ void eps_closure(struct list *nstates, struct nfa_state *state, bool *already_on
             eps_closure(nstates, state->right, already_on);
             break;
         case ACCEPTING_STATE:
+        case DOTALL_STATE:
         case SYMBOL_STATE:
             break;
     }
@@ -287,7 +333,7 @@ void move(struct list *nstates, struct list *cstates, char c, bool *already_on) 
     struct node *node;
     struct nfa_state *state;
     while ((node = pop(cstates)) && (state = value(node))) {
-        if (state->type == SYMBOL_STATE && state->symbol == c) {
+        if ((state->type == SYMBOL_STATE && state->symbol == c) || state->type == DOTALL_STATE) {
             eps_closure(nstates, state->next, already_on);
         }
 
@@ -370,6 +416,9 @@ void print_state(struct nfa_state *state) {
             break;
         case EPSILON_STATE:
             printf("eps, %p", state->next);
+            break;
+        case DOTALL_STATE:
+            printf("dotall, %p", state->next);
             break;
         case BRANCH_STATE:
             printf("branch, %p, %p", state->left, state->right);

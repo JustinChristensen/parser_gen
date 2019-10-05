@@ -198,7 +198,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {
-            if (lmachine.end) do_alt_nfa(context, (union rval) lmachine);
+            if (lmachine.end) do_alt_nfa(context, lmachine);
             patch(gmachine(context), setst(context, accepting_state()));
         }
     }
@@ -309,37 +309,37 @@ bool nfa_match(char *str, struct nfa_context *context) {
     return result;
 }
 
-void noop_nfa(struct nfa_context *context, union rval _) {}
+void noop_nfa(struct nfa_context *context, struct nfa _) {}
 
-void do_empty_nfa(struct nfa_context *context, union rval _) {
+void do_empty_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, empty_machine(context));
 }
 
-void do_alt_nfa(struct nfa_context *context, union rval lnfa) {
-    smachine(context, alt_machine(context, lnfa.mach, gmachine(context)));
+void do_alt_nfa(struct nfa_context *context, struct nfa lnfa) {
+    smachine(context, alt_machine(context, lnfa, gmachine(context)));
 }
 
-void do_cat_nfa(struct nfa_context *context, union rval lnfa) {
-    smachine(context, cat_machine(lnfa.mach, gmachine(context)));
+void do_cat_nfa(struct nfa_context *context, struct nfa lnfa) {
+    smachine(context, cat_machine(lnfa, gmachine(context)));
 }
 
-void do_dotall_nfa(struct nfa_context *context, union rval _) {
+void do_dotall_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, dotall_machine(context));
 }
 
-void do_symbol_nfa(struct nfa_context *context, union rval sym) {
-    smachine(context, symbol_machine(context, sym.sym));
+void do_symbol_nfa(struct nfa_context *context, char sym) {
+    smachine(context, symbol_machine(context, sym));
 }
 
-void do_star_nfa(struct nfa_context *context, union rval _) {
+void do_star_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, closure_machine(context, gmachine(context)));
 }
 
-void do_plus_nfa(struct nfa_context *context, union rval _) {
+void do_plus_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, posclosure_machine(context, gmachine(context)));
 }
 
-void do_optional_nfa(struct nfa_context *context, union rval _) {
+void do_optional_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, optional_machine(context, gmachine(context)));
 }
 

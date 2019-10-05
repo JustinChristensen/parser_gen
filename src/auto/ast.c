@@ -101,41 +101,41 @@ union rval expr_to_rval(struct expr_context *context) {
     return (union rval) { .expr = gexpr(context) };
 }
 
-void noop_expr(struct expr_context *context, union rval _) {}
+void noop_expr(struct expr_context *context, struct expr *_) {}
 
-void do_empty_expr(struct expr_context *context, union rval _) {
+void do_empty_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, empty_expr());
 }
 
-void do_alt_expr(struct expr_context *context, union rval lexpr) {
-    sexpr(context, alt_expr(lexpr.expr, gexpr(context)));
+void do_alt_expr(struct expr_context *context, struct expr *lexpr) {
+    sexpr(context, alt_expr(lexpr, gexpr(context)));
 }
 
-void do_cat_expr(struct expr_context *context, union rval lexpr) {
-    sexpr(context, cat_expr(lexpr.expr, gexpr(context)));
+void do_cat_expr(struct expr_context *context, struct expr *lexpr) {
+    sexpr(context, cat_expr(lexpr, gexpr(context)));
 }
 
-void do_sub_expr(struct expr_context *context, union rval _) {
+void do_sub_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, sub_expr(gexpr(context)));
 }
 
-void do_dotall_expr(struct expr_context *context, union rval _) {
+void do_dotall_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, dotall_expr());
 }
 
-void do_symbol_expr(struct expr_context *context, union rval sym) {
-    sexpr(context, symbol_expr(sym.sym));
+void do_symbol_expr(struct expr_context *context, char sym) {
+    sexpr(context, symbol_expr(sym));
 }
 
-void do_star_expr(struct expr_context *context, union rval _) {
+void do_star_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, star_expr(gexpr(context)));
 }
 
-void do_plus_expr(struct expr_context *context, union rval _) {
+void do_plus_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, plus_expr(gexpr(context)));
 }
 
-void do_optional_expr(struct expr_context *context, union rval _) {
+void do_optional_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, optional_expr(gexpr(context)));
 }
 

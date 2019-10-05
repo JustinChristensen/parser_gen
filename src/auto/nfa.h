@@ -49,6 +49,7 @@ void smachine(struct nfa_context *context, struct nfa machine);
 
 // nfa machine constructors
 struct nfa gmachine(struct nfa_context *context);
+union rval nfa_to_rval(struct nfa_context *context);
 struct nfa empty_machine(struct nfa_context *context);
 struct nfa symbol_machine(struct nfa_context *context, char symbol);
 struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right);
@@ -67,15 +68,15 @@ bool accepts(struct list *cstates, struct nfa_state *accept);
 bool nfa_match(char *str, struct nfa_context *context);
 
 // parse actions
-void noop_nfa(struct nfa_context *context, struct nfa _);
-void do_empty_nfa(struct nfa_context *context, struct nfa _);
-void do_alt_nfa(struct nfa_context *context, struct nfa lnfa);
-void do_cat_nfa(struct nfa_context *context, struct nfa lnfa);
-void do_dotall_nfa(struct nfa_context *context, struct nfa _);
-void do_symbol_nfa(struct nfa_context *context, char sym);
-void do_star_nfa(struct nfa_context *context, struct nfa _);
-void do_plus_nfa(struct nfa_context *context, struct nfa _);
-void do_optional_nfa(struct nfa_context *context, struct nfa _);
+void noop_nfa(struct nfa_context *context, union rval _);
+void do_empty_nfa(struct nfa_context *context, union rval _);
+void do_alt_nfa(struct nfa_context *context, union rval lnfa);
+void do_cat_nfa(struct nfa_context *context, union rval lnfa);
+void do_dotall_nfa(struct nfa_context *context, union rval _);
+void do_symbol_nfa(struct nfa_context *context, union rval sym);
+void do_star_nfa(struct nfa_context *context, union rval _);
+void do_plus_nfa(struct nfa_context *context, union rval _);
+void do_optional_nfa(struct nfa_context *context, union rval _);
 
 // parse action table
 void (*nfa_actions[NUMACTIONS])(void *context, union rval lval);

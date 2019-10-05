@@ -31,7 +31,6 @@
 
 #define GETVALFN (union rval (*) (void *))
 #define ACTION (void (*)(void *, union rval))
-#define ACTION_TABLE (void (**)(void *, union rval lval))
 #define OPERATOR_OFFSET (-256)
 
 enum token_type {

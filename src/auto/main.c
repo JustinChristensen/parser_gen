@@ -134,9 +134,9 @@ int main(int argc, char *argv[]) {
        struct expr_context econtext = expr_context(exprbuf);
 
        if (args.regex) {
-           pcontext = parse_context(args.regex, &result, GETVALFN gexpr, expr_actions);
+           pcontext = parse_context(args.regex, &econtext, GETVALFN expr_to_rval, expr_actions);
        } else {
-           pcontext = parse_context("(a|b)*abbc?", &result, GETVALFN gexpr, expr_actions);
+           pcontext = parse_context("(a|b)*abbc?", &econtext, GETVALFN expr_to_rval, expr_actions);
        }
 
        if (parse_regex(&pcontext)) {

@@ -47,6 +47,8 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                     case PRINT:
                         if (strcmp("dot", argval()) == 0) {
                             args->output = OUTPUT_DOT;
+                        } else if (strcmp("table", argval()) == 0) {
+                            args->output = OUTPUT_TABLE;
                         } else if (strcmp("tree", argval()) == 0) {
                             args->output = OUTPUT_TREE;
                         } else {
@@ -86,7 +88,7 @@ int main(int argc, char *argv[]) {
         .pos = NULL,
     };
 
-    struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot or tree" };
+    struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, table, or tree" };
     struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: table or dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
 
@@ -144,8 +146,10 @@ int main(int argc, char *argv[]) {
 
            if (args.output == OUTPUT_DOT) {
                print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+           } else if (args.output == OUTPUT_TABLE) {
+               printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
+               print_expr_table(exprbuf, econtext.exprbuf);
            } else {
-               printf("expr type: %d\n", expr->type);
                printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
                print_expr(expr);
            }

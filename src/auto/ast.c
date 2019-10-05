@@ -1,18 +1,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "ast.h"
+#include "result_types.h"
 #include "parser.h"
 
-expr_actions[DO_REGEX] = noopaction;
-expr_actions[DO_EMPTY] = do_empty_expr;
-expr_actions[DO_ALT] = do_alt_expr;
-expr_actions[DO_CAT] = do_cat_expr;
-expr_actions[DO_SUB] = do_sub_expr;
-expr_actions[DO_DOTALL] = do_dotall_expr;
-expr_actions[DO_SYMBOL] = do_symbol_expr;
-expr_actions[DO_STAR] = do_star_expr;
-expr_actions[DO_PLUS] = do_plus_expr;
-expr_actions[DO_OPTIONAL] = do_optional_expr;
+void (*expr_actions[NUMACTIONS])(void *context, union rval lval) = {
+    [DO_REGEX] =    ACTION noop_expr,
+    [DO_EMPTY] =    ACTION do_empty_expr,
+    [DO_ALT] =      ACTION do_alt_expr,
+    [DO_CAT] =      ACTION do_cat_expr,
+    [DO_SUB] =      ACTION do_sub_expr,
+    [DO_DOTALL] =   ACTION do_dotall_expr,
+    [DO_SYMBOL] =   ACTION do_symbol_expr,
+    [DO_STAR] =     ACTION do_star_expr,
+    [DO_PLUS] =     ACTION do_plus_expr,
+    [DO_OPTIONAL] = ACTION do_optional_expr
+};
 
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {
     return (struct expr) {
@@ -94,39 +97,41 @@ struct expr *gexpr(struct expr_context *context) {
     return context->expr;
 }
 
-void do_empty_expr(struct expr_context *context, union rval _) {
+void noop_expr(struct expr_context *context, struct expr *_) {}
+
+void do_empty_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, empty_expr());
 }
 
-void do_alt_expr(struct expr_context *context, union rval lexpr) {
-    sexpr(context, alt_expr(lexpr.expr, gexpr(context)));
+void do_alt_expr(struct expr_context *context, struct expr *lexpr) {
+    sexpr(context, alt_expr(lexpr, gexpr(context)));
 }
 
-void do_cat_expr(struct expr_context *context, union rval lexpr) {
-    sexpr(context, cat_expr(lexpr.expr, gexpr(context)));
+void do_cat_expr(struct expr_context *context, struct expr *lexpr) {
+    sexpr(context, cat_expr(lexpr, gexpr(context)));
 }
 
-void do_sub_expr(struct expr_context *context, union rval _) {
+void do_sub_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, sub_expr(gexpr(context)));
 }
 
-void do_dotall_expr(struct expr_context *context, union rval _) {
+void do_dotall_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, dotall_expr());
 }
 
-void do_symbol_expr(struct expr_context *context, union rval sym) {
-    sexpr(context, symbol_expr(sym.sym));
+void do_symbol_expr(struct expr_context *context, char sym) {
+    sexpr(context, symbol_expr(sym));
 }
 
-void do_star_expr(struct expr_context *context, union rval _) {
+void do_star_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, star_expr(gexpr(context)));
 }
 
-void do_plus_expr(struct expr_context *context, union rval _) {
+void do_plus_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, plus_expr(gexpr(context)));
 }
 
-void do_optional_expr(struct expr_context *context, union rval _) {
+void do_optional_expr(struct expr_context *context, struct expr *_) {
     sexpr(context, optional_expr(gexpr(context)));
 }
 

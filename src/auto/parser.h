@@ -2,6 +2,7 @@
 #define AUTO_PARSER_H_ 1
 
 #include <stdbool.h>
+#include "result_types.h"
 
 /**
  * Grammar:
@@ -28,6 +29,9 @@
  * character classes: [a-zA-Z]
  */
 
+#define GETVALFN (union rval (*) (void *))
+#define ACTION (void (*)(void *, union rval))
+#define ACTION_TABLE (void (**)(void *, union rval lval))
 #define OPERATOR_OFFSET (-256)
 
 enum token_type {
@@ -69,15 +73,9 @@ struct parse_error {
     int actual;
 };
 
-union rval {
-    struct expr *expr;
-    struct nfa_machine mach;
-    char sym;
-};
-
 struct parse_context {
     void *result_context;
-    void (*const actions[NUMACTIONS])(void *result_context, union rval lval);
+    void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
     struct scan_context scan_context;
     int lookahead;
@@ -91,14 +89,13 @@ struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
 int token(struct scan_context context);
 int token_col(struct scan_context context);
-void noopaction(void *result_context, union rval _);
 union rval getval(struct parse_context *context);
 void do_action(struct parse_context *context, enum action_type action, union rval lval);
 struct parse_context parse_context(
     char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
-    void (*const *actions)(void *result_context, void *lastval)
+    void (**actions)(void *result_context, union rval lval)
 );
 bool peek(struct parse_context *context, int expected, int (*is) (int c));
 bool expect(struct parse_context *context, int expected, int (*is) (int c));

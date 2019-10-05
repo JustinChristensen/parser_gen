@@ -6,17 +6,20 @@
 #include <base/list.h>
 #include "parser.h"
 #include "nfa.h"
+#include "result_types.h"
 
-nfa_actions[DO_REGEX] = noopaction;
-nfa_actions[DO_EMPTY] = do_empty_nfa;
-nfa_actions[DO_ALT] = do_alt_nfa;
-nfa_actions[DO_CAT] = do_cat_nfa;
-nfa_actions[DO_SUB] = noopaction;
-nfa_actions[DO_DOTALL] = do_dotall_nfa;
-nfa_actions[DO_SYMBOL] = do_symbol_nfa;
-nfa_actions[DO_STAR] = do_star_nfa;
-nfa_actions[DO_PLUS] = do_plus_nfa;
-nfa_actions[DO_OPTIONAL] = do_optional_nfa;
+void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
+    [DO_REGEX] = ACTION noop_nfa,
+    [DO_EMPTY] = ACTION do_empty_nfa,
+    [DO_ALT] = ACTION do_alt_nfa,
+    [DO_CAT] = ACTION do_cat_nfa,
+    [DO_SUB] = ACTION noop_nfa,
+    [DO_DOTALL] = ACTION do_dotall_nfa,
+    [DO_SYMBOL] = ACTION do_symbol_nfa,
+    [DO_STAR] = ACTION do_star_nfa,
+    [DO_PLUS] = ACTION do_plus_nfa,
+    [DO_OPTIONAL] = ACTION do_optional_nfa
+};
 
 struct nfa_context nfa_context(struct nfa_state *statebuf) {
     return (struct nfa_context) {
@@ -177,7 +180,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
 
     if (!has_nfa_error(context)) {
         struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(regex, context, gmachine, nfa_actions);
+        struct parse_context pcontext = parse_context(regex, context, GETVALFN gmachine, nfa_actions);
 
         // overwrite the previous accepting state if we're
         // chaining nfa_regex calls to create alt machines
@@ -297,35 +300,38 @@ bool nfa_match(char *str, struct nfa_context *context) {
     return result;
 }
 
-void do_empty_nfa(struct nfa_context *context, union rval _) {
+void noop_nfa(struct nfa_context *context, struct nfa _) {}
+
+void do_empty_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, empty_machine(context));
 }
 
-void do_alt_nfa(struct nfa_context *context, union rval lnfa) {
-    smachine(context, alt_machine(context, lnfa.mach, gmachine(nfa_context)));
+void do_alt_nfa(struct nfa_context *context, struct nfa lnfa) {
+    smachine(context, alt_machine(context, lnfa, gmachine(context)));
 }
 
-void do_cat_nfa(struct nfa_context *context, union rval lnfa) {
-    smachine(context, cat_machine(lnfa.mach, gmachine(context)));
+void do_cat_nfa(struct nfa_context *context, struct nfa lnfa) {
+    smachine(context, cat_machine(lnfa, gmachine(context)));
 }
 
-void do_dotall_nfa(struct nfa_context *context, union rval _) {
+void do_dotall_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, dotall_machine(context));
 }
 
-void do_symbol_nfa(struct nfnfantext *context, union rval sym) {
-    smachine(context, symbol_machine(context, sym.sym));
+void do_symbol_nfa(struct nfa_context *context, char sym) {
+    printf("do_sym: %d %c\n", sym, sym);
+    smachine(context, symbol_machine(context, sym));
 }
 
-void do_star_nfa(struct nfa_context *context, union rval _) {
+void do_star_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, closure_machine(context, gmachine(context)));
 }
 
-void do_plus_nfa(struct nfa_context *context, union rval _) {
+void do_plus_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, posclosure_machine(context, gmachine(context)));
 }
 
-void do_optional_nfa(struct nfa_context *context, union rval _) {
+void do_optional_nfa(struct nfa_context *context, struct nfa _) {
     smachine(context, optional_machine(context, gmachine(context)));
 }
 

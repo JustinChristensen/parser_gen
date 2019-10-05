@@ -10,41 +10,16 @@
  *
  * edge-labeled graph (adjacency matrix) where
  *  struct transition graph[MAX_STATES][MAX_STATES]
- *  vertecies are numbered states where the number is an index
+ *  verticies are numbered states where the number is an index
  *  edges contain the index of the state pointed to
  */
 
 #include <stdbool.h>
 #include <base/list.h>
 #include "parser.h"
+#include "result_types.h"
 
 #define STATE_MAX 10000
-
-enum nfa_state_type {
-    ACCEPTING_STATE,
-    EPSILON_STATE,
-    BRANCH_STATE,
-    SYMBOL_STATE,
-    DOTALL_STATE
-};
-
-struct nfa_state {
-    enum nfa_state_type type;
-    int id;
-    union {
-        // epsilon, dotall, symbol
-        struct { struct nfa_state *next; char symbol; };
-        // branch
-        struct { struct nfa_state *left; struct nfa_state *right; };
-        // accepting
-    };
-};
-
-struct nfa {
-    struct nfa_state *start;
-    struct nfa_state **end;
-    struct nfa_state **end1;
-};
 
 struct nfa_error {
     struct parse_error perror;
@@ -92,17 +67,18 @@ bool accepts(struct list *cstates, struct nfa_state *accept);
 bool nfa_match(char *str, struct nfa_context *context);
 
 // parse actions
-void do_empty_nfa(struct nfa_context *context, union rval _);
-void do_alt_nfa(struct nfa_context *context, union rval lnfa);
-void do_cat_nfa(struct nfa_context *context, union rval lnfa);
-void do_dotall_nfa(struct nfa_context *context, union rval _);
-void do_symbol_nfa(struct nfnfantext *context, union rval sym);
-void do_star_nfa(struct nfa_context *context, union rval _);
-void do_plus_nfa(struct nfa_context *context, union rval _);
-void do_optional_nfa(struct nfa_context *context, union rval _);
+void noop_nfa(struct nfa_context *context, struct nfa _);
+void do_empty_nfa(struct nfa_context *context, struct nfa _);
+void do_alt_nfa(struct nfa_context *context, struct nfa lnfa);
+void do_cat_nfa(struct nfa_context *context, struct nfa lnfa);
+void do_dotall_nfa(struct nfa_context *context, struct nfa _);
+void do_symbol_nfa(struct nfa_context *context, char sym);
+void do_star_nfa(struct nfa_context *context, struct nfa _);
+void do_plus_nfa(struct nfa_context *context, struct nfa _);
+void do_optional_nfa(struct nfa_context *context, struct nfa _);
 
 // parse action table
-void (*const nfa_actions[NUMACTIONS])(struct expr_context *context, union rval lval);
+void (*nfa_actions[NUMACTIONS])(void *context, union rval lval);
 
 // debugging tools
 void print_nfa_states(struct list *cstates);

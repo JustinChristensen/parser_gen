@@ -42,7 +42,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
     while ((key = readarg(context)) != END) {
         switch (key) {
-            case OUTPUT_FMT:
+            case FORMAT:
                 switch (cmd) {
                     case PRINT:
                         if (strcmp("dot", argval()) == 0) {
@@ -51,7 +51,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                             args->output = OUTPUT_TREE;
                         } else {
                             print_usage(stderr, context);
-                            exit(exit_failure);
+                            exit(EXIT_FAILURE);
                         }
                         break;
                     case NFA:
@@ -61,7 +61,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                             args->output = OUTPUT_TABLE;
                         } else {
                             print_usage(stderr, context);
-                            exit(exit_failure);
+                            exit(EXIT_FAILURE);
                         }
                         break;
                 }
@@ -131,22 +131,22 @@ int main(int argc, char *argv[]) {
 
     if (args.cmd == PRINT) {
        struct expr exprbuf[EXPR_MAX];
-       struct expr_context result = expr_context(exprbuf);
+       struct expr_context econtext = expr_context(exprbuf);
 
        if (args.regex) {
-           pcontext = parse_context(args.regex, &result, gexpr, expr_actions);
+           pcontext = parse_context(args.regex, &result, GETVALFN gexpr, expr_actions);
        } else {
-           pcontext = parse_context("(a|b)*abbc?", &result, gexpr, expr_actions);
+           pcontext = parse_context("(a|b)*abbc?", &result, GETVALFN gexpr, expr_actions);
        }
 
        if (parse_regex(&pcontext)) {
-           struct expr *expr = gexpr(&result);
+           struct expr *expr = gexpr(&econtext);
 
            if (args.output == OUTPUT_DOT) {
                print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
            } else {
                printf("expr type: %d\n", expr->type);
-               printf("constructed %ld expressions\n", result.exprbuf - exprbuf);
+               printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
                print_expr(expr);
            }
        } else {
@@ -155,22 +155,24 @@ int main(int argc, char *argv[]) {
        }
     } else if (args.cmd == NFA) {
         struct nfa_state statebuf[STATE_MAX];
-        struct nfa_context nfa = nfa_context(statebuf);
+        struct nfa_context ncontext = nfa_context(statebuf);
 
         if (args.regex) {
-            nfa_regex(args.regex, &nfa);
+            nfa_regex(args.regex, &ncontext);
         } else {
-            nfa_regex("if", &nfa);
-            nfa_regex("else", &nfa);
-            nfa_regex("for", &nfa);
-            nfa_regex("while", &nfa);
-            nfa_regex("do", &nfa);
+            nfa_regex("if", &ncontext);
+            nfa_regex("else", &ncontext);
+            nfa_regex("for", &ncontext);
+            nfa_regex("while", &ncontext);
+            nfa_regex("do", &ncontext);
         }
 
-        if (!has_nfa_error(&nfa)) {
+        struct nfa mach = gmachine(&ncontext);
+
+        if (!has_nfa_error(&ncontext)) {
             if (args.output == OUTPUT_TABLE) {
                 printf("start state: %p, end state: %p\n", mach.start, *mach.end);
-                print_state_table(statebuf, context.statebuf);
+                print_state_table(statebuf, ncontext.statebuf);
             } else if (args.output == OUTPUT_DOT) {
                 nfa_to_graph(mach.start);
             } else {
@@ -188,7 +190,7 @@ int main(int argc, char *argv[]) {
                     char buf[BUFSIZ];
                     while (fgets(buf, BUFSIZ, in)) {
                         buf[strlen(buf) - 1] = '\0';
-                        bool matches = nfa_match(buf, &context);
+                        bool matches = nfa_match(buf, &ncontext);
                         printf("%s %s\n", buf, matches ? "matches" : "does not match");
                     }
 
@@ -199,7 +201,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            print_nfa_error(nfa_error(&nfa));
+            print_nfa_error(nfa_error(&ncontext));
             return EXIT_FAILURE;
         }
     }

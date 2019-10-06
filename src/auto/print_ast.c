@@ -93,3 +93,43 @@ void print_expr(struct expr *expr) {
     free(exprs);
     exprs = sp = NULL;
 }
+
+void print_expr_table(struct expr *start, struct expr*end) {
+    while (start != end) {
+        printf("%p: (", start);
+        switch (start->type) {
+            case NULL_EXPR:
+                break;
+            case EMPTY_EXPR:
+                printf("ε");
+                break;
+            case DOTALL_EXPR:
+                printf(".");
+                break;
+            case ALT_EXPR:
+                printf("| %p %p", start->lexpr, start->rexpr);
+                break;
+            case CAT_EXPR:
+                printf("+ %p %p", start->lexpr, start->rexpr);
+                break;
+            case STAR_EXPR:
+                printf("* %p", start->expr);
+                break;
+            case PLUS_EXPR:
+                printf("+ %p", start->expr);
+                break;
+            case OPTIONAL_EXPR:
+                printf("? %p", start->expr);
+                break;
+            case SUB_EXPR:
+                printf("() %p", start->expr);
+                break;
+            case SYMBOL_EXPR:
+                printf("%c", start->symbol);
+                break;
+        }
+
+        printf(")\n");
+        start++;
+    }
+}

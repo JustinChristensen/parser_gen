@@ -8,8 +8,6 @@
 #include "nfa.h"
 #include "result_types.h"
 
-int uid = 0;
-
 void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
     [DO_REGEX] =    ACTION noop_nfa,
     [DO_EMPTY] =    ACTION do_empty_nfa,
@@ -69,9 +67,8 @@ struct nfa_state symbol_state(char symbol) {
 }
 
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state) {
-    state.id = uid++;
+    state.id = context->numstates++;
     *context->statebuf = state;
-    context->numstates++;
     return context->statebuf++;
 }
 
@@ -99,9 +96,6 @@ union rval nfa_to_rval(struct nfa_context *context) {
 
 struct nfa empty_machine(struct nfa_context *context) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("empty machine\n");
-#endif
     machine.start = setst(context, epsilon_state(NULL));
     point(&machine, &machine.start->next, NULL);
     return machine;
@@ -109,9 +103,6 @@ struct nfa empty_machine(struct nfa_context *context) {
 
 struct nfa dotall_machine(struct nfa_context *context) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("dotall machine\n");
-#endif
     machine.start = setst(context, dotall_state(NULL));
     point(&machine, &machine.start->next, NULL);
     return machine;
@@ -119,9 +110,6 @@ struct nfa dotall_machine(struct nfa_context *context) {
 
 struct nfa symbol_machine(struct nfa_context *context, char symbol) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("symbol machine: %c\n", symbol);
-#endif
     machine.start = setst(context, symbol_state(symbol));
     point(&machine, &machine.start->next, NULL);
     return machine;
@@ -129,9 +117,6 @@ struct nfa symbol_machine(struct nfa_context *context, char symbol) {
 
 struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("alt machine\n");
-#endif
     machine.start = setst(context, branch_state(left.start, right.start));
     patch(left, setst(context, epsilon_state(NULL)));
     patch(right, setst(context, epsilon_state(NULL)));
@@ -141,9 +126,6 @@ struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa 
 
 struct nfa cat_machine(struct nfa first, struct nfa second) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("cat machine\n");
-#endif
     patch(first, second.start);
     machine.start = first.start;
     point(&machine, second.end, second.end1);
@@ -152,9 +134,6 @@ struct nfa cat_machine(struct nfa first, struct nfa second) {
 
 struct nfa posclosure_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("positive closure machine\n");
-#endif
     machine.start = inner.start;
     patch(inner, setst(context, branch_state(inner.start, NULL)));
     point(&machine, &(*inner.end)->right, NULL);
@@ -163,9 +142,6 @@ struct nfa posclosure_machine(struct nfa_context *context, struct nfa inner) {
 
 struct nfa optional_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
-#ifdef DEBUG
-    printf("optional machine\n");
-#endif
     patch(inner, setst(context, epsilon_state(NULL)));
     machine.start = setst(context, branch_state(inner.start, NULL));
     point(&machine, &(*inner.end)->next, &machine.start->right);
@@ -173,9 +149,6 @@ struct nfa optional_machine(struct nfa_context *context, struct nfa inner) {
 }
 
 struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
-#ifdef DEBUG
-    printf("closure machine\n");
-#endif
     return optional_machine(context, posclosure_machine(context, inner));
 }
 
@@ -191,7 +164,6 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
         if (lmachine.end) {
             context->statebuf--;
             context->numstates--;
-            uid--;
         }
 
         if (!parse_regex(&pcontext)) {

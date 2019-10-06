@@ -6,7 +6,7 @@ LIBS := -lcgraph -lm
 .PHONY: all
 all: $(LIB)
 
-$(LIB): args.c either.c graphviz.c list.c random.c stack.c string.c tuple.c
+$(LIB): array.c args.c either.c graphviz.c list.c random.c stack.c string.c tuple.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBS) -fpic $(LDFLAGS)
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(LIB)" ~/lib/

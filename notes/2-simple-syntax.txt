@@ -431,7 +431,7 @@ factor: ( expr )
       | id          { print(id.lexeme) }
 
 
-* Chite space generally eliminated by the lexical analyzer, incorporating it into
+* White space generally eliminated by the lexical analyzer, incorporating it into
 the languages grammar would be a huge pain in the ass
 TODO: look at the formal grammars for whitespace sensitive languages like Python
 https://docs.python.org/3/reference/grammar.html

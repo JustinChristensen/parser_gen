@@ -216,8 +216,122 @@ If A ::= γ, then wγb is the next step in a leftmost derivation
 Note that in a rightmost derivation, b would be the string of terminals,
 and w would be the string of non-terminals and terminals that still need replacing
 
-TODO: Why are rightmost derivations called canonical derivations?
+TODO: Why are rightmost derivations called _canonical_ derivations?
+
+Parse Trees
+
+Each interior node represents the application of a production. For both of the above derivations:
+- ( id + id ) has the parse tree:
+
+Derivations of - (id + id) from E
+
+Leftmost:                                 ↓
+E => - E => - ( E ) => - ( E + E ) => - ( id + E ) => - ( id + id )
+
+Rightmost:                                    ↓
+E => - E => - ( E ) => - ( E + E ) => - ( E + id ) => - ( id + id )
+
+Grouped (as shown in the parse tree):
+1.    E
+2. => - E
+3. => - ( E )
+4. => - ( E + E )
+5. => - ( id + id )
+
+Parse Tree for - (id + id) from E
+"E derives - (id + id) in 0 or more steps"
+E *=> - (id + id)
 
 
+  +-------  E  ---------------+                       Step 1: E
+  |                           |
+  |                           |
+  -            +------------  E  ------------+        Step 2: - E
+               |              |              |
+               |              |              |
+               (      +-----  E  -----+      )        Step 3: - ( E )
+                      |       |       |
+                      |       |       |
+                      E       +       E               Step 4: - ( E + E )
+                      |               |
+                      |               |
+                     id              id               Step 5: - ( id + id ) (the yield)
 
+** Because parse trees ignore the variations in the order in which symbols in sentential forms are
+   replaced, there is a MANY to ONE relationship between derivations and parse trees **
 
+** Every parse tree has a unique leftmost and a unique rightmost derivation **
+** If a grammar produces more than one parse tree, it also produces more than one
+   leftmost and rightmost derivation, and is said to be ambiguous **
+
+Ambiguity:
+
+A grammar that produces more than one parse tree for some sentence is said to be "ambiguous".
+i.e. it produces more than one leftmost derivation or rightmost derivation for the sentence.
+
+E ::= E + E
+    | E * E
+    | - E
+    | ( E )
+    | id
+
+For sentence id + id * id, there are two distinct leftmost derivations E *=> id + id * id:
+
+The difference between the two being whether we construct the addition sentential form (E + E) first
+or the multiplication (E * E) sentential form
+
+id + id * id derived from E:
+
+   E
+=> E + E
+=> id + E
+=> id + E * E
+=> id + id * E
+=> id + id * id
+
+   E
+=> E * E
+=> E + E * E
+=> id + E * E
+=> id + id * E
+=> id + id * id
+
+Context Free Grammars versus Regular Expressions
+
+Grammars are more powerful as a notation
+I.e. Every construct that can be described by a regular expression can be described by a
+     context free grammar but not vice-versa
+
+regular expression (a|b)*abb and grammar:
+A ::= aA | bA | aB
+B ::= bC
+C ::= bD
+D ::= ε
+
+both describe the same language
+
+OTOH
+L = { a^nb^n | n >= 1 }
+is an example of a language that a regular expression cannot describe
+
+"finite automata cannot count"
+"a grammar can count two items, but not three"
+
+S ::= S S + | S S * | a
+aa+a*
+S *=> aa+a*
+Leftmost Derivation:
+    S
+=>  S S *
+=>  S S + S *
+=>  a S + S *
+=>  a a + S *
+=>  a a + a *
+
+Rightmost Derivation:
+    S
+=>  S S *
+=>  S a *
+=>  S S + a *
+=>  S a + a *
+=>  a a + a *

@@ -443,3 +443,93 @@ stmt' ::= else stmt | ε
 Top Down Parsing
 - Creating nodes for a parse tree starting from the root and in depth-first preorder
 - Equivalently finding a leftmost derivation for an input string
+
+The class of grammars for which we can construct predictive parsers is called the LL(k) class.
+
+FIRST
+FOLLOW
+
+From the first and follow sets of a grammar we can construct "predictive parse tables".
+
+Recursive descent parser consists of a set of procedures corresponding to non-terminals
+
+For grammar G we can compute these two functions:
+FIRST(G)
+FOLLOW(G)
+
+first(α)
+    where α is a string of grammar symbols to be the set of terminals
+    that begin strings derived from α
+    "if alpha can derive epsilon in zero or more steps..."
+    if α *=> ε, then ε is also in first(α)
+
+first(α) example
+stmt ::= if expr then stmt
+       | while expr do stmt
+       | do stmt while expr
+       | type id = expr
+
+first(stmt) = { if, while, do, type, }
+
+follow(A)
+    for nonterminal A to be the set of terminals that can appear
+    immediately to the right of A in some sentential form
+    i.e., the set of terminals b such that there exists a derivation
+    S *=> aAbB
+    if A can be the rightmost symbol in some sentential form the special $
+    marker is used
+
+first(X) algorithm:
+if X is a terminal, then first(X) is { X }
+if X is a nonterminal, and X ::= AB...C is a production of length >= 1
+    then place a in first(X) if for some i, a is in
+    TODO: figure this out
+
+For grammar:
+
+expr:       term expr_tail
+expr_tail:  + term expr_tail | ε
+term:       factor term_tail
+term_tail:  * factor term_tail | ε
+factor:     ( expr ) | id
+
+first(factor) = { (, id }
+first(term) = first(factor)
+first(expr) = first(term)
+
+So first(expr) = first(term) = first(factor) = { (, id }
+first(expr_tail) = { +, ε }
+first(term_tail) = { *, ε }
+
+follow(expr) = follow(expr_tail) = { ), $ }
+follow(term) = follow(term_tail) = { +, ), $ }
+follow(factor) = { +, *, ), $ }
+
+So first(A) is the set of terminals that can prefix sentential forms derived from A
+and follow(A) is the set of terminals that can follow A in sentential forms derived from A
+In the above, +, *, ), and $ can all follow a factor
+
+So for LL(1):
+The first "L" stands for scanning the input from left to right
+The second "L" stands for taking the leftmost derivation for each step,
+and (1) indicates that we'll only need one token of input to make the decision on which derivation to choose
+
+Transition Diagrams can be constructed for predictive parsers
+
+A Predictive Parsing table can be constructed using first and follow sets
+M[A, a] where A is a non-terminal, and a is a terminal or the end of input marker $
+
+For each production A ::= α in the grammar:
+    For each terminal t in first(α) add M[A, t] = α
+    If ε is in first(α), then for each terminal s in follow(A) add M[A, s] = α
+    If ε is in first(α), and $ is in follow(A) add M[A,$] = α
+    If there is then no production in M[A, t], then set M[A, t] to error (empty entry)
+
+See Figure 4.17 on page 225
+
+Nonrecursive Predictive Parsing
+Maintain an explicit stack
+
+
+
+

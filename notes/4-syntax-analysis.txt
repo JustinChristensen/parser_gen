@@ -335,3 +335,111 @@ Rightmost Derivation:
 =>  S S + a *
 =>  S a + a *
 =>  a a + a *
+
+Writing a Grammar
+Grammars can describe most of the syntax of programming languages, but can't capture notions like
+"ids must be declared before they can be used within a given block".
+A semantically invalid program may still be syntactically valid
+
+Not all grammars are suitable for parsing with a computer, but usually we can perform some
+transformations on the grammar to get it into a state that makes it suitable for parsing.
+
+Eliminating Ambiguity:
+stmt ::= if expr then stmt
+       | if expr then stmt else stmt
+       | other
+
+if E1 then if E2 then S1 else S2
+
+stmt *=> if E1 then if E2 then S1 else S2
+Because a unique leftmost derivation corresponds to one parse tree, we then have two possible
+parse trees for the above grammar.
+
+Derivation #1:
+    stmt
+=>  if expr then stmt                           <- multiple productions work here
+=>  if expr then if expr then stmt else stmt    <- sentential form
+=>  if E1 then if E2 then S1 else S2
+
+Derivation #2:
+    stmt
+=>  if expr then stmt else stmt                 <- multiple productions work here
+=>  if expr then if expr then stmt else stmt
+=>  if E1 then if E2 then S1 else S2
+
+Derivation #1 is preferred. We try to keep "then" and "else" grouped at each node.
+
+stmt ::= matched_stmt
+       | open_stmt
+matched_stmt ::= if expr then matched_stmt else matched_stmt
+               | other
+open_stmt ::= if expr then stmt
+            | if expr then matched_stmt else open_stmt
+
+TODO: find a way to systematically remove ambiguity from a grammar
+
+A grammar is "left recursive" if there is a derivation A +=> Aa for some string a
+
+Removing direct left recursion:
+A ::= Aa
+    | b
+
+A ::= bA'               <- head production
+A' ::= aA' | ε          <- tail productions
+
+An indirectly left recursive grammar:
+S ::= A a | b
+A ::= A c | S d | ε
+S => A a => S d a, so S +=> S d a, so S is indirectly left recursive
+
+This can be systematically removed as long as the grammar contains no cycles and no ε productions:
+I.e. A +=> A, and A ::= ε
+
+See Algorithm 4.19
+
+Let G be:
+S ::= A a | b
+A ::= A c | S d | ε
+
+Arrange the non-terminals of the grammar G in some order: A₁,A₂,...,An
+For i in [1, n]:
+    For j in [1, i - 1]:
+        Replace each production of the form Aᵢ ::= Aⱼγ by the productions
+        Aᵢ ::= δ₁γ,δ₂γ,...,δkγ where
+        Aⱼ ::= δ₁,δ₂,...,δk are all current Aⱼ productions.
+        I.e. copy the productions from Aⱼ into Aᵢ, but with the trailing symbols γ
+             of the production being replaced.
+    Eliminate direct left recursion from the Aᵢ productions
+
+A > S
+
+S ::= A a | b
+A ::= A c | S d | ε
+
+becomes
+
+S ::= A a | b
+A ::= A c | A a d | b d | ε     <- replace the S d rule with the productions from S trailing d
+
+becomes
+
+S ::= A a | b
+A ::= b d A' | A'               <- epsilon gets replaced with tail
+A' ::= c A' | a d A' | ε        <- new tail productions after removing left recursion
+
+And done!
+
+Left Factoring
+
+stmt ::= if expr then stmt
+    | if expr then stmt else stmt
+    | other
+
+factor out "if expr then stmt":
+
+stmt ::= if expr then stmt stmt' | other
+stmt' ::= else stmt | ε
+
+Top Down Parsing
+- Creating nodes for a parse tree starting from the root and in depth-first preorder
+- Equivalently finding a leftmost derivation for an input string

@@ -609,6 +609,170 @@ while (!empty(stack) && (sym = pop(stack))) {
 }
 
 
+Bottom Up Parsing
 
+Constructs a parse tree by working from the leaves (the bottom) up to the root.
+Considered the process of "reducing" a start string to the start symbol of a grammar.
 
+- Each "reduction" step a specific substring matching the body of a production is replaced by
+  that productions head.
 
+id * id     <- start string
+F * id      <- reduce the first id to F, because F => id
+T * id      <- reduce the F to T, because T => F
+T * F       <- now we have a choice, either reduce T to E, because E => T, or the second id to F, because F => id
+T           <- after choosing the latter, we reduce T * F to T, because T => T * F
+E           <- finally, T reduces to E, because E => T
+
+** A reduction is the inverse of a step in a derivation, i.e. the inverse of the rm=> operator **
+
+Bottom up parsing during a left to right scan of the input constructs a rightmost derivation in reverse
+
+The process involves finding a "reducing production" for the rightmost handle in a sentential form
+
+Shift-Reduce
+
+Stack       Input           Action
+$           id * id $       Shift
+$ id        * id $          Reduce by F => id
+$ F         * id $          Reduce by T => F
+$ T         * id $          Shift               <- what prevents us from using E => T here?
+$ T *       id $            Shift
+$ T * id    $               Reduce by F => id
+$ T * F     $               Reduce by T => T * F
+$ T         $               Reduce by T => T * F
+$ T         $               Reduce by E => T
+$ E         $               Accept
+
+Shift, Reduce, Accept, or Error
+
+LR Parsing
+Simple LR Parsing
+
+Items
+Parser States
+
+More Complex Methods:
+LALR
+Canonical LR
+
+LR Parsers are table-driven
+
+- Can recognize virtually all programming language constructs for which a CFG can be written
+- The most general shift-reduce parser known
+- Can detect syntax errors right away
+- Can parse a superset of the grammars that a LL parser can parse
+
+*** How does a shift reduce parser know when to shift and when to reduce? ** See above question
+Answer: It keeps track of states to know where in the parse we are
+"States" represent sets of "items"
+An item is a production of a grammar with a dot (marker) at some position in the body
+A: . X Y Z | ε
+A: X . Y Z | ε
+A: X Y . Z | ε
+A: X Y Z . | ε
+A: X Y Z | ε .
+
+So production A has 5 items
+It indicates how much of a production we have seen during the parsing process.
+
+One collection of sets of LR(0) items, called the "canonical" LR(0) colleciton lets us construct
+a deterministic finite automaton to make aprsing decisions, the LR(0) automaton
+
+To construct it we need an augmented grammar, and the functions CLOSURE and GOTO
+Grammar G
+S: ...
+
+(Augmented) Grammar G'
+S': S       <- Stop parsing and accept, i.e. when the parser is about to reduce to S'
+
+I is a set of items for Grammar G
+CLOSURE(I) is the set of items constructed from I by two rules:
+    Add items from I to CLOSURE(I)
+    If A: a . B b is in CLOSURE(I) and B: C is a production, then add the item B: . C
+    to CLOSURE(I) if it's not already there. Apply this rule until no more new items are added to CLOSURE(I)
+
+The augmented grammar:
+E': E
+E: E + T | T
+T: T * F | F
+F: ( E ) | id
+
+E.g.:
+I is { E': . E }
+CLOSURE(I) is
+{
+    E': . E,
+     E: . E + T,
+     E: . T,
+     T: . T * F,
+     T: . F,
+     F: . ( E ),
+     F: . id
+}
+
+struct set closure(struct set items) {
+    struct set clo_items = items
+    repeat
+        for (item A: a . B b in clo_items)
+            for (production B: c in grammar G)
+                if (item B: . c is not in clo_items)
+                    add item B: . c to clo_items
+    until no more items are added to j
+    return clo_items
+}
+
+Partition items of interest into two groups:
+Kernel Items: The initial item, S': . S, and all items whose dots are not at the left end
+Nonkernel items: all items with their dots at the left end, except for S': . S
+
+Items added to the closure cannot be Kernel Items
+
+Then...
+
+GOTO(I, X) where
+    I is a set of closure items
+    X is a grammar symbol
+
+    The closure of the set of all items A: a X . b such that
+    A a . X b is in I
+    I.e. to define the transitions in the automaton for the grammar
+
+E': E
+E: E + T | T
+T: T * F | F
+F: ( E ) | id
+
+E.g. If I is the set:
+{
+    E': E .,
+    E: E . + T
+}
+Then GOTO(I, +) is the set:
+{
+    E: E + . T,
+    T: . T * F,
+    T: . F,
+    F: . ( E ),
+    F: . id,
+}
+
+So, C, the canonical collection LR(0) is:
+void items(grammar G') {
+    set of sets C = { CLOSURE(item S': . S) }
+    repeat
+        for (set I in C)
+            for (grammar symbol X)
+                if GOTO(I, X) is not empty and not in C
+                    add GOTO(I, X) to C
+    until no new sets are added to C
+}
+
+The start state of the LR(0) automaton is CLOSURE(item S': . S)
+
+*** LR Shift-Reduce Decision
+
+So whether to shift or to reduce is done like:
+string w of grammar symbols takes the LR(0) automata from start state 0 to some state j
+Then ***shift*** on the next input symbol a if state j has a transition on a,
+Otherwise ***reduce***. The items in state J tell us which production to reduce with.

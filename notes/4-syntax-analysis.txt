@@ -530,6 +530,85 @@ See Figure 4.17 on page 225
 Nonrecursive Predictive Parsing
 Maintain an explicit stack
 
+E: T E'
+E': + T E' | ε
+T: F T'
+T': * F T' | ε
+F: ( E ) | id
+
+enum symbols {
+    EOF,
+    EXPR,
+    EXPR_TAIL,
+    TERM,
+    TERM_TAIL,
+    FACTOR,
+    ID,
+};
+
+E +=> id + id * id
+
+      E
+lm=>  T E'
+lm=>  F T' E'
+lm=>  id T' E'
+lm=>  id ε E'
+lm=>  id ε + T E'
+lm=>  id ε + F T' E'
+lm=>  id ε + id T' E'
+lm=>  id ε + id * F T' E'
+lm=>  id ε + id * id T' E'
+lm=>  id ε + id * id ε ε
+
+// stack-based LL(1) predictive parser
+push(stack, EOF)
+push(stack, EXPR);
+
+tok = scan(input)
+while (!empty(stack) && (sym = pop(stack))) {
+    switch (sym) {
+        case EOF:
+            return true
+            break;
+        case EXPR:
+            push(stack, EXPR_TAIL);
+            push(stack, TERM);
+            break;
+        case EXPR_TAIL:
+            if (tok == '+')
+                push(stack, EXPR_TAIL);
+                push(stack, TERM);
+                push(stack, '+');
+            break;
+        case TERM:
+            push(stack, TERM_TAIL);
+            push(stack, FACTOR);
+            break;
+        case TERM_TAIL:
+            if (tok == '*')
+                push(stack, TERM_TAIL);
+                push(stack, FACTOR);
+                push(stack, '*');
+            break;
+        case FACTOR:
+            if (tok == '(')
+                push(stack, ')');
+                push(stack, EXPR);
+                push(stack, '(');
+            else
+                push(stack, ID);
+            break;
+        default:
+            if (tok != sym) {
+                return false
+            }
+            break;
+    }
+
+    tok = scan(input);
+}
+
+
 
 
 

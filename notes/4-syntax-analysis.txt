@@ -776,3 +776,82 @@ So whether to shift or to reduce is done like:
 string w of grammar symbols takes the LR(0) automata from start state 0 to some state j
 Then ***shift*** on the next input symbol a if state j has a transition on a,
 Otherwise ***reduce***. The items in state J tell us which production to reduce with.
+
+LR Parsing Algorithm
+Input
+Stack
+LR Parsing Driver Program
+Action/Goto Parsing Table
+
+Where a shift-reduce parser would shift a symbol
+A LR Parser shifts a state
+
+The Stack holds a sequence of states where the latest state is on top
+Each state has a corresponding unique grammar symbol associated with it. THe grammar symbol for transitions into the state.
+
+LR Parsing Table
+
+action[state i, terminal a] = one of:
+    shift j onto the stack
+    reduce A: b, i.e. put A on the stack
+    accept
+    error
+goto[state i, nonterminal A] = state j
+
+A "configuration" of an LR parser is the pair (s0 s1...sm,  ai ai + 1 ... an $)
+where the first component is the stack contents, and the second component is the remaining input
+It represents the right sentential form X1X2...Xmai,ai+1...an
+
+The difference between a shift-reduce parser and an LR parser in this context being that
+the shift-reduce parser would hold grammar symbols on the stack, and the LR parser holds states
+If we reach the bottom of the stack (state 0) without erroring, then we can accept
+
+Final LR Algorithm:
+
+push(s0, stack);
+sym = *input++
+while (!empty(stack) && (state = pop(stack)) {
+    if (action[state, sym] == shift next) {
+        push(next, stack);
+        sym = *input++
+    } else if (action[state, sym] == reduce A: b) {
+        let n = length(b)
+        while (n-- > 0) pop(stack);
+        let next = pop(stack);
+        push(goto[next, A], stack)
+        output A: b
+    } else if (action[state, sym] == accept) {
+        accept
+    } else {
+        error
+    }
+}
+
+1. E: E + T
+2. E: T
+3. T: T * F
+4. T: F
+5: F: ( E )
+6: F: id
+
+Constructing the action table:
+1. Construct the canonical set, C, of sets of LR(0) items for G'
+2. For each set I in C, construct state i as follows:
+    if [A: w . a b] is in I, and goto(I, a) = J, then set action[i, a] to "shift j"
+    if [A: w .] is in I then set action[i, a] to "reduce A: a" for all w in follow(A) and follow(A) != S'
+    if [S': S .] is in I, then set action[i, $] to "accept"
+
+    if conflicts arise, then the grammar is not SLR(1)
+3. Goto transitions are constructed for all nonterminals A as
+    if goto(I, A) = J, then goto[i, A] = state j
+4. The rest of the missing entries are considered to be error
+5. The initial state is the set of itmes containing [S': . S]
+
+*** See Figure 4.37 ***
+
+Viable Prefixes/Handles
+
+
+
+
+

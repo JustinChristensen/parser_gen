@@ -4,9 +4,9 @@
 #include <assert.h>
 #include <string.h>
 #include <base/list.h>
-#include "parser.h"
-#include "nfa.h"
-#include "result_types.h"
+#include "regex/nfa.h"
+#include "regex/parser.h"
+#include "regex/result_types.h"
 
 void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
     [DO_REGEX] =    ACTION noop_nfa,

@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "parser.h"
+#include <regex/ast.h>
+#include <regex/parser.h>
 #include "print_ast.h"
-#include "ast.h"
 
 static void indent(int n) {
     while (n-- > 0) printf("    ");

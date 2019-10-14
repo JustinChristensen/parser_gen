@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include <base/args.h>
 #include <base/graphviz.h>
-#include "ast.h"
-#include "nfa.h"
+#include <regex/ast.h>
+#include <regex/nfa.h>
+#include <regex/parser.h>
 #include "dot.h"
-#include "parser.h"
 #include "print_ast.h"
 
 enum command_key {

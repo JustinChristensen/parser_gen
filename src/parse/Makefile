@@ -1,13 +1,12 @@
 TOPDIR := ../..
 include ../../make/*.mk
 
-PROG := auto
-LIBS += -lcgraph -lregex
+PROG := parse
 
 .PHONY: all
 all: $(PROG)
 
-$(PROG): main.c dot.c print_ast.c
+$(PROG): main.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: run

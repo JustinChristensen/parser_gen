@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
-#include "parser.h"
 
 enum command_key {
-    GRAM
+    GRAM,
+    GEN_LL,
+    GEN_LR
 };
 
 struct args {
@@ -35,8 +36,20 @@ int main(int argc, char *argv[]) {
             help_and_version_args,
             END_ARGS
         },
-        NULL,
-        "Determine properties of input grammars and perform transformations"
+        CMDS {
+            {
+                GEN_LL,
+                "genll",
+                ARGS {
+                    help_and_version_args,
+                    END_ARGS
+                },
+                NULL,
+                "Generate an LL parser for the input lexer and grammar specification"
+            },
+            END_CMDS
+        },
+        "Analyze a grammar and generate a report"
     });
 
     return EXIT_SUCCESS;

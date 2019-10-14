@@ -1,5 +1,5 @@
-#ifndef AUTO_RESULT_TYPES_H_
-#define AUTO_RESULT_TYPES_H_ 1
+#ifndef REGEX_RESULT_TYPES_H_
+#define REGEX_RESULT_TYPES_H_ 1
 
 enum expr_type {
     NULL_EXPR,
@@ -62,4 +62,5 @@ union rval {
 
 static const union rval NULLRVAL = { NULL };
 
-#endif // AUTO_RESULT_TYPES_H_
+#endif // REGEX_RESULT_TYPES_H_
+

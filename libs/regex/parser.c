@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <assert.h>
-#include "parser.h"
-#include "result_types.h"
+#include "regex/parser.h"
+#include "regex/result_types.h"
 
 struct scan_context scan_context(char *input) {
     return (struct scan_context) {
@@ -291,8 +291,6 @@ char *lexeme_for(char *symbuf, int token) {
 
     return symbuf;
 }
-
-#define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
 void print_parse_error(struct parse_error error) {
     char symbuf[2] = { 0, 0 };

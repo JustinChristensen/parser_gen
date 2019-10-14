@@ -1,5 +1,5 @@
-#ifndef AUTO_NFA_H_
-#define AUTO_NFA_H_ 1
+#ifndef REGEX_NFA_H_
+#define REGEX_NFA_H_ 1
 
 /**
  * Data Structure Options:
@@ -16,8 +16,8 @@
 
 #include <stdbool.h>
 #include <base/list.h>
-#include "parser.h"
 #include "result_types.h"
+#include "parser.h"
 
 #define STATE_MAX 10000
 
@@ -86,4 +86,4 @@ void print_nfa_states(struct list *cstates);
 void print_state(struct nfa_state *state);
 void print_state_table(struct nfa_state *start, struct nfa_state *end);
 
-#endif // AUTO_NFA_H_ 1
+#endif // REGEX_NFA_H_

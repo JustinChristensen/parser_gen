@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "ast.h"
-#include "result_types.h"
-#include "parser.h"
+#include "regex/ast.h"
+#include "regex/parser.h"
+#include "regex/result_types.h"
 
 void (*expr_actions[NUMACTIONS])(void *context, union rval lval) = {
     [DO_REGEX] =    ACTION noop_expr,

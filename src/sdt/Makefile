@@ -1,12 +1,8 @@
+TOPDIR := ../..
+include ../../make/*.mk
+
 PROG := sdt
-DOT := dot
-VALGRIND := valgrind
-LIBBASE_DIR := ../../base
-INCLUDEPATHS := -I$(LIBBASE_DIR) -I/usr/local/include/graphviz -I/usr/include/graphviz
-LIBPATHS := -L$(LIBBASE_DIR)
-LIBS := -lbase -lcgraph
-override CFLAGS := -Wall -g -O0 $(CFLAGS)
-LDFLAGS :=
+LIBS += -lcgraph
 
 .PHONY: all
 all: $(PROG)

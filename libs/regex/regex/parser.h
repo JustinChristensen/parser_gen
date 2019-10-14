@@ -1,5 +1,5 @@
-#ifndef AUTO_PARSER_H_
-#define AUTO_PARSER_H_ 1
+#ifndef REGEX_PARSE_H_
+#define REGEX_PARSE_H_ 1
 
 #include <stdbool.h>
 #include "result_types.h"
@@ -32,6 +32,7 @@
 #define GETVALFN (union rval (*) (void *))
 #define ACTION (void (*)(void *, union rval))
 #define OPERATOR_OFFSET (-256)
+#define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
 enum token_type {
     SYMBOL = -1,
@@ -111,4 +112,4 @@ struct parse_error nullperr();
 char *lexeme_for(char *symbuf, int token);
 void print_parse_error(struct parse_error error);
 
-#endif // AUTO_PARSER_H_
+#endif // REGEX_PARSE_H_

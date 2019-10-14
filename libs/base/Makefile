@@ -1,13 +1,14 @@
+TOPDIR := ../..
+include ../../make/*.mk
+
 LIB := libbase.so
-INCLUDEPATHS := -I/usr/local/include/graphviz -I/usr/include/graphviz
-CFLAGS := -Wall -g -O0
 LIBS := -lcgraph -lm
 
 .PHONY: all
 all: $(LIB)
 
 $(LIB): array.c args.c either.c graphviz.c list.c random.c stack.c string.c tuple.c
-	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBS) -fpic $(LDFLAGS)
+	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(LIB)" ~/lib/
 

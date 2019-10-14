@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <base/graphviz.h>
+#include <regex/nfa.h>
 #include "dot.h"
-#include "nfa.h"
 
 void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct expr *expr) {
     expr_to_graph(graph, NULL, expr);

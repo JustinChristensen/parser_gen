@@ -1,8 +1,8 @@
-#ifndef AUTO_AST_H_
-#define AUTO_AST_H_ 1
+#ifndef REGEX_AST_H_
+#define REGEX_AST_H_ 1
 
-#include "parser.h"
 #include "result_types.h"
+#include "parser.h"
 
 #define EXPR_MAX 5000
 
@@ -45,5 +45,5 @@ void do_optional_expr(struct expr_context *context, union rval _);
 // parse action table
 void (*expr_actions[NUMACTIONS])(void *context, union rval lval);
 
-#endif // AUTO_AST_H_
+#endif // REGEX_AST_H_
 

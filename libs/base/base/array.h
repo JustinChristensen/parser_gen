@@ -19,19 +19,24 @@ struct array {
 };
 
 struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor);
-void agfactor(float growth_factor, struct array *array);
-void afreeze(struct array *array);
-void asort(int (*compare)(const void *a, const void *b), struct array *array);
-void *at(size_t i, struct array *array);
-void *atop(struct array *array);
-void *abottom(struct array *array);
-void aresize(size_t size, struct array *array);
-void areset(struct array *array);
-void apush(void *elem, struct array *array);
-void apop(void *out, struct array *array);
-size_t asize(struct array *array);
-bool aistop(void *elem, struct array *array);
-bool aempty(struct array *array);
-void free_array(struct array *array);
+void agfactor(float growth_factor, struct array *arr);
+void afreeze(struct array *arr);
+void asort(int (*compare)(void const *a, void const *b), struct array *arr);
+bool arrayeq(
+    bool (*eleq) (void const *a, void const *b),
+    struct array const *a,
+    struct array const *b
+);
+void *at(size_t i, struct array const *arr);
+void *atop(struct array *arr);
+void *abottom(struct array *arr);
+void aresize(size_t size, struct array *arr);
+void areset(struct array *arr);
+void apush(void *elem, struct array *arr);
+void apop(void *out, struct array *arr);
+size_t asize(struct array const *arr);
+bool aistop(void *elem, struct array *arr);
+bool aempty(struct array *arr);
+void free_array(struct array *arr);
 
 #endif // BASE_ARRAY_H_

@@ -11,12 +11,12 @@ struct array *init_array(size_t elem_size, size_t size, bool frozen, float growt
     frozen = frozen || false;
     growth_factor = growth_factor ? growth_factor : GROWTH_FACTOR;
 
-    struct array *array = malloc(sizeof *array);
-    assert(array != NULL);
+    struct array *arr = malloc(sizeof *arr);
+    assert(arr != NULL);
     void *buf = calloc(size, elem_size);
     assert(buf != NULL);
 
-    *array = (struct array) {
+    *arr = (struct array) {
         .buf = buf,
         .i = 0,
         .initsize = size,
@@ -26,89 +26,108 @@ struct array *init_array(size_t elem_size, size_t size, bool frozen, float growt
         .growth_factor = growth_factor
     };
 
-    return array;
+    return arr;
 }
 
-void agfactor(float growth_factor, struct array *array) {
+void agfactor(float growth_factor, struct array *arr) {
     assert(growth_factor > 1);
-    array->growth_factor = growth_factor;
+    arr->growth_factor = growth_factor;
 }
 
-void afreeze(struct array *array) {
-    array->frozen = true;
+void afreeze(struct array *arr) {
+    arr->frozen = true;
 }
 
-void asort(int (*compare)(const void *a, const void *b), struct array *array) {
-    qsort(array->buf, array->i, array->elem_size, compare);
+void asort(int (*compare)(void const *a, void const *b), struct array *arr) {
+    qsort(arr->buf, asize(arr), arr->elem_size, compare);
 }
 
-void *at(size_t i, struct array *array) {
-    return array->buf + i * array->elem_size;
+bool arrayeq(
+    bool (*eleq) (void const *a, void const *b),
+    struct array const *a,
+    struct array const *b
+) {
+    size_t alen = asize(a);
+    bool equal = alen == asize(b);
+
+    if (equal) {
+        for (
+            size_t i = 0;
+            i < alen && (equal = (*eleq)(at(i, a), at(i, b)));
+            i++
+        );
+    }
+
+    return equal;
 }
 
-void *atop(struct array *array) {
-    return at(array->i - 1, array);
+void *at(size_t i, struct array const *arr) {
+    return arr->buf + i * arr->elem_size;
 }
 
-void *abottom(struct array *array) {
-    return array->buf;
+void *atop(struct array *arr) {
+    return at(arr->i - 1, arr);
 }
 
-void aresize(size_t size, struct array *array) {
-    if (array->size == size) return;
+void *abottom(struct array *arr) {
+    return arr->buf;
+}
+
+void aresize(size_t size, struct array *arr) {
+    if (arr->size == size) return;
 #ifdef DEBUG
-    printf("resizing array, old size: %ld, new size: %ld\n", array->size, size);
+    printf("resizing array, old size: %ld, new size: %ld\n", arr->size, size);
 #endif
-    array->buf = realloc(array->buf, size * array->elem_size);
-    assert(array->buf != NULL);
-    if (array->i > size) array->i = size;
-    array->size = size;
+    arr->buf = realloc(arr->buf, size * arr->elem_size);
+    assert(arr->buf != NULL);
+    if (arr->i > size) arr->i = size;
+    arr->size = size;
 }
 
-static bool should_grow(struct array *array) {
-    return array->i == array->size;
+static bool should_grow(struct array *arr) {
+    return arr->i == arr->size;
 }
 
-static bool should_shrink(struct array *array) {
-    return array->size > array->initsize && array->i / (float) array->size < SHRINK_SIZE;
+static bool should_shrink(struct array *arr) {
+    return arr->size > arr->initsize && arr->i / (float) arr->size < SHRINK_SIZE;
 }
 
-static void ensure_memory(struct array *array) {
-    if (!array->frozen) {
-        if (should_grow(array)) {
-            aresize(ceil(array->size * array->growth_factor), array);
-        } else if (should_shrink(array)) {
-            aresize(ceil(array->size * SHRINK_FACTOR), array);
+static void ensure_memory(struct array *arr) {
+    if (!arr->frozen) {
+        if (should_grow(arr)) {
+            aresize(ceil(arr->size * arr->growth_factor), arr);
+        } else if (should_shrink(arr)) {
+            aresize(ceil(arr->size * SHRINK_FACTOR), arr);
         }
     }
 }
 
-void apush(void *elem, struct array *array) {
-    ensure_memory(array);
-    memcpy(at(array->i, array), elem, array->elem_size);
-    array->i++;
+void apush(void *elem, struct array *arr) {
+    ensure_memory(arr);
+    memcpy(at(arr->i, arr), elem, arr->elem_size);
+    arr->i++;
 }
 
-void apop(void *out, struct array *array) {
-    ensure_memory(array);
-    array->i--;
-    memcpy(out, at(array->i, array), array->elem_size);
+void apop(void *out, struct array *arr) {
+    ensure_memory(arr);
+    arr->i--;
+    memcpy(out, at(arr->i, arr), arr->elem_size);
 }
 
-size_t asize(struct array *array) {
-    return array->i;
+size_t asize(struct array const *arr) {
+    return arr->i;
 }
 
-bool aistop(void *elem, struct array *array) {
-    return atop(array) == elem;
+bool aistop(void *elem, struct array *arr) {
+    return atop(arr) == elem;
 }
 
-bool aempty(struct array *array) {
-    return array->i == 0;
+bool aempty(struct array *arr) {
+    return arr->i == 0;
 }
 
-void free_array(struct array *array) {
-    free(array->buf);
-    array->buf = NULL;
-    free(array);
+void free_array(struct array *arr) {
+    free(arr->buf);
+    arr->buf = NULL;
+    free(arr);
 }

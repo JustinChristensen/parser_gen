@@ -14,10 +14,14 @@ struct array {
     size_t initsize;
     size_t size;
     size_t elem_size;
+    bool frozen;
     float growth_factor;
 };
 
-struct array *init_array(size_t elem_size, size_t size, float growth_factor);
+struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor);
+void agfactor(float growth_factor, struct array *array);
+void afreeze(struct array *array);
+void asort(int (*compare)(const void *a, const void *b), struct array *array);
 void *at(size_t i, struct array *array);
 void *atop(struct array *array);
 void *abottom(struct array *array);

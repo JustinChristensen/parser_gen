@@ -7,7 +7,7 @@ LIBS += -lm
 .PHONY: all
 all: $(LIB)
 
-$(LIB): ast.c nfa.c parser.c
+$(LIB): ast.c dfa.c nfa.c parser.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(LIB)" ~/lib/

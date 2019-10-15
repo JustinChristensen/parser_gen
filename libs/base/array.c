@@ -6,15 +6,40 @@
 #include <stdbool.h>
 #include "base/array.h"
 
-struct array *init_array(size_t elem_size, size_t size, float growth_factor) {
+struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor) {
     size = size ? size : 1;
+    frozen = frozen || false;
     growth_factor = growth_factor ? growth_factor : GROWTH_FACTOR;
+
     struct array *array = malloc(sizeof *array);
     assert(array != NULL);
     void *buf = calloc(size, elem_size);
     assert(buf != NULL);
-    *array = (struct array) { buf, 0, size, size, elem_size, growth_factor };
+
+    *array = (struct array) {
+        .buf = buf,
+        .i = 0,
+        .initsize = size,
+        .size = size,
+        .elem_size = elem_size,
+        .frozen = frozen,
+        .growth_factor = growth_factor
+    };
+
     return array;
+}
+
+void agfactor(float growth_factor, struct array *array) {
+    assert(growth_factor > 1);
+    array->growth_factor = growth_factor;
+}
+
+void afreeze(struct array *array) {
+    array->frozen = true;
+}
+
+void asort(int (*compare)(const void *a, const void *b), struct array *array) {
+    qsort(array->buf, array->i, array->elem_size, compare);
 }
 
 void *at(size_t i, struct array *array) {
@@ -49,10 +74,12 @@ static bool should_shrink(struct array *array) {
 }
 
 static void ensure_memory(struct array *array) {
-    if (should_grow(array)) {
-        aresize(ceil(array->size * array->growth_factor), array);
-    } else if (should_shrink(array)) {
-        aresize(ceil(array->size * SHRINK_FACTOR), array);
+    if (!array->frozen) {
+        if (should_grow(array)) {
+            aresize(ceil(array->size * array->growth_factor), array);
+        } else if (should_shrink(array)) {
+            aresize(ceil(array->size * SHRINK_FACTOR), array);
+        }
     }
 }
 

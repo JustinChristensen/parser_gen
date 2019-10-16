@@ -1,0 +1,59 @@
+Best I can tell, Flex takes this approach to representing NFA states
+
+Intro to Algos, page 241:
+
+We can represent a collection of objects that have the same attributes by using an array for each attribute.
+As an example, Figure 10.5 shows how we can implement the linked list of Figure 10.3(a) with three arrays.
+The array key holds the values of the keys currently in the dynamic set, and the pointers reside in the arrays next and prev.
+For a given array index x, the array entries key[x], next[x], and prev[x]􏰀represent an object in the linked list.
+Under this interpretation, a pointer x is simply a common index into the key, next, and prev arrays.
+
+With a multiple array implementation you can implement your own garbage collection (or storage manager) that keeps track
+of storage locations in the data structure that are actually being used, and those that are free.
+
+With sets, objects contain a "key" attribute.
+
+Operations:
+iterate(S)      <- for hash table, proportional to the number of keys? or the allocated size of the array? hash table doesn't maintain order
+member(S, k)
+find(S, k)
+insert(S, k)
+delete(S, k)
+equals(S1, S2)  <- ordered set?
+union(S1, S2)
+intersection(S1, S2)
+empty(S)
+
+For DFA/NFA/LR Parser states, the state number is the key
+For automata generally, the state number is the key when handling sets of states
+
+Hash Table
+h(k) hashes k to h(k)
+
+Collision Resolution:
+Chaining, use a linked list at h(k)
+
+Simple Uniform Hashing
+
+Division method of hashing: only use certain numbers for allocated array length (avoid powers of 2)
+
+For instance, a set of 2000 character strings could be slotted into 701 buckets (prime not near the nearest powers of 512, 1024)
+So, h(k) = k % 701
+
+Open Addressing, where we compute the sequence of slots that can be occupied
+We "probe" for an empty slot
+    Linear Probing
+    Quadratic Probing
+    Double Hashing
+
+https://en.wikipedia.org/wiki/Universal_hashing
+
+Size balanced binary tree?
+Red-black tree?
+
+Perfect Hashing?
+Compute a perfect hash function at runtime?
+
+Patricia Trees?
+
+

@@ -1,0 +1,77 @@
+λ: 25 `shiftL` 6 .|. 63
+1663
+λ: 12 `shiftL` 6 .|. 63
+831
+λ: prefixOf $ 25 `shiftL` 6 .|. 63
+1600
+λ: prefixOf $ 12 `shiftL` 6 .|. 63
+768
+λ: 25 `shiftL` 6            <-- prefix
+1600
+λ: 12 `shiftL` 6            <-- prefix
+768
+
+λ: bitmapOf $ 25 `shiftL` 6 .|. 63
+9223372036854775808
+1000000000000000000000000000000000000000000000000000000000000000
+λ: bitmapOf $ 12 `shiftL` 6 .|. 63
+9223372036854775808
+1000000000000000000000000000000000000000000000000000000000000000
+↑
+bitmap 63 (tip mask)
+
+Bin (prefix, bitmap, left (not nil), right (not nil))
+Tip (prefix, bitmap)
+
+branchMask 1600 768
+1024
+10000000000
+11001000000
+01100000000
+
+00100000000
+11001000000
+11100000000
+
+Link takes two Tips with differing prefixes (key prefix), and existing tip prefix, and creates a branch
+node with
+
+Branchmask is the position from the left where the two prefixes differ
+
+(bin) p: 0 m: 128
+(bin) p: 0 m: 64
+(tip) p: 0 m: 1
+(tip) p: 64 m: 1
+(tip) p: 128 m: 1
+λ: putStrLn $ showTree $ t
+*
++--*
+|  +-- 0 + [0]
+|  +-- 64 + [0]
++-- 128 + [0]
+
+
+λ: tfields $ fromList [20, 133, 206, 309]
+(bin) p: 0 m: 128
+    (bin) p: 0 m: 256
+        (tip) p: 0 m: 1048576
+        (bin) p: 128 m: 64
+            (tip) p: 128 m: 32
+            (tip) p: 192 m: 16384
+    (tip) p: 256 m: 9007199254740992
+
+(bin) p: 0 m: 010000000
+    (bin) p: 0 m: 100000000
+        (tip) p: 0 m: 100000000000000000000
+        (bin) p: 10000000 m: 1000000
+            (tip) p: 10000000 m: 100000
+            (tip) p: 11000000 m: 100000000000000
+    (tip) p: 100000000 m: 100000000000000000000000000000000000000000000000000000
+λ: putStrLn $ showTree $ fromList [20, 133, 206, 309]
+*
++--*
+|  +-- 0 + [20]
+|  +--*
+|     +-- 128 + [5]
+|     +-- 192 + [14]
++-- 256 + [53]

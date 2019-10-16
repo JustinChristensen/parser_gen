@@ -2,7 +2,8 @@
 #define REGEX_DFA_H_ 1
 
 #include <stdbool.h>
-#include <base/array.h> #include "result_types.h"
+#include <base/array.h>
+#include "result_types.h"
 #include "parser.h"
 
 struct dfa_state {

@@ -49,14 +49,21 @@ x    1111100000 000000
      0000000000 000000
 */
 
-#define BIT ((uint64_t) 1)
+#define BIT UINT64_C(1)
+#define WORDBITS 64
 #define SUFFIX_MASK (0b111111)
 #define PREFIX_MASK (~SUFFIX_MASK)
 
 struct intset {
+    // everything but the trailing 6 bits
     uint64_t pfix;
+    // either a branch mask (branch) or a bitmap (leaf)
+    // branch mask is the highest order bit where the children differ
+    // bitmap is a bitmap of the trailing 6 bits of each key '|'ed together
     uint64_t mask;
+    // branch mask & key is zero (less)
     struct intset *left;
+    // branch mask & key is one (greater)
     struct intset *right;
 };
 
@@ -70,8 +77,10 @@ struct intset *isinsert(int k, struct intset *set);
 // struct intset *isintersection(struct intset *a, struct intset const *b);
 // bool isdisjoint(struct intset *a, struct intset const *b);
 // bool isnull(struct intset const *a);
-// size_t issize(struct intset const *a);
+size_t issize(struct intset const *set);
+size_t isnodesize(struct intset const *set);
 void print_intset(struct intset const *set);
+void print_intset_tree(struct intset const *set, int depth);
 void free_intset(struct intset *set);
 
 #endif // BASE_INTSET_H_

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "base/string.h"
 
 struct sizenl numlines(char *str) {
@@ -33,3 +34,6 @@ char *putln(char *str, char *s) {
     return str;
 }
 
+void indent(int n) {
+    while (n-- > 0) printf("    ");
+}

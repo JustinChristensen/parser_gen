@@ -4,7 +4,11 @@ PROG := bits
 all: $(PROG)
 
 $(PROG): main.c
-	$(CC) -o $@ $+
+	$(CC) -g -O0 -Wall -o $@ $+
+
+.PHONY: clean
+clean:
+	rm -rf $(PROG) *.dSYM
 
 
 

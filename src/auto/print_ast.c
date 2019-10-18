@@ -1,13 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <base/string.h>
 #include <regex/ast.h>
 #include <regex/parser.h>
 #include "print_ast.h"
-
-static void indent(int n) {
-    while (n-- > 0) printf("    ");
-}
 
 void print_expr(struct expr *expr) {
     // expression stack

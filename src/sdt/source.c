@@ -14,7 +14,7 @@ void print_source(FILE *handle, void *ast, char *(*to_source) (char *srcbuf, int
 
 #define INDENT ' '
 #define INDENT_NUM 4
-static char *indent(char *srcbuf, int indent_level) {
+static char *_indent(char *srcbuf, int indent_level) {
     return repeat(srcbuf, INDENT, indent_level * INDENT_NUM);
 }
 
@@ -26,11 +26,11 @@ char *block_to_source(char *srcbuf, int indent_level, struct block *block) {
     srcbuf = putln(srcbuf, "{");
     indent_level++;
     for (struct node *node = head(block->stmts); node; node = next(node)) {
-        srcbuf = indent(srcbuf, indent_level);
+        srcbuf = _indent(srcbuf, indent_level);
         srcbuf = stmt_to_source(srcbuf, indent_level, value(node));
     }
     indent_level--;
-    srcbuf = indent(srcbuf, indent_level);
+    srcbuf = _indent(srcbuf, indent_level);
     srcbuf = putln(srcbuf, "}");
     return srcbuf;
 }
@@ -82,7 +82,7 @@ char *while_stmt_to_source(char *srcbuf, int indent_level, struct while_stmt *st
 char *do_stmt_to_source(char *srcbuf, int indent_level, struct do_stmt *stmt) {
     srcbuf = put(srcbuf, "do ");
     srcbuf = stmt_to_source(srcbuf, indent_level, stmt->stmt);
-    srcbuf = indent(srcbuf, indent_level);
+    srcbuf = _indent(srcbuf, indent_level);
     srcbuf = put(srcbuf, "while (");
     srcbuf = expr_to_source(srcbuf, indent_level, stmt->expr);
     srcbuf = putln(srcbuf, ");");

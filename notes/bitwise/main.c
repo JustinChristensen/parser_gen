@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #define BIT ((uint64_t)1)
 #define SUFFIX_MASK (0b111111)
@@ -14,13 +15,30 @@ uint64_t suffix(int k) {
     return k & SUFFIX_MASK;
 }
 
+int64_t prefix2(int k) {
+    return k & PREFIX_MASK;
+}
+
+int64_t suffix2(int k) {
+    return k & SUFFIX_MASK;
+}
+
 uint64_t bitmap(int k) {
     return BIT << suffix(k);
 }
 
+// __builtin_clz is undefined for 0
+int clz(int i) {
+    return i ? __builtin_clzll(i) : 64;
+}
+
+int ctzll(uint64_t i) {
+    return i ? __builtin_ctzll(i) : 64;
+}
+
 // most significant bit position
 int msbpos(int i) {
-    return (64 - 1) - __builtin_clzll(i);
+    return (64 - 1) - clz(i);
 }
 
 // most significant bit mask
@@ -37,55 +55,45 @@ uint64_t mask(int i, uint64_t m) {
 }
 
 int main(int argc, char *argv[]) {
-    printf("prefix: %llu, suffix: %llu\n", prefix(1663), suffix(1663));
-    printf("prefix: %llu, suffix: %llu\n", prefix(831), suffix(831));
-    printf("bitmap: %llu\n", bitmap(1663));
-    printf("bitmap: %llu\n", bitmap(831));
+    printf("prefix: %"PRIu64", suffix: %"PRIu64"\n", prefix(1663), suffix(1663));
+    printf("prefix: %"PRIu64", suffix: %"PRIu64"\n", prefix(831), suffix(831));
+    printf("bitmap: %"PRIu64"\n", bitmap(1663));
+    printf("bitmap: %"PRIu64"\n", bitmap(831));
+    printf("bitmap: %"PRIu64"\n", bitmap(0));
 
     int bpos = 32 - 1 - __builtin_clz(1663);
     printf("32: 1663 clz: %d, bpos : %d\n", __builtin_clz(1663), bpos);
     bpos = 64 - 1 - __builtin_clzll(1663);
     printf("64: 1663 clz: %d, bpos : %d\n", __builtin_clzll(1663), bpos);
 
-    printf("branch_mask: %llu\n", branch_mask(1663, 768));
+    printf("branch_mask: %"PRIu64"\n", branch_mask(1663, 768));
 
-    uint64_t p, n, b, m;
-    p = n = b = m = 0;
-    for (int i = 0; i < 511; i++) {
-        printf("p: %llu, b: %llu, m: %llu\n", p, b, m);
+    printf("prefix: %"PRIu64"\n", prefix(-1));
 
-        n = prefix(i);
-        b = branch_mask(p, n);
-        m = mask(n, b);
-        p = n;
+    for (int i = 0; i < 64; i++) {
+        printf("prefix2: %"PRId64"\n", prefix2(-i));
     }
 
-    // int x = 0b101011000011; // 2755
-    // int y = 0b000000000011; // 3
-    // printf("x: %d, y: %d\n", x, y);
-    // printf("x: %d, x & ~y: %d\n", x, x & ~y);
+    printf("uint64 to int64 cast: %"PRId64"\n", (int64_t) 0b1111111111111111111111111111111111111111111111111111111100000000);
+    printf("__builtin_clzll(0) %d\n", __builtin_clzll(0));
 
-    // int t = 0;
-    // for (int i = 0; i < 15; i++) {
-    //     printf("%d ", t);
-    //     t |= (1 << i);
-    // }
-    // printf("\n");
+    uint64_t pfix = UINT64_C(18446744073709551552);
+    uint64_t bitmap = 0b1111111111111111111111111111111111111111111111111111111111111111;
 
-    // int z = 255;
-    // unsigned char *zp = (unsigned char *) &z;
+    for (int i = 0; i < 64; i++) {
+        uint64_t x = (UINT64_C(1) << i) & bitmap;
+        if (x) {
+            printf("%"PRId64" ", pfix | ctzll(x));
+        }
+    }
+    printf("\n");
 
-    // printf("%p %p\n", zp, (zp + 3));
-    // if ((int) *zp == 255) {
-    //     printf("little endian\n");
-    // } else if ((int) *(zp + 3) == 255) {
-    //     printf("big endian\n");
-    // }
+    printf("pfix is negative?: %s\n", (int64_t) pfix < 0 ? "yes" : "no");
 
-    // int a = 0b11100111111;
-    // int b = 0b10100111111;
-
-    // printf("%d %d\n", a, b);
+    printf("%"PRId64" ", UINT64_C(18446744073709551360));
+    printf("%"PRId64" ", UINT64_C(18446744073709551424));
+    printf("%"PRId64" ", UINT64_C(18446744073709551488));
+    printf("%"PRId64" ", UINT64_C(18446744073709551552));
 
     return 0;
 }

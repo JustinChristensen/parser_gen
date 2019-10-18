@@ -5,8 +5,9 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include "base/intset.h"
+#include "base/string.h"
 
-static bool left(uint64_t i, uint64_t m) {
+static bool zero(uint64_t i, uint64_t m) {
     return (i & m) == 0;
 }
 
@@ -20,14 +21,24 @@ static uint64_t suffix(int i) {
     return i & SUFFIX_MASK;
 }
 
-// 000 (0), 001 (1), 010 (2), 100 (3), etc...
+// 001 (0), 010 (1), 100 (2), etc...
 static uint64_t bitmap(int i) {
     return BIT << suffix(i);
 }
 
+// builtins are undefined for 0
+static int clzll(int i) {
+    return i ? __builtin_clzll(i) : WORDBITS;
+}
+
+// used to map the leaf node bitmap back to integer values
+static int ctzll(uint64_t i) {
+    return i ? __builtin_ctzll(i) : WORDBITS;
+}
+
 // most significant bit position
 static int msbpos(int i) {
-    return (64 - 1) - __builtin_clzll(i);
+    return (WORDBITS - 1) - clzll(i);
 }
 
 // most significant bit mask
@@ -43,9 +54,13 @@ static uint64_t branch_mask(int i, int j) {
     return msbmask(i ^ j);
 }
 
-// i should read the paper...
-static uint64_t mask(int i, uint64_t m) {
-    return i & (~(m - 1) ^ m);
+// get the leading bits of the key up to the branch bit
+static uint64_t mask(int i, uint64_t bmask) {
+    return i & (~(bmask - 1) ^ bmask);
+}
+
+static bool prefix_matches(uint64_t kfix, struct intset const *set) {
+    return mask(kfix, set->mask) == set->pfix;
 }
 
 struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
@@ -66,7 +81,7 @@ static struct intset *link(uint64_t kfix, struct intset *newleaf, struct intset 
     struct intset *right = newleaf;
     uint64_t brm = branch_mask(kfix, set->pfix);
 
-    if (left(kfix, brm)) {
+    if (zero(kfix, brm)) {
         right = set;
         set = newleaf;
     }
@@ -74,22 +89,23 @@ static struct intset *link(uint64_t kfix, struct intset *newleaf, struct intset 
     return init_intset(mask(kfix, brm), brm, set, right);
 }
 
-static struct intset *_isinsert(uint64_t kfix, uint64_t bm, struct intset *set) {
+static struct intset *_isinsert(uint64_t kfix, uint64_t bitmap, struct intset *set) {
     if (!set) { // nil
-        set = init_intset(kfix, bm, NULL, NULL);
+        set = init_intset(kfix, bitmap, NULL, NULL);
     } else if (set->left) { // branch node
-        if (mask(kfix, set->mask) != set->pfix) {
-            set = link(kfix, init_intset(kfix, bm, NULL, NULL), set);
-        } else if (left(kfix, set->mask)) {
-            set->left = _isinsert(kfix, bm, set->left);
-        } else {
-            set->right = _isinsert(kfix, bm, set->right);
+        // do the key's prefix and branch prefix match?
+        if (!prefix_matches(kfix, set)) {
+            set = link(kfix, init_intset(kfix, bitmap, NULL, NULL), set);
+        } else if (zero(kfix, set->mask)) { // less than, go left
+            set->left = _isinsert(kfix, bitmap, set->left);
+        } else { // otherwise, go right
+            set->right = _isinsert(kfix, bitmap, set->right);
         }
     } else  { // leaf node
         if (set->pfix == kfix) {
-            set->mask |= bm;
+            set->mask |= bitmap;
         } else {
-            set = link(kfix, init_intset(kfix, bm, NULL, NULL), set);
+            set = link(kfix, init_intset(kfix, bitmap, NULL, NULL), set);
         }
     }
 
@@ -117,19 +133,57 @@ struct intset *isinsert(int k, struct intset *set) {
 //
 // bool isnull(struct intset const *a) {
 // }
-//
-// size_t issize(struct intset const *a) {
-// }
+
+// size_t issize(struct intset const *set) {}
+
+static size_t _isnodesize(struct intset const *set, int n) {
+    if (!set) return n;
+    n++;
+    n = _isnodesize(set->left, n);
+    return _isnodesize(set->right, n);
+}
+
+size_t isnodesize(struct intset const *set) {
+    return _isnodesize(set, 0);
+}
+
+static void _print_intset(struct intset const *set) {
+    if (!set) return;
+
+    if (set->left) {
+        _print_intset(set->left);
+        _print_intset(set->right);
+    } else {
+        uint64_t x;
+        for (int i = 0; i < WORDBITS; i++) {
+            x = set->mask & (BIT << i);
+            if (x) printf("%"PRId64" ", set->pfix | ctzll(x));
+        }
+    }
+}
 
 void print_intset(struct intset const *set) {
     if (!set) return;
+
+    if (set->pfix > INT64_MAX) {
+        _print_intset(set->left);
+        _print_intset(set->right);
+    } else {
+        _print_intset(set->right);
+        _print_intset(set->left);
+    }
+}
+
+void print_intset_tree(struct intset const *set, int depth) {
+    if (!set) return;
+    indent(depth);
     printf("%s %p (%" PRIu64 ", %" PRIu64 ")\n",
             set->left ? "branch" : "leaf",
             set, set->pfix, set->mask);
-    print_intset(set->left);
-    print_intset(set->right);
+    depth++;
+    print_intset_tree(set->left, depth);
+    print_intset_tree(set->right, depth);
 }
-
 
 void free_intset(struct intset *set) {
     if (!set) return;
@@ -137,5 +191,3 @@ void free_intset(struct intset *set) {
     free_intset(set->right);
     free(set);
 }
-
-

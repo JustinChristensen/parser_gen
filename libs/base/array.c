@@ -6,17 +6,8 @@
 #include <stdbool.h>
 #include "base/array.h"
 
-struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor) {
-    size = size ? size : 1;
-    frozen = frozen || false;
-    growth_factor = growth_factor ? growth_factor : GROWTH_FACTOR;
-
-    struct array *arr = malloc(sizeof *arr);
-    assert(arr != NULL);
-    void *buf = calloc(size, elem_size);
-    assert(buf != NULL);
-
-    *arr = (struct array) {
+struct array array(void *buf, size_t elem_size, size_t size, bool frozen, float growth_factor) {
+    return (struct array) {
         .buf = buf,
         .i = 0,
         .initsize = size,
@@ -25,6 +16,20 @@ struct array *init_array(size_t elem_size, size_t size, bool frozen, float growt
         .frozen = frozen,
         .growth_factor = growth_factor
     };
+}
+
+struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor) {
+    size = size ? size : 1;
+    frozen = frozen || false;
+    growth_factor = growth_factor ? growth_factor : GROWTH_FACTOR;
+
+    void *buf = calloc(size, elem_size);
+    assert(buf != NULL);
+
+    struct array *arr = malloc(sizeof *arr);
+    assert(arr != NULL);
+
+    *arr = array(buf, elem_size, size, frozen, growth_factor);
 
     return arr;
 }
@@ -102,6 +107,12 @@ static void ensure_memory(struct array *arr) {
     }
 }
 
+void areset(struct array *arr) {
+    if (!arr) return;
+    arr->i = 0;
+    ensure_memory(arr);
+}
+
 void apush(void *elem, struct array *arr) {
     ensure_memory(arr);
     memcpy(at(arr->i, arr), elem, arr->elem_size);
@@ -122,7 +133,7 @@ bool aistop(void *elem, struct array *arr) {
     return atop(arr) == elem;
 }
 
-bool aempty(struct array *arr) {
+bool aempty(struct array const *arr) {
     return arr->i == 0;
 }
 

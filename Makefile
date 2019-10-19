@@ -1,15 +1,13 @@
-TARGETS := all run clean
+TARGETS := all clean
 SUBDIRS := \
-libs/base \
-libs/regex \
+libs \
 src/auto \
 src/parse \
-src/sdt
+src/sdt \
+test
 
-$(TARGETS): $(SUBDIRS)
-$(SUBDIRS):
-	$(MAKE) -C $@ $(MAKECMDGOALS)
+include make/subdirs.mk
 
-.PHONY: $(TARGETS) $(SUBDIRS)
-
-
+.PHONY: check
+check:
+	$(MAKE) -C ./test check

@@ -1,20 +1,12 @@
 TOPDIR := ../..
-include ../../make/*.mk
+include $(TOPDIR)/make/common_vars.mk
 
-LIB := libregex.so
+PROG := libregex.so
 LIBS += -lm
 
-.PHONY: all
-all: $(LIB)
+include $(TOPDIR)/make/common_targets.mk
 
-$(LIB): ast.c dfa.c nfa.c parser.c
+$(PROG): ast.c dfa.c nfa.c parser.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
-	ln -sf "$$(pwd)/$(LIB)" ~/lib/
-
-.PHONY: run
-run: ;
-
-.PHONY: clean
-clean:
-	rm -rf *.o $(LIB) *.dSYM
+	ln -sf "$$(pwd)/$(PROG)" ~/lib/

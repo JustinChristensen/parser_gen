@@ -1,10 +1,14 @@
-TOPDIR := ../..
+TOPDIR := ../../..
 include $(TOPDIR)/make/common_vars.mk
 
-PROG := auto
-LIBS += -lcgraph -lregex
+PROG := test_base
+LIBS += -lcgraph -lregex -lcheck
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): main.c dot.c print_ast.c
+$(PROG): main.c intset_test.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
+
+check: $(PROG)
+	./$(PROG)
+

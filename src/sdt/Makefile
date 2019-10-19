@@ -1,11 +1,10 @@
 TOPDIR := ../..
-include ../../make/*.mk
+include $(TOPDIR)/make/common_vars.mk
 
 PROG := sdt
 LIBS += -lcgraph
 
-.PHONY: all
-all: $(PROG)
+include $(TOPDIR)/make/common_targets.mk
 
 $(PROG): main.c ast.c dot.c gensource.c parser.c scanner.c source.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
@@ -26,7 +25,3 @@ program.svg: program.dot
 check-leaks: export LD_LIBRARY_PATH := $(LIBBASE_DIR)
 check-leaks: $(PROG)
 	$(VALGRIND) --leak-check=full ./$(PROG) ./program.txt
-
-.PHONY: clean
-clean:
-	rm -rf *.o $(PROG) *.dSYM

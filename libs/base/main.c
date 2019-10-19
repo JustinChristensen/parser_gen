@@ -9,37 +9,35 @@
 int main(int argc, char *argv[]) {
     struct intset *set = NULL;
 
-    for (int i = 0; i < INT_MAX >> 8; i++) {
+    for (int i = 0; i < INT_MAX >> 12; i++) {
         set = isinsert(i, set);
     }
-
-    // for (int i = 0; i < 128; i += 3) {
-    //     set = isinsert(i, set);
-    // }
-
-    // for (int i = 0; i >= -256; i -= 2) {
-    //     set = isinsert(i, set);
-    // }
 
     // set = isinsert(500000, set);
     // set = isinsert(12, set);
     // set = isinsert(13000, set);
     // set = isinsert(-65566, set);
+    // set = isinsert(-140000, set);
 
-    printf("size: %ld\n", istreesize(set));
-    printf("depth: %ld\n", istreedepth(set));
+    printf("size: %ld\n", issize(set));
+    printf("treesize: %ld\n", istreesize(set));
+    printf("treedepth: %ld\n", istreedepth(set));
+    // print_intset_tree(set);
 
-    // print_intset_tree(set, 0);
+    // struct intset_iterator it;
+    // if (isiterator(set, &it)) {
+    //     int i;
+    //     while (isnext(&i, &it)) {
+    //         printf("%d \n", i);
+    //     }
+    //     // iterate nodes
+    //     // iterate leafs
+    //         // iterate bitmap
+    //     // iterate ints
+    //     // iterate int64s
 
-    struct intset_iterator it;
-    if (isiterator(set, &it)) {
-        int i;
-        while (isnexti(&i, &it)) {
-            // printf("%d\n", i);
-        }
-
-        free_isiterator(&it);
-    }
+    //     free_isiterator(&it);
+    // }
 
     free_intset(set);
 

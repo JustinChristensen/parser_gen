@@ -39,10 +39,19 @@ struct intset_iterator {
 
 struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
 struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
-bool isiterator(struct intset *set, struct intset_iterator *it);
-bool isnextn(struct intset **out, struct intset_iterator *it);
-bool isnextl(int64_t *out, struct intset_iterator *it);
-bool isnexti(int *out, struct intset_iterator *it);
+bool isiterator(struct intset const *set, struct intset_iterator *it);
+// iterate the bitmap of a leaf
+bool isnext64bm(int64_t *out, struct intset_iterator *it);
+// iterate the bitmap of a leaf
+bool isnextbm(int *out, struct intset_iterator *it);
+// iterate nodes
+bool isnextn(struct intset const **out, struct intset_iterator *it);
+// iterate leafs
+bool isnextl(struct intset const **out, struct intset_iterator *it);
+// iterate int64s
+bool isnext64(int64_t *out, struct intset_iterator *it);
+// iterate ints
+bool isnext(int *out, struct intset_iterator *it);
 void reset_isiterator(struct intset_iterator *it);
 // bool iselem(int k, struct intset const *set);
 struct intset *isinsert(int k, struct intset *set);
@@ -51,14 +60,14 @@ struct intset *isinsert(int k, struct intset *set);
 // struct intset *isunion(struct intset *a, struct intset const *b);
 // struct intset *isintersection(struct intset *a, struct intset const *b);
 // bool isdisjoint(struct intset *a, struct intset const *b);
-// bool isnull(struct intset const *a);
+bool isnull(struct intset const *a);
 size_t issize(struct intset const *set);
 size_t istreesize(struct intset const *set);
 size_t istreedepth(struct intset const *set);
 void print_intset(struct intset const *set);
-void print_intset_tree(struct intset const *set, int depth);
-void free_intset(struct intset *set);
+void print_intset_tree(struct intset const *set);
 void free_isiterator(struct intset_iterator *it);
+void free_intset(struct intset *set);
 
 #endif // BASE_INTSET_H_
 

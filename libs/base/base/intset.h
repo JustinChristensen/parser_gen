@@ -15,11 +15,11 @@ https://en.wikipedia.org/wiki/Radix_tree
 
 struct intset {
     // everything but the trailing 6 bits
-    uint64_t pfix;
+    int64_t pfix;
     // either a branch mask (branch) or a bitmap (leaf)
     // branch mask is the highest order bit where the children differ
     // bitmap is a bitmap of the trailing 6 bits of each key '|'ed together
-    uint64_t mask;
+    int64_t mask;
     // branch mask & key is zero (less)
     struct intset *left;
     // branch mask & key is one (greater)
@@ -37,20 +37,12 @@ struct intset_iterator {
     int i;
 };
 
-struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
-struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
+struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
+struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
 bool isiterator(struct intset const *set, struct intset_iterator *it);
-// iterate the bitmap of a leaf
-bool isnext64bm(int64_t *out, struct intset_iterator *it);
-// iterate the bitmap of a leaf
-bool isnextbm(int *out, struct intset_iterator *it);
-// iterate nodes
 bool isnextn(struct intset const **out, struct intset_iterator *it);
-// iterate leafs
 bool isnextl(struct intset const **out, struct intset_iterator *it);
-// iterate int64s
-bool isnext64(int64_t *out, struct intset_iterator *it);
-// iterate ints
+bool isnextbm(int *out, struct intset_iterator *it);
 bool isnext(int *out, struct intset_iterator *it);
 void reset_isiterator(struct intset_iterator *it);
 // bool iselem(int k, struct intset const *set);

@@ -10,24 +10,24 @@
 #include "base/array.h"
 #include "base/bits.h"
 
-static bool bmchecki(uint64_t *out, uint64_t pfix, uint64_t bitmap, int i) {
+static bool bmchecki(int64_t *out, int64_t pfix, int64_t bitmap, int i) {
     // check the ith bit
-    uint64_t x = bitmap & (BIT << i);
+    int64_t x = bitmap & (BIT << i);
 
     // we found a set bit, notify the caller
     if (x) {
-        *out = pfix | ctzll(x);
+        *out = pfix | ctz(x);
         return true;
     }
 
     return false;
 }
 
-struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
+struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
     return (struct intset) { pfix, mask, left, right };
 }
 
-struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
+struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
     struct intset *set = malloc(sizeof *set);
     assert(set != NULL);
     *set = intset(pfix, mask, left, right);
@@ -41,35 +41,6 @@ bool isiterator(struct intset const *set, struct intset_iterator *it) {
     it->i = 0;
     apush(&set, it->stack);
     return true;
-}
-
-bool isnext64bm(int64_t *out, struct intset_iterator *it) {
-    if (!out || !it || !it->set) return false;
-
-    struct intset *set = it->set;
-
-    // reset the counter
-    if (it->i >= WORDBITS)
-        it->i = 0;
-
-    uint64_t x;
-    for (int i = it->i; i < WORDBITS; (it->i = ++i)) {
-        if (bmchecki(&x, set->pfix, set->mask, i)) {
-            it->i++;
-            *out = x;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool isnextbm(int *out, struct intset_iterator *it) {
-    if (!out || !it) return false;
-    int64_t i;
-    bool res = isnext64bm(&i, it);
-    *out = (int) i;
-    return res;
 }
 
 // iterate all nodes
@@ -89,12 +60,12 @@ bool isnextn(struct intset const **out, struct intset_iterator *it) {
         if (set->left) {
             // if we're not at the root or the prefix is not negative
             // go right first (larger numbers)
-            if (!it->root || set->pfix <= INT64_MAX) {
-                apush(&set->left, stack);
+            if (!it->root || set->pfix > 0) {
                 apush(&set->right, stack);
+                apush(&set->left, stack);
             } else { // go left first to list negatives
-                apush(&set->right, stack);
                 apush(&set->left, stack);
+                apush(&set->right, stack);
             }
         }
 
@@ -128,7 +99,28 @@ bool isnextl(struct intset const **out, struct intset_iterator *it) {
     return res;
 }
 
-bool isnext64(int64_t *out, struct intset_iterator *it) {
+bool isnextbm(int *out, struct intset_iterator *it) {
+    if (!out || !it || !it->set) return false;
+
+    struct intset *set = it->set;
+
+    // reset the counter
+    if (it->i >= WORDBITS)
+        it->i = 0;
+
+    int64_t x;
+    for (int i = it->i; i < WORDBITS; (it->i = ++i)) {
+        if (bmchecki(&x, set->pfix, set->mask, i)) {
+            it->i++;
+            *out = (int) x;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool isnext(int *out, struct intset_iterator *it) {
     if (!out || !it) return false;
     struct intset const *set = it->set;
 
@@ -140,16 +132,8 @@ bool isnext64(int64_t *out, struct intset_iterator *it) {
             }
         }
 
-        if (isnext64bm(out, it)) return true;
+        if (isnextbm(out, it)) return true;
     }
-}
-
-bool isnext(int *out, struct intset_iterator *it) {
-    if (!out || !it) return false;
-    int64_t i;
-    bool res = isnext64(&i, it);
-    *out = (int) i;
-    return res;
 }
 
 void reset_isiterator(struct intset_iterator *it) {
@@ -161,9 +145,9 @@ void reset_isiterator(struct intset_iterator *it) {
 // bool iselem(int k, struct intset const *set) {
 // }
 
-static struct intset *link(uint64_t kfix, struct intset *newleaf, struct intset *set) {
+static struct intset *link(int64_t kfix, struct intset *newleaf, struct intset *set) {
     struct intset *right = newleaf;
-    uint64_t brm = branch_mask(kfix, set->pfix);
+    int64_t brm = branch_mask(kfix, set->pfix);
 
     if (zero(kfix, brm)) {
         right = set;
@@ -173,11 +157,11 @@ static struct intset *link(uint64_t kfix, struct intset *newleaf, struct intset 
     return init_intset(mask(kfix, brm), brm, set, right);
 }
 
-static bool prefix_matches(uint64_t kfix, struct intset const *set) {
+static bool prefix_matches(int64_t kfix, struct intset const *set) {
     return mask(kfix, set->mask) == set->pfix;
 }
 
-static struct intset *_isinsert(uint64_t kfix, uint64_t bitmap, struct intset *set) {
+static struct intset *_isinsert(int64_t kfix, int64_t bitmap, struct intset *set) {
     if (!set) { // nil
         set = init_intset(kfix, bitmap, NULL, NULL);
     } else if (set->left) { // branch node
@@ -231,8 +215,8 @@ size_t issize(struct intset const *set) {
 
     struct intset_iterator it;
     if (isiterator(set, &it)) {
-        int64_t x;
-        while (isnext64(&x, &it)) n++;
+        int x;
+        while (isnext(&x, &it)) n++;
         free_isiterator(&it);
     }
 
@@ -268,9 +252,9 @@ void print_intset(struct intset const *set) {
 
     struct intset_iterator it;
     if (isiterator(set, &it)) {
-        int64_t x;
-        while (isnext64(&x, &it)) {
-            printf("%"PRId64" ", x);
+        int x;
+        while (isnext(&x, &it)) {
+            printf("%d ", x);
         }
 
         free_isiterator(&it);
@@ -280,7 +264,7 @@ void print_intset(struct intset const *set) {
 static void _print_intset_tree(struct intset const *set, int depth) {
     if (!set) return;
     indent(depth);
-    printf("%s %p (%" PRIu64 ", %" PRIu64 ")\n",
+    printf("%s %p (%" PRId64 ", %" PRIu64 ")\n",
             set->left ? "branch" : "leaf",
             set, set->pfix, set->mask);
     depth++;

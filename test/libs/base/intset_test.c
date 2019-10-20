@@ -1,6 +1,7 @@
 #include <check.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <limits.h>
 #include <base/intset.h>
 #include "test_base.h"
@@ -34,12 +35,19 @@ END_TEST
 START_TEST(test_isinsert) {
     add_elements();
     ck_assert_msg(isnull(set) == false, "set is not null");
-    ck_assert_msg(issize(set) == 5, "set has five elements");
+    ck_assert_msg(issize(set) == 5, "set has 5 elements");
     ck_assert_msg(istreesize(set) == 7, "set has 7 nodes");
-    ck_assert_msg(istreedepth(set) == 3, "set has depth of 3");
+    ck_assert_msg(istreedepth(set) == 3, "set has depth of 4");
 }
 END_TEST
 
+START_TEST(test_print_intset) {
+    add_elements();
+    print_intset(set);
+    printf("\n");
+}
+
+END_TEST
 START_TEST(test_print_intset_tree) {
     add_elements();
     print_intset_tree(set);
@@ -55,6 +63,7 @@ Suite *intset_suite()
     tcase_add_test(tc_core, test_null_intset);
     tcase_add_test(tc_core, test_isinsert);
     tcase_add_test(tc_core, test_print_intset_tree);
+    tcase_add_test(tc_core, test_print_intset);
     suite_add_tcase(s, tc_core);
 
     return s;

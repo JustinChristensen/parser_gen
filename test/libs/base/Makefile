@@ -2,7 +2,7 @@ TOPDIR := ../../..
 include $(TOPDIR)/make/common_vars.mk
 
 PROG := test_base
-LIBS += -lcgraph -lregex -lcheck
+LIBS += -lcheck
 
 include $(TOPDIR)/make/common_targets.mk
 

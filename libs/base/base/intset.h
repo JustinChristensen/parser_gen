@@ -7,9 +7,28 @@
 #include "base/array.h"
 #include "base/bits.h"
 
-/*
-https://en.wikipedia.org/wiki/Radix_tree
-*/
+/**
+ * https://en.wikipedia.org/wiki/Radix_tree
+ *
+ * Insert(key, set):
+ *
+ * If set is null:
+ *      init leaf node with prefix(key) and bitmap(key)
+ * If set is a branch node:
+ *      If prefix_upto_branch_bit(key, set->branch_mask) does not equal set->prefix
+ *          init leaf node with prefix(key) and bitmap(key)
+ *          compute branch_mask for the new key's prefix and current set
+ *          init branch node with prefix_upto_branch_bit
+ *      Else If the branch bit does not match the key prefix
+ *          Insert(key, set->left)
+ *      Else
+ *          Insert(key, set->right)
+ *  If set is a leaf node:
+ *      If prefix(key) == set->prefix
+ *          set->bitmap |= bitmap(key)
+ *      Else
+ *          Init leaf node with prefix(key) and bitmap(key)
+ */
 
 #define IT_STACK_SIZE 64
 
@@ -30,9 +49,11 @@ struct intset_iterator {
     // the stack
     struct array *stack;
     // are we at the root? to order negative numbers
-    bool root;
+    bool at_root;
+    // cached root set for multiple iteration
+    struct intset const *root;
     // current set for bitmap iteration
-    struct intset *set;
+    struct intset const *set;
     // the bitmap iterator
     int i;
 };
@@ -40,13 +61,14 @@ struct intset_iterator {
 struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
 struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
 bool isiterator(struct intset const *set, struct intset_iterator *it);
-bool isnextn(struct intset const **out, struct intset_iterator *it);
-bool isnextl(struct intset const **out, struct intset_iterator *it);
-bool isnextbm(int *out, struct intset_iterator *it);
+bool isnextnode(struct intset const **out, struct intset_iterator *it);
+bool isnextleaf(struct intset const **out, struct intset_iterator *it);
+bool isnextbitmap(int *out, struct intset_iterator *it);
 bool isnext(int *out, struct intset_iterator *it);
 void reset_isiterator(struct intset_iterator *it);
-// bool iselem(int k, struct intset const *set);
+bool iselem(int k, struct intset const *set);
 struct intset *isinsert(int k, struct intset *set);
+struct intset *isinsert_list(int *k, size_t n, struct intset *set);
 // void isdelete(int k, struct intset *set);
 // bool intseteq(struct intset const *a, struct intset const *b);
 // struct intset *isunion(struct intset *a, struct intset const *b);

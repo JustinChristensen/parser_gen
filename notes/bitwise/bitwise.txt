@@ -75,3 +75,15 @@ Branchmask is the position from the left where the two prefixes differ
 |     +-- 128 + [5]
 |     +-- 192 + [14]
 +-- 256 + [53]
+
+0101 0000 0000  prefix(set)
+1011 0010 0000  prefix(key)
+0001 0000 0000  bmask =branch_mask(node)
+0000 1111 1111  bmask - 1
+1111 0000 0000  ~(bmask - 1)
+1110 0000 0000  prefix_mask_upto_bmask = ~(bmask - 1) ^ bmask
+1010 0000 0000  prefix_upto_bmask = prefix_mask_upto_bmask & prefix(key)
+
+
+
+

@@ -10,6 +10,18 @@
 #include "base/array.h"
 #include "base/bits.h"
 
+static bool is_branch(struct intset const *set) {
+    return set->left != NULL;
+}
+
+static bool is_leaf(struct intset const *set) {
+    return set->left == NULL;
+}
+
+static bool prefix_upto_branch_matches(int64_t kfix, struct intset const *set) {
+    return prefix_upto_branch(kfix, set->mask) == set->pfix;
+}
+
 static bool bmchecki(int64_t *out, int64_t pfix, int64_t bitmap, int i) {
     // check the ith bit
     int64_t x = bitmap & (BIT << i);
@@ -39,14 +51,17 @@ bool isiterator(struct intset const *set, struct intset_iterator *it) {
     it->stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
     reset_isiterator(it);
     it->i = 0;
-    apush(&set, it->stack);
+    it->root = set;
     return true;
 }
 
 // iterate all nodes
-bool isnextn(struct intset const **out, struct intset_iterator *it) {
+bool isnextnode(struct intset const **out, struct intset_iterator *it) {
     if (!out || !it) return false;
     struct array *stack = it->stack;
+
+    // if we're at the root, push the root node onto the stack
+    if (it->at_root) apush(&it->root, it->stack);
 
     if (aempty(stack)) {
         *out = NULL;
@@ -57,10 +72,10 @@ bool isnextn(struct intset const **out, struct intset_iterator *it) {
 
         apop(&set, stack);
 
-        if (set->left) {
+        if (is_branch(set)) {
             // if we're not at the root or the prefix is not negative
             // go right first (larger numbers)
-            if (!it->root || set->pfix > 0) {
+            if (!it->at_root || set->pfix > 0) {
                 apush(&set->right, stack);
                 apush(&set->left, stack);
             } else { // go left first to list negatives
@@ -72,7 +87,7 @@ bool isnextn(struct intset const **out, struct intset_iterator *it) {
         // used by the bitmap and int iterators
         // DO NOT REMOVE
         it->set = set;
-        it->root = false;
+        it->at_root = false;
 
         // output
         *out = set;
@@ -82,14 +97,14 @@ bool isnextn(struct intset const **out, struct intset_iterator *it) {
 }
 
 // iterate leaf nodes
-bool isnextl(struct intset const **out, struct intset_iterator *it) {
+bool isnextleaf(struct intset const **out, struct intset_iterator *it) {
     if (!out || !it) return false;
     struct intset const *set = NULL;
     bool res = true;
 
-    while ((res = isnextn(&set, it))) {
+    while ((res = isnextnode(&set, it))) {
         // skip branches
-        if (set->left) continue;
+        if (is_branch(set)) continue;
         break;
     }
 
@@ -99,10 +114,10 @@ bool isnextl(struct intset const **out, struct intset_iterator *it) {
     return res;
 }
 
-bool isnextbm(int *out, struct intset_iterator *it) {
+bool isnextbitmap(int *out, struct intset_iterator *it) {
     if (!out || !it || !it->set) return false;
 
-    struct intset *set = it->set;
+    struct intset const *set = it->set;
 
     // reset the counter
     if (it->i >= WORDBITS)
@@ -126,24 +141,54 @@ bool isnext(int *out, struct intset_iterator *it) {
 
     while (true) {
         if (!set || it->i >= WORDBITS) {
-            if (!isnextl(&set, it)) {
+            if (!isnextleaf(&set, it)) {
                 it->i = 0;
                 return false;
             }
         }
 
-        if (isnextbm(out, it)) return true;
+        if (isnextbitmap(out, it)) return true;
     }
 }
 
 void reset_isiterator(struct intset_iterator *it) {
-    it->root = true;
+    it->at_root = true;
     it->set = NULL;
     areset(it->stack);
 }
 
-// bool iselem(int k, struct intset const *set) {
-// }
+bool iselem(int k, struct intset const *set) {
+    struct array *stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
+    bool elem = false;
+    int64_t kfix = prefix(k),
+            bmap = bitmap(k);
+
+    apush(&set, stack);
+
+    while (!aempty(stack)) {
+        apop(&set, stack);
+
+        if (is_branch(set)) {
+            if (prefix_upto_branch_matches(kfix, set)) {
+                if (zero(kfix, set->mask)) {
+                    apush((void **) &set->left, stack);
+                } else {
+                    apush((void **) &set->right, stack);
+                }
+
+                continue;
+            }
+        } else if (set->pfix == kfix && (set->mask & bmap) != 0) {
+            elem = true;
+        }
+
+        break;
+    }
+
+    free_array(stack);
+
+    return elem;
+}
 
 static struct intset *link(int64_t kfix, struct intset *newleaf, struct intset *set) {
     struct intset *right = newleaf;
@@ -154,11 +199,9 @@ static struct intset *link(int64_t kfix, struct intset *newleaf, struct intset *
         set = newleaf;
     }
 
-    return init_intset(mask(kfix, brm), brm, set, right);
-}
-
-static bool prefix_matches(int64_t kfix, struct intset const *set) {
-    return mask(kfix, set->mask) == set->pfix;
+    // the new branch node will have the leading bits of the key
+    // up to the where the key and the keys in the branch diverge
+    return init_intset(prefix_upto_branch(kfix, brm), brm, set, right);
 }
 
 static struct intset *_isinsert(int64_t kfix, int64_t bitmap, struct intset *set) {
@@ -166,7 +209,7 @@ static struct intset *_isinsert(int64_t kfix, int64_t bitmap, struct intset *set
         set = init_intset(kfix, bitmap, NULL, NULL);
     } else if (set->left) { // branch node
         // do the key's prefix and branch prefix match?
-        if (!prefix_matches(kfix, set)) {
+        if (!prefix_upto_branch_matches(kfix, set)) {
             set = link(kfix, init_intset(kfix, bitmap, NULL, NULL), set);
         } else if (zero(kfix, set->mask)) { // branch does not match, go left
             set->left = _isinsert(kfix, bitmap, set->left);
@@ -187,6 +230,9 @@ static struct intset *_isinsert(int64_t kfix, int64_t bitmap, struct intset *set
 struct intset *isinsert(int k, struct intset *set) {
     return _isinsert(prefix(k), bitmap(k), set);
 }
+
+// struct intset *isinsert_list(int *k, size_t n, struct intset *set) {
+// }
 
 // void isdelete(int k, struct intset *set) {
 // }
@@ -230,7 +276,7 @@ size_t istreesize(struct intset const *set) {
 
     struct intset_iterator it;
     if (isiterator(set, &it)) {
-        while (isnextn(&set, &it)) n++;
+        while (isnextnode(&set, &it)) n++;
         free_isiterator(&it);
     }
 

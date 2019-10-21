@@ -21,6 +21,11 @@ int64_t bitmap(int i) {
     return BIT << suffix(i);
 }
 
+int unbitmap(int64_t bm) {
+    return ctz(bm);
+}
+
+
 // builtins are undefined for 0
 int clz(int i) {
     return i ? __builtin_clzll(i) : WORDBITS;
@@ -50,7 +55,7 @@ int64_t branch_mask(int i, int j) {
 }
 
 // get the leading bits of the key up to the branch bit
-int64_t mask(int i, int64_t bmask) {
+int64_t prefix_upto_branch(int i, int64_t bmask) {
     return i & (~(bmask - 1) ^ bmask);
 }
 

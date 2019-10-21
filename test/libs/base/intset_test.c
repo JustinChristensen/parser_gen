@@ -1,12 +1,31 @@
-#include <check.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
+#include <check.h>
 #include <base/intset.h>
+#include <base/array.h>
 #include "test_base.h"
 
 struct intset *set = NULL;
+
+void assert_branch(struct intset const *set) {
+    ck_assert_msg(set->left, "set node is a branch");
+}
+
+void assert_iter(
+    struct intset_iterator *it,
+    size_t stack_size,
+    bool is_root,
+    bool has_set,
+    int bm_iterator
+) {
+    ck_assert(asize(it->stack) == stack_size);
+    ck_assert(it->at_root == is_root);
+    ck_assert(has_set ? it->set != NULL : it->set == NULL);
+    ck_assert(it->i == bm_iterator);
+}
 
 void setup() {
 }
@@ -18,6 +37,7 @@ void teardown() {
 
 void add_elements() {
     set = isinsert(0, set);
+    set = isinsert(63, set);
     set = isinsert(63, set);
     set = isinsert(-50153, set);
     set = isinsert(INT_MIN, set);
@@ -32,6 +52,36 @@ START_TEST(test_null_intset) {
 }
 END_TEST
 
+START_TEST(test_iselem) {
+    int key_starts[] = { -413000, -2694, 0, 130, 12000 };
+    size_t n = sizeof key_starts / sizeof key_starts[0];
+    char msgbuf[BUFSIZ] = "";
+
+    int i;
+    for (i = 0; i < n; i++) {
+        int ks = key_starts[i];
+        for (int j = ks; j < ks + 128; j+=3) {
+            set = isinsert(j, set);
+        }
+    }
+
+    // print_intset_tree(set);
+    sprintf(msgbuf, "expected 215 elements, got %lu", issize(set));
+    ck_assert_msg(issize(set) == 215, msgbuf);
+
+    for (i = 0; i < n; i++) {
+        int ks = key_starts[i];
+        for (int j = key_starts[i]; j < ks + 128; j+=3) {
+            sprintf(msgbuf, "%d is not an element of the set", j);
+            ck_assert_msg(iselem(j, set), msgbuf);
+        }
+    }
+
+    ck_assert_msg(!iselem(129, set), "129 is not an element of the set");
+    ck_assert_msg(!iselem(-413001, set), "-413001 is not an element of the set");
+}
+END_TEST
+
 START_TEST(test_isinsert) {
     add_elements();
     ck_assert_msg(isnull(set) == false, "set is not null");
@@ -41,15 +91,55 @@ START_TEST(test_isinsert) {
 }
 END_TEST
 
+START_TEST(test_isnextnode) {
+    struct intset_iterator it;
+
+    set = isinsert(9000, set);
+    set = isinsert(-9000, set);
+
+    printf("isnextnode:\n");
+    print_intset_tree(set);
+
+    ck_assert(isiterator(set, &it));
+
+    // twice
+    for (int i = 0; i < 2; i++) {
+        struct intset const *x;
+        size_t n = 0;
+
+        // assert that the iterator is reset
+        assert_iter(&it, 0, true, false, 0);
+
+        while (isnextnode(&x, &it)) n++;
+
+        // assert we've visited each node
+        // one branch, and two leaf nodes
+        ck_assert(n == 3);
+    }
+
+    free_isiterator(&it);
+}
+END_TEST
+
 START_TEST(test_print_intset) {
     add_elements();
     print_intset(set);
     printf("\n");
 }
-
 END_TEST
+
 START_TEST(test_print_intset_tree) {
     add_elements();
+    printf("print_intset_tree:\n");
+    print_intset_tree(set);
+}
+END_TEST
+
+START_TEST(test_print_matching_prefixes) {
+    set = isinsert(0b01110000101000, set);
+    set = isinsert(0b01110000101011, set);
+    set = isinsert(0b01100000101111, set);
+    printf("test_print_matching_prefixes:\n");
     print_intset_tree(set);
 }
 END_TEST
@@ -60,10 +150,18 @@ Suite *intset_suite()
     TCase *tc_core = tcase_create("core");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
-    tcase_add_test(tc_core, test_null_intset);
-    tcase_add_test(tc_core, test_isinsert);
-    tcase_add_test(tc_core, test_print_intset_tree);
-    tcase_add_test(tc_core, test_print_intset);
+
+    if (getenv(RUN_DIAGNOSTICS)) {
+        tcase_add_test(tc_core, test_print_matching_prefixes);
+    } else {
+        tcase_add_test(tc_core, test_null_intset);
+        tcase_add_test(tc_core, test_iselem);
+        tcase_add_test(tc_core, test_isinsert);
+        tcase_add_test(tc_core, test_isnextnode);
+        tcase_add_test(tc_core, test_print_intset);
+        tcase_add_test(tc_core, test_print_intset_tree);
+    }
+
     suite_add_tcase(s, tc_core);
 
     return s;

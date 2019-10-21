@@ -12,13 +12,14 @@
 bool zero(int64_t i, int64_t m);
 int64_t prefix(int i);
 int64_t suffix(int i);
+int unbitmap(int64_t bm);
 int64_t bitmap(int i);
 int clz(int i);
 int ctz(int64_t i);
 int msbpos(int i);
 int64_t msbmask(int i);
 int64_t branch_mask(int i, int j);
-int64_t mask(int i, int64_t bmask);
+int64_t prefix_upto_branch(int i, int64_t bmask);
 
 #endif // BASE_BITS_H_
 

@@ -69,9 +69,7 @@ START_TEST(test_selem) {
         }
     }
 
-    // print_intset_tree(set);
-    sprintf(msgbuf, "expected 215 elements, got %lu", ssize(set));
-    ck_assert_msg(ssize(set) == 215, msgbuf);
+    ck_assert_int_eq(ssize(set), 215);
 
     for (i = 0; i < n; i++) {
         int ks = key_starts[i];
@@ -188,6 +186,27 @@ START_TEST(test_snext) {
 }
 END_TEST
 
+START_TEST(test_intseteq) {
+    struct intset *set2 = NULL;
+
+    for (int i = -100000; i < 100000; i += 1000) {
+        set = sinsert(i, set);
+        set2 = sinsert(i, set2);
+    }
+
+    ck_assert_int_eq(ssize(set), 200);
+    ck_assert_int_eq(ssize(set2), 200);
+    ck_assert_msg(intseteq(set, set2), "set 1 and set 2 are not equal");
+
+    free_intset(set2);
+    set2 = NULL;
+
+    ck_assert_msg(!intseteq(set, set2), "set 1 and 2 are equal");
+
+    free_intset(set2);
+}
+END_TEST
+
 START_TEST(test_print_intset) {
     add_elements();
     print_intset(set);
@@ -227,6 +246,7 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_snextnode);
         tcase_add_test(tc_core, test_snextbitmap);
         tcase_add_test(tc_core, test_snext);
+        tcase_add_test(tc_core, test_intseteq);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);
     }

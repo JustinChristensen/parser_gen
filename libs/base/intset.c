@@ -234,16 +234,46 @@ struct intset *slistinsert(int *k, size_t n, struct intset *set) {
 
 // void sdelete(int k, struct intset *set) {
 // }
-//
-// bool intseteq(struct intset const *a, struct intset const *b) {
-// }
-//
+
+bool intseteq(struct intset const *s, struct intset const *t) {
+    bool both = s && t;
+    bool eq = both || (s == NULL && t == NULL);
+
+    if (both) {
+        struct array *stack = init_array(sizeof s, IT_STACK_SIZE, 0, 0);
+
+        apush(&s, stack);
+        apush(&t, stack);
+
+        while (eq && !aempty(stack)) {
+            apop(&s, stack);
+            apop(&t, stack);
+
+            // branch nodes must always have two children
+            if (s == NULL && t == NULL) continue;
+
+            if (s->pfix == t->pfix && s->mask == t->mask) {
+                apush((void **) &s->right, stack);
+                apush((void **) &t->right, stack);
+                apush((void **) &s->left, stack);
+                apush((void **) &t->left, stack);
+            } else {
+                eq = false;
+            }
+        }
+
+        free_array(stack);
+    }
+
+    return eq;
+}
+
 // struct intset *sunion(struct intset *a, struct intset const *b) {
 // }
-//
+
 // struct intset *sintersection(struct intset *a, struct intset const *b) {
 // }
-//
+
 // bool sdisjoint(struct intset *a, struct intset const *b) {
 // }
 //

@@ -36,23 +36,23 @@ void teardown() {
 }
 
 void add_elements() {
-    set = isinsert(0, set);
-    set = isinsert(63, set);
-    set = isinsert(63, set);
-    set = isinsert(-50153, set);
-    set = isinsert(INT_MIN, set);
-    set = isinsert(INT_MAX, set);
+    set = sinsert(0, set);
+    set = sinsert(63, set);
+    set = sinsert(63, set);
+    set = sinsert(-50153, set);
+    set = sinsert(INT_MIN, set);
+    set = sinsert(INT_MAX, set);
 }
 
 START_TEST(test_null_intset) {
-    ck_assert_msg(isnull(set), "set is null");
-    ck_assert_msg(issize(set) == 0, "set has no elements");
-    ck_assert_msg(istreesize(set) == 0, "set has no nodes");
-    ck_assert_msg(istreedepth(set) == 0, "set has no depth");
+    ck_assert_msg(snull(set), "set is null");
+    ck_assert_msg(ssize(set) == 0, "set has no elements");
+    ck_assert_msg(streesize(set) == 0, "set has no nodes");
+    ck_assert_msg(streedepth(set) == 0, "set has no depth");
 }
 END_TEST
 
-START_TEST(test_iselem) {
+START_TEST(test_selem) {
     int key_starts[] = { -413000, -2694, 0, 130, 12000 };
     size_t n = sizeof key_starts / sizeof key_starts[0];
     char msgbuf[BUFSIZ] = "";
@@ -61,46 +61,46 @@ START_TEST(test_iselem) {
     for (i = 0; i < n; i++) {
         int ks = key_starts[i];
         for (int j = ks; j < ks + 128; j+=3) {
-            set = isinsert(j, set);
+            set = sinsert(j, set);
         }
     }
 
     // print_intset_tree(set);
-    sprintf(msgbuf, "expected 215 elements, got %lu", issize(set));
-    ck_assert_msg(issize(set) == 215, msgbuf);
+    sprintf(msgbuf, "expected 215 elements, got %lu", ssize(set));
+    ck_assert_msg(ssize(set) == 215, msgbuf);
 
     for (i = 0; i < n; i++) {
         int ks = key_starts[i];
         for (int j = key_starts[i]; j < ks + 128; j+=3) {
             sprintf(msgbuf, "%d is not an element of the set", j);
-            ck_assert_msg(iselem(j, set), msgbuf);
+            ck_assert_msg(selem(j, set), msgbuf);
         }
     }
 
-    ck_assert_msg(!iselem(129, set), "129 is not an element of the set");
-    ck_assert_msg(!iselem(-413001, set), "-413001 is not an element of the set");
+    ck_assert_msg(!selem(129, set), "129 is not an element of the set");
+    ck_assert_msg(!selem(-413001, set), "-413001 is not an element of the set");
 }
 END_TEST
 
-START_TEST(test_isinsert) {
+START_TEST(test_sinsert) {
     add_elements();
-    ck_assert_msg(isnull(set) == false, "set is not null");
-    ck_assert_msg(issize(set) == 5, "set has 5 elements");
-    ck_assert_msg(istreesize(set) == 7, "set has 7 nodes");
-    ck_assert_msg(istreedepth(set) == 3, "set has depth of 4");
+    ck_assert_msg(snull(set) == false, "set is not null");
+    ck_assert_msg(ssize(set) == 5, "set has 5 elements");
+    ck_assert_msg(streesize(set) == 7, "set has 7 nodes");
+    ck_assert_msg(streedepth(set) == 3, "set has depth of 4");
 }
 END_TEST
 
-START_TEST(test_isnextnode) {
+START_TEST(test_snextnode) {
     struct intset_iterator it;
 
-    set = isinsert(9000, set);
-    set = isinsert(-9000, set);
+    set = sinsert(9000, set);
+    set = sinsert(-9000, set);
 
-    printf("isnextnode:\n");
+    printf("snextnode:\n");
     print_intset_tree(set);
 
-    ck_assert(isiterator(set, &it));
+    ck_assert(siterator(set, &it));
 
     // twice
     for (int i = 0; i < 2; i++) {
@@ -110,14 +110,14 @@ START_TEST(test_isnextnode) {
         // assert that the iterator is reset
         assert_iter(&it, 0, true, false, 0);
 
-        while (isnextnode(&x, &it)) n++;
+        while (snextnode(&x, &it)) n++;
 
         // assert we've visited each node
         // one branch, and two leaf nodes
         ck_assert(n == 3);
     }
 
-    free_isiterator(&it);
+    free_siterator(&it);
 }
 END_TEST
 
@@ -136,9 +136,9 @@ START_TEST(test_print_intset_tree) {
 END_TEST
 
 START_TEST(test_print_matching_prefixes) {
-    set = isinsert(0b01110000101000, set);
-    set = isinsert(0b01110000101011, set);
-    set = isinsert(0b01100000101111, set);
+    set = sinsert(0b01110000101000, set);
+    set = sinsert(0b01110000101011, set);
+    set = sinsert(0b01100000101111, set);
     printf("test_print_matching_prefixes:\n");
     print_intset_tree(set);
 }
@@ -155,9 +155,9 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_print_matching_prefixes);
     } else {
         tcase_add_test(tc_core, test_null_intset);
-        tcase_add_test(tc_core, test_iselem);
-        tcase_add_test(tc_core, test_isinsert);
-        tcase_add_test(tc_core, test_isnextnode);
+        tcase_add_test(tc_core, test_selem);
+        tcase_add_test(tc_core, test_sinsert);
+        tcase_add_test(tc_core, test_snextnode);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);
     }

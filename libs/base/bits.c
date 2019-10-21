@@ -25,7 +25,6 @@ int unbitmap(int64_t bm) {
     return ctz(bm);
 }
 
-
 // builtins are undefined for 0
 int clz(int i) {
     return i ? __builtin_clzll(i) : WORDBITS;

@@ -60,27 +60,27 @@ struct intset_iterator {
 
 struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
 struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
-bool isiterator(struct intset const *set, struct intset_iterator *it);
-bool isnextnode(struct intset const **out, struct intset_iterator *it);
-bool isnextleaf(struct intset const **out, struct intset_iterator *it);
-bool isnextbitmap(int *out, struct intset_iterator *it);
-bool isnext(int *out, struct intset_iterator *it);
-void reset_isiterator(struct intset_iterator *it);
-bool iselem(int k, struct intset const *set);
-struct intset *isinsert(int k, struct intset *set);
-struct intset *isinsert_list(int *k, size_t n, struct intset *set);
-// void isdelete(int k, struct intset *set);
-// bool intseteq(struct intset const *a, struct intset const *b);
-// struct intset *isunion(struct intset *a, struct intset const *b);
-// struct intset *isintersection(struct intset *a, struct intset const *b);
-// bool isdisjoint(struct intset *a, struct intset const *b);
-bool isnull(struct intset const *a);
-size_t issize(struct intset const *set);
-size_t istreesize(struct intset const *set);
-size_t istreedepth(struct intset const *set);
+bool siterator(struct intset const *set, struct intset_iterator *it);
+bool snextnode(struct intset const **out, struct intset_iterator *it);
+bool snextleaf(struct intset const **out, struct intset_iterator *it);
+bool snextbitmap(int *out, struct intset_iterator *it);
+bool snext(int *out, struct intset_iterator *it);
+void reset_siterator(struct intset_iterator *it);
+bool selem(int k, struct intset const *set);
+struct intset *sinsert(int k, struct intset *set);
+struct intset *slistinsert(int *k, size_t n, struct intset *set);
+// void sdelete(int k, struct intset *set);
+// bool ntseteq(struct intset const *a, struct intset const *b);
+// struct intset *sunion(struct intset *a, struct intset const *b);
+// struct intset *sintersection(struct intset *a, struct intset const *b);
+// bool sdisjoint(struct intset *a, struct intset const *b);
+bool snull(struct intset const *a);
+size_t ssize(struct intset const *set);
+size_t streesize(struct intset const *set);
+size_t streedepth(struct intset const *set);
 void print_intset(struct intset const *set);
 void print_intset_tree(struct intset const *set);
-void free_isiterator(struct intset_iterator *it);
+void free_siterator(struct intset_iterator *it);
 void free_intset(struct intset *set);
 
 #endif // BASE_INTSET_H_

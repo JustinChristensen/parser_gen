@@ -14,10 +14,6 @@ static bool is_branch(struct intset const *set) {
     return set->left != NULL;
 }
 
-static bool is_leaf(struct intset const *set) {
-    return set->left == NULL;
-}
-
 static bool prefix_upto_branch_matches(int64_t kfix, struct intset const *set) {
     return prefix_upto_branch(kfix, set->mask) == set->pfix;
 }
@@ -50,7 +46,6 @@ bool siterator(struct intset const *set, struct intset_iterator *it) {
     if (!it || !set) return false;
     it->stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
     reset_siterator(it);
-    it->i = 0;
     it->root = set;
     return true;
 }
@@ -75,12 +70,12 @@ bool snextnode(struct intset const **out, struct intset_iterator *it) {
         if (is_branch(set)) {
             // if we're not at the root or the prefix is not negative
             // go right first (larger numbers)
-            if (!it->at_root || set->pfix > 0) {
-                apush(&set->right, stack);
-                apush(&set->left, stack);
-            } else { // go left first to list negatives
+            if (it->at_root && set->mask < 0) {
                 apush(&set->left, stack);
                 apush(&set->right, stack);
+            } else {
+                apush(&set->right, stack);
+                apush(&set->left, stack);
             }
         }
 
@@ -119,10 +114,6 @@ bool snextbitmap(int *out, struct intset_iterator *it) {
 
     struct intset const *set = it->set;
 
-    // reset the counter
-    if (it->i >= WORDBITS)
-        it->i = 0;
-
     int64_t x;
     for (int i = it->i; i < WORDBITS; (it->i = ++i)) {
         if (bmchecki(&x, set->pfix, set->mask, i)) {
@@ -132,6 +123,8 @@ bool snextbitmap(int *out, struct intset_iterator *it) {
         }
     }
 
+    it->i = 0;
+
     return false;
 }
 
@@ -140,20 +133,20 @@ bool snext(int *out, struct intset_iterator *it) {
     struct intset const *set = it->set;
 
     while (true) {
-        if (!set || it->i >= WORDBITS) {
-            if (!snextleaf(&set, it)) {
-                it->i = 0;
-                return false;
-            }
-        }
+        if (it->i == 0 && !snextleaf(&set, it))
+            break;
 
-        if (snextbitmap(out, it)) return true;
+        if (snextbitmap(out, it))
+            return true;
     }
+
+    return false;
 }
 
 void reset_siterator(struct intset_iterator *it) {
     it->at_root = true;
     it->set = NULL;
+    it->i = 0;
     areset(it->stack);
 }
 
@@ -231,8 +224,13 @@ struct intset *sinsert(int k, struct intset *set) {
     return _sinsert(prefix(k), bitmap(k), set);
 }
 
-// struct intset *slistinsert(int *k, size_t n, struct intset *set) {
-// }
+struct intset *slistinsert(int *k, size_t n, struct intset *set) {
+    for (int i = 0; i < n; i++) {
+        set = sinsert(k[i], set);
+    }
+
+    return set;
+}
 
 // void sdelete(int k, struct intset *set) {
 // }
@@ -310,9 +308,9 @@ void print_intset(struct intset const *set) {
 static void _print_intset_tree(struct intset const *set, int depth) {
     if (!set) return;
     indent(depth);
-    printf("%s %p (%" PRId64 ", %" PRIu64 ")\n",
-            set->left ? "branch" : "leaf",
-            set, set->pfix, set->mask);
+    printf("%s %p (%"PRId64", ", set->left ? "branch" : "leaf", set, set->pfix);
+    printbits(set->mask);
+    printf(")\n");
     depth++;
     _print_intset_tree(set->left, depth);
     _print_intset_tree(set->right, depth);

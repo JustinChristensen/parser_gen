@@ -20,6 +20,7 @@ int msbpos(int i);
 int64_t msbmask(int i);
 int64_t branch_mask(int i, int j);
 int64_t prefix_upto_branch(int i, int64_t bmask);
+void printbits(int64_t x);
 
 #endif // BASE_BITS_H_
 

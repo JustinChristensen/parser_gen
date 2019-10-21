@@ -27,6 +27,10 @@ void assert_iter(
     ck_assert(it->i == bm_iterator);
 }
 
+void assert_iter_reset(struct intset_iterator *it) {
+    assert_iter(it, 0, true, false, 0);
+}
+
 void setup() {
 }
 
@@ -108,7 +112,7 @@ START_TEST(test_snextnode) {
         size_t n = 0;
 
         // assert that the iterator is reset
-        assert_iter(&it, 0, true, false, 0);
+        assert_iter_reset(&it);
 
         while (snextnode(&x, &it)) n++;
 
@@ -116,6 +120,69 @@ START_TEST(test_snextnode) {
         // one branch, and two leaf nodes
         ck_assert(n == 3);
     }
+
+    free_siterator(&it);
+}
+END_TEST
+
+START_TEST(test_snextbitmap) {
+    set = sinsert(5, set);
+    struct intset_iterator it;
+    struct intset const *leaf = NULL;
+    int x;
+
+    ck_assert(siterator(set, &it));
+    ck_assert(snextleaf(&leaf, &it));
+
+    ck_assert_msg(snextbitmap(&x, &it), "integer not found in bitmap"); ;
+    ck_assert_int_eq(x, 5);
+
+    ck_assert_msg(snextbitmap(&x, &it) == false, "snextbitmap returned true after reaching the end");
+    ck_assert(snextleaf(&leaf, &it) == false);
+    assert_iter_reset(&it);
+
+    add_elements();
+
+    // more intensive test using the leaf iterator
+    printf("snextleaf/snextbitmap\n");
+    while (snextleaf(&leaf, &it)) {
+        while (snextbitmap(&x, &it)) {
+            printf("%d\n", x);
+        }
+    }
+
+    assert_iter_reset(&it);
+
+    free_siterator(&it);
+}
+END_TEST
+
+START_TEST(test_snext) {
+    int ints[] = { 5, 129, 603 };
+    size_t n = sizeof ints / sizeof ints[0];
+    set = slistinsert(ints, n, set);
+
+    struct intset_iterator it;
+
+    ck_assert(siterator(set, &it));
+
+    assert_iter_reset(&it);
+
+    printf("snext:\n");
+    print_intset_tree(set);
+    print_intset(set);
+    printf("\n");
+
+    int x;
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 5);
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 129);
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 603);
+    ck_assert(!snext(&x, &it));
+
+    assert_iter_reset(&it);
 
     free_siterator(&it);
 }
@@ -158,6 +225,8 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_selem);
         tcase_add_test(tc_core, test_sinsert);
         tcase_add_test(tc_core, test_snextnode);
+        tcase_add_test(tc_core, test_snextbitmap);
+        tcase_add_test(tc_core, test_snext);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);
     }

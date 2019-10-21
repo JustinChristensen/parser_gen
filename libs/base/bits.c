@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "base/bits.h"
@@ -58,3 +59,8 @@ int64_t prefix_upto_branch(int i, int64_t bmask) {
     return i & (~(bmask - 1) ^ bmask);
 }
 
+void printbits(int64_t x) {
+    for (int i = WORDBITS - 1; i >= 0; i--) {
+        printf("%c", x & (BIT << i) ? '1' : '0');
+    }
+}

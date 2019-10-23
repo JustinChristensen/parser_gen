@@ -34,6 +34,7 @@ void *abottom(struct array *arr);
 void aresize(size_t size, struct array *arr);
 void areset(struct array *arr);
 void apush(void *elem, struct array *arr);
+void apeek(void *out, struct array *arr);
 void apop(void *out, struct array *arr);
 size_t asize(struct array const *arr);
 bool aistop(void *elem, struct array *arr);

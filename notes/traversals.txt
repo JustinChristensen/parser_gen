@@ -1,0 +1,115 @@
+
+iterativePostorder(node)
+  s ← empty stack
+  lastNodeVisited ← null
+  while (not s.isEmpty() or node ≠ null)
+    // at first, push all of the leftmost nodes onto the stack
+    if (node ≠ null)
+      s.push(node)
+      node ← node.left
+    else
+      // peek at the top of the stack (at first the leftmost, lowest node)
+      peekNode ← s.peek()
+
+      // at first lastNodeVisited is null
+      // if the peek node has a right child and the last node visited does
+      // not equal the right child
+      if (peekNode.right ≠ null and lastNodeVisited ≠ peekNode.right)
+        // make node the right child (this will start the process
+        // of stacking up it's left descendants)
+        node ← peekNode.right
+      else
+        // do our visit logic with the peeked at node
+        visit(peekNode)
+        // pop the peek node off the stack and make it
+        // the last node visited
+        lastNodeVisited ← s.pop()
+
+         +----  F  ---+
+         |            |
+         |            |
+  +----  B  ---+      G  ---+
+  |            |            |
+  |            |            |
+  A     +----  D  ---+      I  ---+
+        |            |            |
+        |            |            |
+        |            |            H
+        C            E
+
+F                   right
+F B                 left
+F B N N A           left
+F a B               visit
+F a B D             right
+F a B D N N C       left
+F a B c D           visit
+F a B D c N N E     left
+F a B c e D         visit
+F a d B             visit
+b F                 visit
+b F N G             right
+b F N G N I         right
+b F N G N I N N H   left
+b F N G N h I       visit
+b F N i G           visit
+b g F               visit
+f done
+
+F                   right
+F B                 left
+F B A N N           left
+F B a               visit
+F B a D             right
+F B a D C N N       left
+F B a D c           visit
+F B a D c E N N     left
+F B a D c e         visit
+F B a d             visit
+F b                 visit
+F b G N             right
+F b G N I N         right
+F b G N I N H N N   left
+F b G N I N h       visit
+F b G N i           visit
+F b g               visit
+f done
+
+post order
+A C E D B F H I G
+
+For N = null
+F ( B ( A ( N, N ), D ( C ( N, N ), E ( N , N ) ) ), G ( N, I ( N, H ( N, N ) ) ) )
+
+infix
+      1       5         2       4       3         9       8       7       6
+(( N `A` N ) `B` ( ( N `C` N ) `D` ( N `E` N ) ) `F` ( N `G` ( N `I` ( N `H` N ) ) ))
+
+reverse polish notation
+N N N N N N A C E D B N N N N H I G F
+
+stack order
+F B A D C E H I G
+
+polish notation
+F B A N N D C N N E N N H N I N G N
+
+F
+F B
+F B A
+F B
+F B D
+F B D C
+F B D
+F B D E
+F B D
+F B
+F
+F G
+F G I
+F G I H
+F G I
+F G
+F
+
+

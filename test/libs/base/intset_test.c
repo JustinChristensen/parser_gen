@@ -186,6 +186,26 @@ START_TEST(test_snext) {
 }
 END_TEST
 
+START_TEST(test_sclone) {
+    add_elements();
+    printf("sclone:\nset1:\n");
+    print_intset_tree(set);
+
+    struct intset *set2 = sclone(set);
+    printf("set2:\n");
+    print_intset_tree(set2);
+
+    ck_assert(intseteq(set, set2));
+
+    free_intset(set);
+    free_intset(set2);
+
+    set2 = sclone(NULL);
+    ck_assert(set2 == NULL);
+
+}
+END_TEST
+
 START_TEST(test_intseteq) {
     struct intset *set2 = NULL;
 
@@ -246,6 +266,7 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_snextnode);
         tcase_add_test(tc_core, test_snextbitmap);
         tcase_add_test(tc_core, test_snext);
+        tcase_add_test(tc_core, test_sclone);
         tcase_add_test(tc_core, test_intseteq);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);

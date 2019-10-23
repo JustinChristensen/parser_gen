@@ -119,10 +119,14 @@ void apush(void *elem, struct array *arr) {
     arr->i++;
 }
 
+void apeek(void *out, struct array *arr) {
+    memcpy(out, at(arr->i - 1, arr), arr->elem_size);
+}
+
 void apop(void *out, struct array *arr) {
-    ensure_memory(arr);
+    apeek(out, arr);
     arr->i--;
-    memcpy(out, at(arr->i, arr), arr->elem_size);
+    ensure_memory(arr);
 }
 
 size_t asize(struct array const *arr) {

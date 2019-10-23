@@ -10,6 +10,12 @@
 #include "base/array.h"
 #include "base/bits.h"
 
+static void print_intset_node(struct intset const *set) {
+    printf("%s %p (%"PRId64", ", set->left ? "branch" : "leaf", set, set->pfix);
+    printbits(set->mask);
+    printf(")");
+}
+
 static bool is_branch(struct intset const *set) {
     return set->left != NULL;
 }
@@ -232,14 +238,50 @@ struct intset *slistinsert(int *k, size_t n, struct intset *set) {
     return set;
 }
 
+struct intset *sclone(struct intset const *set) {
+    if (!set) return NULL;
+
+    struct array *stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
+    struct intset const *np = NULL;
+    struct intset *last = NULL, *clone = NULL;
+
+    while (!aempty(stack) || set) {
+        if (set) {
+            if (!set->left) apush(&np, stack);
+            if (!set->right) apush(&np, stack);
+            apush(&set, stack);
+            set = set->left;
+        } else {
+            struct intset const *peek = NULL;
+
+            apeek(&peek, stack);
+
+            if (peek->right && last != peek->right) {
+                set = peek->right;
+            } else {
+                struct intset *left, *right;
+                apop(&last, stack);
+                apop(&right, stack);
+                apop(&left, stack);
+                clone = init_intset(peek->pfix, peek->mask, left, right);
+            }
+        }
+    }
+
+    free_array(stack);
+
+    return clone;
+}
+
 // void sdelete(int k, struct intset *set) {
 // }
 
 bool intseteq(struct intset const *s, struct intset const *t) {
-    bool both = s && t;
-    bool eq = both || (s == NULL && t == NULL);
+    if (s == NULL && t == NULL) return true;
 
-    if (both) {
+    bool eq = s && t;
+
+    if (eq) {
         struct array *stack = init_array(sizeof s, IT_STACK_SIZE, 0, 0);
 
         apush(&s, stack);
@@ -271,12 +313,40 @@ bool intseteq(struct intset const *s, struct intset const *t) {
 // struct intset *sunion(struct intset *a, struct intset const *b) {
 // }
 
-// struct intset *sintersection(struct intset *a, struct intset const *b) {
+// struct intset *sintersection(struct intset *s, struct intset const *t) {
+//     if (s == NULL || t == NULL) return NULL;
+//
+//     struct array *stack = init_array(sizeof s, IT_STACK_SIZE, 0, 0);
+//     struct intset const *ins = NULL;
+//
+//     apush(&s, stack);
+//     apush(&t, stack);
+//
+//     while (eq && !aempty(stack)) {
+//         apop(&s, stack);
+//         apop(&t, stack);
+//
+//         if (s->pfix == t->pfix && s->mask == t->mask) {
+//             apush((void **) &s->right, stack);
+//             apush((void **) &t->right, stack);
+//             apush((void **) &s->left, stack);
+//             apush((void **) &t->left, stack);
+//         } else {
+//             eq = false;
+//         }
+//     }
+//
+//     free_array(stack);
+//
+//     return eq;
 // }
 
-// bool sdisjoint(struct intset *a, struct intset const *b) {
+// bool sdisjoint(struct intset *s, struct intset const *t) {
+//     struct intset const *ins = sintersection(s, t);
+//     bool is_disj = snull(ins);
+//     free_intset(ins);
+//     return is_disj;
 // }
-//
 
 bool snull(struct intset const *set) {
     return ssize(set) == 0;
@@ -338,9 +408,8 @@ void print_intset(struct intset const *set) {
 static void _print_intset_tree(struct intset const *set, int depth) {
     if (!set) return;
     indent(depth);
-    printf("%s %p (%"PRId64", ", set->left ? "branch" : "leaf", set, set->pfix);
-    printbits(set->mask);
-    printf(")\n");
+    print_intset_node(set);
+    printf("\n");
     depth++;
     _print_intset_tree(set->left, depth);
     _print_intset_tree(set->right, depth);

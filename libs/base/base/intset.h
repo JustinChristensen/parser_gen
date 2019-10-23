@@ -70,6 +70,7 @@ bool selem(int k, struct intset const *set);
 struct intset *sinsert(int k, struct intset *set);
 struct intset *slistinsert(int *k, size_t n, struct intset *set);
 // void sdelete(int k, struct intset *set);
+struct intset *sclone(struct intset const *set);
 bool intseteq(struct intset const *s, struct intset const *t);
 // struct intset *sunion(struct intset *s, struct intset const *t);
 // struct intset *sintersection(struct intset *s, struct intset const *t);

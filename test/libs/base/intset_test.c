@@ -197,7 +197,6 @@ START_TEST(test_sclone) {
 
     ck_assert(intseteq(set, set2));
 
-    free_intset(set);
     free_intset(set2);
 
     set2 = sclone(NULL);

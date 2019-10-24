@@ -240,37 +240,7 @@ struct intset *slistinsert(int *k, size_t n, struct intset *set) {
 
 struct intset *sclone(struct intset const *set) {
     if (!set) return NULL;
-
-    struct array *stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
-    struct intset const *np = NULL;
-    struct intset *last = NULL, *clone = NULL;
-
-    while (!aempty(stack) || set) {
-        if (set) {
-            if (!set->left) apush(&np, stack);
-            if (!set->right) apush(&np, stack);
-            apush(&set, stack);
-            set = set->left;
-        } else {
-            struct intset const *peek = NULL;
-
-            apeek(&peek, stack);
-
-            if (peek->right && last != peek->right) {
-                set = peek->right;
-            } else {
-                struct intset *left, *right;
-                apop(&last, stack);
-                apop(&right, stack);
-                apop(&left, stack);
-                clone = init_intset(peek->pfix, peek->mask, left, right);
-            }
-        }
-    }
-
-    free_array(stack);
-
-    return clone;
+    return init_intset(set->pfix, set->mask, sclone(set->left), sclone(set->right));
 }
 
 // void sdelete(int k, struct intset *set) {

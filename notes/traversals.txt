@@ -113,3 +113,18 @@ F G
 F
 
 
+        if (set) {
+            apush(&set, stack);
+            set = set->left;
+        } else {
+            struct intset *peek = NULL;
+
+            apeek(&peek, stack);
+
+            if (peek->right && last != peek->right) {
+                set = peek->right;
+            } else {
+                init_intset(peek->pfix, peek->mask, NULL, NULL);
+                apop(&last, stack);
+            }
+        }

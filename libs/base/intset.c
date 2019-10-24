@@ -11,9 +11,16 @@
 #include "base/bits.h"
 
 static void print_intset_node(struct intset const *set) {
-    printf("%s %p (%"PRId64", ", set->left ? "branch" : "leaf", set, set->pfix);
+#if PRINT_BINARY
+    printf("%p (", set);
+    printbits(set->pfix);
+    printf(", ");
     printbits(set->mask);
-    printf(")");
+    printf(", %p, %p)", set->left, set->right);
+#else
+    printf("%p (%"PRId64", %"PRId64", %p, %p)",
+        set, set->pfix, set->mask, set->left, set->right);
+#endif
 }
 
 static bool is_branch(struct intset const *set) {
@@ -39,6 +46,20 @@ static bool bmchecki(int64_t *out, int64_t pfix, int64_t bitmap, int i) {
 
 struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
     return (struct intset) { pfix, mask, left, right };
+}
+
+static struct intset *init_branch(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
+    struct intset *set = NULL;
+
+    if (left && !right) {
+        set = left;
+    } else if (right && !left) {
+        set = right;
+    } else {
+        set = init_intset(pfix, mask, left, right);
+    }
+
+    return set;
 }
 
 struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
@@ -283,33 +304,50 @@ bool intseteq(struct intset const *s, struct intset const *t) {
 // struct intset *sunion(struct intset *a, struct intset const *b) {
 // }
 
-// struct intset *sintersection(struct intset *s, struct intset const *t) {
-//     if (s == NULL || t == NULL) return NULL;
-//
-//     struct array *stack = init_array(sizeof s, IT_STACK_SIZE, 0, 0);
-//     struct intset const *ins = NULL;
-//
-//     apush(&s, stack);
-//     apush(&t, stack);
-//
-//     while (eq && !aempty(stack)) {
-//         apop(&s, stack);
-//         apop(&t, stack);
-//
-//         if (s->pfix == t->pfix && s->mask == t->mask) {
-//             apush((void **) &s->right, stack);
-//             apush((void **) &t->right, stack);
-//             apush((void **) &s->left, stack);
-//             apush((void **) &t->left, stack);
-//         } else {
-//             eq = false;
-//         }
-//     }
-//
-//     free_array(stack);
-//
-//     return eq;
-// }
+struct intset *sintersection(struct intset *s, struct intset const *t) {
+    if (s == NULL || t == NULL) return NULL;
+    struct intset *u = NULL;
+
+    if (is_branch(s) && is_branch(t)) { // both nodes are branches
+        if (s->mask < t->mask) { // t has the greater branch mask
+            if (prefix_upto_branch_matches(s->pfix, t)) {
+                // t is the greater node, so we need to determine
+                // which of t's children to try next
+                if (zero(s->pfix, t->mask)) {
+                    u = sintersection(s, t->left);
+                } else {
+                    u = sintersection(s, t->right);
+                }
+            }
+        } else if (t->mask < s->mask) { // s has the greater branch mask
+            if (prefix_upto_branch_matches(t->pfix, s)) {
+                // s is the greater node, so we need to determine
+                // which of s's children to try next
+                if (zero(t->pfix, s->mask)) {
+                    u = sintersection(s->left, t);
+                } else {
+                    u = sintersection(s->right, t);
+                }
+            }
+        } else if (t->pfix == s->pfix) {
+            // s and t align, create a new branch from the intersection
+            // of their respective children
+            u = init_branch(s->pfix, s->mask,
+                    sintersection(s->left, t->left),
+                    sintersection(s->right, t->right));
+        }
+    } else if (is_branch(s)) { // s is a branch, t is a leaf
+    } else if (is_branch(t)) { // t is a branch, s is a leaf
+    } else if (s->pfix == t->pfix) { // both leaf nodes
+        int64_t bitmap = s->mask & t->mask;
+
+        if (bitmap) {
+            u = init_intset(s->pfix, bitmap, NULL, NULL);
+        }
+    }
+
+    return u;
+}
 
 // bool sdisjoint(struct intset *s, struct intset const *t) {
 //     struct intset const *ins = sintersection(s, t);

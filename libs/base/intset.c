@@ -317,9 +317,9 @@ static struct intset *unify_branch(struct intset const *s, struct intset const *
     if (!prefix_upto_branch_matches(s->pfix, t)) {
         u = link(sclone(s), sclone(t));
     } else if (zero(s->pfix, t->mask)) {
-        u = init_intset(t->pfix, t->mask, sunion(s, t->left), t->right);
+        u = init_intset(t->pfix, t->mask, sunion(s, t->left), sclone(t->right));
     } else {
-        u = init_intset(t->pfix, t->mask, t->left, sunion(s, t->right));
+        u = init_intset(t->pfix, t->mask, sclone(t->left), sunion(s, t->right));
     }
 
     return u;

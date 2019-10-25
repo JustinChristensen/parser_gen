@@ -243,6 +243,62 @@ START_TEST(test_sintersection) {
 }
 END_TEST
 
+START_TEST(test_sunion) {
+    struct intset *set2 = NULL;
+    int xs[] = { -413000, -2694, -45, 0, 130, 12000 };
+    int ys[] = { -2694, 0, 1, 127, 599906  };
+    set = slistinsert(xs, SIZEOF(xs), set);
+    set2 = slistinsert(ys, SIZEOF(ys), set2);
+
+    struct intset *set3 = sunion(set, set2);
+    ck_assert_int_eq(ssize(set3), 9);
+
+    printf("sunion:\n");
+    print_intset(set);
+    printf("\n");
+    print_intset(set2);
+    printf("\n");
+    print_intset(set3);
+    printf("\n");
+
+    struct intset_iterator it;
+    ck_assert(siterator(set3, &it));
+    int x;
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -413000);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -2694);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -45);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 0);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 1);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 127);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 130);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 12000);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 599906);
+
+    ck_assert(!snext(&x, &it));
+
+    free_siterator(&it);
+    free_intset(set2);
+    free_intset(set3);
+}
+END_TEST
+
 START_TEST(test_sdisjoint) {
     struct intset *set2 = NULL;
     set = sinsert(-90, set);
@@ -334,6 +390,7 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_snext);
         tcase_add_test(tc_core, test_sclone);
         tcase_add_test(tc_core, test_sintersection);
+        tcase_add_test(tc_core, test_sunion);
         tcase_add_test(tc_core, test_sdisjoint);
         tcase_add_test(tc_core, test_intseteq);
         tcase_add_test(tc_core, test_print_intset);

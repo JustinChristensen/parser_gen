@@ -220,18 +220,18 @@ bool selem(int k, struct intset const *set) {
     return elem;
 }
 
-static struct intset *link(int64_t kfix, struct intset *newleaf, struct intset *set) {
-    struct intset *right = newleaf;
-    int64_t brm = branch_mask(kfix, set->pfix);
+static struct intset *link(struct intset const *newleaf, struct intset const *set) {
+    struct intset const *right = newleaf;
+    int64_t brm = branch_mask(newleaf->pfix, set->pfix);
 
-    if (zero(kfix, brm)) {
+    if (zero(newleaf->pfix, brm)) {
         right = set;
         set = newleaf;
     }
 
     // the new branch node will have the leading bits of the key
     // up to the where the key and the keys in the branch diverge
-    return init_intset(prefix_upto_branch(kfix, brm), brm, set, right);
+    return init_intset(prefix_upto_branch(newleaf->pfix, brm), brm, (struct intset *) set, (struct intset *) right);
 }
 
 static struct intset *_sinsert(int64_t kfix, int64_t bitmap, struct intset *set) {
@@ -240,7 +240,7 @@ static struct intset *_sinsert(int64_t kfix, int64_t bitmap, struct intset *set)
     } else if (set->left) { // branch node
         // do the key's prefix and branch prefix match?
         if (!prefix_upto_branch_matches(kfix, set)) {
-            set = link(kfix, init_intset(kfix, bitmap, NULL, NULL), set);
+            set = link(init_intset(kfix, bitmap, NULL, NULL), set);
         } else if (zero(kfix, set->mask)) { // branch does not match, go left
             set->left = _sinsert(kfix, bitmap, set->left);
         } else { // branch matches, go right
@@ -250,7 +250,7 @@ static struct intset *_sinsert(int64_t kfix, int64_t bitmap, struct intset *set)
         if (set->pfix == kfix) {
             set->mask |= bitmap;
         } else {
-            set = link(kfix, init_intset(kfix, bitmap, NULL, NULL), set);
+            set = link(init_intset(kfix, bitmap, NULL, NULL), set);
         }
     }
 
@@ -311,34 +311,73 @@ bool intseteq(struct intset const *s, struct intset const *t) {
     return eq;
 }
 
-// struct intset *sunion(struct intset *a, struct intset const *b) {
-// }
+static struct intset *unify_branch(struct intset const *s, struct intset const *t) {
+    struct intset *u = NULL;
 
-struct intset *sintersection(struct intset *s, struct intset const *t) {
+    if (!prefix_upto_branch_matches(s->pfix, t)) {
+        u = link(sclone(s), sclone(t));
+    } else if (zero(s->pfix, t->mask)) {
+        u = init_intset(t->pfix, t->mask, sunion(s, t->left), t->right);
+    } else {
+        u = init_intset(t->pfix, t->mask, t->left, sunion(s, t->right));
+    }
+
+    return u;
+}
+
+struct intset *sunion(struct intset const *s, struct intset const *t) {
+    if (s == NULL && t == NULL) return NULL;
+    if (!s) return sclone(t);
+    if (!t) return sclone(s);
+
+    struct intset *u = NULL;
+
+    if (is_branch(s) && is_branch(t)) { // both nodes are branches
+        if (s->mask < t->mask) { // t has the greater branch mask
+            u = unify_branch(s, t);
+        } else if (t->mask < s->mask) { // s has the greater branch mask
+            u = unify_branch(t, s);
+        } else if (t->pfix == s->pfix) {
+            u = init_intset(s->pfix, s->mask,
+                    sunion(s->left, t->left),
+                    sunion(s->right, t->right));
+        } else {
+            u = link(sclone(s), sclone(t));
+        }
+    } else if (is_branch(s)) { // s is a branch, t is a leaf
+        u = _sinsert(t->pfix, t->mask, sclone(s));
+    } else { // t is a branch or leaf, s is a leaf
+        u = _sinsert(s->pfix, s->mask, sclone(t));
+    }
+
+    return u;
+}
+
+static struct intset *intersect_branches(struct intset const *s, struct intset const *t) {
+    struct intset *u = NULL;
+
+    if (prefix_upto_branch_matches(s->pfix, t)) {
+        // t is the greater node, so we need to determine
+        // which of t's children to try next
+        if (zero(s->pfix, t->mask)) {
+            u = sintersection(s, t->left);
+        } else {
+            u = sintersection(s, t->right);
+        }
+    }
+
+    return u;
+}
+
+struct intset *sintersection(struct intset const *s, struct intset const *t) {
     if (s == NULL || t == NULL) return NULL;
     struct intset *u = NULL;
 
     if (is_branch(s) && is_branch(t)) { // both nodes are branches
         if (s->mask < t->mask) { // t has the greater branch mask
-            if (prefix_upto_branch_matches(s->pfix, t)) {
-                // t is the greater node, so we need to determine
-                // which of t's children to try next
-                if (zero(s->pfix, t->mask)) {
-                    u = sintersection(s, t->left);
-                } else {
-                    u = sintersection(s, t->right);
-                }
-            }
+            u = intersect_branches(s, t);
         } else if (t->mask < s->mask) { // s has the greater branch mask
-            if (prefix_upto_branch_matches(t->pfix, s)) {
-                // s is the greater node, so we need to determine
-                // which of s's children to try next
-                if (zero(t->pfix, s->mask)) {
-                    u = sintersection(s->left, t);
-                } else {
-                    u = sintersection(s->right, t);
-                }
-            }
+            u = intersect_branches(t, s);
         } else if (t->pfix == s->pfix) {
             // s and t align, create a new branch from the intersection
             // of their respective children

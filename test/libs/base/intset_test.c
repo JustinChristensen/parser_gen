@@ -6,6 +6,7 @@
 #include <check.h>
 #include <base/intset.h>
 #include <base/array.h>
+#include <base/macros.h>
 #include "test_base.h"
 
 struct intset *set = NULL;
@@ -205,6 +206,71 @@ START_TEST(test_sclone) {
 }
 END_TEST
 
+START_TEST(test_sintersection) {
+    struct intset *set2 = NULL;
+    int xs[] = { -413000, -2694, -45, 0, 130, 12000, 599906 };
+    int ys[] = { -2694, 0, 599906 };
+    set = slistinsert(xs, SIZEOF(xs), set);
+    set2 = slistinsert(ys, SIZEOF(ys), set2);
+
+    struct intset *set3 = sintersection(set, set2);
+    ck_assert_int_eq(ssize(set3), 3);
+
+    printf("sintersection:\n");
+    print_intset(set);
+    printf("\n");
+    print_intset(set2);
+    printf("\n");
+    print_intset(set3);
+    printf("\n");
+
+    struct intset_iterator it;
+    ck_assert(siterator(set3, &it));
+    int x;
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -2694);
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 0);
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 599906);
+    ck_assert(!snext(&x, &it));
+
+    ck_assert(intseteq(set2, set3));
+
+    free_siterator(&it);
+    free_intset(set2);
+    free_intset(set3);
+}
+END_TEST
+
+START_TEST(test_sdisjoint) {
+    struct intset *set2 = NULL;
+    set = sinsert(-90, set);
+    set = sinsert(0, set);
+    set = sinsert(900, set);
+    set2 = sinsert(-89, set2);
+    set2 = sinsert(1, set2);
+    set2 = sinsert(899, set2);
+    set2 = sinsert(901, set2);
+
+    printf("sdisjoint:\n");
+    print_intset(set);
+    printf("\n");
+    print_intset(set2);
+    printf("\n");
+
+    ck_assert(sdisjoint(set, set2));
+
+    free_intset(set2);
+    set2 = NULL;
+
+    set2 = sinsert(-90, set2);
+
+    ck_assert(!sdisjoint(set, set2));
+    free_intset(set2);
+}
+END_TEST
+
 START_TEST(test_intseteq) {
     struct intset *set2 = NULL;
 
@@ -228,6 +294,7 @@ END_TEST
 
 START_TEST(test_print_intset) {
     add_elements();
+    printf("print_intset:\n");
     print_intset(set);
     printf("\n");
 }
@@ -266,6 +333,8 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_snextbitmap);
         tcase_add_test(tc_core, test_snext);
         tcase_add_test(tc_core, test_sclone);
+        tcase_add_test(tc_core, test_sintersection);
+        tcase_add_test(tc_core, test_sdisjoint);
         tcase_add_test(tc_core, test_intseteq);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);

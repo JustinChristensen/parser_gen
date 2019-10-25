@@ -48,15 +48,25 @@ struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct int
     return (struct intset) { pfix, mask, left, right };
 }
 
-static struct intset *init_branch(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
+static struct intset *make_branch(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
     struct intset *set = NULL;
 
-    if (left && !right) {
+    if (!right) {
         set = left;
-    } else if (right && !left) {
+    } else if (!left) {
         set = right;
     } else {
         set = init_intset(pfix, mask, left, right);
+    }
+
+    return set;
+}
+
+struct intset *make_leaf(int64_t pfix, int64_t mask) {
+    struct intset *set = NULL;
+
+    if (mask) {
+        set = init_intset(pfix, mask, NULL, NULL);
     }
 
     return set;
@@ -332,29 +342,40 @@ struct intset *sintersection(struct intset *s, struct intset const *t) {
         } else if (t->pfix == s->pfix) {
             // s and t align, create a new branch from the intersection
             // of their respective children
-            u = init_branch(s->pfix, s->mask,
+            u = make_branch(s->pfix, s->mask,
                     sintersection(s->left, t->left),
                     sintersection(s->right, t->right));
         }
-    } else if (is_branch(s)) { // s is a branch, t is a leaf
-    } else if (is_branch(t)) { // t is a branch, s is a leaf
-    } else if (s->pfix == t->pfix) { // both leaf nodes
-        int64_t bitmap = s->mask & t->mask;
-
-        if (bitmap) {
-            u = init_intset(s->pfix, bitmap, NULL, NULL);
+    } else if (is_branch(s) && prefix_upto_branch_matches(t->pfix, s)) { // s is a branch, t is a leaf
+        // lets see if we can find the matching leaf in t
+        if (zero(t->pfix, s->mask)) {
+            u = sintersection(s->left, t);
+        } else {
+            u = sintersection(s->right, t);
         }
+    } else if (is_branch(t) && prefix_upto_branch_matches(s->pfix, t)) { // t is a branch, s is a leaf
+        // lets see if we can find the matching leaf in s
+        if (zero(t->pfix, s->mask)) {
+            u = sintersection(s, t->left);
+        } else {
+            u = sintersection(s, t->right);
+        }
+    } else if (s->pfix == t->pfix) { // both leaf nodes
+        u = make_leaf(s->pfix, s->mask & t->mask);
     }
 
     return u;
 }
 
-// bool sdisjoint(struct intset *s, struct intset const *t) {
-//     struct intset const *ins = sintersection(s, t);
-//     bool is_disj = snull(ins);
-//     free_intset(ins);
-//     return is_disj;
+// struct intset *sdifference(struct intset *s, struct intset const *t) {
 // }
+
+bool sdisjoint(struct intset *s, struct intset const *t) {
+    struct intset *u = sintersection(s, t);
+    bool is_disj = snull(u);
+    free_intset(u);
+    return is_disj;
+}
 
 bool snull(struct intset const *set) {
     return ssize(set) == 0;

@@ -34,11 +34,11 @@
 
 struct intset {
     // everything but the trailing 6 bits
-    int64_t pfix;
+    uint64_t pfix;
     // either a branch mask (branch) or a bitmap (leaf)
     // branch mask is the highest order bit where the children differ
     // bitmap is a bitmap of the trailing 6 bits of each key '|'ed together
-    int64_t mask;
+    uint64_t mask;
     // branch mask & key is zero (less)
     struct intset *left;
     // branch mask & key is one (greater)
@@ -58,8 +58,8 @@ struct intset_iterator {
     int i;
 };
 
-struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
-struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right);
+struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
+struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
 bool siterator(struct intset const *set, struct intset_iterator *it);
 bool snextnode(struct intset const **out, struct intset_iterator *it);
 bool snextleaf(struct intset const **out, struct intset_iterator *it);

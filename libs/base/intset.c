@@ -18,7 +18,7 @@ static void print_intset_node(struct intset const *set) {
     printbits(set->mask);
     printf(", %p, %p)", set->left, set->right);
 #else
-    printf("%p (%"PRId64", %"PRId64", %p, %p)",
+    printf("%p (%"PRIu64", %"PRIu64", %p, %p)",
         set, set->pfix, set->mask, set->left, set->right);
 #endif
 }
@@ -27,13 +27,13 @@ static bool is_branch(struct intset const *set) {
     return set->left != NULL;
 }
 
-static bool prefix_upto_branch_matches(int64_t kfix, struct intset const *set) {
+static bool prefix_upto_branch_matches(uint64_t kfix, struct intset const *set) {
     return prefix_upto_branch(kfix, set->mask) == set->pfix;
 }
 
-static bool bmchecki(int64_t *out, int64_t pfix, int64_t bitmap, int i) {
+static bool bmchecki(uint64_t *out, uint64_t pfix, uint64_t bitmap, int i) {
     // check the ith bit
-    int64_t x = bitmap & (BIT << i);
+    uint64_t x = bitmap & (BIT << i);
 
     // we found a set bit, notify the caller
     if (x) {
@@ -44,11 +44,11 @@ static bool bmchecki(int64_t *out, int64_t pfix, int64_t bitmap, int i) {
     return false;
 }
 
-struct intset intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
+struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
     return (struct intset) { pfix, mask, left, right };
 }
 
-static struct intset *make_branch(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
+static struct intset *make_branch(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
     struct intset *set = NULL;
 
     if (!right) {
@@ -62,7 +62,7 @@ static struct intset *make_branch(int64_t pfix, int64_t mask, struct intset *lef
     return set;
 }
 
-struct intset *make_leaf(int64_t pfix, int64_t mask) {
+struct intset *make_leaf(uint64_t pfix, uint64_t mask) {
     struct intset *set = NULL;
 
     if (mask) {
@@ -72,7 +72,7 @@ struct intset *make_leaf(int64_t pfix, int64_t mask) {
     return set;
 }
 
-struct intset *init_intset(int64_t pfix, int64_t mask, struct intset *left, struct intset *right) {
+struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right) {
     struct intset *set = malloc(sizeof *set);
     assert(set != NULL);
     *set = intset(pfix, mask, left, right);
@@ -107,7 +107,7 @@ bool snextnode(struct intset const **out, struct intset_iterator *it) {
         if (is_branch(set)) {
             // if we're not at the root or the prefix is not negative
             // go right first (larger numbers)
-            if (it->at_root && set->mask < 0) {
+            if (it->at_root && set->mask > INT64_MAX) {
                 apush(&set->left, stack);
                 apush(&set->right, stack);
             } else {
@@ -151,7 +151,7 @@ bool snextbitmap(int *out, struct intset_iterator *it) {
 
     struct intset const *set = it->set;
 
-    int64_t x;
+    uint64_t x;
     for (int i = it->i; i < WORDBITS; (it->i = ++i)) {
         if (bmchecki(&x, set->pfix, set->mask, i)) {
             it->i++;
@@ -190,7 +190,7 @@ void reset_siterator(struct intset_iterator *it) {
 bool selem(int k, struct intset const *set) {
     struct array *stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
     bool elem = false;
-    int64_t kfix = prefix(k),
+    uint64_t kfix = prefix(k),
             bmap = bitmap(k);
 
     apush(&set, stack);
@@ -222,7 +222,7 @@ bool selem(int k, struct intset const *set) {
 
 static struct intset *link(struct intset const *newleaf, struct intset const *set) {
     struct intset const *right = newleaf;
-    int64_t brm = branch_mask(newleaf->pfix, set->pfix);
+    uint64_t brm = branch_mask(newleaf->pfix, set->pfix);
 
     if (zero(newleaf->pfix, brm)) {
         right = set;
@@ -234,7 +234,7 @@ static struct intset *link(struct intset const *newleaf, struct intset const *se
     return init_intset(prefix_upto_branch(newleaf->pfix, brm), brm, (struct intset *) set, (struct intset *) right);
 }
 
-static struct intset *_sinsert(int64_t kfix, int64_t bitmap, struct intset *set) {
+static struct intset *_sinsert(uint64_t kfix, uint64_t bitmap, struct intset *set) {
     if (!set) { // nil
         set = init_intset(kfix, bitmap, NULL, NULL);
     } else if (set->left) { // branch node
@@ -311,7 +311,7 @@ bool intseteq(struct intset const *s, struct intset const *t) {
     return eq;
 }
 
-static struct intset *unify_branch(struct intset const *s, struct intset const *t) {
+static struct intset *unify_branches(struct intset const *s, struct intset const *t) {
     struct intset *u = NULL;
 
     if (!prefix_upto_branch_matches(s->pfix, t)) {
@@ -334,9 +334,9 @@ struct intset *sunion(struct intset const *s, struct intset const *t) {
 
     if (is_branch(s) && is_branch(t)) { // both nodes are branches
         if (s->mask < t->mask) { // t has the greater branch mask
-            u = unify_branch(s, t);
+            u = unify_branches(s, t);
         } else if (t->mask < s->mask) { // s has the greater branch mask
-            u = unify_branch(t, s);
+            u = unify_branches(t, s);
         } else if (t->pfix == s->pfix) {
             u = init_intset(s->pfix, s->mask,
                     sunion(s->left, t->left),
@@ -386,14 +386,14 @@ struct intset *sintersection(struct intset const *s, struct intset const *t) {
                     sintersection(s->right, t->right));
         }
     } else if (is_branch(s) && prefix_upto_branch_matches(t->pfix, s)) { // s is a branch, t is a leaf
-        // lets see if we can find the matching leaf in t
+        // lets see if we can find the matching leaf in s
         if (zero(t->pfix, s->mask)) {
             u = sintersection(s->left, t);
         } else {
             u = sintersection(s->right, t);
         }
     } else if (is_branch(t) && prefix_upto_branch_matches(s->pfix, t)) { // t is a branch, s is a leaf
-        // lets see if we can find the matching leaf in s
+        // lets see if we can find the matching leaf in t
         if (zero(t->pfix, s->mask)) {
             u = sintersection(s, t->left);
         } else {

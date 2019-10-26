@@ -10,24 +10,6 @@
 /**
  * https://en.wikipedia.org/wiki/Radix_tree
  *
- * Insert(key, set):
- *
- * If set is null:
- *      init leaf node with prefix(key) and bitmap(key)
- * If set is a branch node:
- *      If prefix_upto_branch_bit(key, set->branch_mask) does not equal set->prefix
- *          init leaf node with prefix(key) and bitmap(key)
- *          compute branch_mask for the new key's prefix and current set
- *          init branch node with prefix_upto_branch_bit
- *      Else If the branch bit does not match the key prefix
- *          Insert(key, set->left)
- *      Else
- *          Insert(key, set->right)
- *  If set is a leaf node:
- *      If prefix(key) == set->prefix
- *          set->bitmap |= bitmap(key)
- *      Else
- *          Init leaf node with prefix(key) and bitmap(key)
  */
 
 #define IT_STACK_SIZE 64
@@ -69,14 +51,16 @@ void reset_siterator(struct intset_iterator *it);
 bool selem(int k, struct intset const *set);
 struct intset *sinsert(int k, struct intset *set);
 struct intset *slistinsert(int *k, size_t n, struct intset *set);
-// void sdelete(int k, struct intset *set);
+struct intset *sdelete(int k, struct intset *set);
 struct intset *sclone(struct intset const *set);
 bool intseteq(struct intset const *s, struct intset const *t);
 struct intset *sunion(struct intset const *s, struct intset const *t);
 struct intset *sintersection(struct intset const *s, struct intset const *t);
-// struct intset *sdifference(struct intset *s, struct intset const *t);
-bool sdisjoint(struct intset *a, struct intset const *b);
-bool snull(struct intset const *a);
+struct intset *sdifference(struct intset const *s, struct intset const *t);
+bool sdisjoint(struct intset *s, struct intset const *t);
+struct intset *sfromlist(int *k, size_t n);
+int *stolist(struct intset const *set);
+bool snull(struct intset const *set);
 size_t ssize(struct intset const *set);
 size_t streesize(struct intset const *set);
 size_t streedepth(struct intset const *set);

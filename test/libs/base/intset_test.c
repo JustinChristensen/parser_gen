@@ -87,10 +87,22 @@ END_TEST
 
 START_TEST(test_sinsert) {
     add_elements();
-    ck_assert_msg(snull(set) == false, "set is not null");
-    ck_assert_msg(ssize(set) == 5, "set has 5 elements");
-    ck_assert_msg(streesize(set) == 7, "set has 7 nodes");
-    ck_assert_msg(streedepth(set) == 3, "set has depth of 4");
+    ck_assert(!snull(set));
+    ck_assert_int_eq(ssize(set), 5);
+    ck_assert_int_eq(streesize(set), 7);
+    ck_assert_int_eq(streedepth(set), 3);
+}
+END_TEST
+
+START_TEST(test_sdelete) {
+    add_elements();
+
+    printf("sdelete:\n");
+    print_intset_tree(set);
+    ck_assert_int_eq(ssize(set), 5);
+    set = sdelete(INT_MIN, set);
+    print_intset_tree(set);
+    ck_assert_int_eq(ssize(set), 4);
 }
 END_TEST
 
@@ -299,6 +311,48 @@ START_TEST(test_sunion) {
 }
 END_TEST
 
+START_TEST(test_sdifference) {
+    int xs[] = { -413000, -2694, -45, 0, 130, 12000 };
+    int ys[] = { -2694, 0, 1, 0, 1, 0, 1, 127, 127, 599906, 12000 };
+
+    struct intset
+        *set1 = sfromlist(xs, SIZEOF(xs)),
+        *set2 = sfromlist(ys, SIZEOF(ys));
+
+    printf("sdifference:\n");
+    print_intset(set1);
+    printf("\n");
+    print_intset(set2);
+    printf("\n");
+
+    struct intset *set3 = sdifference(set1, set2);
+
+    print_intset_tree(set3);
+    print_intset(set3);
+    printf("\n");
+
+    struct intset_iterator it;
+    ck_assert(siterator(set3, &it));
+    int x;
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -413000);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, -45);
+
+    ck_assert(snext(&x, &it));
+    ck_assert_int_eq(x, 130);
+
+    ck_assert(!snext(&x, &it));
+
+    free_siterator(&it);
+    free_intset(set1);
+    free_intset(set2);
+    free_intset(set3);
+}
+END_TEST
+
 START_TEST(test_sdisjoint) {
     struct intset *set2 = NULL;
     set = sinsert(-90, set);
@@ -324,6 +378,21 @@ START_TEST(test_sdisjoint) {
 
     ck_assert(!sdisjoint(set, set2));
     free_intset(set2);
+}
+END_TEST
+
+START_TEST(test_stolist) {
+    add_elements();
+
+    int *xs = stolist(set);
+
+    ck_assert_int_eq(xs[0], INT_MIN);
+    ck_assert_int_eq(xs[1], -50153);
+    ck_assert_int_eq(xs[2], 0);
+    ck_assert_int_eq(xs[3], 63);
+    ck_assert_int_eq(xs[4], INT_MAX);
+
+    free(xs);
 }
 END_TEST
 
@@ -385,13 +454,16 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_null_intset);
         tcase_add_test(tc_core, test_selem);
         tcase_add_test(tc_core, test_sinsert);
+        tcase_add_test(tc_core, test_sdelete);
         tcase_add_test(tc_core, test_snextnode);
         tcase_add_test(tc_core, test_snextbitmap);
         tcase_add_test(tc_core, test_snext);
         tcase_add_test(tc_core, test_sclone);
         tcase_add_test(tc_core, test_sintersection);
         tcase_add_test(tc_core, test_sunion);
+        tcase_add_test(tc_core, test_sdifference);
         tcase_add_test(tc_core, test_sdisjoint);
+        tcase_add_test(tc_core, test_stolist);
         tcase_add_test(tc_core, test_intseteq);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);

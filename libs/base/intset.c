@@ -237,7 +237,7 @@ static struct intset *link(struct intset const *newleaf, struct intset const *se
 static struct intset *_sinsert(uint64_t kfix, uint64_t bitmap, struct intset *set) {
     if (!set) { // nil
         set = init_intset(kfix, bitmap, NULL, NULL);
-    } else if (set->left) { // branch node
+    } else if (is_branch(set)) {
         // do the key's prefix and branch prefix match?
         if (!prefix_upto_branch_matches(kfix, set)) {
             set = link(init_intset(kfix, bitmap, NULL, NULL), set);
@@ -274,8 +274,45 @@ struct intset *sclone(struct intset const *set) {
     return init_intset(set->pfix, set->mask, sclone(set->left), sclone(set->right));
 }
 
-// void sdelete(int k, struct intset *set) {
-// }
+static struct intset *_sdelete(uint64_t kfix, uint64_t bitmap, struct intset *set) {
+    if (!set) return NULL;
+
+    if (is_branch(set)) {
+        if (prefix_upto_branch_matches(kfix, set)) {
+            struct intset *temp = NULL;
+            if (zero(kfix, set->mask)) {
+                set->left = _sdelete(kfix, bitmap, set->left);
+
+                if (!set->left) {
+                    temp = set->right;
+                    free(set);
+                    set = temp;
+                }
+            } else {
+                set->right = _sdelete(kfix, bitmap, set->right);
+
+                if (!set->right) {
+                    temp = set->left;
+                    free(set);
+                    set = temp;
+                }
+            }
+        }
+    } else if (set->pfix == kfix) {
+        set->mask = set->mask & ~bitmap;
+
+        if (!set->mask) {
+            free_intset(set);
+            set = NULL;
+        }
+    }
+
+    return set;
+}
+
+struct intset *sdelete(int k, struct intset *set) {
+    return _sdelete(prefix(k), bitmap(k), set);
+}
 
 bool intseteq(struct intset const *s, struct intset const *t) {
     if (s == NULL && t == NULL) return true;
@@ -371,6 +408,7 @@ static struct intset *intersect_branches(struct intset const *s, struct intset c
 
 struct intset *sintersection(struct intset const *s, struct intset const *t) {
     if (s == NULL || t == NULL) return NULL;
+
     struct intset *u = NULL;
 
     if (is_branch(s) && is_branch(t)) { // both nodes are branches
@@ -406,14 +444,89 @@ struct intset *sintersection(struct intset const *s, struct intset const *t) {
     return u;
 }
 
-// struct intset *sdifference(struct intset *s, struct intset const *t) {
-// }
+static struct intset *differ_branches(struct intset const *s, struct intset const *t) {
+    struct intset *u = NULL;
+
+    if (prefix_upto_branch_matches(s->pfix, t)) {
+        // t is the greater node, so we need to determine
+        // which of t's children to try next
+        if (zero(s->pfix, t->mask)) {
+            u = sdifference(s, t->left);
+        } else {
+            u = sdifference(s, t->right);
+        }
+    } else {
+        u = sclone(s);
+    }
+
+    return u;
+}
+
+struct intset *sdifference(struct intset const *s, struct intset const *t) {
+    if (s == NULL) return NULL;
+    if (t == NULL) return sclone(s);
+
+    struct intset *u = NULL;
+
+    if (is_branch(s) && is_branch(t)) {
+        if (s->mask < t->mask) {
+            u = differ_branches(s, t);
+        } else if (t->mask < s->mask) {
+            if (!prefix_upto_branch_matches(s->pfix, t)) return sclone(s);
+
+            if (zero(s->pfix, t->mask)) {
+                u = make_branch(s->pfix, s->mask, sdifference(s->left, t), sclone(s->right));
+            } else {
+                u = make_branch(s->pfix, s->mask, sclone(s->left), sdifference(s->right, t));
+            }
+        } else if (t->pfix == s->pfix) {
+            u = make_branch(s->pfix, s->mask,
+                    sdifference(s->left, t->left),
+                    sdifference(s->right, t->right));
+        }
+    } else if (is_branch(s)) {
+        u = _sdelete(t->pfix, t->mask, sclone(s));
+    } else if (is_branch(t)) {
+        if (prefix_upto_branch_matches(s->pfix, t)) {
+            if (zero(s->pfix, t->mask)) {
+                u = sdifference(s, t->left);
+            } else {
+                u = sdifference(s, t->right);
+            }
+        }
+    } else if (s->pfix == t->pfix) {
+        u = make_leaf(s->pfix, s->mask & ~t->mask);
+    }
+
+    return u;
+}
 
 bool sdisjoint(struct intset *s, struct intset const *t) {
     struct intset *u = sintersection(s, t);
     bool is_disj = snull(u);
     free_intset(u);
     return is_disj;
+}
+
+struct intset *sfromlist(int *k, size_t n) {
+    return slistinsert(k, n, NULL);
+}
+
+int *stolist(struct intset const *set) {
+    int *list = NULL;
+    struct intset_iterator it;
+
+    if (siterator(set, &it)) {
+        list = calloc(ssize(set), sizeof *list);
+        assert(list != NULL);
+        int *i = list;
+        while (snext(i++, &it));
+
+        free_siterator(&it);
+    }
+
+
+    return list;
 }
 
 bool snull(struct intset const *set) {

@@ -472,9 +472,9 @@ struct intset *sdifference(struct intset const *s, struct intset const *t) {
         if (s->mask < t->mask) {
             u = differ_branches(s, t);
         } else if (t->mask < s->mask) {
-            if (!prefix_upto_branch_matches(s->pfix, t)) return sclone(s);
+            if (!prefix_upto_branch_matches(t->pfix, s)) return sclone(s);
 
-            if (zero(s->pfix, t->mask)) {
+            if (zero(t->pfix, s->mask)) {
                 u = make_branch(s->pfix, s->mask, sdifference(s->left, t), sclone(s->right));
             } else {
                 u = make_branch(s->pfix, s->mask, sclone(s->left), sdifference(s->right, t));

@@ -8,10 +8,13 @@ common props
     ghc-options: -Wall
     build-depends: base ^>=4.12.0.0
     default-language: Haskell2010
+    extra-lib-dirs: ../../../../libs/base
+    extra-libraries: base
 
-test-suite props
+test-suite props-test
     import: props
     type: exitcode-stdio-1.0
     main-is: Main.hs
+    other-modules: IntSet
     build-depends:
         QuickCheck

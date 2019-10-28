@@ -9,7 +9,6 @@
 
 /**
  * https://en.wikipedia.org/wiki/Radix_tree
- *
  */
 
 #define IT_STACK_SIZE 64

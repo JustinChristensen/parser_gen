@@ -34,16 +34,12 @@ int main(int argc, char *argv[]) {
 
     printf("set4:\n");
     print_intset(set4);
-    printf("\n");
     printf("set5:\n");
     print_intset(set5);
-    printf("\n");
     printf("set6:\n");
     print_intset(set6);
-    printf("\n");
     printf("set7:\n");
     print_intset(set7);
-    printf("\n");
 
     free_intset(set1);
     free_intset(set2);

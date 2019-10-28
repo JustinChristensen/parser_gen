@@ -182,7 +182,6 @@ START_TEST(test_snext) {
     printf("snext:\n");
     print_intset_tree(set);
     print_intset(set);
-    printf("\n");
 
     int x;
     ck_assert(snext(&x, &it));
@@ -230,11 +229,8 @@ START_TEST(test_sintersection) {
 
     printf("sintersection:\n");
     print_intset(set);
-    printf("\n");
     print_intset(set2);
-    printf("\n");
     print_intset(set3);
-    printf("\n");
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -267,11 +263,8 @@ START_TEST(test_sunion) {
 
     printf("sunion:\n");
     print_intset(set);
-    printf("\n");
     print_intset(set2);
-    printf("\n");
     print_intset(set3);
-    printf("\n");
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -321,15 +314,12 @@ START_TEST(test_sdifference) {
 
     printf("sdifference:\n");
     print_intset(set1);
-    printf("\n");
     print_intset(set2);
-    printf("\n");
 
     struct intset *set3 = sdifference(set1, set2);
 
     print_intset_tree(set3);
     print_intset(set3);
-    printf("\n");
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -365,9 +355,7 @@ START_TEST(test_sdisjoint) {
 
     printf("sdisjoint:\n");
     print_intset(set);
-    printf("\n");
     print_intset(set2);
-    printf("\n");
 
     ck_assert(sdisjoint(set, set2));
 
@@ -421,7 +409,6 @@ START_TEST(test_print_intset) {
     add_elements();
     printf("print_intset:\n");
     print_intset(set);
-    printf("\n");
 }
 END_TEST
 

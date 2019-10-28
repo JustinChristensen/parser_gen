@@ -4,12 +4,12 @@ CABAL_TEST := $(CABAL) v2-test
 
 .PHONY: all
 all: Main.hs
-	$(CABAL_BUILD)
+	$(CABAL_BUILD) --enable-tests
 
-.PHONY: test
-test: all
+.PHONY: check
+check: all
 	$(CABAL_TEST)
 
 .PHONY: clean
 clean:
-	rm -rf dist-newstyle
+	rm -rf dist dist-newstyle

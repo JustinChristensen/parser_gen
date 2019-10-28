@@ -201,9 +201,9 @@ bool selem(int k, struct intset const *set) {
         if (is_branch(set)) {
             if (prefix_upto_branch_matches(kfix, set)) {
                 if (zero(kfix, set->mask)) {
-                    apush((void **) &set->left, stack);
+                    apush((struct intset **) &set->left, stack);
                 } else {
-                    apush((void **) &set->right, stack);
+                    apush((struct intset **) &set->right, stack);
                 }
 
                 continue;
@@ -333,10 +333,10 @@ bool intseteq(struct intset const *s, struct intset const *t) {
             if (s == NULL && t == NULL) continue;
 
             if (s->pfix == t->pfix && s->mask == t->mask) {
-                apush((void **) &s->right, stack);
-                apush((void **) &t->right, stack);
-                apush((void **) &s->left, stack);
-                apush((void **) &t->left, stack);
+                apush((struct intset **) &s->right, stack);
+                apush((struct intset **) &t->right, stack);
+                apush((struct intset **) &s->left, stack);
+                apush((struct intset **) &t->left, stack);
             } else {
                 eq = false;
             }
@@ -572,7 +572,7 @@ size_t streedepth(struct intset const *set) {
     return _streedepth(set, 0);
 }
 
-void print_intset(struct intset const *set) {
+static void _print_intset(struct intset const *set) {
     if (!set) return;
 
     struct intset_iterator it;
@@ -584,6 +584,11 @@ void print_intset(struct intset const *set) {
 
         free_siterator(&it);
     }
+}
+
+void print_intset(struct intset const *set) {
+    _print_intset(set);
+    printf("\n");
 }
 
 static void _print_intset_tree(struct intset const *set, int depth) {

@@ -39,7 +39,7 @@ instance Storable IntSet where
         pokeByteOff ptr 24 r
 
 foreign import ccall "init_intset" initIntSet :: Word64 -> Word64 -> Ptr IntSet -> Ptr IntSet -> IO (Ptr IntSet)
-foreign import ccall "intseteq" intseteq :: Ptr IntSet -> Ptr IntSet -> Bool
+foreign import ccall "intseteq" intseteq :: Ptr IntSet -> Ptr IntSet -> IO Bool
 foreign import ccall "sunion" sunion :: Ptr IntSet -> Ptr IntSet -> IO (Ptr IntSet)
 foreign import ccall "sintersection" sintersection :: Ptr IntSet -> Ptr IntSet -> IO (Ptr IntSet)
 foreign import ccall "sdifference" sdifference :: Ptr IntSet -> Ptr IntSet -> IO (Ptr IntSet)

@@ -405,6 +405,23 @@ START_TEST(test_intseteq) {
 }
 END_TEST
 
+START_TEST(test_intseteq_0) {
+    int xs[] = { 0 };
+    struct intset *set2 = NULL;
+
+    set = slistinsert(xs, SIZEOF(xs), set);
+    set2 = slistinsert(xs, SIZEOF(xs), set2);
+
+    printf("intseteq_0:\n");
+    print_intset_tree(set);
+    print_intset_tree(set2);
+
+    ck_assert(intseteq(set, set2));
+
+    free_intset(set2);
+}
+END_TEST
+
 START_TEST(test_print_intset) {
     add_elements();
     printf("print_intset:\n");
@@ -452,6 +469,7 @@ Suite *intset_suite()
         tcase_add_test(tc_core, test_sdisjoint);
         tcase_add_test(tc_core, test_stolist);
         tcase_add_test(tc_core, test_intseteq);
+        tcase_add_test(tc_core, test_intseteq_0);
         tcase_add_test(tc_core, test_print_intset);
         tcase_add_test(tc_core, test_print_intset_tree);
     }

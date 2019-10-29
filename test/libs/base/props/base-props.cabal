@@ -16,7 +16,7 @@ test-suite props-test
     type: exitcode-stdio-1.0
     main-is: Main.hs
     other-modules:
-        IntSet
-        IntSetProps
+        CIntSet
+        CIntSetProps
     build-depends:
         QuickCheck

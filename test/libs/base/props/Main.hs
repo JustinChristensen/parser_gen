@@ -2,9 +2,9 @@ module Main where
 
 import Control.Monad (unless)
 import System.Exit
-import qualified IntSetProps
+import qualified CIntSetProps
 
 main :: IO ()
 main = do
-    passed <- IntSetProps.runTests
+    passed <- CIntSetProps.runTests
     unless passed exitFailure

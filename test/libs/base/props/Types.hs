@@ -21,9 +21,8 @@ shiftedList shift = ShiftedList <$> scale lengthScale (listOf elemGen)
 -- * Bounds (the range) of the elements are proportional to the size of the set
 -- * Bounds for set a shifted by a random number scaled by the size
 -- * Bounds for set b shifted by a logarithmic scale relative to the bounds for set a
-newtype OverlapSets a = OverlapSets {
-        getSets :: (Set a, Set a)
-    } deriving (Show, Eq)
+newtype OverlapSets a = OverlapSets (Set a, Set a)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (OverlapSets a) where
     arbitrary = sized $ \sz -> do
@@ -36,46 +35,40 @@ instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (OverlapSets a
             offsetBase = 1.31                -- shift all elements in a set +- logBase shiftBase size
             offset s = ceiling (logBase offsetBase (fromIntegral s))
 
-
-newtype EqOverlapSets a = EqOverlapSets {
-        getSetsEq :: (OverlapSets a, Bool)
-    } deriving (Show, Eq)
+newtype EqOverlapSets a = EqOverlapSets (OverlapSets a, Bool)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (EqOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
         pure $ EqOverlapSets (o, s == t)
 
-newtype DisjointOverlapSets a = DisjointOverlapSets {
-        getSetsDisjoint :: (OverlapSets a, Bool)
-    } deriving (Show, Eq)
+newtype DisjointOverlapSets a = DisjointOverlapSets (OverlapSets a, Bool)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DisjointOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
         pure $ DisjointOverlapSets (o, s `disjoint` t)
 
-newtype UnionOverlapSets a = UnionOverlapSets {
-        getSetsUnion :: (OverlapSets a, Set a)
-    } deriving (Show, Eq)
+newtype UnionOverlapSets a = UnionOverlapSets (OverlapSets a, Set a)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (UnionOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
         pure $ UnionOverlapSets (o, s `union` t)
 
-newtype IntersectionOverlapSets a = IntersectionOverlapSets {
-        getSetsIntersection :: (OverlapSets a, Set a)
-    } deriving (Show, Eq)
+newtype IntersectionOverlapSets a = IntersectionOverlapSets (OverlapSets a, Set a)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (IntersectionOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
         pure $ IntersectionOverlapSets (o, s `intersection` t)
 
-newtype DifferenceOverlapSets a = DifferenceOverlapSets {
-        getSetsDifference :: (OverlapSets a, Set a)
-    } deriving (Show, Eq)
+newtype DifferenceOverlapSets a = DifferenceOverlapSets (OverlapSets a, Set a)
+    deriving (Show, Eq)
 
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DifferenceOverlapSets a) where
     arbitrary = do

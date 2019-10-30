@@ -66,12 +66,16 @@ foreign import ccall "free_intset" freeIntSet :: Ptr CIntSet -> IO ()
 fromList :: [Int32] -> IO (Ptr CIntSet)
 fromList xs = do
     arr <- newArray xs
-    sFromList arr (genericLength xs)
+    set <- sFromList arr (genericLength xs)
+    free arr
+    pure set
 
 fromSet :: Set Int32 -> IO (Ptr CIntSet)
 fromSet xs = do
     arr <- newArray (toList xs)
-    sFromList arr (fromIntegral $ size xs)
+    set <- sFromList arr (fromIntegral $ size xs)
+    free arr
+    pure set
 
 toCIntSets :: [Set Int32] -> PropertyM IO [Ptr CIntSet]
 toCIntSets sets = run (mapM fromSet sets)
@@ -83,6 +87,5 @@ withCIntSets :: [Set Int32] -> ([Ptr CIntSet] -> PropertyM IO ()) -> Property
 withCIntSets sets test = monadicIO $ do
     csets <- toCIntSets sets
     test csets
-    freeCIntSets csets
 
 

@@ -22,7 +22,7 @@ module CIntSet (
 
 import Foreign
 import Data.Void
-import Data.Set (Set(..), toList, size)
+import Data.Set (Set, toList, size)
 import Control.Applicative ((<$>), (<*>))
 import Data.List (genericLength)
 import Test.QuickCheck
@@ -71,7 +71,7 @@ fromList xs = do
 fromSet :: Set Int32 -> IO (Ptr CIntSet)
 fromSet xs = do
     arr <- newArray (toList xs)
-    sFromList arr (size xs)
+    sFromList arr (fromIntegral $ size xs)
 
 toCIntSets :: [Set Int32] -> PropertyM IO [Ptr CIntSet]
 toCIntSets sets = run (mapM fromSet sets)
@@ -82,7 +82,7 @@ freeCIntSets sets = run (mapM_ freeIntSet sets)
 withCIntSets :: [Set Int32] -> ([Ptr CIntSet] -> PropertyM IO ()) -> Property
 withCIntSets sets test = monadicIO $ do
     csets <- toCIntSets sets
-    test
+    test csets
     freeCIntSets csets
 
 

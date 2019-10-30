@@ -1,44 +1,84 @@
-module Types (
-) where
+module Types where
 
 import Test.QuickCheck
 import Data.Set
-import Foreign
+
+newtype ShiftedList a = ShiftedList [a]
+    deriving (Show, Eq)
+
+shiftedList :: (Integral a, Arbitrary a) => a -> Gen (ShiftedList a)
+shiftedList shift = ShiftedList <$> scale lengthScale (listOf elemGen)
+    where
+        lengthScaleFactor = 50                 -- make longer lists
+        lengthScale = (* lengthScaleFactor)
+        elemScaleFactor :: Double
+        elemScaleFactor  = 1/10                -- constrain the integrals to a smaller range
+        elemScale = ceiling . (* elemScaleFactor) . fromIntegral
+        elemGen = fmap (+ shift) (scale elemScale arbitrary)
 
 -- Sets skewed to overlap more often than not
-newtype OverlapSets a = OverlapSets a {
+--
+-- * Bounds (the range) of the elements are proportional to the size of the set
+-- * Bounds for set a shifted by a random number scaled by the size
+-- * Bounds for set b shifted by a logarithmic scale relative to the bounds for set a
+newtype OverlapSets a = OverlapSets {
         getSets :: (Set a, Set a)
     } deriving (Show, Eq)
 
--- whether the potentially overlapping sets are equivalent
-newtype EqOverlapSets a = EqOverlapSets a {
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (OverlapSets a) where
+    arbitrary = sized $ \sz -> do
+            shift <- arbitraryBoundedIntegral
+            ShiftedList s <- shiftedList shift
+            ShiftedList t <- shiftedList (shift + offset sz)
+            pure $ OverlapSets (fromList s, fromList t)
+        where
+            offsetBase :: Double
+            offsetBase = 1.31                -- shift all elements in a set +- logBase shiftBase size
+            offset s = ceiling (logBase offsetBase (fromIntegral s))
+
+
+newtype EqOverlapSets a = EqOverlapSets {
         getSetsEq :: (OverlapSets a, Bool)
     } deriving (Show, Eq)
 
-newtype DisjointOverlapSets a = DisjointOverlapSets a {
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (EqOverlapSets a) where
+    arbitrary = do
+        o@(OverlapSets (s, t)) <- arbitrary
+        pure $ EqOverlapSets (o, s == t)
+
+newtype DisjointOverlapSets a = DisjointOverlapSets {
         getSetsDisjoint :: (OverlapSets a, Bool)
     } deriving (Show, Eq)
 
-newtype UnionOverlapSets a = UnionOverlapSets a {
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DisjointOverlapSets a) where
+    arbitrary = do
+        o@(OverlapSets (s, t)) <- arbitrary
+        pure $ DisjointOverlapSets (o, s `disjoint` t)
+
+newtype UnionOverlapSets a = UnionOverlapSets {
         getSetsUnion :: (OverlapSets a, Set a)
     } deriving (Show, Eq)
 
-newtype IntersectionOverlapSets a = IntersectionOverlapSets a {
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (UnionOverlapSets a) where
+    arbitrary = do
+        o@(OverlapSets (s, t)) <- arbitrary
+        pure $ UnionOverlapSets (o, s `union` t)
+
+newtype IntersectionOverlapSets a = IntersectionOverlapSets {
         getSetsIntersection :: (OverlapSets a, Set a)
     } deriving (Show, Eq)
 
-newtype DifferenceOverlapSets a = DifferenceOverlapSets a {
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (IntersectionOverlapSets a) where
+    arbitrary = do
+        o@(OverlapSets (s, t)) <- arbitrary
+        pure $ IntersectionOverlapSets (o, s `intersection` t)
+
+newtype DifferenceOverlapSets a = DifferenceOverlapSets {
         getSetsDifference :: (OverlapSets a, Set a)
     } deriving (Show, Eq)
 
-instance Arbitrary a => Arbitrary (OverlapSets a) where
+instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DifferenceOverlapSets a) where
+    arbitrary = do
+        o@(OverlapSets (s, t)) <- arbitrary
+        pure $ DifferenceOverlapSets (o, s `difference` t)
 
-instance Arbitrary a => Arbitrary (EqOverlapSets a) where
-
-instance Arbitrary a => Arbitrary (UnionOverlapSets a) where
-
-instance Arbitrary a => Arbitrary (IntersectionOverlapSets a) where
-
-instance Arbitrary a => Arbitrary (DifferenceOverlapSets a) where
-
-instance Arbitrary a => Arbitrary (DisjointOverlapSets a) where

@@ -4,6 +4,8 @@ module CIntSet (
 
     initIntSet,
     intseteq,
+    sinsert,
+    sdelete,
     sunion,
     sintersection,
     sdifference,
@@ -54,10 +56,12 @@ instance Storable CIntSet where
 
 foreign import ccall "init_intset" initIntSet :: Word64 -> Word64 -> Ptr CIntSet -> Ptr CIntSet -> IO (Ptr CIntSet)
 foreign import ccall "intseteq" intseteq :: Ptr CIntSet -> Ptr CIntSet -> IO Bool
+foreign import ccall "sinsert" sinsert :: Int32 -> Ptr CIntSet -> IO (Ptr CIntSet)
+foreign import ccall "sdelete" sdelete :: Int32 -> Ptr CIntSet -> IO (Ptr CIntSet)
 foreign import ccall "sunion" sunion :: Ptr CIntSet -> Ptr CIntSet -> IO (Ptr CIntSet)
 foreign import ccall "sintersection" sintersection :: Ptr CIntSet -> Ptr CIntSet -> IO (Ptr CIntSet)
 foreign import ccall "sdifference" sdifference :: Ptr CIntSet -> Ptr CIntSet -> IO (Ptr CIntSet)
-foreign import ccall "sdisjoint" sdisjoint :: Ptr CIntSet -> Ptr CIntSet -> Bool
+foreign import ccall "sdisjoint" sdisjoint :: Ptr CIntSet -> Ptr CIntSet -> IO Bool
 foreign import ccall "sfromlist" sFromList :: Ptr Int32 -> Word64 -> IO (Ptr CIntSet)
 foreign import ccall "print_intset" printIntSet :: Ptr CIntSet -> IO ()
 foreign import ccall "print_intset_tree" printIntSetTree :: Ptr CIntSet -> IO ()

@@ -280,6 +280,7 @@ static struct intset *_sdelete(uint64_t kfix, uint64_t bitmap, struct intset *se
     if (is_branch(set)) {
         if (prefix_upto_branch_matches(kfix, set)) {
             struct intset *temp = NULL;
+
             if (zero(kfix, set->mask)) {
                 set->left = _sdelete(kfix, bitmap, set->left);
 
@@ -432,7 +433,7 @@ struct intset *sintersection(struct intset const *s, struct intset const *t) {
         }
     } else if (is_branch(t) && prefix_upto_branch_matches(s->pfix, t)) { // t is a branch, s is a leaf
         // lets see if we can find the matching leaf in t
-        if (zero(t->pfix, s->mask)) {
+        if (zero(s->pfix, t->mask)) {
             u = sintersection(s, t->left);
         } else {
             u = sintersection(s, t->right);
@@ -445,18 +446,14 @@ struct intset *sintersection(struct intset const *s, struct intset const *t) {
 }
 
 static struct intset *differ_branches(struct intset const *s, struct intset const *t) {
+    if (!prefix_upto_branch_matches(s->pfix, t)) return sclone(s);
+
     struct intset *u = NULL;
 
-    if (prefix_upto_branch_matches(s->pfix, t)) {
-        // t is the greater node, so we need to determine
-        // which of t's children to try next
-        if (zero(s->pfix, t->mask)) {
-            u = sdifference(s, t->left);
-        } else {
-            u = sdifference(s, t->right);
-        }
+    if (zero(s->pfix, t->mask)) {
+        u = sdifference(s, t->left);
     } else {
-        u = sclone(s);
+        u = sdifference(s, t->right);
     }
 
     return u;
@@ -483,19 +480,23 @@ struct intset *sdifference(struct intset const *s, struct intset const *t) {
             u = make_branch(s->pfix, s->mask,
                     sdifference(s->left, t->left),
                     sdifference(s->right, t->right));
+        } else {
+            u = sclone(s);
         }
     } else if (is_branch(s)) {
         u = _sdelete(t->pfix, t->mask, sclone(s));
     } else if (is_branch(t)) {
-        if (prefix_upto_branch_matches(s->pfix, t)) {
-            if (zero(s->pfix, t->mask)) {
-                u = sdifference(s, t->left);
-            } else {
-                u = sdifference(s, t->right);
-            }
+        if (!prefix_upto_branch_matches(s->pfix, t)) return sclone(s);
+
+        if (zero(s->pfix, t->mask)) {
+            u = sdifference(s, t->left);
+        } else {
+            u = sdifference(s, t->right);
         }
     } else if (s->pfix == t->pfix) {
         u = make_leaf(s->pfix, s->mask & ~t->mask);
+    } else {
+        u = sclone(s);
     }
 
     return u;

@@ -8,11 +8,11 @@ all: Main.hs
 	$(CABAL_BUILD)
 
 .PHONY: check
-check: all
+check:
 	$(CABAL_TEST)
 
 .PHONY: repl
-repl: all
+repl:
 	$(CABAL_REPL)
 
 .PHONY: clean

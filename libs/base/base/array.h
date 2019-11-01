@@ -16,8 +16,8 @@ enum growth {
 };
 
 struct array {
-    void *buf;           // the buffer
-    enum growth growth;       // 1, 2, 4, ... vs 1, 2, 3, ...
+    void *buf;                 // the buffer
+    enum growth growth;        // 1, 2, 4, ... vs 1, 2, 3, ...
     float factor;              // (* 2) or (+ 1)
     int i;                     // current position
     int init_size;             // initial size (will not shrink below this)
@@ -36,6 +36,8 @@ bool arrayeq(
     struct array const *b
 );
 void aresize(int size, struct array *arr);
+void adel(void *elem, struct array *arr);
+void *aptr(int i, struct array const *arr);
 void at(void *out, int i, struct array const *arr);
 void apush(void *elem, struct array *arr);
 void apop(void *out, struct array *arr);

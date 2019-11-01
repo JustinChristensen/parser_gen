@@ -6,10 +6,6 @@
 #include <stdbool.h>
 #include "base/array.h"
 
-static void *ptr(int i, struct array const *arr) {
-    return arr->buf + i * arr->elem_size;
-}
-
 struct array array(void *buf, size_t elem_size, int init_size, enum growth growth, float factor) {
     return (struct array) {
         .buf = buf,
@@ -61,7 +57,7 @@ bool arrayeq(
     if (equal) {
         for (
             int i = 0;
-            i < alen && (equal = (*eleq)(ptr(i, a), ptr(i, b)));
+            i < alen && (equal = (*eleq)(aptr(i, a), aptr(i, b)));
             i++
         );
     }
@@ -100,13 +96,32 @@ void aresize(int size, struct array *arr) {
     arr->size = size;
 }
 
+void adel(void *elem, struct array *arr) {
+    if (aempty(arr)) return;
+
+    int ei = (elem - arr->buf) / arr->elem_size;
+
+    if (ei >= 0) {
+        for (int i = ei; i < arr->i - 1 && i < arr->size; i++) {
+            memcpy(aptr(i, arr), aptr(i + 1, arr), arr->elem_size);
+        }
+
+        arr->i--;
+        ensure_memory(arr);
+    }
+}
+
+void *aptr(int i, struct array const *arr) {
+    return arr->buf + i * arr->elem_size;
+}
+
 void at(void *out, int i, struct array const *arr) {
-    memcpy(out, ptr(i, arr), arr->elem_size);
+    memcpy(out, aptr(i, arr), arr->elem_size);
 }
 
 void apush(void *elem, struct array *arr) {
     ensure_memory(arr);
-    memcpy(ptr(arr->i, arr), elem, arr->elem_size);
+    memcpy(aptr(arr->i, arr), elem, arr->elem_size);
     arr->i++;
 }
 

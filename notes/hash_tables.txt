@@ -1,0 +1,43 @@
+Hashing
+
+If the set of keys is static and the cardinality of the set
+is small enough, then direct addressing can be used. Otherwise,
+we need a strategy to grow and shrink the array as necessary
+
+hash :: String -> Hash
+index :: Hash -> Index      -- hash % array_size    (or shifting/masking if array_size is a power of 2)
+
+Distribution of Hash values needs to be uniform
+Distribution can be evaluated empirically via a chi-squared test
+
+For open-addressing (probing) the hash function needs to avoid clustering values
+
+Multiplicative Hash
+
+Cryptographic hashes can be expensive
+
+Load Factor n / k where n is the number of entries in the hash table,
+and k is the number of buckets
+
+If an insert would push us over our max load factor, we can then
+re-allocate a larger array, and rehash all of the entries into the new
+array (with a new array_size modulo function)
+
+Representation
+Linear Hashing vs Spiral Storage
+
+Directory Segments:
+Directory
+    Segment #1
+        Bucket #1   ->  Node -> Node -> Node
+        Bucket #2
+        Bucket #3
+        Bucket #4
+        Bucket ...
+    Segment #2
+    Segment ...
+
+
+Collision Resolution
+Separate Chaining (Linked Lists as Buckets)
+

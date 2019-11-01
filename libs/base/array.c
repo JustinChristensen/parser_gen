@@ -6,41 +6,44 @@
 #include <stdbool.h>
 #include "base/array.h"
 
-struct array array(void *buf, size_t elem_size, size_t size, bool frozen, float growth_factor) {
+static void *ptr(int i, struct array const *arr) {
+    return arr->buf + i * arr->elem_size;
+}
+
+struct array array(void *buf, size_t elem_size, int init_size, enum growth growth, float factor) {
     return (struct array) {
         .buf = buf,
+        .growth = growth,
+        .factor = factor,
         .i = 0,
-        .initsize = size,
-        .size = size,
-        .elem_size = elem_size,
-        .frozen = frozen,
-        .growth_factor = growth_factor
+        .init_size = init_size,
+        .size = init_size,
+        .elem_size = (int) elem_size,
     };
 }
 
-struct array *init_array(size_t elem_size, size_t size, bool frozen, float growth_factor) {
-    size = size ? size : 1;
-    frozen = frozen || false;
-    growth_factor = growth_factor ? growth_factor : GROWTH_FACTOR;
+struct array *init_array(size_t elem_size, int init_size, enum growth growth, float factor) {
+    init_size = init_size > 0 ? init_size : 1;
+    if (!factor) factor = growth == LINEAR ? GROWTH_CONSTANT : GROWTH_FACTOR;
 
-    void *buf = calloc(size, elem_size);
+    void *buf = calloc(init_size, (int) elem_size);
     assert(buf != NULL);
 
     struct array *arr = malloc(sizeof *arr);
     assert(arr != NULL);
 
-    *arr = array(buf, elem_size, size, frozen, growth_factor);
+    *arr = array(buf, elem_size, init_size, growth, factor);
 
     return arr;
 }
 
-void agfactor(float growth_factor, struct array *arr) {
-    assert(growth_factor > 1);
-    arr->growth_factor = growth_factor;
+void agfactor(enum growth growth, float factor, struct array *arr) {
+    arr->growth = growth;
+    arr->factor = factor;
 }
 
 void afreeze(struct array *arr) {
-    arr->frozen = true;
+    arr->growth = FROZEN;
 }
 
 void asort(int (*compare)(void const *a, void const *b), struct array *arr) {
@@ -52,13 +55,13 @@ bool arrayeq(
     struct array const *a,
     struct array const *b
 ) {
-    size_t alen = asize(a);
+    int alen = asize(a);
     bool equal = alen == asize(b);
 
     if (equal) {
         for (
-            size_t i = 0;
-            i < alen && (equal = (*eleq)(at(i, a), at(i, b)));
+            int i = 0;
+            i < alen && (equal = (*eleq)(ptr(i, a), ptr(i, b)));
             i++
         );
     }
@@ -66,19 +69,27 @@ bool arrayeq(
     return equal;
 }
 
-void *at(size_t i, struct array const *arr) {
-    return arr->buf + i * arr->elem_size;
+static bool should_grow(struct array *arr) {
+    return arr->i == arr->size;
 }
 
-void *atop(struct array *arr) {
-    return at(arr->i - 1, arr);
+static bool should_shrink(struct array *arr) {
+    return arr->size > arr->init_size &&
+        arr->i / (float) arr->size < SHRINK_SIZE;
 }
 
-void *abottom(struct array *arr) {
-    return arr->buf;
+static void ensure_memory(struct array *arr) {
+    if (arr->growth == FROZEN) return;
+
+    if (should_grow(arr)) {
+        if (arr->growth == LINEAR) aresize(arr->size + arr->factor, arr);
+        else                  aresize(ceil(arr->size * arr->factor), arr);
+    } else if (should_shrink(arr)) {
+        aresize(ceil(arr->size * SHRINK_FACTOR), arr);
+    }
 }
 
-void aresize(size_t size, struct array *arr) {
+void aresize(int size, struct array *arr) {
     if (arr->size == size) return;
 #ifdef DEBUG
     printf("resizing array, old size: %ld, new size: %ld\n", arr->size, size);
@@ -89,38 +100,14 @@ void aresize(size_t size, struct array *arr) {
     arr->size = size;
 }
 
-static bool should_grow(struct array *arr) {
-    return arr->i == arr->size;
-}
-
-static bool should_shrink(struct array *arr) {
-    return arr->size > arr->initsize && arr->i / (float) arr->size < SHRINK_SIZE;
-}
-
-static void ensure_memory(struct array *arr) {
-    if (!arr->frozen) {
-        if (should_grow(arr)) {
-            aresize(ceil(arr->size * arr->growth_factor), arr);
-        } else if (should_shrink(arr)) {
-            aresize(ceil(arr->size * SHRINK_FACTOR), arr);
-        }
-    }
-}
-
-void areset(struct array *arr) {
-    if (!arr) return;
-    arr->i = 0;
-    ensure_memory(arr);
+void at(void *out, int i, struct array const *arr) {
+    memcpy(out, ptr(i, arr), arr->elem_size);
 }
 
 void apush(void *elem, struct array *arr) {
     ensure_memory(arr);
-    memcpy(at(arr->i, arr), elem, arr->elem_size);
+    memcpy(ptr(arr->i, arr), elem, arr->elem_size);
     arr->i++;
-}
-
-void apeek(void *out, struct array *arr) {
-    memcpy(out, at(arr->i - 1, arr), arr->elem_size);
 }
 
 void apop(void *out, struct array *arr) {
@@ -129,12 +116,22 @@ void apop(void *out, struct array *arr) {
     ensure_memory(arr);
 }
 
-size_t asize(struct array const *arr) {
-    return arr->i;
+void apeek(void *out, struct array const *arr) {
+    at(out, arr->i - 1, arr);
 }
 
-bool aistop(void *elem, struct array *arr) {
-    return atop(arr) == elem;
+void abottom(void *out, struct array const *arr) {
+    at(out, 0, arr);
+}
+
+void areset(struct array *arr) {
+    if (!arr) return;
+    arr->i = 0;
+    ensure_memory(arr);
+}
+
+int asize(struct array const *arr) {
+    return arr->i;
 }
 
 bool aempty(struct array const *arr) {

@@ -101,14 +101,12 @@ void adel(void *elem, struct array *arr) {
 
     int ei = (elem - arr->buf) / arr->elem_size;
 
-    if (ei >= 0) {
-        for (int i = ei; i < arr->i - 1 && i < arr->size; i++) {
-            memcpy(aptr(i, arr), aptr(i + 1, arr), arr->elem_size);
-        }
-
-        arr->i--;
-        ensure_memory(arr);
+    for (int i = ei; i < arr->i - 1; i++) {
+        memcpy(aptr(i, arr), aptr(i + 1, arr), arr->elem_size);
     }
+
+    arr->i--;
+    ensure_memory(arr);
 }
 
 void *aptr(int i, struct array const *arr) {

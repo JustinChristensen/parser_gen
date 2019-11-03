@@ -1,6 +1,8 @@
 #ifndef BASE_PRIMES_H_
 #define BASE_PRIMES_H_ 1
 
-unsigned int next_prime(unsigned int n);
+extern unsigned int const primes[];
+unsigned int const *const start_prime;
+unsigned int const *const end_prime;
 
-#endif
+#endif // BASE_PRIMES_H_

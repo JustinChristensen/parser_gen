@@ -6,5 +6,6 @@
 #define RUN_DIAGNOSTICS "RUN_DIAGNOSTICS"
 
 Suite *intset_suite();
+Suite *array_suite();
 
 #endif // TEST_BASE_H_

@@ -1,7 +1,7 @@
 TOPDIR := ..
 TARGETS := all check clean
 SUBDIRS := \
-libs/base
+libs/base/unit
 
 include $(TOPDIR)/make/subdirs.mk
 

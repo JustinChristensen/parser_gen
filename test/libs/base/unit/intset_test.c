@@ -32,10 +32,10 @@ void assert_iter_reset(struct intset_iterator *it) {
     assert_iter(it, 0, true, false, 0);
 }
 
-void setup() {
+static void setup() {
 }
 
-void teardown() {
+static void teardown() {
     free_intset(set);
     set = NULL;
 }

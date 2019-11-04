@@ -16,8 +16,11 @@ test-suite props-test
     type: exitcode-stdio-1.0
     main-is: Main.hs
     other-modules:
+        CArray,
         CIntSet,
+        CHashTable,
         CIntSetProps,
+        CHashTableProps,
         Types
     build-depends:
         QuickCheck,

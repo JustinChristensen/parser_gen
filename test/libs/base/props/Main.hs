@@ -7,6 +7,7 @@ import Data.Function
 import System.Exit
 import Test.QuickCheck hiding (verbose)
 import qualified CIntSetProps
+import qualified CHashTableProps
 
 readEnv :: Read a => String -> a -> IO a
 readEnv key def = do
@@ -29,4 +30,7 @@ main = do
         propRunner True = verboseCheckWithResult
         propRunner False = quickCheckWithResult
         args size tests = stdArgs { maxSize = size, maxSuccess = tests }
-        suites = [CIntSetProps.runTests]
+        suites = [
+                -- CIntSetProps.runTests
+                CHashTableProps.runTests
+            ]

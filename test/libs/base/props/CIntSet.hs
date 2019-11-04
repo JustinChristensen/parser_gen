@@ -25,7 +25,6 @@ module CIntSet (
 import Foreign
 import Data.Void
 import Data.Set (Set, toList, size)
-import Control.Applicative ((<$>), (<*>))
 import Data.List (genericLength)
 import Test.QuickCheck
 import Test.QuickCheck.Monadic

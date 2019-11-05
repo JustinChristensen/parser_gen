@@ -3,7 +3,7 @@ include $(TOPDIR)/make/common_vars.mk
 
 GDB := gdb
 PROG := test_base
-LIBS += -lcheck
+LIBS += -lcheck -lm
 
 include $(TOPDIR)/make/common_targets.mk
 

@@ -3,20 +3,12 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include "base/array.h"
 
 #define HT_GROWTH 1.618     // defined, but not used
 #define HT_MIN_LOAD 1.5
 #define HT_MAX_LOAD 4.0
 #define HT_BUCKET_START 1
 #define HT_BUCKET_GROWTH 1
-
-struct hash_table {
-    struct array *buckets;
-    unsigned int *size;
-    unsigned int used;
-    unsigned int entries;
-};
 
 union entry {
     void *v;
@@ -28,21 +20,29 @@ struct hash_entry {
     union entry val;
 };
 
+struct hash_node {
+    struct hash_node *next;
+    struct hash_entry entry;
+};
+
+struct hash_table {
+    struct hash_node **buckets;
+    unsigned int *size;
+    unsigned int used;
+    unsigned int entries;
+};
+
 struct table_iterator {
     struct hash_table const *table;
     int i; // bucket
-    int j; // entry
+    struct hash_node *node; // entry
 };
 
-struct hash_table hash_table(struct array *buckets, unsigned int *size);
+struct hash_table hash_table(struct hash_node **buckets, unsigned int *size);
 struct hash_table *init_hash_table(unsigned int *size);
-void ht_each_entry(void (*fn) (struct hash_entry *entry, void *state), void *state, struct hash_table const *table);
-void ht_each(void (*fn) (union entry *val, void *state), void *state, struct hash_table const *table);
-// bool hash_table_eq(bool (*valeq) (union entry const *a, union entry const *b), struct hash_table const *a, struct hash_table const *b);
-// bool hash_int_eq(union entry const *a, union entry const *b);
 struct hash_table *htclone(struct hash_table const *table);
 char **htkeys(struct hash_table const *table);
-void free_keys(char **keys, size_t n);
+void free_keys(char **keys, unsigned int n);
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table);
 bool htcontains(char const *key, struct hash_table const *table);
 union entry *htlookup(char const *key, struct hash_table const *table);

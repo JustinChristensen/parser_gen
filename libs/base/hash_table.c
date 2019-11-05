@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "base/array.h"
 #include "base/primes.h"
 #include "base/hash_table.h"
 
@@ -21,38 +20,39 @@ static unsigned int ind(unsigned char const *key, unsigned int size) {
     return hash(key) % size;
 }
 
-static struct array new_bucket(unsigned int init_size) {
-    size_t entry_size = sizeof (struct hash_entry);
-    void *buf = calloc(init_size, entry_size);
-    assert(buf != NULL);
-    return array(buf, entry_size, init_size, LINEAR, HT_BUCKET_GROWTH);
+static struct hash_entry hash_entry(char const *key, union entry val) {
+    char *dupkey = strdup(key);
+    assert(dupkey != NULL);
+    return (struct hash_entry) { dupkey, val };
 }
 
-static struct array clone_bucket(struct array *bucket) {
-    struct array cloned = new_bucket(asize(bucket));
-    void *buf = cloned.buf;
-    cloned = *bucket; // copy over the bucket state
-    cloned.buf = buf;
-    return cloned;
+static struct hash_node *init_hash_node(struct hash_node *next, struct hash_entry entry) {
+    struct hash_node *node = malloc(sizeof *node);
+    assert(node != NULL);
+    *node = (struct hash_node) { next, entry };
+    return node;
 }
 
-static bool has_entries(struct array *bucket) {
-    return bucket->buf != NULL;
+static struct hash_node *clone_node(struct hash_node *node) {
+    if (!node) return NULL;
+    struct hash_entry entry = node->entry;
+    return init_hash_node(clone_node(node->next), hash_entry(entry.key, entry.val));
 }
 
-static struct array free_bucket(struct array *bucket) {
-    free(bucket->buf);
-    bucket->buf = NULL;
-    return (struct array) { 0 };
+static struct hash_entry free_hash_entry(struct hash_entry entry) {
+    free(entry.key);
+    entry.key = NULL;
+    return entry;
 }
 
-void free_hash_entry(struct hash_entry *entry) {
-    free((void *) entry->key);
-    entry->key = NULL;
+static void free_hash_node(struct hash_node *node) {
+    if (!node) return;
+    node->entry = free_hash_entry(node->entry);
+    free(node);
 }
 
-static struct array *allocate_buckets(unsigned int size) {
-    struct array *buckets = calloc(sizeof *buckets, size);
+static struct hash_node **allocate_buckets(unsigned int size) {
+    struct hash_node **buckets = calloc(sizeof *buckets, size);
     assert(buckets != NULL);
     return buckets;
 }
@@ -61,47 +61,49 @@ static double htload(struct hash_table const *table) {
     return htentries(table) / (double) htused(table);
 }
 
-static struct array *find_bucket(char const *key, struct hash_table const *table) {
-    return &table->buckets[ind((unsigned char const *) key, *table->size)];
+static struct hash_node **find_bucket(char const *key, struct hash_table const *table) {
+    return table->buckets + ind((unsigned char const *) key, *table->size);
 }
 
-static struct hash_entry *find_entry(char const *key, struct array *bucket) {
-    struct hash_entry *found = NULL;
-
-    for (int i = 0; !found && i < asize(bucket); i++) {
-        struct hash_entry *entry = aptr(i, bucket);
-
-        if (!strcmp(key, entry->key)) {
-            found = entry;
-        }
+static struct hash_node *find_node(char const *key, struct hash_node *bucket) {
+    for (struct hash_node *node = bucket; node; node = node->next) {
+        struct hash_entry entry = node->entry;
+        if (!strcmp(key, entry.key)) return node;
     }
 
-    return found;
+    return NULL;
+}
+
+static struct hash_node *delete_node(char const *key, struct hash_node *node) {
+    if (!node) return NULL;
+    struct hash_node *next = node;
+    struct hash_entry entry = node->entry;
+
+    if (!strcmp(key, entry.key)) {
+        next = node->next;
+        free_hash_node(node);
+    } else {
+        node->next = delete_node(key, node->next);
+    }
+
+    return next;
 }
 
 // without the load checking
 static struct hash_table *_htinsert(char const *key, union entry const val, struct hash_table *table) {
-    struct array *bucket = find_bucket(key, table);
+    struct hash_node **bucket = find_bucket(key, table);
 
-    if (!has_entries(bucket)) {
-        *bucket = new_bucket(HT_BUCKET_START);
-        table->used++;
-    }
+    struct hash_entry new_entry = hash_entry(key , val);
+    struct hash_node *found = find_node(key, *bucket);
 
-    char *dupkey = strdup(key);
-    assert(dupkey != NULL);
-    struct hash_entry new_entry = { dupkey , val };
-
-    struct hash_entry *entry = find_entry(key, bucket);
-
-    if (entry) {
-        free_hash_entry(entry);
+    if (found) {
+        found->entry = free_hash_entry(found->entry);
         // caller needs to worry about maintaining pointers to the
         // entry value (for the void * member of the union) for later freeing
-        *entry = new_entry;
-    }
-    else {
-        apush(&new_entry, bucket);
+        found->entry = new_entry;
+    } else {
+        if (*bucket == NULL) table->used++;
+        *bucket = init_hash_node(*bucket, new_entry);
         table->entries++;
     }
 
@@ -109,7 +111,7 @@ static struct hash_table *_htinsert(char const *key, union entry const val, stru
 }
 
 static void rehash(struct hash_table *table, unsigned int *size) {
-    struct array *buckets = table->buckets;
+    struct hash_node **buckets = table->buckets;
     unsigned int prev_size = htsize(table);
 
     table->buckets = allocate_buckets(*size);
@@ -118,18 +120,14 @@ static void rehash(struct hash_table *table, unsigned int *size) {
     table->size = size;
 
     for (int i = 0; i < prev_size; i++) {
-        struct array *bucket = &buckets[i];
-
-        if (has_entries(bucket)) {
-            while (!aempty(bucket)) {
-                struct hash_entry entry;
-                apop(&entry, bucket);
-                _htinsert(entry.key, entry.val, table);
-                free_hash_entry(&entry);
-            }
-
-            buckets[i] = free_bucket(bucket);
+        for (struct hash_node *node = buckets[i], *next = NULL; node; node = next) {
+            next = node->next;
+            struct hash_entry entry = node->entry;
+            _htinsert(entry.key, entry.val, table);
+            free_hash_node(node);
         }
+
+        buckets[i] = NULL;
     }
 
     free(buckets);
@@ -148,7 +146,7 @@ static void check_load(struct hash_table *table) {
     else if (should_shrink(table))  rehash(table, table->size - 1);
 }
 
-struct hash_table hash_table(struct array *buckets, unsigned int *size) {
+struct hash_table hash_table(struct hash_node **buckets, unsigned int *size) {
     return (struct hash_table) {
         .buckets = buckets,
         .size = size,
@@ -159,7 +157,7 @@ struct hash_table hash_table(struct array *buckets, unsigned int *size) {
 
 struct hash_table *init_hash_table(unsigned int *size) {
     size = size ? size : (unsigned int *) start_prime;
-    struct array *buckets = allocate_buckets(*size);
+    struct hash_node **buckets = allocate_buckets(*size);
     assert(buckets != NULL);
 
     struct hash_table *table = malloc(sizeof *table);
@@ -178,7 +176,7 @@ struct hash_table *htclone(struct hash_table const *table) {
     new_table->size = table->size;
 
     for (int i = 0; i < htsize(table); i++) {
-        new_table->buckets[i] = clone_bucket(&table->buckets[i]);
+        new_table->buckets[i] = clone_node(table->buckets[i]);
     }
 
     return new_table;
@@ -191,41 +189,20 @@ char **htkeys(struct hash_table const *table) {
     struct hash_entry *entry;
     char **k = keys;
     while (htnextentry(&entry, &it)) {
-        *k++ = strdup(entry->key);
+        char *dupkey = strdup(entry->key);
+        assert(dupkey != NULL);
+        *k++ = dupkey;
     }
 
     return keys;
 }
 
-void free_keys(char **keys, size_t n) {
+void free_keys(char **keys, unsigned int n) {
     for (int i = 0; i < n; i++) {
         free(keys[i]);
-        keys[i] = NULL;
     }
 
     free(keys);
-}
-
-void ht_each_entry(void (*fn) (struct hash_entry *entry, void *state), void *state, struct hash_table const *table) {
-    if (!fn) return;
-
-    struct table_iterator it = table_iterator(table);
-    struct hash_entry *entry;
-
-    while (htnextentry(&entry, &it)) {
-        (*fn)(entry, state);
-    }
-}
-
-void ht_each(void (*fn) (union entry *val, void *state), void *state, struct hash_table const *table) {
-    if (!fn) return;
-
-    struct table_iterator it = table_iterator(table);
-    union entry *val;
-
-    while (htnext(&val, &it)) {
-        (*fn)(val, state);
-    }
 }
 
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table) {
@@ -242,8 +219,8 @@ bool htcontains(char const *key, struct hash_table const *table) {
 
     if (!table) return false;
 
-    struct array *bucket = find_bucket(key, table);
-    if (bucket && find_entry(key, bucket)) return true;
+    struct hash_node **bucket = find_bucket(key, table);
+    if (*bucket && find_node(key, *bucket)) return true;
     return false;
 }
 
@@ -252,11 +229,11 @@ union entry *htlookup(char const *key, struct hash_table const *table) {
 
     if (!table) return NULL;
 
-    struct array *bucket = find_bucket(key, table);
-    struct hash_entry *entry = NULL;
+    struct hash_node **bucket = find_bucket(key, table);
+    struct hash_node *found = NULL;
 
-    if (bucket && (entry = find_entry(key, bucket))) {
-        return &entry->val;
+    if (*bucket && (found = find_node(key, *bucket))) {
+        return &found->entry.val;
     }
 
     return NULL;
@@ -264,22 +241,13 @@ union entry *htlookup(char const *key, struct hash_table const *table) {
 
 bool htdelete(char const *key, struct hash_table *table) {
     assert(table != NULL && key != NULL);
+    struct hash_node **bucket = find_bucket(key, table);
 
-    struct array *bucket = find_bucket(key, table);
-    struct hash_entry *entry = NULL;
-
-    if (bucket && (entry = find_entry(key, bucket))) {
-        free_hash_entry(entry);
-        adel(entry, bucket);
+    if (*bucket) {
+        *bucket = delete_node(key, *bucket);
         table->entries--;
-
-        if (aempty(bucket)) {
-            *bucket = free_bucket(bucket);
-            table->used--;
-        }
-
+        if (*bucket == NULL) table->used--;
         check_load(table);
-
         return true;
     }
 
@@ -287,32 +255,37 @@ bool htdelete(char const *key, struct hash_table *table) {
 }
 
 struct table_iterator table_iterator(struct hash_table const *table) {
-    return (struct table_iterator) { table, 0, 0, };
+    assert(table != NULL);
+    return (struct table_iterator) { table, 0, NULL };
 }
 
 bool htnextentry(struct hash_entry **out, struct table_iterator *it) {
     assert(out != NULL && it != NULL && it->table != NULL);
 
     struct hash_table const *table = it->table;
-    struct array *buckets = table->buckets;
+    struct hash_node **buckets = table->buckets;
     unsigned int size = htsize(table);
 
-    for (int i = it->i; i < size; i = ++it->i) {
-        struct array *bucket = &buckets[i];
+    while (true) {
+        struct hash_node *node = it->node;
 
-        if (has_entries(bucket)) {
-            for (int j = it->j; j < asize(bucket); j = ++it->j) {
-                *out = aptr(j, bucket);
-                it->j++;
-                return true;
-            }
+        if (node) {
+            *out = &node->entry;
+            it->node = node->next;
+            return true;
         }
 
-        it->j = 0;
+        if (it->i < size) {
+            it->node = buckets[it->i++];
+            continue;
+        }
+
+        break;
     }
 
     *out = NULL;
-    it->i = it->j = 0;
+    it->i = 0;
+    it->node = NULL;
 
     return false;
 }
@@ -367,10 +340,10 @@ void print_hash_int(union entry val) {
     printf("%d", val.i);
 }
 
-static void print_hash_entry(void (*print_val) (union entry val), struct hash_entry const *entry) {
+static void print_hash_entry(void (*print_val) (union entry val), struct hash_entry const entry) {
     if (!print_val) return;
-    printf("(%s, ", entry->key);
-    (*print_val)(entry->val);
+    printf("(%s, ", entry.key);
+    (*print_val)(entry.val);
     printf(")");
 }
 
@@ -379,16 +352,16 @@ void print_hash_table(void (*print_val) (union entry val), struct hash_table con
 
     print_table_stats(table);
 
-    struct array *buckets = table->buckets;
+    struct hash_node **buckets = table->buckets;
 
     for (int i = 0; i < htsize(table); i++) {
-        struct array *bucket = &buckets[i];
+        struct hash_node *node = buckets[i];
 
         printf("%d: ", i);
 
-        if (has_entries(bucket)) {
-            for (int j = 0; j < asize(bucket); j++) {
-                print_hash_entry(print_val, aptr(j, bucket));
+        if (node) {
+            for (; node; node = node->next) {
+                print_hash_entry(print_val, node->entry);
                 printf(" ");
             }
         } else {
@@ -406,7 +379,7 @@ void print_hash_entries(void (*print_val) (union entry val), struct hash_table c
     struct hash_entry *entry;
 
     while (htnextentry(&entry, &it)) {
-        print_hash_entry(print_val, entry);
+        print_hash_entry(print_val, *entry);
         printf("\n");
     }
 }
@@ -421,17 +394,12 @@ void print_table_stats(struct hash_table const *table) {
 void free_hash_table(struct hash_table *table) {
     if (!table) return;
 
-    struct array *buckets = table->buckets;
+    struct hash_node **buckets = table->buckets;
 
     for (int i = 0; i < htsize(table); i++) {
-        struct array *bucket = &buckets[i];
-
-        if (has_entries(bucket)) {
-            for (int j = 0; j < asize(bucket); j++) {
-                free_hash_entry(aptr(j, bucket));
-            }
-
-            buckets[i] = free_bucket(bucket);
+        for (struct hash_node *node = buckets[i], *next = NULL; node; node = next) {
+            next = node->next;
+            free_hash_node(node);
         }
     }
 

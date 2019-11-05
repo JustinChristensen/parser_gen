@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
+#include <math.h>
 #include <ctype.h>
 #include <check.h>
 #include <base/hash_table.h>
@@ -46,10 +47,11 @@ START_TEST(test_keys) {
     table = htinsert("baz", v, table);
 
     char **keys = htkeys(table);
-    size_t entries = htentries(table);
 
     printf("htkeys:\n");
-    for (int i = 0, s = entries; i < s; i++) {
+    unsigned int entries = htentries(table);
+
+    for (int i = 0; i < entries; i++) {
         printf("%s ", keys[i]);
         ck_assert(htdelete(keys[i], table));
     }
@@ -70,17 +72,29 @@ START_TEST(test_duplicate_insert) {
 END_TEST
 
 START_TEST(test_random_inserts_and_deletes) {
-    for (int t = 0, n = randr(10, 500); t < n; t++) {
-        char key[30] = "";
+    char *max_inserts = getenv("MAX_INSERTS");
+    int num_inserts = 100;
 
-        for (int i = 0; i < randr(1, SIZEOF(key) - 1); i++) {
+    if (max_inserts) {
+        num_inserts = atoi(max_inserts);
+    }
+
+    int key_size = ceil(num_inserts / 5);
+    char *key = calloc(key_size, sizeof *key);
+
+    for (int t = 0, n = randr(10, num_inserts); t < n; t++) {
+        int i;
+        for (i = 0; i < randr(1, key_size - 1); i++) {
             do (key[i] = randr(0, 255));
             while (!isprint(key[i]));
         }
+        key[i] = '\0';
 
-        union entry val = { .i = 99 };
+        union entry val = { .i = i };
         table = htinsert(key, val, table);
     }
+
+    free(key);
 
     printf("random_inserts_and_deletes:\n");
     print_hash_table(print_hash_int, table);
@@ -88,7 +102,7 @@ START_TEST(test_random_inserts_and_deletes) {
     char **keys = htkeys(table);
     size_t entries = htentries(table);
 
-    for (int i = 0, s = entries; i < s; i++) {
+    for (int i = 0; i < entries; i++) {
         if (!randr(0, 7)) continue;
         ck_assert_msg(htdelete(keys[i], table), keys[i]);
     }
@@ -104,21 +118,19 @@ Suite *hash_table_suite()
 {
     Suite *s = suite_create("hash_table");
 
+    TCase *tc_core = tcase_create("core");
+    TCase *tc_random = tcase_create("random");
 
-    if (getenv("RUN_RANDOM")) {
-        TCase *tc_random = tcase_create("random");
-        tcase_add_checked_fixture(tc_random, setup, teardown);
-        tcase_add_test(tc_random, test_random_inserts_and_deletes);
-        suite_add_tcase(s, tc_random);
-    } else {
-        TCase *tc_core = tcase_create("core");
-        tcase_add_checked_fixture(tc_core, setup, teardown);
-        tcase_add_test(tc_core, test_basic_insert);
-        tcase_add_test(tc_core, test_keys);
-        tcase_add_test(tc_core, test_duplicate_insert);
+    tcase_add_checked_fixture(tc_core, setup, teardown);
+    tcase_add_checked_fixture(tc_random, setup, teardown);
 
-        suite_add_tcase(s, tc_core);
-    }
+    tcase_add_test(tc_core, test_basic_insert);
+    tcase_add_test(tc_core, test_keys);
+    tcase_add_test(tc_core, test_duplicate_insert);
+    tcase_add_test(tc_random, test_random_inserts_and_deletes);
+
+    suite_add_tcase(s, tc_core);
+    suite_add_tcase(s, tc_random);
 
     return s;
 }

@@ -57,7 +57,7 @@ START_TEST(test_keys) {
     }
     printf("\n");
 
-    free_keys(keys, entries);
+    free(keys);
 }
 END_TEST
 
@@ -107,7 +107,7 @@ START_TEST(test_random_inserts_and_deletes) {
         ck_assert_msg(htdelete(keys[i], table), keys[i]);
     }
 
-    free_keys(keys, entries);
+    free(keys);
 
     printf("random_inserts_and_deletes:\n");
     print_hash_table(print_hash_int, table);

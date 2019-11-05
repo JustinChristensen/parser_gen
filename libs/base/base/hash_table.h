@@ -42,7 +42,6 @@ struct hash_table hash_table(struct hash_node **buckets, unsigned int *size);
 struct hash_table *init_hash_table(unsigned int *size);
 struct hash_table *htclone(struct hash_table const *table);
 char **htkeys(struct hash_table const *table);
-void free_keys(char **keys, unsigned int n);
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table);
 bool htcontains(char const *key, struct hash_table const *table);
 union entry *htlookup(char const *key, struct hash_table const *table);

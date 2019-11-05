@@ -14,10 +14,6 @@ $(PROG): main.c array_test.c hash_table_test.c intset_test.c
 check: $(PROG)
 	./$(PROG)
 
-.PHONY: props
-props:
-	$(MAKE) -C props check
-
 .PHONY: debug
 debug:
 	CK_FORK=no $(GDB) ./$(PROG)

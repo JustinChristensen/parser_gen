@@ -90,14 +90,14 @@ static struct hash_node *delete_node(char const *key, struct hash_node *node) {
 }
 
 // without the load checking
-static struct hash_table *_htinsert(char const *key, union entry const val, struct hash_table *table) {
-    struct hash_node **bucket = find_bucket(key, table);
-
-    struct hash_entry new_entry = hash_entry(key , val);
-    struct hash_node *found = find_node(key, *bucket);
+static struct hash_table *_htinsert(struct hash_entry new_entry, struct hash_table *table) {
+    struct hash_node **bucket = find_bucket(new_entry.key, table);
+    struct hash_node *found = find_node(new_entry.key, *bucket);
 
     if (found) {
-        found->entry = free_hash_entry(found->entry);
+        if (found->entry.key != new_entry.key) {
+            free(found->entry.key);
+        }
         // caller needs to worry about maintaining pointers to the
         // entry value (for the void * member of the union) for later freeing
         found->entry = new_entry;
@@ -122,9 +122,8 @@ static void rehash(struct hash_table *table, unsigned int *size) {
     for (int i = 0; i < prev_size; i++) {
         for (struct hash_node *node = buckets[i], *next = NULL; node; node = next) {
             next = node->next;
-            struct hash_entry entry = node->entry;
-            _htinsert(entry.key, entry.val, table);
-            free_hash_node(node);
+            _htinsert(node->entry, table);
+            free(node);
         }
 
         buckets[i] = NULL;
@@ -189,20 +188,10 @@ char **htkeys(struct hash_table const *table) {
     struct hash_entry *entry;
     char **k = keys;
     while (htnextentry(&entry, &it)) {
-        char *dupkey = strdup(entry->key);
-        assert(dupkey != NULL);
-        *k++ = dupkey;
+        *k++ = entry->key;
     }
 
     return keys;
-}
-
-void free_keys(char **keys, unsigned int n) {
-    for (int i = 0; i < n; i++) {
-        free(keys[i]);
-    }
-
-    free(keys);
 }
 
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table) {
@@ -211,7 +200,7 @@ struct hash_table *htinsert(char const *key, union entry const val, struct hash_
     if (!table) table = init_hash_table(NULL);
     else        check_load(table);
 
-    return _htinsert(key, val, table);
+    return _htinsert(hash_entry(key, val), table);
 }
 
 bool htcontains(char const *key, struct hash_table const *table) {

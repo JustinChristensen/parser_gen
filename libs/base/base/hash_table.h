@@ -28,20 +28,37 @@ struct hash_entry {
     union entry val;
 };
 
+struct table_iterator {
+    struct hash_table const *table;
+    int i; // bucket
+    int j; // entry
+};
+
 struct hash_table hash_table(struct array *buckets, unsigned int *size);
 struct hash_table *init_hash_table(unsigned int *size);
 void ht_each_entry(void (*fn) (struct hash_entry *entry, void *state), void *state, struct hash_table const *table);
-void ht_each(void (*fn) (union entry val, void *state), void *state, struct hash_table const *table);
+void ht_each(void (*fn) (union entry *val, void *state), void *state, struct hash_table const *table);
+// bool hash_table_eq(bool (*valeq) (union entry const *a, union entry const *b), struct hash_table const *a, struct hash_table const *b);
+// bool hash_int_eq(union entry const *a, union entry const *b);
 struct hash_table *htclone(struct hash_table const *table);
+char **htkeys(struct hash_table const *table);
+void free_keys(char **keys, size_t n);
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table);
 bool htcontains(char const *key, struct hash_table const *table);
 union entry *htlookup(char const *key, struct hash_table const *table);
 bool htdelete(char const *key, struct hash_table *table);
+struct table_iterator table_iterator(struct hash_table const *table);
+bool htnextentry(struct hash_entry **out, struct table_iterator *it);
+bool htnext(union entry **out, struct table_iterator *it);
+struct hash_table *from_entry_list(struct hash_entry *entries, size_t n);
+struct hash_entry *to_entry_list(struct hash_table const *table);
 unsigned int htsize(struct hash_table const *table);
 unsigned int htentries(struct hash_table const *table);
 unsigned int htused(struct hash_table const *table);
 void print_hash_int(union entry val);
 void print_hash_table(void (*print_val) (union entry val), struct hash_table const *table);
+void print_hash_entries(void (*print_val) (union entry val), struct hash_table const *table);
+void print_table_stats(struct hash_table const *table);
 void free_hash_table(struct hash_table *table);
 
 #endif // BASE_HASH_TABLE_H_

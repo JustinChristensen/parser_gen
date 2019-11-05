@@ -36,6 +36,10 @@ static struct array clone_bucket(struct array *bucket) {
     return cloned;
 }
 
+static bool has_entries(struct array *bucket) {
+    return bucket->buf != NULL;
+}
+
 static struct array free_bucket(struct array *bucket) {
     free(bucket->buf);
     bucket->buf = NULL;
@@ -54,7 +58,7 @@ static struct array *allocate_buckets(unsigned int size) {
 }
 
 static double htload(struct hash_table const *table) {
-    return htentries(table) / htused(table);
+    return htentries(table) / (double) htused(table);
 }
 
 static struct array *find_bucket(char const *key, struct hash_table const *table) {
@@ -79,7 +83,7 @@ static struct hash_entry *find_entry(char const *key, struct array *bucket) {
 static struct hash_table *_htinsert(char const *key, union entry const val, struct hash_table *table) {
     struct array *bucket = find_bucket(key, table);
 
-    if (!bucket->buf) {
+    if (!has_entries(bucket)) {
         *bucket = new_bucket(HT_BUCKET_START);
         table->used++;
     }
@@ -114,17 +118,17 @@ static void rehash(struct hash_table *table, unsigned int *size) {
     table->size = size;
 
     for (int i = 0; i < prev_size; i++) {
-        struct array bucket = buckets[i];
+        struct array *bucket = &buckets[i];
 
-        if (bucket.buf) {
-            while (!aempty(&bucket)) {
+        if (has_entries(bucket)) {
+            while (!aempty(bucket)) {
                 struct hash_entry entry;
-                apop(&entry, &bucket);
+                apop(&entry, bucket);
                 _htinsert(entry.key, entry.val, table);
                 free_hash_entry(&entry);
             }
 
-            buckets[i] = free_bucket(&bucket);
+            buckets[i] = free_bucket(bucket);
         }
     }
 
@@ -180,36 +184,47 @@ struct hash_table *htclone(struct hash_table const *table) {
     return new_table;
 }
 
+char **htkeys(struct hash_table const *table) {
+    char **keys = calloc(htentries(table), sizeof *keys);
+
+    struct table_iterator it = table_iterator(table);
+    struct hash_entry *entry;
+    char **k = keys;
+    while (htnextentry(&entry, &it)) {
+        *k++ = strdup(entry->key);
+    }
+
+    return keys;
+}
+
+void free_keys(char **keys, size_t n) {
+    for (int i = 0; i < n; i++) {
+        free(keys[i]);
+        keys[i] = NULL;
+    }
+
+    free(keys);
+}
+
 void ht_each_entry(void (*fn) (struct hash_entry *entry, void *state), void *state, struct hash_table const *table) {
     if (!fn) return;
 
-    struct array *buckets = table->buckets;
+    struct table_iterator it = table_iterator(table);
+    struct hash_entry *entry;
 
-    for (int i = 0; i < htsize(table); i++) {
-        struct array *bucket = &buckets[i];
-
-        if (bucket->buf) {
-            for (int j = 0; j < asize(bucket); j++) {
-                (*fn)(aptr(j, bucket), state);
-            }
-        }
+    while (htnextentry(&entry, &it)) {
+        (*fn)(entry, state);
     }
 }
 
-void ht_each(void (*fn) (union entry val, void *state), void *state, struct hash_table const *table) {
+void ht_each(void (*fn) (union entry *val, void *state), void *state, struct hash_table const *table) {
     if (!fn) return;
 
-    struct array *buckets = table->buckets;
+    struct table_iterator it = table_iterator(table);
+    union entry *val;
 
-    for (int i = 0; i < htsize(table); i++) {
-        struct array *bucket = &buckets[i];
-
-        if (bucket->buf) {
-            for (int j = 0; j < asize(bucket); j++) {
-                struct hash_entry *entry = aptr(j, bucket);
-                (*fn)(entry->val, state);
-            }
-        }
+    while (htnext(&val, &it)) {
+        (*fn)(val, state);
     }
 }
 
@@ -271,6 +286,71 @@ bool htdelete(char const *key, struct hash_table *table) {
     return false;
 }
 
+struct table_iterator table_iterator(struct hash_table const *table) {
+    return (struct table_iterator) { table, 0, 0, };
+}
+
+bool htnextentry(struct hash_entry **out, struct table_iterator *it) {
+    assert(out != NULL && it != NULL && it->table != NULL);
+
+    struct hash_table const *table = it->table;
+    struct array *buckets = table->buckets;
+    unsigned int size = htsize(table);
+
+    for (int i = it->i; i < size; i = ++it->i) {
+        struct array *bucket = &buckets[i];
+
+        if (has_entries(bucket)) {
+            for (int j = it->j; j < asize(bucket); j = ++it->j) {
+                *out = aptr(j, bucket);
+                it->j++;
+                return true;
+            }
+        }
+
+        it->j = 0;
+    }
+
+    *out = NULL;
+    it->i = it->j = 0;
+
+    return false;
+}
+
+bool htnext(union entry **out, struct table_iterator *it) {
+    struct hash_entry *entry;
+
+    if (htnextentry(&entry, it)) {
+        *out = &entry->val;
+    }
+
+    return false;
+}
+
+struct hash_table *from_entry_list(struct hash_entry *entries, size_t n) {
+    struct hash_table *table = NULL;
+
+    for (int i = 0; i < n; i++) {
+        table = htinsert(entries[i].key, entries[i].val, table);
+    }
+
+    return table;
+}
+
+struct hash_entry *to_entry_list(struct hash_table const *table) {
+    struct table_iterator it = table_iterator(table);
+    struct hash_entry *entries = calloc(htentries(table), sizeof *entries);
+
+    struct hash_entry *e = entries;
+    struct hash_entry *entry;
+
+    while (htnextentry(&entry, &it)) {
+        *e++ = (struct hash_entry) { strdup(entry->key), entry->val };
+    }
+
+    return entries;
+}
+
 unsigned int htsize(struct hash_table const *table) {
     return *table->size;
 }
@@ -283,32 +363,79 @@ unsigned int htused(struct hash_table const *table) {
     return table->used;
 }
 
-static void print_entry(struct hash_entry *entry, void *state) {
-    void (**printers) (union entry val) = state;
-    void (*print_val) (union entry val) = printers[0];
-
-    printf("%s: ", entry->key);
-    (*print_val)(entry->val);
-    printf("\n");
-}
-
 void print_hash_int(union entry val) {
     printf("%d", val.i);
 }
 
-void print_hash_table(void (*print_val) (union entry val), struct hash_table const *table) {
-    void (*printers[]) (union entry val) = { print_val };
-    ht_each_entry(print_entry, printers, table);
+static void print_hash_entry(void (*print_val) (union entry val), struct hash_entry const *entry) {
+    if (!print_val) return;
+    printf("(%s, ", entry->key);
+    (*print_val)(entry->val);
+    printf(")");
 }
 
-static void _free_hash_entry(struct hash_entry *entry, void *_) {
-    free_hash_entry(entry);
+void print_hash_table(void (*print_val) (union entry val), struct hash_table const *table) {
+    if (!table || !print_val) return;
+
+    print_table_stats(table);
+
+    struct array *buckets = table->buckets;
+
+    for (int i = 0; i < htsize(table); i++) {
+        struct array *bucket = &buckets[i];
+
+        printf("%d: ", i);
+
+        if (has_entries(bucket)) {
+            for (int j = 0; j < asize(bucket); j++) {
+                print_hash_entry(print_val, aptr(j, bucket));
+                printf(" ");
+            }
+        } else {
+            printf("(empty)");
+        }
+
+        printf("\n");
+    }
+}
+
+void print_hash_entries(void (*print_val) (union entry val), struct hash_table const *table) {
+    if (!table || !print_val) return;
+
+    struct table_iterator it = table_iterator(table);
+    struct hash_entry *entry;
+
+    while (htnextentry(&entry, &it)) {
+        print_hash_entry(print_val, entry);
+        printf("\n");
+    }
+}
+
+void print_table_stats(struct hash_table const *table) {
+    if (!table) return;
+
+    printf("table: %p\nsize: %u\nentries: %u\nused: %u\nload factor: %lf\n",
+        table, htsize(table), htentries(table), htused(table), htload(table));
 }
 
 void free_hash_table(struct hash_table *table) {
     if (!table) return;
-    ht_each_entry(_free_hash_entry, NULL, table);
-    table->buckets = NULL;
+
+    struct array *buckets = table->buckets;
+
+    for (int i = 0; i < htsize(table); i++) {
+        struct array *bucket = &buckets[i];
+
+        if (has_entries(bucket)) {
+            for (int j = 0; j < asize(bucket); j++) {
+                free_hash_entry(aptr(j, bucket));
+            }
+
+            buckets[i] = free_bucket(bucket);
+        }
+    }
+
     free(table->buckets);
+    table->buckets = NULL;
     free(table);
 }

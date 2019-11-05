@@ -6,8 +6,10 @@ int main(int argc, char *argv[])
 {
     int number_failed;
 
-    SRunner *sr = srunner_create(intset_suite());
+    SRunner *sr = srunner_create(NULL);
     srunner_add_suite(sr, array_suite());
+    srunner_add_suite(sr, hash_table_suite());
+    srunner_add_suite(sr, intset_suite());
     srunner_run_all(sr, CK_ENV);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);

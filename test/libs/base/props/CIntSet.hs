@@ -23,7 +23,6 @@ module CIntSet (
 ) where
 
 import Foreign
-import Data.Void
 import Data.Set (Set, toList, size)
 import Data.List (genericLength)
 import Test.QuickCheck
@@ -38,7 +37,7 @@ data CIntSet = CIntSet {
 
 instance Storable CIntSet where
     alignment _ = sizeOf (undefined :: Word64)
-    sizeOf _ = sizeOf (undefined :: Word64) * 2 + sizeOf (undefined :: Ptr Void) * 2
+    sizeOf _ = sizeOf (undefined :: Word64) * 2 + sizeOf (undefined :: Ptr a) * 2
     peek ptr = CIntSet
             <$> peekByteOff ptr (offs 0)
             <*> peekByteOff ptr (offs 1)

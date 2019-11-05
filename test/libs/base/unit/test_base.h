@@ -7,5 +7,6 @@
 
 Suite *intset_suite();
 Suite *array_suite();
+Suite *hash_table_suite();
 
 #endif // TEST_BASE_H_

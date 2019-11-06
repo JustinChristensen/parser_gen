@@ -106,18 +106,22 @@ START_TEST(test_random_inserts_and_deletes) {
 
     free(key);
 
+
     printf("random_inserts_and_deletes:\n");
     print_hash_table(print_entry_int, table);
 
     char **keys = htkeys(table);
     size_t entries = htentries(table);
 
+    int deleted = 0;
     for (int i = 0; i < entries; i++) {
         if (!randr(0, 7)) continue;
+        deleted++;
         ck_assert_msg(htdelete(keys[i], table), keys[i]);
     }
-
     free(keys);
+
+    ck_assert_int_eq(htentries(table), entries - deleted);
 
     printf("random_inserts_and_deletes:\n");
     print_hash_table(print_entry_int, table);

@@ -65,13 +65,15 @@ static struct hash_node **find_bucket(char const *key, struct hash_table const *
     return table->buckets + ind((unsigned char const *) key, *table->size);
 }
 
-static struct hash_node *find_node(char const *key, struct hash_node *bucket) {
-    for (struct hash_node *node = bucket; node; node = node->next) {
-        struct hash_entry entry = node->entry;
-        if (!strcmp(key, entry.key)) return node;
-    }
+static struct hash_node *find_node(char const *key, struct hash_node *node) {
+    if (!node) return NULL;
+    struct hash_entry entry = node->entry;
 
-    return NULL;
+    if (!strcmp(key, entry.key)) {
+        return node;
+    } else {
+        return find_node(key, node->next);
+    }
 }
 
 static struct hash_node *delete_node(char const *key, struct hash_node *node) {
@@ -408,9 +410,9 @@ void print_hash_entries(void (*print_val) (union entry val), struct hash_table c
 
 void print_table_stats(struct hash_table const *table) {
     if (!table) return;
-
-    printf("table: %p\nsize: %u\nentries: %u\nused: %u\nload factor: %lf\n",
-        table, htsize(table), htentries(table), htused(table), htload(table));
+    unsigned int used = htused(table), size = htsize(table);
+    printf("table: %p\nsize: %u\nentries: %u\nused buckets: %u\nload: %lf\nbucket load: %lf\n",
+        table, size, htentries(table), used, htload(table), used / (double) size);
 }
 
 void free_hash_table(struct hash_table *table) {

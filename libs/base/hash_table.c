@@ -203,14 +203,16 @@ struct hash_table *htinsert(char const *key, union entry const val, struct hash_
     return _htinsert(hash_entry(key, val), table);
 }
 
-bool htcontains(char const *key, struct hash_table const *table) {
-    assert(key != NULL);
+struct hash_table *htinsert_i(char const *key, int val, struct hash_table *table) {
+    return htinsert(key, (union entry) { .i = val }, table);
+}
 
-    if (!table) return false;
+struct hash_table *htinsert_s(char const *key, char *val, struct hash_table *table) {
+    return htinsert(key, (union entry) { .s = val }, table);
+}
 
-    struct hash_node **bucket = find_bucket(key, table);
-    if (*bucket && find_node(key, *bucket)) return true;
-    return false;
+struct hash_table *htinsert_p(char const *key, void *val, struct hash_table *table) {
+    return htinsert(key, (union entry) { .p = val }, table);
 }
 
 union entry *htlookup(char const *key, struct hash_table const *table) {
@@ -226,6 +228,33 @@ union entry *htlookup(char const *key, struct hash_table const *table) {
     }
 
     return NULL;
+}
+
+bool htlookup_i(int *out, char const *key, struct hash_table const *table) {
+    union entry *v = htlookup(key, table);
+    if (!v) return false;
+    *out = v->i;
+    return true;
+}
+
+bool htlookup_s(char **out, char const *key, struct hash_table const *table) {
+    union entry *v = htlookup(key, table);
+    if (!v) return false;
+    *out = v->s;
+    return true;
+}
+
+bool htlookup_p(void **out, char const *key, struct hash_table const *table) {
+    union entry *v = htlookup(key, table);
+    if (!v) return false;
+    *out = v->p;
+    return true;
+}
+
+bool htcontains(char const *key, struct hash_table const *table) {
+    assert(key != NULL);
+    if (htlookup(key, table)) return true;
+    return false;
 }
 
 bool htdelete(char const *key, struct hash_table *table) {

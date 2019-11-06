@@ -3,9 +3,9 @@ module CHashTable (
     CHashTable(..),
     FromEntry(..),
     initHashTable,
-    htInsert,
+    htInsertI,
     htContains,
-    htLookup,
+    htLookupI,
     htDelete,
     toEntryList,
     fromEntryList,
@@ -86,9 +86,9 @@ instance FromEntry Int32 where
 foreign import ccall "&print_hash_int" printHashInt :: FunPtr (Entry a -> IO ())
 
 foreign import ccall "init_hash_table" initHashTable :: Ptr Word32 -> IO (Ptr (CHashTable a))
-foreign import ccall "htinsert" htInsert :: CString -> Entry a -> Ptr (CHashTable a) -> IO (Ptr (CHashTable a))
+foreign import ccall "htinsert_i" htInsertI :: CString -> Int32 -> Ptr (CHashTable a) -> IO (Ptr (CHashTable a))
 foreign import ccall "htcontains" htContains :: CString -> Ptr (CHashTable a) -> IO Bool
-foreign import ccall "htlookup" htLookup :: CString -> Ptr (CHashTable a) -> IO (Ptr (Entry a))
+foreign import ccall "htlookup_i" htLookupI :: Ptr Int32 -> CString -> Ptr (CHashTable a) -> IO Bool
 foreign import ccall "htdelete" htDelete :: CString -> Ptr (CHashTable a) -> IO Bool
 foreign import ccall "from_entry_list" fromEntryList :: Ptr (CHashEntry a) -> Word64 -> IO (Ptr (CHashTable a))
 foreign import ccall "to_entry_list" toEntryList :: Ptr (CHashTable a) -> Ptr (CHashEntry a)
@@ -118,6 +118,5 @@ freeHashEntries = mapM_ freeHashEntry
 
 containsAll :: [CHashEntry ()] -> Ptr (CHashTable ()) -> IO Bool
 containsAll es t = and <$> mapM containsEntry es
-    where
-        containsEntry (CHashEntry k _) = htContains k t
+    where containsEntry (CHashEntry k _) = htContains k t
 

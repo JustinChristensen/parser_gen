@@ -27,8 +27,7 @@ START_TEST(test_basic_insert) {
 
     for (c = 'a', i = 3; c < 'h'; c++, i += 2) {
         char key[] = { c, '\0' };
-        union entry val = { .i = i };
-        table = htinsert(key, val, table);
+        table = htinsert_i(key, i, table);
     }
 
     for (c = 'a'; c < 'h'; c++) {
@@ -41,10 +40,9 @@ START_TEST(test_basic_insert) {
 END_TEST
 
 START_TEST(test_keys) {
-    union entry v = { .i = 99 };
-    table = htinsert("foo", v, table);
-    table = htinsert("bar", v, table);
-    table = htinsert("baz", v, table);
+    table = htinsert_i("foo", 99, table);
+    table = htinsert_i("bar", 99, table);
+    table = htinsert_i("baz", 99, table);
 
     char **keys = htkeys(table);
 
@@ -62,12 +60,17 @@ START_TEST(test_keys) {
 END_TEST
 
 START_TEST(test_duplicate_insert) {
-    union entry val = { .i = 3000 };
-    table = htinsert("foobar", val, table);
-    table = htinsert("foobar", val, table);
+    table = htinsert_i("foobar", 301, table);
+    table = htinsert_i("foobar", 300, table);
     ck_assert_int_eq(htentries(table), 1);
-
     print_hash_table(print_hash_int, table);
+}
+END_TEST
+
+START_TEST(test_contains) {
+    table = htinsert_i("foo", 300, table);
+    ck_assert(htcontains("foo", table));
+    ck_assert(!htcontains("bar", table));
 }
 END_TEST
 
@@ -90,8 +93,7 @@ START_TEST(test_random_inserts_and_deletes) {
         }
         key[i] = '\0';
 
-        union entry val = { .i = i };
-        table = htinsert(key, val, table);
+        table = htinsert_i(key, i, table);
     }
 
     free(key);
@@ -127,6 +129,7 @@ Suite *hash_table_suite()
     tcase_add_test(tc_core, test_basic_insert);
     tcase_add_test(tc_core, test_keys);
     tcase_add_test(tc_core, test_duplicate_insert);
+    tcase_add_test(tc_core, test_contains);
     tcase_add_test(tc_random, test_random_inserts_and_deletes);
 
     suite_add_tcase(s, tc_core);

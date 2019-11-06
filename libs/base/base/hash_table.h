@@ -11,7 +11,8 @@
 #define HT_BUCKET_GROWTH 1
 
 union entry {
-    void *v;
+    void *p;
+    void *s;
     int i;
 };
 
@@ -43,8 +44,14 @@ struct hash_table *init_hash_table(unsigned int *size);
 struct hash_table *htclone(struct hash_table const *table);
 char **htkeys(struct hash_table const *table);
 struct hash_table *htinsert(char const *key, union entry const val, struct hash_table *table);
-bool htcontains(char const *key, struct hash_table const *table);
+struct hash_table *htinsert_i(char const *key, int val, struct hash_table *table);
+struct hash_table *htinsert_s(char const *key, char *val, struct hash_table *table);
+struct hash_table *htinsert_p(char const *key, void *val, struct hash_table *table);
 union entry *htlookup(char const *key, struct hash_table const *table);
+bool htlookup_i(int *out, char const *key, struct hash_table const *table);
+bool htlookup_s(char **out, char const *key, struct hash_table const *table);
+bool htlookup_p(void **out, char const *key, struct hash_table const *table);
+bool htcontains(char const *key, struct hash_table const *table);
 bool htdelete(char const *key, struct hash_table *table);
 struct table_iterator table_iterator(struct hash_table const *table);
 bool htnextentry(struct hash_entry **out, struct table_iterator *it);

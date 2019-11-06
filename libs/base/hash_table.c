@@ -354,8 +354,12 @@ unsigned int htused(struct hash_table const *table) {
     return table->used;
 }
 
-void print_hash_int(union entry val) {
+void print_entry_int(union entry val) {
     printf("%d", val.i);
+}
+
+void print_entry_string(union entry val) {
+    printf("%s", val.s);
 }
 
 static void print_hash_entry(void (*print_val) (union entry val), struct hash_entry const entry) {

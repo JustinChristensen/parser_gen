@@ -35,7 +35,7 @@ START_TEST(test_basic_insert) {
         ck_assert(htcontains(key, table));
     }
 
-    print_hash_table(print_hash_int, table);
+    print_hash_table(print_entry_int, table);
 }
 END_TEST
 
@@ -63,7 +63,15 @@ START_TEST(test_duplicate_insert) {
     table = htinsert_i("foobar", 301, table);
     table = htinsert_i("foobar", 300, table);
     ck_assert_int_eq(htentries(table), 1);
-    print_hash_table(print_hash_int, table);
+    print_hash_table(print_entry_int, table);
+}
+END_TEST
+
+START_TEST(test_string_insert) {
+    table = htinsert_s("foo", "shaboozy", table);
+    table = htinsert_s("bar", "kablaam", table);
+    ck_assert_int_eq(htentries(table), 2);
+    print_hash_table(print_entry_string, table);
 }
 END_TEST
 
@@ -99,7 +107,7 @@ START_TEST(test_random_inserts_and_deletes) {
     free(key);
 
     printf("random_inserts_and_deletes:\n");
-    print_hash_table(print_hash_int, table);
+    print_hash_table(print_entry_int, table);
 
     char **keys = htkeys(table);
     size_t entries = htentries(table);
@@ -112,7 +120,7 @@ START_TEST(test_random_inserts_and_deletes) {
     free(keys);
 
     printf("random_inserts_and_deletes:\n");
-    print_hash_table(print_hash_int, table);
+    print_hash_table(print_entry_int, table);
 }
 END_TEST
 
@@ -129,6 +137,7 @@ Suite *hash_table_suite()
     tcase_add_test(tc_core, test_basic_insert);
     tcase_add_test(tc_core, test_keys);
     tcase_add_test(tc_core, test_duplicate_insert);
+    tcase_add_test(tc_core, test_string_insert);
     tcase_add_test(tc_core, test_contains);
     tcase_add_test(tc_random, test_random_inserts_and_deletes);
 

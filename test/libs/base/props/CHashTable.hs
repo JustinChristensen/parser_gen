@@ -12,7 +12,7 @@ module CHashTable (
     htSize,
     htEntries,
     htUsed,
-    printHashInt,
+    printEntryInt,
     printHashTable,
     printHashEntries,
     freeHashTable,
@@ -83,7 +83,7 @@ instance FromEntry Int32 where
     asPtr i = intPtrToPtr $ IntPtr (fromIntegral i)
     asInt32 = id
 
-foreign import ccall "&print_hash_int" printHashInt :: FunPtr (Entry a -> IO ())
+foreign import ccall "&print_entry_int" printEntryInt :: FunPtr (Entry a -> IO ())
 
 foreign import ccall "init_hash_table" initHashTable :: Ptr Word32 -> IO (Ptr (CHashTable a))
 foreign import ccall "htinsert_i" htInsertI :: CString -> Int32 -> Ptr (CHashTable a) -> IO (Ptr (CHashTable a))

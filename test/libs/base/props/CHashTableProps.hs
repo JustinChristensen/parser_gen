@@ -13,7 +13,7 @@ prop_insert_inserts pairs = monadicIO $ do
     array <- run $ newArray es
     table <- run $ fromEntryList array (genericLength pairs)
     allInserted <- run $ containsAll es table
-    run $ printHashTable printHashInt table
+    run $ printHashTable printEntryInt table
     run $ free array
     run $ freeHashTable table
     run $ freeHashEntries es

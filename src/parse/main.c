@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
+#include <regex/dfa.h>
 
 enum command_key {
     GRAM,
@@ -36,21 +37,18 @@ int main(int argc, char *argv[]) {
             help_and_version_args,
             END_ARGS
         },
-        CMDS {
-            {
-                GEN_LL,
-                "genll",
-                ARGS {
-                    help_and_version_args,
-                    END_ARGS
-                },
-                NULL,
-                "Generate an LL parser for the input lexer and grammar specification"
-            },
-            END_CMDS
-        },
+        NULL,
         "Analyze a grammar and generate a report"
     });
+
+    struct dfa_context dcontext = dfa_context();
+
+    dfa_regex("|", T_PIPE, &dfa_context);
+    dfa_regex("=", T_EQUAL, &dfa_context);
+    dfa_regex(";", T_SEMICOLON, &dfa_context);
+    char charlit = "'[^']*'";
+    char strlit = "'[^']*'";
+    dfa_regex(charlit"|"strlit, T_TERMINAL, &dfa_context);
 
     return EXIT_SUCCESS;
 }

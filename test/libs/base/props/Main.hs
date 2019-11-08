@@ -6,7 +6,7 @@ import Text.Read (readMaybe)
 import Data.Function
 import System.Exit
 import Test.QuickCheck hiding (verbose)
--- import qualified CIntSetProps
+import qualified CIntSetProps
 import qualified CHashTableProps
 
 readEnv :: Read a => String -> a -> IO a
@@ -31,6 +31,6 @@ main = do
         propRunner False = quickCheckWithResult
         args size tests = stdArgs { maxSize = size, maxSuccess = tests }
         suites = [
-                -- CIntSetProps.runTests
+                CIntSetProps.runTests,
                 CHashTableProps.runTests
             ]

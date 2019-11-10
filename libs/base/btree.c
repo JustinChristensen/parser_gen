@@ -122,7 +122,51 @@ struct node *btinsert(void *key, int (*keycmp) (void const *a, void const *b), v
     return root;
 }
 
-void btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct node *node) {
+struct node *btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct node *node) {
+    if (!node) return NULL;
+    if (!keycmp) keycmp = compare;
+
+    struct node *root = node, *parent = NULL;
+    int ord;
+
+    while (node) {
+        ord = (*keycmp)(key, node->key);
+        if (ord < 0)      parent = node; node = node->left;
+        else if (ord > 0) parent = node; node = node->right;
+        else              break;
+    }
+
+    if (!node) return root;
+
+    // compute the next subtree given node
+    struct node *next = NULL;
+    if (!node->left)        next = node->right;
+    else if (!node->right)  next = node->left;
+    else {
+        struct node *nextp = NULL;
+
+        next = node->right;
+        while (next->left) {
+            nextp = next;
+            next = next->left;
+        }
+
+        if (nextp) {
+            nextp->left = next->right;
+            next->right = node->right;
+        }
+
+        next->left = node->left;
+    }
+
+    // update parent pointers or replace parent with the next subtree
+    if (!parent)                   root = next;
+    else if (parent->left == node) parent->left = next;
+    else                           parent->right = next;
+
+    free_btree(node);
+
+    return root;
 }
 
 size_t btsize(struct node const *node) {
@@ -141,22 +185,6 @@ size_t btsize(struct node const *node) {
     return size;
 }
 
-// if (!node) return 0;
-// ldepth = depth(node->left)
-// rdepth = depth(node->right)
-// return max(ldepth, rdepth) + 1;
-//
-// push node->left
-// call depth
-// pop ldepth
-// push node->right
-// call depth
-// pop rdepth
-// push ldepth
-// push rdepth
-// call max
-// pop result
-// push result + 1
 size_t btdepth(struct node const *node) {
     if (!node) return 0;
     return max(btdepth(node->left), btdepth(node->right)) + 1;

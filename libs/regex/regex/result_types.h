@@ -53,10 +53,47 @@ struct nfa {
     struct nfa_state **end1;
 };
 
+enum dfa_node_type type {
+    SYMBOL_NODE,
+    EMPTY_NODE,
+    DOTALL_NODE,
+    ALT_NODE,
+    CAT_NODE,
+    STAR_NODE,
+    PLUS_NODE,
+    OPTIONAL_NODE
+};
+
+// cached computed properties as described in section 3.9 of
+// the compiler's book
+struct dfa_pos {
+    bool nullable;
+    struct intset *firstpos;
+    struct intset *lastpos;
+    struct intset *followpos;
+};
+
+// ast node
+struct dfa_node {
+    enum dfa_node_type type;
+    unsigned int id; // unique id, index in the node buffer
+    union {
+        // symbol
+        struct { char symbol; };
+        // alt, cat
+        struct { struct dfa_node *left; struct dfa_node *right; };
+        // star, plus, optional
+        struct { struct dfa_node *node; };
+        // empty, dotall
+    };
+    struct dfa_pos pos; // computed position properties
+};
+
+
 union rval {
-    void *_;
     struct expr *expr;
     struct nfa mach;
+    struct dfa_node node;
     char sym;
 };
 

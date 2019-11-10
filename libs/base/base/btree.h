@@ -44,7 +44,7 @@ struct node *btmin(struct node const *node);
 struct node *btmax(struct node const *node);
 struct node *btfind(void *key, int (*keycmp) (void const *a, void const *b), struct node const *node);
 struct node *btinsert(void *key, void *val, struct node *node, int (*keycmp) (void const *a, void const *b));
-void btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct node *node);
+struct node *btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct node *node);
 size_t btsize(struct node const *node);
 size_t btdepth(struct node const *node);
 struct node *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b));

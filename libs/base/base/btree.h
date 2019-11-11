@@ -2,6 +2,7 @@
 #define BASE_BTREE_H_ 1
 
 #include <stdlib.h>
+#include "base/array.h"
 
 enum traversal_order {
     PRE,
@@ -14,43 +15,40 @@ struct assoc {
     void *val;
 };
 
-struct node {
+struct btnode {
     struct assoc assoc;
-    struct node *left;
-    struct node *right;
+    struct btnode *left;
+    struct btnode *right;
 };
 
 struct btree_iter {
-    struct node **stack;
-    struct node *root;
+    struct array *stack;
+    struct btnode *root;
+    struct btnode *last;
     enum traversal_order order;
 };
 
-struct node btree(void *key, void *val, struct node *left, struct node *right);
+struct btnode btree(void *key, void *val, struct btnode *left, struct btnode *right);
 struct assoc assoc(void *key, void *val);
-struct assoc assoc_from_node(struct node const *node);
-struct node *init_btree(void *key, void *val, struct node *left, struct node *right);
-void *nodekey(struct node const *node);
-void *nodeval(struct node const *node);
-void btree_iter(struct btree_iter *it, enum traversal_order order, struct node const *node);
+struct assoc assoc_from_node(struct btnode const *node);
+struct btnode *init_btree(void *key, void *val, struct btnode *left, struct btnode *right);
+void *nodekey(struct btnode const *node);
+void *nodeval(struct btnode const *node);
+void btree_iter(enum traversal_order order, struct btnode const *node, struct btree_iter *it);
 void free_btree_iter(struct btree_iter *it);
-struct node *btnext(struct btree_iter *it);
-struct node *btprev(struct btree_iter *it);
-void *btnextval(struct btree_iter *it);
-void *btnextkey(struct btree_iter *it);
-void *btprevval(struct btree_iter *it);
-void *btprevkey(struct btree_iter *it);
-struct node *btmin(struct node const *node);
-struct node *btmax(struct node const *node);
-struct node *btfind(void *key, int (*keycmp) (void const *a, void const *b), struct node const *node);
-struct node *btinsert(void *key, void *val, struct node *node, int (*keycmp) (void const *a, void const *b));
-struct node *btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct node *node);
-size_t btsize(struct node const *node);
-size_t btdepth(struct node const *node);
-struct node *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b));
-struct assoc *bttolist(struct node const *node);
-void **btkeys(struct node const *node);
-void **btvals(struct node const *node);
-void free_btree(struct node *node);
+struct btnode *btnext(struct btree_iter *it);
+struct btnode *btmin(struct btnode const *node);
+struct btnode *btmax(struct btnode const *node);
+struct btnode *btfind(void *key, int (*keycmp) (void const *a, void const *b), struct btnode const *node);
+struct btnode *btinsert(void *key, int (*keycmp) (void const *a, void const *b), void *val, struct btnode *node);
+struct btnode *btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct btnode *node);
+size_t btsize(struct btnode const *node);
+size_t btdepth(struct btnode const *node);
+struct btnode *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b));
+struct assoc *bttolist(struct btnode const *node);
+void **btkeys(struct btnode const *node);
+void **btvals(struct btnode const *node);
+void print_btree(void (*print_key) (void const *key), struct btnode const *node);
+void free_btree(struct btnode *node);
 
 #endif // BASE_BTREE_H_

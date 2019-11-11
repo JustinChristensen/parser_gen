@@ -1,12 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
-#include <regex/dfa.h>
 
 enum command_key {
-    GRAM,
-    GEN_LL,
-    GEN_LR
+    GRAM
 };
 
 struct args {
@@ -40,15 +37,6 @@ int main(int argc, char *argv[]) {
         NULL,
         "Analyze a grammar and generate a report"
     });
-
-    struct dfa_context dcontext = dfa_context();
-
-    dfa_regex("|", T_PIPE, &dfa_context);
-    dfa_regex("=", T_EQUAL, &dfa_context);
-    dfa_regex(";", T_SEMICOLON, &dfa_context);
-    char charlit = "'[^']*'";
-    char strlit = "'[^']*'";
-    dfa_regex(charlit"|"strlit, T_TERMINAL, &dfa_context);
 
     return EXIT_SUCCESS;
 }

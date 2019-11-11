@@ -13,5 +13,6 @@ char *repeat(char *str, char c, int times);
 char *put(char *str, char *s);
 char *putln(char *str, char *s);
 void indent(int n);
+void printstr(char const *s);
 
 #endif // BASE_STRING_H_

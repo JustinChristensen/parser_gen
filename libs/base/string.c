@@ -37,3 +37,7 @@ char *putln(char *str, char *s) {
 void indent(int n) {
     while (n-- > 0) printf("    ");
 }
+
+void printstr(char const *s) {
+    printf("%s", s);
+}

@@ -1,6 +1,8 @@
 #ifndef REGEX_RESULT_TYPES_H_
 #define REGEX_RESULT_TYPES_H_ 1
 
+#include <stdbool.h>
+
 enum expr_type {
     NULL_EXPR,
     EMPTY_EXPR,
@@ -53,7 +55,7 @@ struct nfa {
     struct nfa_state **end1;
 };
 
-enum dfa_node_type type {
+enum dfa_node_type {
     SYMBOL_NODE,
     EMPTY_NODE,
     DOTALL_NODE,

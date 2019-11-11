@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "base/string.h"
 
 struct sizenl numlines(char *str) {
@@ -11,6 +12,10 @@ struct sizenl numlines(char *str) {
     }
 
     return stats;
+}
+
+bool streq(char const *s1, char const *s2) {
+    return strcmp(s1, s2) == 0;
 }
 
 char *repeat(char *str, char c, int times) {

@@ -14,7 +14,7 @@ static void setup() {
 }
 
 static void teardown() {
-    free_btree(node);
+    free_btree(NULL, NULL, node);
     node = NULL;
 }
 
@@ -40,6 +40,33 @@ START_TEST(test_stats) {
     ck_assert_int_eq(btsize(node), 9);
     ck_assert_int_eq(btdepth(node), 4);
     print_btree(PRINTFN printstr, node);
+}
+END_TEST
+
+START_TEST(test_equality) {
+    struct btnode *node2 = NULL;
+
+    struct assoc as[] = {
+        { "bar", NULL },
+        { "baz", NULL },
+        { "foo", NULL },
+        { "quux", NULL }
+    };
+
+    node = btfromlist(as, SIZEOF(as), CMPFN strcmp);
+
+    struct assoc as2[] = {
+        { "foo", NULL },
+        { "bar", NULL },
+        { "baz", NULL },
+        { "quux", NULL }
+    };
+
+    node2 = btfromlist(as2, SIZEOF(as2), CMPFN strcmp);
+
+    ck_assert(btree_eq(EQFN streq, NULL, node, node2));
+
+    free_btree(NULL, NULL, node2);
 }
 END_TEST
 
@@ -105,10 +132,11 @@ Suite *btree_suite()
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
 
+    tcase_add_test(tc_core, test_stats);
+    tcase_add_test(tc_core, test_equality);
     tcase_add_test(tc_core, test_preorder_traversal);
     tcase_add_test(tc_core, test_inorder_traversal);
     tcase_add_test(tc_core, test_postorder_traversal);
-    tcase_add_test(tc_core, test_stats);
 
     suite_add_tcase(s, tc_core);
 

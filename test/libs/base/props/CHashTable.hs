@@ -31,6 +31,7 @@ import CArray
 
 type Entry = Ptr
 type Bucket a = CArray (CHashEntry a)
+type CHashTablePtr a = Ptr (CHashTable a)
 
 data CHashEntry a = CHashEntry CString (Entry a)
     deriving (Eq, Ord, Show)
@@ -85,19 +86,19 @@ instance FromEntry Int32 where
 
 foreign import ccall "&print_entry_int" printEntryInt :: FunPtr (Entry a -> IO ())
 
-foreign import ccall "init_hash_table" initHashTable :: Ptr Word32 -> IO (Ptr (CHashTable a))
-foreign import ccall "htinsert_i" htInsertI :: CString -> Int32 -> Ptr (CHashTable a) -> IO (Ptr (CHashTable a))
-foreign import ccall "htcontains" htContains :: CString -> Ptr (CHashTable a) -> IO Bool
-foreign import ccall "htlookup_i" htLookupI :: Ptr Int32 -> CString -> Ptr (CHashTable a) -> IO Bool
-foreign import ccall "htdelete" htDelete :: CString -> Ptr (CHashTable a) -> IO Bool
-foreign import ccall "from_entry_list" fromEntryList :: Ptr (CHashEntry a) -> Word64 -> IO (Ptr (CHashTable a))
-foreign import ccall "to_entry_list" toEntryList :: Ptr (CHashTable a) -> Ptr (CHashEntry a)
+foreign import ccall "init_hash_table" initHashTable :: Ptr Word32 -> IO (CHashTablePtr a)
+foreign import ccall "htinsert_i" htInsertI :: CString -> Int32 -> CHashTablePtr a -> IO (CHashTablePtr a)
+foreign import ccall "htcontains" htContains :: CString -> CHashTablePtr a -> IO Bool
+foreign import ccall "htlookup_i" htLookupI :: Ptr Int32 -> CString -> CHashTablePtr a -> IO Bool
+foreign import ccall "htdelete" htDelete :: CString -> CHashTablePtr a -> IO Bool
+foreign import ccall "from_entry_list" fromEntryList :: Ptr (CHashEntry a) -> Word64 -> IO (CHashTablePtr a)
+foreign import ccall "to_entry_list" toEntryList :: CHashTablePtr a -> Ptr (CHashEntry a)
 foreign import ccall "htsize" htSize :: IO Word32
 foreign import ccall "htentries" htEntries :: IO Word32
 foreign import ccall "htused" htUsed :: IO Word32
-foreign import ccall "print_hash_table" printHashTable :: FunPtr (Entry a -> IO ()) -> Ptr (CHashTable a) -> IO ()
-foreign import ccall "print_hash_entries" printHashEntries :: FunPtr (Entry a -> IO ()) -> Ptr (CHashTable a) -> IO ()
-foreign import ccall "free_hash_table" freeHashTable :: Ptr (CHashTable a) -> IO ()
+foreign import ccall "print_hash_table" printHashTable :: FunPtr (Entry a -> IO ()) -> CHashTablePtr a -> IO ()
+foreign import ccall "print_hash_entries" printHashEntries :: FunPtr (Entry a -> IO ()) -> CHashTablePtr a -> IO ()
+foreign import ccall "free_hash_table" freeHashTable :: CHashTablePtr a -> IO ()
 
 toHashEntry :: (PrintableString, Int32) -> IO (CHashEntry ())
 toHashEntry (PrintableString k, v) = do

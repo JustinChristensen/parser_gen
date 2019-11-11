@@ -19,6 +19,7 @@ test-suite props-test
         CArray,
         CIntSet,
         CHashTable,
+        CBTree,
         CIntSetProps,
         CHashTableProps,
         Types

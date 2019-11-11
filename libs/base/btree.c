@@ -104,7 +104,11 @@ struct btnode *btmax(struct btnode const *node) {
     return (struct btnode *) node;
 }
 
-struct btnode *btfind(void *key, int (*keycmp) (void const *a, void const *b), struct btnode const *node) {
+struct btnode *btfind(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    struct btnode const *node
+) {
     assert(keycmp != NULL);
 
     while (node) {
@@ -117,7 +121,12 @@ struct btnode *btfind(void *key, int (*keycmp) (void const *a, void const *b), s
     return (struct btnode *) node;
 }
 
-struct btnode *btinsert(void *key, int (*keycmp) (void const *a, void const *b), void *val, struct btnode *node) {
+struct btnode *btinsert(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    void *val,
+    struct btnode *node
+) {
     assert(keycmp != NULL);
     if (!node) return init_btree(key, val, NULL, NULL);
 
@@ -140,7 +149,13 @@ struct btnode *btinsert(void *key, int (*keycmp) (void const *a, void const *b),
     return root;
 }
 
-struct btnode *btdelete(void *key, int (*keycmp) (void const *a, void const *b), struct btnode *node) {
+struct btnode *btdelete(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    void (*free_key) (void *key),
+    void (*free_val) (void *val),
+    struct btnode *node
+) {
     assert(keycmp != NULL);
     if (!node) return NULL;
 
@@ -182,9 +197,40 @@ struct btnode *btdelete(void *key, int (*keycmp) (void const *a, void const *b),
     else if (parent->left == node) parent->left = next;
     else                           parent->right = next;
 
-    free_btree(node);
+    free_btree(free_key, free_val, node);
 
     return root;
+}
+
+bool btree_eq(
+    bool (*keyeq) (void const *a, void const *b),
+    bool (*valeq) (void const *a, void const *b),
+    struct btnode const *s,
+    struct btnode const *t
+) {
+    bool eq = true;
+    assert(keyeq || valeq);
+    struct btree_iter si, ti;
+
+    btree_iter(IN, s, &si);
+    btree_iter(IN, t, &ti);
+
+    struct btnode *sn = NULL, *tn = NULL;
+
+    do sn = btnext(&si), tn = btnext(&ti);
+    while (sn &&
+           tn &&
+           (eq = keyeq ? (*keyeq)(nodekey(sn), nodekey(tn)) : true &&
+                 valeq ? (*valeq)(nodeval(sn), nodeval(tn)) : true)
+          );
+
+    // check that we've exhausted both trees
+    eq = sn == NULL && tn == NULL;
+
+    free_btree_iter(&si);
+    free_btree_iter(&ti);
+
+    return eq;
 }
 
 size_t btsize(struct btnode const *node) {
@@ -284,10 +330,16 @@ void print_btree(void (*print_key) (void const *key), struct btnode const *node)
     _print_btree(print_key, 0, node);
 }
 
-void free_btree(struct btnode *node) {
+void free_btree(
+    void (*free_key) (void *key),
+    void (*free_val) (void *val),
+    struct btnode *node
+) {
     if (!node) return;
-    free_btree(node->left);
-    free_btree(node->right);
+    free_btree(free_key, free_val, node->left);
+    free_btree(free_key, free_val, node->right);
+    if (free_key) (*free_key)(node->assoc.key);
+    if (free_val) (*free_val)(node->assoc.val);
     node->left = node->right = NULL;
     free(node);
 }

@@ -3,7 +3,8 @@ module Types where
 import Prelude hiding (null)
 import System.Random (Random)
 import Test.QuickCheck
-import Data.Set
+import qualified Data.Set as S
+import qualified Data.Map as M
 
 newtype ShiftedList a = ShiftedList [a]
     deriving (Show, Eq)
@@ -18,7 +19,7 @@ shiftedList shift = ShiftedList <$> scale lengthScale (listOf elemGen)
         elemScale = ceiling . (* elemScaleFactor) . fromIntegral
         elemGen = fmap (+ shift) (scale elemScale arbitrary)
 
-newtype InsertResult a = InsertResult (a, Set a, Set a)
+newtype InsertResult a = InsertResult (a, S.Set a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (InsertResult a) where
@@ -30,12 +31,12 @@ instance (Random a, Bounded a, Integral a,
     arbitrary = do
         shift <- arbitraryBoundedIntegral
         ShiftedList s <- shiftedList shift
-        let set = fromList s
-        key <- if null set then pure 0
-               else choose (findMin set, findMax set)
-        pure $ InsertResult (key, set, key `insert` set)
+        let set = S.fromList s
+        key <- if S.null set then pure 0
+               else choose (S.findMin set, S.findMax set)
+        pure $ InsertResult (key, set, key `S.insert` set)
 
-newtype DeleteResult a = DeleteResult (a, Set a, Set a)
+newtype DeleteResult a = DeleteResult (a, S.Set a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (DeleteResult a) where
@@ -47,17 +48,17 @@ instance (Random a, Bounded a, Integral a,
     arbitrary = do
         shift <- arbitraryBoundedIntegral
         ShiftedList s <- shiftedList shift
-        let set = fromList s
-        key <- if null set then pure 0
-               else choose (findMin set, findMax set)
-        pure $ DeleteResult (key, set, key `delete` set)
+        let set = S.fromList s
+        key <- if S.null set then pure 0
+               else choose (S.findMin set, S.findMax set)
+        pure $ DeleteResult (key, set, key `S.delete` set)
 
 -- Sets skewed to overlap more often than not
 --
 -- * Bounds (the range) of the elements are proportional to the size of the set
 -- * Bounds for set a shifted by a random number scaled by the size
 -- * Bounds for set b shifted by a logarithmic scale relative to the bounds for set a
-newtype OverlapSets a = OverlapSets (Set a, Set a)
+newtype OverlapSets a = OverlapSets (S.Set a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (OverlapSets a) where
@@ -69,7 +70,7 @@ instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (OverlapSets a
         shift <- arbitraryBoundedIntegral
         ShiftedList s <- shiftedList shift
         ShiftedList t <- shiftedList shift
-        pure $ OverlapSets (fromList s, fromList t)
+        pure $ OverlapSets (S.fromList s, S.fromList t)
 
 newtype EqOverlapSets a = EqOverlapSets (OverlapSets a, Bool)
     deriving (Eq)
@@ -93,9 +94,9 @@ instance Show a => Show (DisjointOverlapSets a) where
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DisjointOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
-        pure $ DisjointOverlapSets (o, s `disjoint` t)
+        pure $ DisjointOverlapSets (o, s `S.disjoint` t)
 
-newtype UnionOverlapSets a = UnionOverlapSets (OverlapSets a, Set a)
+newtype UnionOverlapSets a = UnionOverlapSets (OverlapSets a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (UnionOverlapSets a) where
@@ -105,9 +106,9 @@ instance Show a => Show (UnionOverlapSets a) where
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (UnionOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
-        pure $ UnionOverlapSets (o, s `union` t)
+        pure $ UnionOverlapSets (o, s `S.union` t)
 
-newtype IntersectionOverlapSets a = IntersectionOverlapSets (OverlapSets a, Set a)
+newtype IntersectionOverlapSets a = IntersectionOverlapSets (OverlapSets a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (IntersectionOverlapSets a) where
@@ -117,9 +118,9 @@ instance Show a => Show (IntersectionOverlapSets a) where
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (IntersectionOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
-        pure $ IntersectionOverlapSets (o, s `intersection` t)
+        pure $ IntersectionOverlapSets (o, s `S.intersection` t)
 
-newtype DifferenceOverlapSets a = DifferenceOverlapSets (OverlapSets a, Set a)
+newtype DifferenceOverlapSets a = DifferenceOverlapSets (OverlapSets a, S.Set a)
     deriving (Eq)
 
 instance Show a => Show (DifferenceOverlapSets a) where
@@ -129,5 +130,20 @@ instance Show a => Show (DifferenceOverlapSets a) where
 instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DifferenceOverlapSets a) where
     arbitrary = do
         o@(OverlapSets (s, t)) <- arbitrary
-        pure $ DifferenceOverlapSets (o, s `difference` t)
+        pure $ DifferenceOverlapSets (o, s `S.difference` t)
+
+-- map 2 is map 1 with random elements deleted
+newtype SubMapOf k v = SubMapOf (M.Map k v, M.Map k v)
+    deriving (Eq)
+
+instance Show k => Show (SubMapOf k v) where
+    show (SubMapOf (s, t)) =
+        "s: " ++ show (M.keys s) ++ "\nt: " ++ show (M.keys t) ++ "\n"
+
+instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (SubMapOf k v) where
+    arbitrary = do
+        pairs <- listOf (scale (*5) arbitrary)
+        shuffledPairs <- shuffle pairs
+        subPairs <- sublistOf shuffledPairs
+        pure $ SubMapOf (M.fromList pairs, M.fromList subPairs)
 

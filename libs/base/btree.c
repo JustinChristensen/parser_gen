@@ -79,8 +79,8 @@ struct btnode *btnext(struct btree_iter *it) {
         if (node->right && node->right != last && (!node->left || node->left == last)) {
             apush(&node, stack);
             node = node->right;
-            while (node) apush(&node, stack), node = node->left;
-            apop(&node, stack);
+            while (!node->left && node->right) apush(&node, stack), node = node->right;
+            while (node->left) apush(&node, stack), node = node->left;
         }
 
         it->last = node;

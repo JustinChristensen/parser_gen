@@ -32,9 +32,16 @@ void build_wiki_tree() {
     node = btinsert((void *) G, CMPFN strcmp, NULL, node);
     node = btinsert((void *) I, CMPFN strcmp, NULL, node);
     node = btinsert((void *) H, CMPFN strcmp, NULL, node);
+}
 
+START_TEST(test_stats) {
+    build_wiki_tree();
+
+    ck_assert_int_eq(btsize(node), 9);
+    ck_assert_int_eq(btdepth(node), 4);
     print_btree(PRINTFN printstr, node);
 }
+END_TEST
 
 START_TEST(test_preorder_traversal) {
     build_wiki_tree();
@@ -101,6 +108,7 @@ Suite *btree_suite()
     tcase_add_test(tc_core, test_preorder_traversal);
     tcase_add_test(tc_core, test_inorder_traversal);
     tcase_add_test(tc_core, test_postorder_traversal);
+    tcase_add_test(tc_core, test_stats);
 
     suite_add_tcase(s, tc_core);
 

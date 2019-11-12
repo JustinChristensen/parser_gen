@@ -23,8 +23,10 @@ test-suite props-test
         CIntSetProps,
         CHashTableProps,
         CBTreeProps,
+        Utils,
         Types
     build-depends:
         QuickCheck,
         containers,
-        random
+        random,
+        unix

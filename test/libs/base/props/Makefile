@@ -1,6 +1,6 @@
 CABAL := cabal
 CABAL_BUILD := $(CABAL) v2-build
-CABAL_TEST := $(CABAL) v2-test
+CABAL_TEST := $(CABAL) v2-run
 CABAL_REPL := $(CABAL) v2-repl
 
 .PHONY: all

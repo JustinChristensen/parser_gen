@@ -323,21 +323,18 @@ bool intseteq(struct intset const *s, struct intset const *t) {
     if (eq) {
         struct array *stack = init_array(sizeof s, IT_STACK_SIZE, 0, 0);
 
-        apush(&s, stack);
         apush(&t, stack);
+        apush(&s, stack);
 
         while (eq && !aempty(stack)) {
             apop(&s, stack);
             apop(&t, stack);
 
-            // branch nodes must always have two children
-            if (s == NULL && t == NULL) continue;
-
             if (s->pfix == t->pfix && s->mask == t->mask) {
-                apush((struct intset **) &s->right, stack);
-                apush((struct intset **) &t->right, stack);
-                apush((struct intset **) &s->left, stack);
-                apush((struct intset **) &t->left, stack);
+                if (t->right) apush((struct intset **) &t->right, stack);
+                if (s->right) apush((struct intset **) &s->right, stack);
+                if (t->left)  apush((struct intset **) &t->left, stack);
+                if (s->left)  apush((struct intset **) &s->left, stack);
             } else {
                 eq = false;
             }

@@ -1,23 +1,13 @@
 module Main where
 
+import Utils
 import Control.Monad (unless)
-import System.Environment (lookupEnv)
-import Text.Read (readMaybe)
 import Data.Function
 import System.Exit
 import Test.QuickCheck hiding (verbose)
 import qualified CIntSetProps
 import qualified CHashTableProps
 import qualified CBTreeProps
-
-readEnv :: Read a => String -> a -> IO a
-readEnv key def = do
-    mVal <- lookupEnv key
-    pure $ case mVal of
-        Just val -> case readMaybe val of
-            Just rval -> rval
-            _ -> def
-        _ -> def
 
 main :: IO ()
 main = do

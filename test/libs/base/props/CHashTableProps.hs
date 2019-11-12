@@ -3,6 +3,7 @@ module CHashTableProps (runTests) where
 
 import Data.List (genericLength)
 import CHashTable
+import Utils
 import Types
 import Foreign
 import Test.QuickCheck
@@ -14,7 +15,7 @@ prop_insert_inserts pairs = monadicIO $ do
     array <- run $ newArray es
     table <- run $ fromEntryList array (genericLength pairs)
     allInserted <- run $ containsAll es table
-    run $ printHashTable printEntryInt table
+    run $ whenVerbose $ printHashTable printEntryInt table
     run $ free array
     run $ freeHashTable table
     run $ freeHashEntries es

@@ -121,6 +121,14 @@ struct btnode *btfind(
     return (struct btnode *) node;
 }
 
+bool btcontains(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    struct btnode const *node
+) {
+    return btfind(key, keycmp, node) != NULL;
+}
+
 struct btnode *btinsert(
     void *key,
     int (*keycmp) (void const *a, void const *b),

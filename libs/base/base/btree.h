@@ -45,6 +45,11 @@ struct btnode *btfind(
     int (*keycmp) (void const *a, void const *b),
     struct btnode const *node
 );
+bool btcontains(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    struct btnode const *node
+);
 struct btnode *btinsert(
     void *key,
     int (*keycmp) (void const *a, void const *b),

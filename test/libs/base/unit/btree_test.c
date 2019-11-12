@@ -8,7 +8,7 @@
 #include <base/string.h>
 #include "test_base.h"
 
-struct btnode *node = NULL;
+struct bin *node = NULL;
 
 static void setup() {
 }
@@ -44,7 +44,7 @@ START_TEST(test_stats) {
 END_TEST
 
 START_TEST(test_equality) {
-    struct btnode *node2 = NULL;
+    struct bin *node2 = NULL;
 
     struct assoc as[] = {
         { "bar", NULL },
@@ -82,7 +82,7 @@ START_TEST(test_delete) {
         { "", NULL }
     };
 
-    struct btnode *node2 = btfromlist(as2, SIZEOF(as2), CMPFN strcmp);
+    struct bin *node2 = btfromlist(as2, SIZEOF(as2), CMPFN strcmp);
 
     print_btree(PRINTFN printstr, node);
 

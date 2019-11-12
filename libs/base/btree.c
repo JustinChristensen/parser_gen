@@ -6,27 +6,27 @@
 #include "base/ord.h"
 #include "base/string.h"
 
-struct btnode btree(void *key, void *val, struct btnode *left, struct btnode *right) {
-    return (struct btnode) { assoc(key, val), left, right };
+struct bin btree(void *key, void *val, struct bin *left, struct bin *right) {
+    return (struct bin) { assoc(key, val), left, right };
 }
 
 struct assoc assoc(void *key, void *val) {
     return (struct assoc) { key, val };
 }
 
-struct assoc node_assoc(struct btnode const *node) {
+struct assoc node_assoc(struct bin const *node) {
     return node->assoc;
 }
 
-struct btnode *init_btree(void *key, void *val, struct btnode *left, struct btnode *right) {
-    struct btnode *node = malloc(sizeof *node);
+struct bin *init_btree(void *key, void *val, struct bin *left, struct bin *right) {
+    struct bin *node = malloc(sizeof *node);
     assert(node != NULL);
     *node = btree(key, val, left, right);
     return node;
 }
 
-void *nodekey(struct btnode const *node) { return node ? node->assoc.key : NULL; }
-void *nodeval(struct btnode const *node) { return node ? node->assoc.val : NULL; }
+void *nodekey(struct bin const *node) { return node ? node->assoc.key : NULL; }
+void *nodeval(struct bin const *node) { return node ? node->assoc.val : NULL; }
 
 static void reset_btree_iter(struct btree_iter *it) {
     struct array *stack = it->stack;
@@ -35,7 +35,7 @@ static void reset_btree_iter(struct btree_iter *it) {
     if (it->order == PRE) {
         apush(&it->root, stack);
     } else {
-        struct btnode *node = it->root;
+        struct bin *node = it->root;
 
         while (node) {
             apush(&node, stack);
@@ -44,9 +44,9 @@ static void reset_btree_iter(struct btree_iter *it) {
     }
 }
 
-void btree_iter(enum traversal_order order, struct btnode const *node, struct btree_iter *it) {
+void btree_iter(enum traversal_order order, struct bin const *node, struct btree_iter *it) {
     struct array *stack = init_array(sizeof node, 7, 0, 0);
-    *it = (struct btree_iter) { .stack = stack, .root = (struct btnode *) node, .order = order };
+    *it = (struct btree_iter) { .stack = stack, .root = (struct bin *) node, .order = order };
     reset_btree_iter(it);
 }
 
@@ -57,7 +57,7 @@ void free_btree_iter(struct btree_iter *it) {
     it->stack = NULL;
 }
 
-struct btnode *btnext(struct btree_iter *it) {
+struct bin *btnext(struct btree_iter *it) {
     struct array *stack = it->stack;
     enum traversal_order order = it->order;
 
@@ -67,14 +67,14 @@ struct btnode *btnext(struct btree_iter *it) {
         return NULL;
     }
 
-    struct btnode *node = NULL;
+    struct bin *node = NULL;
     apop(&node, stack);
 
     if (order == PRE) {
         if (node->right) apush(&node->right, stack);
         if (node->left)  apush(&node->left, stack);
     } else if (order == POST) {
-        struct btnode *last = it->last;
+        struct bin *last = it->last;
 
         if (node->right && node->right != last && (!node->left || node->left == last)) {
             apush(&node, stack);
@@ -85,29 +85,29 @@ struct btnode *btnext(struct btree_iter *it) {
 
         it->last = node;
     } else if (node->right) {
-        struct btnode *x = node->right;
+        struct bin *x = node->right;
         while (x) apush(&x, stack), x = x->left;
     }
 
     return node;
 }
 
-struct btnode *btmin(struct btnode const *node) {
+struct bin *btmin(struct bin const *node) {
     if (!node) return NULL;
     while (node->left) node = node->left;
-    return (struct btnode *) node;
+    return (struct bin *) node;
 }
 
-struct btnode *btmax(struct btnode const *node) {
+struct bin *btmax(struct bin const *node) {
     if (!node) return NULL;
     while (node->right) node = node->right;
-    return (struct btnode *) node;
+    return (struct bin *) node;
 }
 
-struct btnode *btfind(
+struct bin *btfind(
     void *key,
     int (*keycmp) (void const *a, void const *b),
-    struct btnode const *node
+    struct bin const *node
 ) {
     assert(keycmp != NULL);
 
@@ -118,27 +118,27 @@ struct btnode *btfind(
         else              break;
     }
 
-    return (struct btnode *) node;
+    return (struct bin *) node;
 }
 
 bool btcontains(
     void *key,
     int (*keycmp) (void const *a, void const *b),
-    struct btnode const *node
+    struct bin const *node
 ) {
     return btfind(key, keycmp, node) != NULL;
 }
 
-struct btnode *btinsert(
+struct bin *btinsert(
     void *key,
     int (*keycmp) (void const *a, void const *b),
     void *val,
-    struct btnode *node
+    struct bin *node
 ) {
     assert(keycmp != NULL);
     if (!node) return init_btree(key, val, NULL, NULL);
 
-    struct btnode *root = node, *last = NULL;
+    struct bin *root = node, *last = NULL;
     int ord;
 
     while (node) {
@@ -157,15 +157,15 @@ struct btnode *btinsert(
     return root;
 }
 
-struct btnode *btdelete(
+struct bin *btdelete(
     void *key,
     int (*keycmp) (void const *a, void const *b),
-    struct btnode *node
+    struct bin *node
 ) {
     assert(keycmp != NULL);
     if (!node) return NULL;
 
-    struct btnode *root = node, *parent = NULL;
+    struct bin *root = node, *parent = NULL;
     int ord;
 
     while (node) {
@@ -178,11 +178,11 @@ struct btnode *btdelete(
     if (!node) return root;
 
     // compute the next subtree given node
-    struct btnode *next = NULL;
+    struct bin *next = NULL;
     if (!node->left)        next = node->right;
     else if (!node->right)  next = node->left;
     else {
-        struct btnode *nextp = NULL;
+        struct bin *nextp = NULL;
 
         next = node->right;
 
@@ -211,8 +211,8 @@ struct btnode *btdelete(
 bool btree_eq(
     bool (*keyeq) (void const *a, void const *b),
     bool (*valeq) (void const *a, void const *b),
-    struct btnode const *s,
-    struct btnode const *t
+    struct bin const *s,
+    struct bin const *t
 ) {
     bool eq = true;
     assert(keyeq || valeq);
@@ -221,7 +221,7 @@ bool btree_eq(
     btree_iter(IN, s, &si);
     btree_iter(IN, t, &ti);
 
-    struct btnode *sn = NULL, *tn = NULL;
+    struct bin *sn = NULL, *tn = NULL;
 
     do sn = btnext(&si), tn = btnext(&ti);
     while (sn &&
@@ -239,7 +239,7 @@ bool btree_eq(
     return eq;
 }
 
-size_t btsize(struct btnode const *node) {
+size_t btsize(struct bin const *node) {
     if (!node) return 0;
 
     size_t size = 0;
@@ -255,13 +255,13 @@ size_t btsize(struct btnode const *node) {
     return size;
 }
 
-size_t btdepth(struct btnode const *node) {
+size_t btdepth(struct bin const *node) {
     if (!node) return 0;
     return max(btdepth(node->left), btdepth(node->right)) + 1;
 }
 
-struct btnode *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b)) {
-    struct btnode *node = NULL;
+struct bin *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b)) {
+    struct bin *node = NULL;
 
     for (int i = 0; i < n; i++) {
         struct assoc a = assocs[i];
@@ -271,7 +271,7 @@ struct btnode *btfromlist(struct assoc *assocs, size_t n, int (*keycmp) (void co
     return node;
 }
 
-struct assoc *bttolist(struct btnode const *node) {
+struct assoc *bttolist(struct bin const *node) {
     if (!node) return NULL;
 
     struct assoc *assocs = calloc(btsize(node), sizeof *assocs);
@@ -289,7 +289,7 @@ struct assoc *bttolist(struct btnode const *node) {
     return assocs;
 }
 
-void **btkeys(struct btnode const *node) {
+void **btkeys(struct bin const *node) {
     if (!node) return NULL;
 
     void **keys = calloc(btsize(node), sizeof *keys);
@@ -307,7 +307,7 @@ void **btkeys(struct btnode const *node) {
     return keys;
 }
 
-void **btvals(struct btnode const *node) {
+void **btvals(struct bin const *node) {
     if (!node) return NULL;
 
     void **vals = calloc(btsize(node), sizeof *vals);
@@ -325,18 +325,18 @@ void **btvals(struct btnode const *node) {
     return vals;
 }
 
-static void _print_btree(void (*print_key) (void const *key), unsigned int depth, struct btnode const *node) {
+static void _print_btree(void (*print_key) (void const *key), unsigned int depth, struct bin const *node) {
     if (!node || !print_key) return;
     indent(depth); printf("("); (*print_key)(node->assoc.key); printf(")"); printf("\n");
     _print_btree(print_key, depth + 1, node->left);
     _print_btree(print_key, depth + 1, node->right);
 }
 
-void print_btree(void (*print_key) (void const *key), struct btnode const *node) {
+void print_btree(void (*print_key) (void const *key), struct bin const *node) {
     _print_btree(print_key, 0, node);
 }
 
-void free_btree(struct btnode *node) {
+void free_btree(struct bin *node) {
     if (!node) return;
     free_btree(node->left);
     free_btree(node->right);

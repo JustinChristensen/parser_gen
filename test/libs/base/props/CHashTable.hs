@@ -24,7 +24,7 @@ module CHashTable (
     containsAll
 ) where
 
-import Test.QuickCheck
+import Types
 import Foreign
 import Foreign.C.String
 import CArray
@@ -100,9 +100,9 @@ foreign import ccall "print_hash_table" printHashTable :: FunPtr (Entry a -> IO 
 foreign import ccall "print_hash_entries" printHashEntries :: FunPtr (Entry a -> IO ()) -> CHashTablePtr a -> IO ()
 foreign import ccall "free_hash_table" freeHashTable :: CHashTablePtr a -> IO ()
 
-toHashEntry :: (PrintableString, Int32) -> IO (CHashEntry ())
-toHashEntry (PrintableString k, v) = do
-    key <- newCString k
+toHashEntry :: (BetterASCII, Int32) -> IO (CHashEntry ())
+toHashEntry (BetterASCII k, v) = do
+    key <- newCAString k
     pure $ CHashEntry key (asPtr v)
 
 fromHashEntry :: CHashEntry () -> IO (String, Int32)
@@ -110,7 +110,7 @@ fromHashEntry (CHashEntry k v) = do
     str <- peekCString k
     pure $ (str, asInt32 v)
 
-toHashEntries :: [(PrintableString, Int32)] -> IO [CHashEntry ()]
+toHashEntries :: [(BetterASCII, Int32)] -> IO [CHashEntry ()]
 toHashEntries pairs = mapM toHashEntry pairs
 
 freeHashEntries :: [CHashEntry ()] -> IO ()

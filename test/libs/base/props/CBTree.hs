@@ -10,16 +10,26 @@ module CBTree (
     btDepth,
     btFromList,
     btToList,
+    printBtree,
     freeBtree,
 
     cstrcmp,
-    cfree
+    cstreq,
+    cprintstr,
+    cKeys,
+    freeKeys,
+    bTreeFromKeys,
+    deleteKeys
 ) where
 
+import Data.List (genericLength)
+import Control.Monad (foldM)
 import Foreign
+import Foreign.C.Types
+import Foreign.C.String
 
 type CmpFn a b = FunPtr (Ptr a -> Ptr b -> IO Int32)
-type FreeFn a = FunPtr (Ptr a -> IO ())
+type EqFn a b = FunPtr (Ptr a -> Ptr b -> IO Bool)
 type CbtNodePtr k v = Ptr (CbtNode k v)
 
 data CAssoc k v = CAssoc (Ptr k) (Ptr v)
@@ -58,17 +68,38 @@ instance Storable (CbtNode k v) where
         where offs n = alignment (undefined :: CbtNode k v) * n
 
 foreign import ccall "&strcmp" cstrcmp :: CmpFn a b
-foreign import ccall "&free" cfree :: FreeFn a
+foreign import ccall "&streq" cstreq :: EqFn a b
+foreign import ccall "&printstr" cprintstr :: FunPtr (CString -> IO ())
 
 foreign import ccall "init_btree" initBtree :: Ptr k -> Ptr v -> CbtNodePtr k v -> CbtNodePtr k v -> IO (CbtNodePtr k v)
 foreign import ccall "btfind" btFind :: Ptr k -> CmpFn k k -> CbtNodePtr k v -> IO (CbtNodePtr k v)
 foreign import ccall "btinsert" btInsert :: Ptr k -> CmpFn k k -> Ptr v -> CbtNodePtr k v -> IO (CbtNodePtr k v)
 foreign import ccall "btdelete" btDelete :: Ptr k -> CmpFn k k -> CbtNodePtr k v -> IO (CbtNodePtr k v)
-foreign import ccall "btree_eq" btreeEq :: CmpFn k k -> CmpFn v v -> CbtNodePtr k v -> CbtNodePtr k v -> IO Bool
+foreign import ccall "btree_eq" btreeEq :: EqFn k k -> EqFn v v -> CbtNodePtr k v -> CbtNodePtr k v -> IO Bool
 foreign import ccall "btsize" btSize :: CbtNodePtr k v -> IO Word64
 foreign import ccall "btdepth" btDepth :: CbtNodePtr k v -> IO Word64
-foreign import ccall "btfromlist" btFromList :: Ptr (CAssoc k v) -> Word64 -> IO (CbtNodePtr k v)
+foreign import ccall "btfromlist" btFromList :: Ptr (CAssoc k v) -> Word64 -> CmpFn k k -> IO (CbtNodePtr k v)
 foreign import ccall "bttolist" btToList :: CbtNodePtr k v -> IO (Ptr (CAssoc k v))
+foreign import ccall "print_btree" printBtree :: FunPtr (Ptr k -> IO ()) -> CbtNodePtr k v -> IO ()
 foreign import ccall "free_btree" freeBtree :: CbtNodePtr k v -> IO ()
+
+cKeys :: [String] -> IO [CString]
+cKeys = mapM newCAString
+
+freeKeys :: [CString] -> IO ()
+freeKeys = mapM_ free
+
+assocArr :: [CString] -> IO (Ptr (CAssoc CChar ()))
+assocArr ks = newArray $ fmap (\k -> CAssoc k nullPtr) ks
+
+bTreeFromKeys :: [CString] -> IO (CbtNodePtr CChar ())
+bTreeFromKeys ks = do
+    arr <- assocArr ks
+    tree <- btFromList arr (genericLength ks) cstrcmp
+    free arr
+    pure tree
+
+deleteKeys :: [CString] -> CbtNodePtr CChar () -> IO (CbtNodePtr CChar ())
+deleteKeys ks node = foldM (\prev key -> btDelete key cstrcmp prev) node ks
 
 

@@ -3,11 +3,12 @@ module CHashTableProps (runTests) where
 
 import Data.List (genericLength)
 import CHashTable
+import Types
 import Foreign
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
-prop_insert_inserts :: [(PrintableString, Int32)] -> Property
+prop_insert_inserts :: [(BetterASCII, Int32)] -> Property
 prop_insert_inserts pairs = monadicIO $ do
     es <- run $ toHashEntries pairs
     array <- run $ newArray es

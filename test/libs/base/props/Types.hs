@@ -147,3 +147,12 @@ instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (SubMapOf k v) where
         subPairs <- sublistOf shuffledPairs
         pure $ SubMapOf (M.fromList pairs, M.fromList subPairs)
 
+newtype BetterASCII = BetterASCII {
+        getBetterASCII :: String
+    } deriving (Ord, Eq, Show)
+
+instance Arbitrary BetterASCII where
+    arbitrary = do
+        str <- listOf (choose ('\1', '\127'))
+        pure $ BetterASCII str
+

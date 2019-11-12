@@ -8,6 +8,7 @@ import System.Exit
 import Test.QuickCheck hiding (verbose)
 import qualified CIntSetProps
 import qualified CHashTableProps
+import qualified CBTreeProps
 
 readEnv :: Read a => String -> a -> IO a
 readEnv key def = do
@@ -32,5 +33,6 @@ main = do
         args size tests = stdArgs { maxSize = size, maxSuccess = tests }
         suites = [
                 CIntSetProps.runTests,
-                CHashTableProps.runTests
+                CHashTableProps.runTests,
+                CBTreeProps.runTests
             ]

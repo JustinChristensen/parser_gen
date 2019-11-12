@@ -54,8 +54,6 @@ struct btnode *btinsert(
 struct btnode *btdelete(
     void *key,
     int (*keycmp) (void const *a, void const *b),
-    void (*free_key) (void *key),
-    void (*free_val) (void *val),
     struct btnode *node
 );
 bool btree_eq(
@@ -71,10 +69,6 @@ struct assoc *bttolist(struct btnode const *node);
 void **btkeys(struct btnode const *node);
 void **btvals(struct btnode const *node);
 void print_btree(void (*print_key) (void const *key), struct btnode const *node);
-void free_btree(
-    void (*free_key) (void *key),
-    void (*free_val) (void *val),
-    struct btnode *node
-);
+void free_btree(struct btnode *node);
 
 #endif // BASE_BTREE_H_

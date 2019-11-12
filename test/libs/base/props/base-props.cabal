@@ -22,6 +22,7 @@ test-suite props-test
         CBTree,
         CIntSetProps,
         CHashTableProps,
+        CBTreeProps,
         Types
     build-depends:
         QuickCheck,

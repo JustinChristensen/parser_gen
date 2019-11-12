@@ -152,8 +152,6 @@ struct btnode *btinsert(
 struct btnode *btdelete(
     void *key,
     int (*keycmp) (void const *a, void const *b),
-    void (*free_key) (void *key),
-    void (*free_val) (void *val),
     struct btnode *node
 ) {
     assert(keycmp != NULL);
@@ -197,7 +195,7 @@ struct btnode *btdelete(
     else if (parent->left == node) parent->left = next;
     else                           parent->right = next;
 
-    free_btree(free_key, free_val, node);
+    free(node);
 
     return root;
 }
@@ -321,7 +319,7 @@ void **btvals(struct btnode const *node) {
 
 static void _print_btree(void (*print_key) (void const *key), unsigned int depth, struct btnode const *node) {
     if (!node || !print_key) return;
-    indent(depth); (*print_key)(node->assoc.key); printf("\n");
+    indent(depth); printf("("); (*print_key)(node->assoc.key); printf(")"); printf("\n");
     _print_btree(print_key, depth + 1, node->left);
     _print_btree(print_key, depth + 1, node->right);
 }
@@ -330,16 +328,10 @@ void print_btree(void (*print_key) (void const *key), struct btnode const *node)
     _print_btree(print_key, 0, node);
 }
 
-void free_btree(
-    void (*free_key) (void *key),
-    void (*free_val) (void *val),
-    struct btnode *node
-) {
+void free_btree(struct btnode *node) {
     if (!node) return;
-    free_btree(free_key, free_val, node->left);
-    free_btree(free_key, free_val, node->right);
-    if (free_key) (*free_key)(node->assoc.key);
-    if (free_val) (*free_val)(node->assoc.val);
+    free_btree(node->left);
+    free_btree(node->right);
     node->left = node->right = NULL;
     free(node);
 }

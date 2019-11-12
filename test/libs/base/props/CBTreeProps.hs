@@ -6,8 +6,12 @@ import Types
 import qualified Data.Map as M
 import Control.Monad (unless)
 import Foreign
+import Foreign.C.String
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
+
+unwrapKeys :: M.Map BetterASCII () -> [String]
+unwrapKeys m = getBetterASCII <$> M.keys m
 
 prop_delete_deletes :: SubMapOf BetterASCII () -> Property
 prop_delete_deletes (SubMapOf (s, t)) = monadicIO $ do
@@ -26,8 +30,24 @@ prop_delete_deletes (SubMapOf (s, t)) = monadicIO $ do
         assert equal
     where
         diff = unwrapKeys $ s `M.difference` t
-        unwrapKeys m = getBetterASCII <$> M.keys m
         keysToDelete = cKeys diff
+
+prop_produces_sorted_keys :: M.Map BetterASCII () -> Property
+prop_produces_sorted_keys m = monadicIO $ do
+        let mKeys = unwrapKeys m
+        mCKeys <- run $ cKeys mKeys
+        tree <- run $ bTreeFromKeys mCKeys
+        treeCKeys <- run $ btKeys tree
+        treeSize <- run $ btSize tree
+        treeKeys <- run $ do
+            arr <- peekArray (fromIntegral treeSize) treeCKeys
+            mapM peekCAString arr
+        monitor $ collect (length treeKeys)
+        let equal = mKeys == treeKeys
+        run $ free treeCKeys
+        run $ freeKeys mCKeys
+        run $ freeBtree tree
+        assert equal
 
 return []
 runTests :: (Property -> IO Result) -> IO Bool

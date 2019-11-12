@@ -10,6 +10,7 @@ module CBTree (
     btDepth,
     btFromList,
     btToList,
+    btKeys,
     printBtree,
     freeBtree,
 
@@ -80,6 +81,7 @@ foreign import ccall "btsize" btSize :: CBinPtr k v -> IO Word64
 foreign import ccall "btdepth" btDepth :: CBinPtr k v -> IO Word64
 foreign import ccall "btfromlist" btFromList :: Ptr (CAssoc k v) -> Word64 -> CmpFn k k -> IO (CBinPtr k v)
 foreign import ccall "bttolist" btToList :: CBinPtr k v -> IO (Ptr (CAssoc k v))
+foreign import ccall "btkeys" btKeys :: CBinPtr k v -> IO (Ptr (Ptr k))
 foreign import ccall "print_btree" printBtree :: FunPtr (Ptr k -> IO ()) -> CBinPtr k v -> IO ()
 foreign import ccall "free_btree" freeBtree :: CBinPtr k v -> IO ()
 

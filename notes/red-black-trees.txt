@@ -1,0 +1,52 @@
+
+Red-Black Binary Tree Invariants:
+ 1. Nodes are either red or black
+ 2. The root node is black
+ 3. NULL (leafs) are considered to be black
+ 4. If a node is red, both it's children are black
+ 5. All simple (why simple?) paths from a node to it's descendant
+     leaves contain the same number of black nodes
+
+If a node is red, then both of it's children are black
+If a node is black, then it's children can be either red or black
+
+Can a black node have two red children?
+Once inserted, do nodes change colors?
+
+2^(bh(x) - 1) - 1 + 2^(bh(x) - 1) - 1 + 1
+2^bh(x) * 2^(-1) - 1 + 2^bh(x) * 2^(-1) - 1 + 1
+2^bh(x) * 1/2 - 1 + 2^bh(x) * 1/2 - 1 + 1
+2^bh(x) * 1/2 - 1 + 2^bh(x) * 1/2
+2^bh(x)/2 - 1 + 2^bh(x)/2
+2^bh(x) - 1
+
+n >= 2^(h/2) - 1
+n + 1 >= 2^(h/2)
+log2(n + 1) >= log2(2^(h/2))
+log2(n + 1) >= h/2
+2 * log2(n + 1) >= h
+h <= 2 * log2(n + 1)
+
+Tree rotation
+
+   Left Rotation
+   A's right points to B's left
+   B's left points to A
+
+
+        +-----+                                          +-----+
+   +----|  A  |-----+                              +-----|  C  |-----+
+   |    +-----+     |                              |     +-----+     |
+   |                |            <------>          |                 |
+   a             +-----+                        +-----+              d
+            +----|  C  |----+              +----|  A  |----+
+            |    +-----+    |              |    +-----+    |
+            |               |              |               |
+            b               d              a               b
+
+If I choose not to store parent pointers in the tree, I'll need to maintain a stack
+of parent pointers as I traverse downward during insertion and deletion:
+struct bin **parents = calloc(depth(node), sizeof node);
+
+
+

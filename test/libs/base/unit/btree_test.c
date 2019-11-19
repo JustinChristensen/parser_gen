@@ -88,8 +88,8 @@ START_TEST(insert_ascending) {
         node = btinsert(&keys[i], CMPFN intcmp, NULL, node);
     }
 
-    btinvariants(node, true, CMPFN intcmp);
     printf("size: %lu, height: %lu\n", btsize(node), btdepth(node));
+    btinvariants(node, true, CMPFN intcmp);
     // print_btree(PRINTFN printint, node);
     free(keys);
 }

@@ -163,24 +163,10 @@ static bool has_red_child(struct bin *node) {
     return red(node->left) || red(node->right);
 }
 
-static struct bin *_btinsert(
-    void *key,
-    int (*keycmp) (void const *a, void const *b),
-    void *val,
-    struct bin *node
-) {
-    assert(keycmp != NULL);
-    if (!node) return init_btree(key, val, true, NULL, NULL);
-
-    int ord = (*keycmp)(key, node->assoc.key);
-    if      (ord < 0) node->left = _btinsert(key, keycmp, val, node->left);
-    else if (ord > 0) node->right = _btinsert(key, keycmp, val, node->right);
-    else              node->assoc.val = val;
-
+static struct bin *balance_after_insert(struct bin *node) {
     struct bin *left = node->left,
                *right = node->right;
 
-    // the latter two cases handle the invariant that red nodes must have black children
     if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) {
         repaint(node, true);
     } else if (red(left)) {
@@ -200,6 +186,25 @@ static struct bin *_btinsert(
             repaint(node, false);
         }
     }
+
+    return node;
+}
+
+static struct bin *_btinsert(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    void *val,
+    struct bin *node
+) {
+    assert(keycmp != NULL);
+    if (!node) return init_btree(key, val, true, NULL, NULL);
+
+    int ord = (*keycmp)(key, node->assoc.key);
+    if      (ord < 0) node->left = _btinsert(key, keycmp, val, node->left);
+    else if (ord > 0) node->right = _btinsert(key, keycmp, val, node->right);
+    else              node->assoc.val = val;
+
+    node = balance_after_insert(node);
 
     return node;
 }

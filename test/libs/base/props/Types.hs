@@ -2,9 +2,9 @@ module Types where
 
 import Prelude hiding (null)
 import System.Random (Random)
+import Data.List (nub)
 import Test.QuickCheck
 import qualified Data.Set as S
-import qualified Data.Map as M
 
 newtype ShiftedList a = ShiftedList [a]
     deriving (Show, Eq)
@@ -133,19 +133,20 @@ instance (Bounded a, Integral a, Ord a, Arbitrary a) => Arbitrary (DifferenceOve
         pure $ DifferenceOverlapSets (o, s `S.difference` t)
 
 -- map 2 is map 1 with random elements deleted
-newtype SubMapOf k v = SubMapOf (M.Map k v, M.Map k v)
+newtype SubSetOf k = SubSetOf ([k], [k])
     deriving (Eq)
 
-instance Show k => Show (SubMapOf k v) where
-    show (SubMapOf (s, t)) =
-        "s: " ++ show (M.keys s) ++ "\nt: " ++ show (M.keys t) ++ "\n"
+instance Show k => Show (SubSetOf k) where
+    show (SubSetOf (s, t)) =
+        "s: " ++ show s ++ "\nt: " ++ show t ++ "\n"
 
-instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (SubMapOf k v) where
+instance (Ord k, Arbitrary k) => Arbitrary (SubSetOf k) where
     arbitrary = do
-        pairs <- listOf (scale (*5) arbitrary)
-        shuffledPairs <- shuffle pairs
-        subPairs <- sublistOf shuffledPairs
-        pure $ SubMapOf (M.fromList pairs, M.fromList subPairs)
+        keys <- listOf (scale (*5) arbitrary)
+        shuffledKeys <- shuffle keys
+        subKeys <- sublistOf shuffledKeys
+        shuffledSubKeys <- shuffle subKeys
+        pure $ SubSetOf (nub shuffledKeys, nub shuffledSubKeys)
 
 newtype BetterASCII = BetterASCII {
         getBetterASCII :: String
@@ -156,3 +157,10 @@ instance Arbitrary BetterASCII where
         str <- listOf (choose ('\1', '\127'))
         pure $ BetterASCII str
 
+newtype UniqList a = UniqList [a]
+    deriving (Eq, Show)
+
+instance (Eq a, Arbitrary a) => Arbitrary (UniqList a) where
+    arbitrary = do
+        xs <- arbitrary
+        pure $ UniqList (nub xs)

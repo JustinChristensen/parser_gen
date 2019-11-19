@@ -2,6 +2,7 @@ TOPDIR := ../../../..
 include $(TOPDIR)/make/common_vars.mk
 
 GDB := gdb
+VALGRIND := valgrind
 PROG := test_base
 LIBS += -lcheck -lm
 
@@ -13,6 +14,10 @@ $(PROG): main.c array_test.c btree_test.c hash_table_test.c intset_test.c
 .PHONY: check
 check: $(PROG)
 	./$(PROG)
+
+.PHONY: memcheck
+memcheck:
+	$(VALGRIND) --leak-check=full ./$(PROG)
 
 .PHONY: debug
 debug:

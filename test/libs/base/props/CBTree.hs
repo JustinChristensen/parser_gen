@@ -11,6 +11,7 @@ module CBTree (
     btFromList,
     btToList,
     btKeys,
+    btInvariants,
     printBtree,
     freeBtree,
 
@@ -38,6 +39,7 @@ data CAssoc k v = CAssoc (Ptr k) (Ptr v)
 
 data CBin k v = CBin
         (CAssoc k v)
+        Bool
         (Ptr (CBin k v))
         (Ptr (CBin k v))
     deriving (Eq, Ord, Show)
@@ -61,11 +63,13 @@ instance Storable (CBin k v) where
             <$> peekByteOff ptr (offs 0)
             <*> peekByteOff ptr (offs 2)
             <*> peekByteOff ptr (offs 3)
+            <*> peekByteOff ptr (offs 4)
         where offs n = alignment (undefined :: CBin k v) * n
-    poke ptr (CBin a l r) = do
+    poke ptr (CBin a c l r) = do
             pokeByteOff ptr (offs 0) a
-            pokeByteOff ptr (offs 2) l
-            pokeByteOff ptr (offs 3) r
+            pokeByteOff ptr (offs 2) c
+            pokeByteOff ptr (offs 3) l
+            pokeByteOff ptr (offs 4) r
         where offs n = alignment (undefined :: CBin k v) * n
 
 foreign import ccall "&strcmp" cstrcmp :: CmpFn a b
@@ -82,6 +86,7 @@ foreign import ccall "btdepth" btDepth :: CBinPtr k v -> IO Word64
 foreign import ccall "btfromlist" btFromList :: Ptr (CAssoc k v) -> Word64 -> CmpFn k k -> IO (CBinPtr k v)
 foreign import ccall "bttolist" btToList :: CBinPtr k v -> IO (Ptr (CAssoc k v))
 foreign import ccall "btkeys" btKeys :: CBinPtr k v -> IO (Ptr (Ptr k))
+foreign import ccall "btinvariants" btInvariants :: CBinPtr k v -> Bool -> CmpFn k k -> IO ()
 foreign import ccall "print_btree" printBtree :: FunPtr (Ptr k -> IO ()) -> CBinPtr k v -> IO ()
 foreign import ccall "free_btree" freeBtree :: CBinPtr k v -> IO ()
 

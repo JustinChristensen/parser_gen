@@ -90,7 +90,7 @@ START_TEST(test_random_inserts_and_deletes) {
         num_inserts = atoi(max_inserts);
     }
 
-    int key_size = ceil(num_inserts / 5);
+    int key_size = ceil(num_inserts / 5.0);
     char *key = calloc(key_size, sizeof *key);
 
     for (int t = 0, n = randr(10, num_inserts); t < n; t++) {

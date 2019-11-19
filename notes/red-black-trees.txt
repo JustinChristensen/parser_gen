@@ -48,5 +48,18 @@ If I choose not to store parent pointers in the tree, I'll need to maintain a st
 of parent pointers as I traverse downward during insertion and deletion:
 struct bin **parents = calloc(depth(node), sizeof node);
 
+Fixup:
+
+The only case where the fixup routine continues the loop is when the inserted node has a red uncle
+on either the left or right side
+
+The result of that iteration is that the grandparent is a red node, where all other cases
+through the loop yield a black grandparent
+
+BBB     <-- root node, and two null pointers
+BBR
+BRB
+RBB
+RBR
 
 

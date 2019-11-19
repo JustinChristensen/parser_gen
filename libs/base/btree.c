@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 #include "base/btree.h"
 #include "base/array.h"
 #include "base/ord.h"
@@ -148,123 +149,69 @@ bool btcontains(
     return btfind(key, keycmp, node) != NULL;
 }
 
-static enum color {
-    BLACK = false,
-    RED = true
-};
-
-// node is the newly inserted node
-// p has a value when inserting or updating a non-root node
-// pps[0] = NULL
-static void balance_after_insert(struct bin *node, struct bin *p, struct bin **pps) {
-    while (p && p->red) {               // invariant #3 doesn't hold if this is true
-        struct bin *gp = *--pps;        // red nodes have a parent
-
-        if (p == gp->left) {
-            struct bin *un = gp->right;
-
-            if (un->red) {
-                p->red = false;
-                un->red = false;
-                gp->red = true;
-
-                node = gp;
-                p = *--pps;
-            } else {
-                if (node == p->right) {
-                    node = p;
-                    gp->left = p = rotate_left(p);
-                }
-
-                p->red = false;
-                gp->red = true;
-                rotate_right(gp);
-
-                if ((node = *--pps)) {
-                    if (node->left == gp) node->left = p;
-                    else                  node->right = p;
-                }
-            }
-        } else {
-            struct bin *un = gp->left;
-
-            if (un->red) {
-                p->red = false;
-                un->red = false;
-                gp->red = true;
-
-                node = gp;
-                p = *--pps;
-            } else {
-                if (node == p->left) {
-                    node = p;
-                    gp->right = p = rotate_right(p);
-                }
-
-                p->red = false;
-                gp->red = true;
-                rotate_left(gp);
-
-                if ((node = *--pps)) {
-                    if (node->left == gp) node->left = p;
-                    else                  node->right = p;
-                }
-            }
-        }
-    }
+static bool red(struct bin *node) {
+    return node && node->red;
 }
 
-// invariants:
-// 1. left subtree keys are less than node's key, which is less than right subtree keys
-// 2. the root is black
-// 3. if a node is red, then both it's children are black
-// 4. all paths from node to descendant leaves contain the same number of black nodes
-struct bin *btinsert(
+static void repaint(struct bin *node, bool color) {
+    node->red = color;
+    node->left->red = !color;
+    node->right->red = !color;
+}
+
+static bool has_red_child(struct bin *node) {
+    return red(node->left) || red(node->right);
+}
+
+static struct bin *_btinsert(
     void *key,
     int (*keycmp) (void const *a, void const *b),
     void *val,
     struct bin *node
 ) {
     assert(keycmp != NULL);
-    if (!node) return init_btree(key, val, BLACK, NULL, NULL);
+    if (!node) return init_btree(key, val, true, NULL, NULL);
 
-    struct bin *root = node;
-    int ord;
+    int ord = (*keycmp)(key, node->assoc.key);
+    if      (ord < 0) node->left = _btinsert(key, keycmp, val, node->left);
+    else if (ord > 0) node->right = _btinsert(key, keycmp, val, node->right);
+    else              node->assoc.val = val;
 
-    // parent pointer stack, the extra call to btdepth
-    // should make this routine run in O(2 * lg(n))
-    struct bin **pps = calloc(btdepth(node), sizeof *ps);
-    assert(pps != NULL);
+    struct bin *left = node->left,
+               *right = node->right;
 
-    // root's parent is NULL, termination condition for the below loop
-    *pps++ = NULL;
+    // the latter two cases handle the invariant that red nodes must have black children
+    if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) {
+        repaint(node, true);
+    } else if (red(left)) {
+        if (red(left->right))
+            left = node->left = rotate_left(left);
 
-    while (node) {
-        ord = (*keycmp)(key, node->assoc.key);
-        if (ord < 0)      *pps++ = node, node = node->left;
-        else if (ord > 0) *pps++ = node, node = node->right;
-        else              break;
+        if (red(left->left)) {
+            node = rotate_right(node);
+            repaint(node, false);
+        }
+    } else if (red(right)) {
+        if (red(right->left))
+            right = node->right = rotate_right(right);
+
+        if (red(right->right)) {
+            node = rotate_left(node);
+            repaint(node, false);
+        }
     }
 
-    // current parent pointer
-    struct bin *p = NULL;
+    return node;
+}
 
-    if (ord < 0)
-        p = *--pps,
-        p->left = init_btree(key, val, RED, NULL, NULL);
-    else if (ord > 0)
-        p = *--pps,
-        p->right = init_btree(key, val, RED, NULL, NULL);
-    else
-        node->assoc.val = val;
-
-    balance_after_insert(node, p, pps);
-
-    // #2
+struct bin *btinsert(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    void *val,
+    struct bin *node
+) {
+    struct bin *root = _btinsert(key, keycmp, val, node);
     root->red = false;
-
-    free(pps);
-
     return root;
 }
 
@@ -459,13 +406,13 @@ void btinvariants(struct bin const *node, bool root, int (*keycmp) (void const *
     struct bin *left = node->left,
                *right = node->right;
 
-    btinvariants(left, false);
-    btinvariants(right, false);
+    btinvariants(left, false, keycmp);
+    btinvariants(right, false, keycmp);
 
     // for all nodes n, keys in node->left are less than n's key
     // and keys in node->right are greater than n's key
     if (left) assert((*keycmp)(left->assoc.key, node->assoc.key) < 0);
-    if (right) assert((*keycmp)(node->assoc.key, right->assoc.key) > 0);
+    if (right) assert((*keycmp)(right->assoc.key, node->assoc.key) > 0);
 
     // the root is black
     if (root) assert(!node->red);
@@ -477,11 +424,14 @@ void btinvariants(struct bin const *node, bool root, int (*keycmp) (void const *
     // all simple paths from the node to it's descendant leaves contain the
     // same number of black nodes
     assert(black_height(left) == black_height(right));
+
+    size_t size = btsize(node), height = btdepth(node);
+    assert(height <= 2 * log2(size + 1));
 }
 
 static void _print_btree(void (*print_key) (void const *key), unsigned int depth, struct bin const *node) {
     if (!node || !print_key) return;
-    indent(depth); printf("("); (*print_key)(node->assoc.key); printf(")"); printf("\n");
+    indent(depth); printf("("); (*print_key)(node->assoc.key); printf(", %s)", node->red ? "R" : "B"); printf("\n");
     _print_btree(print_key, depth + 1, node->left);
     _print_btree(print_key, depth + 1, node->right);
 }

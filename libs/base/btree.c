@@ -112,16 +112,22 @@ struct bin *btnext(struct btree_iter *it) {
     return node;
 }
 
-struct bin *btmin(struct bin const *node) {
+struct bin *btmin(struct bin *node) {
     if (!node) return NULL;
-    while (node->left) node = node->left;
-    return (struct bin *) node;
+
+    if (node->left)
+        return btmin(node->left);
+
+    return node;
 }
 
-struct bin *btmax(struct bin const *node) {
+struct bin *btmax(struct bin *node) {
     if (!node) return NULL;
-    while (node->right) node = node->right;
-    return (struct bin *) node;
+
+    if (node->right)
+        return btmax(node->right);
+
+    return node;
 }
 
 struct bin *btfind(
@@ -167,9 +173,12 @@ static struct bin *balance_after_insert(struct bin *node) {
     struct bin *left = node->left,
                *right = node->right;
 
-    if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) {
+    // possible 4-nodes
+    // B B B, B B R, B R B, B R R, R B B, R B R, R R B, R R R
+
+    if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) { // R B R
         repaint(node, true);
-    } else if (red(left)) {
+    } else if (red(left)) { // R B B
         if (red(left->right))
             left = node->left = rotate_left(left);
 
@@ -177,7 +186,7 @@ static struct bin *balance_after_insert(struct bin *node) {
             node = rotate_right(node);
             repaint(node, false);
         }
-    } else if (red(right)) {
+    } else if (red(right)) { // B B R
         if (red(right->left))
             right = node->right = rotate_right(right);
 
@@ -220,7 +229,25 @@ struct bin *btinsert(
     return root;
 }
 
-struct bin *btdelete(
+// static struct bin *balance_after_delete(struct bin *node) {
+//     if (!node) return NULL;
+//
+//     return node;
+// }
+
+static struct bin *grab_min(struct bin **min, struct bin *node) {
+    if (!node) return NULL;
+
+    if (node->left) {
+        node->left = grab_min(min, node->left);
+        return node;
+    }
+
+    *min = node;
+    return node->right;
+}
+
+static struct bin *_btdelete(
     void *key,
     int (*keycmp) (void const *a, void const *b),
     struct bin *node
@@ -228,47 +255,35 @@ struct bin *btdelete(
     assert(keycmp != NULL);
     if (!node) return NULL;
 
-    // find the node
-    struct bin *root = node, *parent = NULL;
-    int ord;
-
-    while (node) {
-        ord = (*keycmp)(key, node->assoc.key);
-        if (ord < 0)      parent = node, node = node->left;
-        else if (ord > 0) parent = node, node = node->right;
-        else              break;
-    }
-
-    if (!node) return root;
-
-    // compute the next subtree given found node
-    struct bin *next = NULL;
-    if (!node->left)        next = node->right;
-    else if (!node->right)  next = node->left;
+    int ord = (*keycmp)(key, node->assoc.key);
+    if      (ord < 0) node->left = _btdelete(key, keycmp, node->left);
+    else if (ord > 0) node->right = _btdelete(key, keycmp, node->right);
     else {
-        struct bin *nextp = NULL;
+        struct bin *next = NULL;
 
-        next = node->right;
-
-        while (next->left) {
-            nextp = next, next = next->left;
+        if (!node->left)       next = node->right;
+        else if (!node->right) next = node->left;
+        else {
+            next->right = grab_min(&next, node->right);
+            next->left = node->left;
         }
 
-        if (nextp) {
-            nextp->left = next->right;
-            next->right = node->right;
-        }
-
-        next->left = node->left;
+        free(node);
+        node = next;
     }
 
-    // update parent pointers or replace parent with the next subtree
-    if (!parent)                   root = next;
-    else if (parent->left == node) parent->left = next;
-    else                           parent->right = next;
+    // node = balance_after_delete(node);
 
-    free(node);
+    return node;
+}
 
+struct bin *btdelete(
+    void *key,
+    int (*keycmp) (void const *a, void const *b),
+    struct bin *node
+) {
+    struct bin *root = _btdelete(key, keycmp, node);
+    root->red = false;
     return root;
 }
 

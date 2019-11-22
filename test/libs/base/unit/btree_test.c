@@ -45,7 +45,7 @@ void build_wiki_tree() {
     btinvariants(node, true, CMPFN strcmp);
 }
 
-START_TEST(insert_steps) {
+START_TEST(test_insert_steps) {
     struct bin *node2 = NULL;
     char *keys[] = { A, B, C, D, E, F, G, H, I };
 
@@ -131,6 +131,54 @@ START_TEST(test_equality) {
     ck_assert(btree_eq(EQFN streq, NULL, node, node2));
 
     free_btree(node2);
+}
+END_TEST
+
+START_TEST(test_simple_delete) {
+    struct assoc as[] = {
+        { "A", NULL },
+        { "B", NULL },
+        { "C", NULL },
+        { "D", NULL },
+        { "E", NULL },
+        { "@", NULL }
+    };
+
+    size_t n = SIZEOF(as);
+    node = btfromlist(as, n, CMPFN strcmp);
+    printf("test_simple_delete:\n");
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n, btsize(node));
+
+    node = btdelete("B", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n - 1, btsize(node));
+
+    node = btdelete("D", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n - 2, btsize(node));
+
+    node = btdelete("C", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n - 3, btsize(node));
+
+    node = btdelete("B", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n - 3, btsize(node));
+
+    node = btdelete("E", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    printf("---\n");
+    ck_assert_int_eq(n - 4, btsize(node));
+
+    node = btdelete("@", CMPFN strcmp, node);
+    print_btree(PRINTFN printstr, node);
+    ck_assert_int_eq(n - 5, btsize(node));
 }
 END_TEST
 
@@ -225,8 +273,9 @@ Suite *btree_suite()
     tcase_add_checked_fixture(tc_core, setup, teardown);
 
     tcase_add_test(tc_core, test_stats);
-    tcase_add_test(tc_core, insert_steps);
+    tcase_add_test(tc_core, test_insert_steps);
     tcase_add_test(tc_core, test_equality);
+    tcase_add_test(tc_core, test_simple_delete);
     // tcase_add_test(tc_core, test_delete);
     tcase_add_test(tc_core, test_preorder_traversal);
     tcase_add_test(tc_core, test_inorder_traversal);

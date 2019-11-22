@@ -39,8 +39,8 @@ void *nodeval(struct bin const *node);
 void btree_iter(enum traversal_order order, struct bin const *node, struct btree_iter *it);
 void free_btree_iter(struct btree_iter *it);
 struct bin *btnext(struct btree_iter *it);
-struct bin *btmin(struct bin const *node);
-struct bin *btmax(struct bin const *node);
+struct bin *btmin(struct bin *node);
+struct bin *btmax(struct bin *node);
 struct bin *btfind(
     void *key,
     int (*keycmp) (void const *a, void const *b),

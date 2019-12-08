@@ -4,11 +4,11 @@ include $(TOPDIR)/make/common_vars.mk
 GDB := gdb
 VALGRIND := valgrind
 PROG := test_base
-LIBS += -lcheck -lm
+LIBS += -lcheck -lm -lcgraph
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): main.c array_test.c btree_test.c hash_table_test.c intset_test.c
+$(PROG): main.c array_test.c btree_test.c btree_dot.c hash_table_test.c intset_test.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: check

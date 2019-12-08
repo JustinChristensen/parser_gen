@@ -173,9 +173,6 @@ static struct bin *balance_after_insert(struct bin *node) {
     struct bin *left = node->left,
                *right = node->right;
 
-    // possible 4-nodes
-    // B B B, B B R, B R B, B R R, R B B, R B R, R R B, R R R
-
     if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) { // R B R
         repaint(node, true);
     } else if (red(left)) { // R B B
@@ -267,6 +264,8 @@ static struct bin *_btdelete(
             next->right = grab_min(&next, node->right);
             next->left = node->left;
         }
+
+        next->red = node->red;
 
         free(node);
         node = next;

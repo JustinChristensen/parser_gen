@@ -62,4 +62,103 @@ BRB
 RBB
 RBR
 
+Deletion
+
+let node = found node
+    x = lowest transplanted node
+while x is not the root and black
+    if x is a left child
+        w = x's sibling
+        if w is red
+            w is black
+            x's parent is red
+            left rotate x's parent
+            w = x's new sibling
+        if w's children are black
+            w's color is red        // the above case ensures w is black
+            x = x's parent
+        else
+            if w's right child is black
+                w's left child is black
+                w's color is red
+                right rotate w
+                w = x's new sibling
+            w's color is the x's parent's color
+            x's parent's color is black
+            w's right child is black
+            left rotate x's parent
+            x = root
+    else
+        // symmetric
+
+A 2-3-4 tree point of view:
+
+An internal node with 1 key MUST have 2 children (2-node)
+An internal node with 2 keys MUST have 3 children (3-node)
+An internal node with 3 keys MUST have 4 children (4-node)
+
+When the key to delete is part of a leaf node (B B B, R B R, R B B, B B R):
+    If the deleted key is red:
+        We're done, the node becomes either a 2 or a 3 node
+    If the deleted key is black:
+        Replace the deleted key with one of it's adjacent red keys, if they exist
+When the key to delete is part of an internal node
+
+Node to delete: x
+
+"x is part of a leaf group"
+if x is red and children are nil or
+if x is black and has 1 or 2 red children without grandchildren
+
+Case #1:
+    Preconditions (deleted node x):
+        red
+        has no children (part of a leaf group)
+    Fix:
+        1. None
+
+Case #2:
+    Preconditions (deleted node x):
+        black
+        has children
+        has no grandchildren (part of a leaf group)
+    Fix:
+        1. Replace x with either child, y
+        2. Paint y black
+        3. Done
+
+Case #3:
+    Preconditions (deleted node x):
+        black
+        no children
+        has an immediate 3-node sibling (sibling is black with a red child)
+    Fix:
+        1. Move the parent, p, down into x's group prior to deleting x
+        2. Move either the successor or predecessor, s, of the parent up into p's previous group
+        3. The previous group of s now contains a 2-node with node n
+        4. Paint p black
+        5. Paint s red
+        6. Paint n black
+        7. Done
+
+Case #4:
+    Preconditions (deleted node x):
+        black
+        no children
+        has a 3-node cousin (uncle node has a 3 node child)
+    Fix:
+        1. Left or right rotate x's uncle, u, to bring the other cousin, o, into the uncle's place
+        2. Left or right rotate the grandparent, g, to make o the new grandparent
+        3. Left or right rotate u down into the other cousin's spot
+        4. Paint u black
+        5. Paint c's child, n, black
+        6. Paint c red
+        7. Left rotate g
+        7. Done
+
+Case #4: Deleted node x is part of an internal group and is red
+
+Case #5: Deleted node x is part of an internal group and is black
+
+
 

@@ -161,8 +161,8 @@ static bool red(struct bin *node) {
 
 static void repaint(struct bin *node, bool color) {
     node->red = color;
-    node->left->red = !color;
-    node->right->red = !color;
+    if (node->left) node->left->red = !color;
+    if (node->right) node->right->red = !color;
 }
 
 static bool has_red_child(struct bin *node) {
@@ -173,9 +173,9 @@ static struct bin *balance_after_insert(struct bin *node) {
     struct bin *left = node->left,
                *right = node->right;
 
-    if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) { // R B R
+    if (red(left) && red(right) && (has_red_child(left) || has_red_child(right))) {
         repaint(node, true);
-    } else if (red(left)) { // R B B
+    } else if (red(left)) {
         if (red(left->right))
             left = node->left = rotate_left(left);
 
@@ -183,7 +183,7 @@ static struct bin *balance_after_insert(struct bin *node) {
             node = rotate_right(node);
             repaint(node, false);
         }
-    } else if (red(right)) { // B B R
+    } else if (red(right)) {
         if (red(right->left))
             right = node->right = rotate_right(right);
 
@@ -226,11 +226,56 @@ struct bin *btinsert(
     return root;
 }
 
-// static struct bin *balance_after_delete(struct bin *node) {
-//     if (!node) return NULL;
-//
-//     return node;
-// }
+static struct bin *balance_after_delete(struct bin *node) {
+    if (!node) return node;
+
+    struct bin *left = node->left,
+               *right = node->right;
+
+    if (!left && right) {
+        if (!right->red && right->left) {
+            // case #3:
+            // node->right has one or two red children (part of a 3/4-node)
+            // node is either red or black
+            // rotate right to form a R B (R) chain
+            right = node->right = rotate_right(right);
+        }
+
+        if (!right->right) {
+            // case #2:
+            // right has no red nodes to steal
+            // TODO: how to handle this?
+        } else {
+            // case #1/4:
+            // node->right is red with at least one black child
+            // node is red or black (and part of a 3-node)
+            // paint and rotate to pull node from parent 3-node
+
+            if (right->left) // right is red, right->left is black
+                right->left->red = true;
+
+            right->red = node->red;
+            node->red = false;
+            node = rotate_left(node);
+        }
+    } else if (!right && left) {
+        if (!left->red && left->right)
+            left = node->left = rotate_left(left);
+
+        if (!left->left) {
+            // TODO: how to handle this?
+        } else {
+            if (left->right)
+                left->right->red = true;
+
+            left->red = node->red;
+            node->red = false;
+            node = rotate_right(node);
+        }
+    }
+
+    return node;
+}
 
 static struct bin *grab_min(struct bin **min, struct bin *node) {
     if (!node) return NULL;
@@ -265,13 +310,13 @@ static struct bin *_btdelete(
             next->left = node->left;
         }
 
-        next->red = node->red;
+        if (next) next->red = node->red;
 
         free(node);
         node = next;
     }
 
-    // node = balance_after_delete(node);
+    node = balance_after_delete(node);
 
     return node;
 }

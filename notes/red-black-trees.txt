@@ -110,6 +110,13 @@ Node to delete: x
 if x is red and children are nil or
 if x is black and has 1 or 2 red children without grandchildren
 
+Removal strategy - i.e. how many nodes do we need to make a removal decision and corrective decision
+
+Generally speaking, we can't remove 2-node groups from the tree or the tree will become unbalanced
+    - the property "all simple paths from the root must contain the same number of black nodes" enforces this
+
+So, do we then seek to merge on the way down to the node to be deleted?
+
 Case #1:
     Preconditions (deleted node x):
         red
@@ -154,11 +161,32 @@ Case #4:
         5. Paint c's child, n, black
         6. Paint c red
         7. Left rotate g
-        7. Done
+        8. Done
 
-Case #4: Deleted node x is part of an internal group and is red
+Case #5:
+    Preconditions (deleted node x):
+        black
+        no children
+        has no 3 node sibling or cousins
+        parent, p, is part of a 3 or 4 node group
+    Fix:
+        1. Bring the parent node, p, and sibling s, down into x's group
+        2. Paint p black, and s and x red
+        3. Delete x
+        4. Done
 
-Case #5: Deleted node x is part of an internal group and is black
+Case #6:
+    Preconditions (deleted node x):
+        red
+        has children
+        is part of a 3 or 4-node internal group
+        either child is part of a 3-node or 4-node group
+    Fix:
+        1. Move
+        2. Paint p black, and s and x red
+        3. Delete x
+        4. Done
 
+Case #7: Deleted node x is part of an internal group and is black
 
 

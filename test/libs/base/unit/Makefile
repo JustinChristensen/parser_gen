@@ -5,6 +5,7 @@ GDB := gdb
 VALGRIND := valgrind
 PROG := test_base
 LIBS += -lcheck -lm -lcgraph
+CLEAN := *.png *.svg
 
 include $(TOPDIR)/make/common_targets.mk
 

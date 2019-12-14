@@ -6,6 +6,7 @@
 #include <base/graphviz.h>
 #include <base/ord.h>
 #include <base/macros.h>
+#include <base/random.h>
 #include "btree_dot.h"
 
 static bool red(struct bin *node) {
@@ -84,10 +85,10 @@ static void int_to_str(char *out, void const *key) {
 }
 
 void graph_int_tree() {
-    char *env_size = getenv("SIZE");
+    char *env_size = getenv("SIZE"),
+         *random = getenv("RANDOM");
     struct bin *node = NULL;
     int intlist[] = {82,61,28,49,76,13,25,31,43,58,85,1,10,52,37,34,7,73,19,64,4,91,22,46,67,55,79,16,88,40,70};
-    // int intlist[] = {10,37,76,25,19,67,85,34,31,82,91,49,16,61,88,64,79,70,55,43,1,22,28,40,52,58,46,73,4,7,13};
     size_t size = SIZEOF(intlist);
     int *keys = intlist;
 
@@ -96,15 +97,20 @@ void graph_int_tree() {
         keys = calloc(size, sizeof *keys);
         assert(keys != NULL);
 
-        for (int i = 0; i < size; i += 3)
-            keys[i] = i;
+        if (random) {
+            for (int i = 0; i < size; i++)
+                keys[i] = randr(0, size * 5);
+        } else {
+            for (int i = 0; i < size; i += 3)
+                keys[i] = i;
+        }
     }
 
     for (int i = 0; i < size; i++) {
         node = btinsert(&keys[i], CMPFN intcmp, NULL, node);
     }
 
-    node = btdelete(&keys[20], CMPFN intcmp, node);
+    btinvariants(node, true, CMPFN intcmp);
 
     btree_to_graph(node, int_to_str);
 

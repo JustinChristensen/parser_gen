@@ -131,80 +131,47 @@ START_TEST(test_equality) {
 }
 END_TEST
 
-// START_TEST(test_simple_delete) {
-//     struct assoc as[] = {
-//         { "A", NULL },
-//         { "B", NULL },
-//         { "C", NULL },
-//         { "D", NULL },
-//         { "E", NULL },
-//         { "@", NULL }
-//     };
-//
-//     size_t n = SIZEOF(as);
-//     node = btfromlist(as, n, CMPFN strcmp);
-//     printf("test_simple_delete:\n");
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n, btsize(node));
-//
-//     node = btdelete("B", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n - 1, btsize(node));
-//
-//     node = btdelete("D", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n - 2, btsize(node));
-//
-//     node = btdelete("C", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n - 3, btsize(node));
-//
-//     node = btdelete("B", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n - 3, btsize(node));
-//
-//     node = btdelete("E", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     printf("---\n");
-//     ck_assert_int_eq(n - 4, btsize(node));
-//
-//     node = btdelete("@", CMPFN strcmp, node);
-//     print_btree(PRINTFN printstr, node);
-//     ck_assert_int_eq(n - 5, btsize(node));
-// }
-// END_TEST
+START_TEST(test_delete) {
+    struct assoc as[] = {
+        { "", NULL },
+        { "\nULsD/", NULL }
+    };
 
-// START_TEST(test_delete) {
-//     struct assoc as[] = {
-//         { "", NULL },
-//         { "\nULsD/", NULL }
-//     };
-//
-//     node = btfromlist(as, SIZEOF(as), CMPFN strcmp);
-//
-//     struct assoc as2[] = {
-//         { "", NULL }
-//     };
-//
-//     struct bin *node2 = btfromlist(as2, SIZEOF(as2), CMPFN strcmp);
-//
-//     print_btree(PRINTFN printstr, node);
-//
-//     node = btdelete("\nULsD/", CMPFN strcmp, node);
-//
-//     print_btree(PRINTFN printstr, node);
-//     print_btree(PRINTFN printstr, node2);
-//
-//     ck_assert(btree_eq(EQFN streq, NULL, node, node2));
-//
-//     free_btree(node2);
-// }
-// END_TEST
+    node = btfromlist(as, SIZEOF(as), CMPFN strcmp);
+
+    struct assoc as2[] = {
+        { "", NULL }
+    };
+
+    struct bin *node2 = btfromlist(as2, SIZEOF(as2), CMPFN strcmp);
+
+    printf("test_delete\n");
+    print_btree(PRINTFN printstr, node);
+
+    node = btdelete("\nULsD/", CMPFN strcmp, node);
+
+    print_btree(PRINTFN printstr, node);
+    print_btree(PRINTFN printstr, node2);
+
+    ck_assert(btree_eq(EQFN streq, NULL, node, node2));
+
+    free_btree(node2);
+
+    struct assoc as3[] = {
+        { "A", NULL },
+        { "B", NULL },
+        { "C", NULL },
+        { "D", NULL }
+    };
+
+    node2 = btfromlist(as3, SIZEOF(as3), CMPFN strcmp);
+    node2 = btdelete("D", CMPFN strcmp, node2);
+
+    print_btree(PRINTFN printstr, node2);
+
+    free_btree(node2);
+}
+END_TEST
 
 START_TEST(test_preorder_traversal) {
     build_wiki_tree();
@@ -272,8 +239,7 @@ Suite *btree_suite()
     tcase_add_test(tc_core, test_stats);
     tcase_add_test(tc_core, test_insert_steps);
     tcase_add_test(tc_core, test_equality);
-    // tcase_add_test(tc_core, test_simple_delete);
-    // tcase_add_test(tc_core, test_delete);
+    tcase_add_test(tc_core, test_delete);
     tcase_add_test(tc_core, test_preorder_traversal);
     tcase_add_test(tc_core, test_inorder_traversal);
     tcase_add_test(tc_core, test_postorder_traversal);

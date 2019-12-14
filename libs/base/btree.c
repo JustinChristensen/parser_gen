@@ -226,73 +226,75 @@ struct bin *btinsert(
     return root;
 }
 
-static struct bin *balance_after_delete(struct bin *node) {
-    if (!node) return node;
-
-    struct bin *left = node->left,
-               *right = node->right;
-
-    if (!left && right) {
-        if (!right->red) {
-            // case #3:
-            // node->right up to two red children
-            // node is either red or black
-            // rotate right to form a R B (R) chain
-            repaint(right, true);
-
-            if (right->left)
-                right = node->right = rotate_right(right);
-        }
-
-        if (!right->right) {
-            // case #2:
-            // right has no red nodes to steal
-            // TODO: how to handle this?
-        } else {
-            // cases #1/4:
-            // node->right is red with at least one black child
-            // node is red or black (and part of a 3-node)
-            // paint and rotate to pull node from parent 3-node
-
-            if (right->left)
-                right->left->red = true;
-
-            right->red = node->red;
-            node->red = false;
-            node = rotate_left(node);
-        }
-    } else if (!right && left) {
-        if (!left->red) {
-            repaint(left, true);
-
-            if (left->right)
-                left = node->left = rotate_left(left);
-        }
-
-        if (!left->left) {
-            // TODO: how to handle this?
-        } else {
-            if (left->right)
-                left->right->red = true;
-
-            left->red = node->red;
-            node->red = false;
-            node = rotate_right(node);
-        }
-    }
-
-    return node;
-}
+// static struct bin *balance_after_delete(struct bin *node) {
+//     if (!node) return node;
+//
+//     struct bin *left = node->left,
+//                *right = node->right;
+//
+//     if (!left && right) {
+//         if (!right->red) {
+//             // case #3:
+//             // node->right up to two red children
+//             // node is either red or black
+//             // rotate right to form a R B (R) chain
+//             repaint(right, true);
+//
+//             if (right->left)
+//                 right = node->right = rotate_right(right);
+//         }
+//
+//         if (!right->right) {
+//             // case #2:
+//             // right has no red nodes to steal
+//             // TODO: how to handle this?
+//         } else {
+//             // cases #1/4:
+//             // node->right is red with at least one black child
+//             // node is red or black (and part of a 3-node)
+//             // paint and rotate to pull node from parent 3-node
+//
+//             if (right->left)
+//                 right->left->red = true;
+//
+//             right->red = node->red;
+//             node->red = false;
+//             node = rotate_left(node);
+//         }
+//     } else if (!right && left) {
+//         if (!left->red) {
+//             repaint(left, true);
+//
+//             if (left->right)
+//                 left = node->left = rotate_left(left);
+//         }
+//
+//         if (!left->left) {
+//             // TODO: how to handle this?
+//         } else {
+//             if (left->right)
+//                 left->right->red = true;
+//
+//             left->red = node->red;
+//             node->red = false;
+//             node = rotate_right(node);
+//         }
+//     }
+//
+//     return node;
+// }
 
 static struct bin *grab_min(struct bin **min, struct bin *node) {
     if (!node) return NULL;
 
     if (node->left) {
         node->left = grab_min(min, node->left);
+        // return balance_after_delete(node);
         return node;
     }
 
     *min = node;
+
     return node->right;
 }
 
@@ -317,14 +319,13 @@ static struct bin *_btdelete(
             next->left = node->left;
         }
 
-        if (next)
-            next->red = node->red;
+        // if (next) next->red = node->red;
 
         free(node);
         node = next;
     }
 
-    node = balance_after_delete(node);
+    // node = balance_after_delete(node);
 
     return node;
 }

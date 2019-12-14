@@ -234,14 +234,12 @@ static struct bin *balance_after_delete(struct bin *node) {
 
     if (!left && right) {
         if (!right->red) {
-            // TODO: if right has no children this effectively reduces the black
-            // height of the right tree after rotation, see case #2
-
             // case #3:
-            // node->right has one or two red children (part of a 3/4-node)
+            // node->right up to two red children
             // node is either red or black
             // rotate right to form a R B (R) chain
             repaint(right, true);
+
             if (right->left)
                 right = node->right = rotate_right(right);
         }
@@ -256,7 +254,7 @@ static struct bin *balance_after_delete(struct bin *node) {
             // node is red or black (and part of a 3-node)
             // paint and rotate to pull node from parent 3-node
 
-            if (right->left) // right is red, right->left is black
+            if (right->left)
                 right->left->red = true;
 
             right->red = node->red;
@@ -266,6 +264,7 @@ static struct bin *balance_after_delete(struct bin *node) {
     } else if (!right && left) {
         if (!left->red) {
             repaint(left, true);
+
             if (left->right)
                 left = node->left = rotate_left(left);
         }
@@ -318,7 +317,8 @@ static struct bin *_btdelete(
             next->left = node->left;
         }
 
-        if (next) next->red = node->red;
+        if (next)
+            next->red = node->red;
 
         free(node);
         node = next;

@@ -6,7 +6,7 @@ LIBS += -lm
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): ast.c dfa.c nfa.c parser.c parser_shared.c nonrec_parser.c
+$(PROG): ast.c dfa.c nfa.c parser.c parser_shared.c parser_nonrec.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(PROG)" ~/lib/

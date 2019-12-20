@@ -96,7 +96,8 @@ struct parse_context parse_context(
     char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval)
+    void (**actions)(void *result_context, union rval lval),
+    enum gram_production **parse_table
 ) {
     assert(input != NULL);
     assert(result_context != NULL);
@@ -108,6 +109,7 @@ struct parse_context parse_context(
     struct parse_context context = {
         .scan_context = scontext,
         .result_context = result_context,
+        .parse_table = parse_table,
         .actions = actions,
         .getval = getval,
         .lookahead = token(scontext),

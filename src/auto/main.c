@@ -129,17 +129,12 @@ int main(int argc, char *argv[]) {
         "Construct and simulate automata"
     });
 
-    struct parse_context pcontext;
 
     if (args.cmd == PRINT) {
        struct expr exprbuf[EXPR_MAX];
        struct expr_context econtext = expr_context(exprbuf);
-
-       if (args.regex) {
-           pcontext = parse_context(args.regex, &econtext, GETVALFN expr_to_rval, expr_actions);
-       } else {
-           pcontext = parse_context("(a|b)*abbc?", &econtext, GETVALFN expr_to_rval, expr_actions);
-       }
+       char *regex = args.regex ? args.regex : "(a|b)*abbc?";
+       struct parse_context pcontext = parse_context(regex, &econtext, GETVALFN expr_to_rval, expr_actions, NULL);
 
        if (parse_regex(&pcontext)) {
            struct expr *expr = gexpr(&econtext);

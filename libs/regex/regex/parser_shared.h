@@ -7,23 +7,18 @@
 /**
  * Grammar:
  *
- * regex: expr eof
+ * regex: expr eof { regex }
  * expr: alt
  * alt: cat alt_tail
  * alt_tail: + cat { alt } alt_tail | ε
  * cat: ε { empty } factor cat_tail { cat }
  * cat_tail: factor { cat } cat_tail | ε
  * factor: ( expr ) { sub } factor_tail
- *       | [ insymbolseq ] { class } factor_tail
  *       | . { dotall } factor_tail
  *       | a { sym } factor_tail
  * factor_tail: * { star } factor_tail
  *            | + { plus } factor_tail
  *            | ? { optional } factor_tail | ε
- * insymbolseq: ^ symbolseq_tail { invert }
- *            | symbolseq_tail
- * symbolseq_tail: symbol { and } symbolseq_tail | ε
- * symbol: a { sym } | a-z { symrange }
  *
  * TODO: extensions
  * character classes: [a-zA-Z]
@@ -43,6 +38,55 @@ enum token_type {
     DOTALL = ('.' + OPERATOR_OFFSET),
     LPAREN = ('(' + OPERATOR_OFFSET),
     RPAREN = (')' + OPERATOR_OFFSET)
+};
+
+enum gram_nonterminal {
+    REGEX_NT,
+    EXPR_NT,
+    ALT_NT,
+    ALT_TAIL_NT,
+    CAT_NT,
+    CAT_TAIL_NT,
+    FACTOR_NT,
+    FACTOR_TAIL_NT
+};
+
+enum gram_production {
+    // regex: expr eof { regex }
+    REGEX_P,
+
+    // expr: alt
+    EXPR_ALT_P,
+
+    // alt: cat alt_tail
+    ALT_CAT_P,
+
+    // alt_tail: + cat { alt } alt_tail
+    ALT_TAIL_PLUS_P,
+    // alt_tail: ε
+    ALT_TAIL_EMPTY_P,
+
+    // cat: ε { empty } factor cat_tail
+    CAT_FACTOR_P,
+
+    // cat_tail: factor { cat } cat_tail
+    CAT_TAIL_FACTOR_P,
+    // cat_tail: ε
+    CAT_TAIL_EMPTY_P,
+
+    // factor: ( expr ) { sub } factor_tail
+    FACTOR_SUBEXPR_P,
+    // factor: . { dotall } factor_tail
+    FACTOR_DOTALL_P,
+    // factor: a { sym } factor_tail
+    FACTOR_SYMBOL_P,
+
+    // factor_tail: * { star } factor_tail
+    FACTOR_TAIL_STAR_P,
+    // factor_tail: + { plus } factor_tail
+    FACTOR_TAIL_PLUS_P,
+    // factor_tail: ? { optional } factor_tail
+    FACTOR_TAIL_OPTIONAL_P
 };
 
 enum action_type {
@@ -75,6 +119,7 @@ struct parse_error {
 
 struct parse_context {
     void *result_context;
+    enum gram_production **parse_table;
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
     struct scan_context scan_context;

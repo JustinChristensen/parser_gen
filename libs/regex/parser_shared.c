@@ -10,7 +10,6 @@ struct scan_context scan_context(char *input) {
     return (struct scan_context) {
         .input = input,
         .input_col = 1,
-        .token = 0,
         .token_col = 1
     };
 }
@@ -47,6 +46,9 @@ struct scan_context scan(struct scan_context context) {
         context.token = OPTIONAL;
     } else {
         switch (*context.input) {
+            case '\0':
+                context.token = END;
+                break;
             case '.':
                 context.token = DOTALL;
                 break;
@@ -65,7 +67,8 @@ struct scan_context scan(struct scan_context context) {
                     context.input_col++;
                 }
 
-                context.token = *context.input;
+                context.token = SYMBOL;
+                context.symbol = *context.input;
                 break;
         }
 
@@ -96,8 +99,7 @@ struct parse_context parse_context(
     char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval),
-    enum gram_production **parse_table
+    void (**actions)(void *result_context, union rval lval)
 ) {
     assert(input != NULL);
     assert(result_context != NULL);
@@ -109,7 +111,6 @@ struct parse_context parse_context(
     struct parse_context context = {
         .scan_context = scontext,
         .result_context = result_context,
-        .parse_table = parse_table,
         .actions = actions,
         .getval = getval,
         .lookahead = token(scontext),
@@ -133,9 +134,11 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
             lexeme_for(symbuf, expected), lexeme_for(symbuf, context->lookahead));
 #endif
         struct scan_context scan_context = scan(context->scan_context);
+
         context->scan_context = scan_context;
         context->lookahead = token(scan_context);
         context->lookahead_col = token_col(scan_context);
+        context->symbol = token_sym(scan_context);
 
         return true;
     } else {
@@ -159,6 +162,10 @@ int is_symbol(int c) {
     return isprint(c);
 }
 
+int symbol(struct parse_context *context) {
+    return context->symbol;
+}
+
 int lookahead(struct parse_context *context) {
     return context->lookahead;
 }
@@ -177,6 +184,7 @@ struct parse_error parse_error(struct parse_context *context) {
 
 char *lexeme_for(char *symbuf, int token) {
     switch (token) {
+        case END:       symbuf = "eof"; break;
         case ALT:       symbuf = "|"; break;
         case STAR:      symbuf = "*"; break;
         case PLUS:      symbuf = "+"; break;
@@ -185,7 +193,6 @@ char *lexeme_for(char *symbuf, int token) {
         case LPAREN:    symbuf = "("; break;
         case RPAREN:    symbuf = ")"; break;
         case SYMBOL:    symbuf = "symbol"; break;
-        case '\0':      symbuf = "eof"; break;
         default:
             symbuf[0] = token;
             break;

@@ -14,7 +14,9 @@
 
 #define PARSE_STACK_SIZE 7
 
+void init_parse_table(enum gram_production ***table);
 void push_sym(int sym, struct array *stack);
 bool parse_regex_nonrec(struct parse_context *context);
+void print_parse_table(enum gram_production **table);
 
 #endif // REGEX_PARSER_NONREC_H_

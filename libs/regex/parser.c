@@ -6,7 +6,7 @@
 #include "regex/result_types.h"
 
 bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, '\0', NULL)) {
+    if (parse_expr(context) && expect(context, END, NULL)) {
         do_action(context, DO_REGEX, NULLRVAL);
         return true;
     }
@@ -77,7 +77,7 @@ bool parse_factor(struct parse_context *context) {
         do_action(context, DO_DOTALL, NULLRVAL);
         has_head = true;
     } else if (peek(context, SYMBOL, is_symbol)) {
-        union rval sym = { .sym = lookahead(context) };
+        union rval sym = { .sym = symbol(context) };
         expect(context, SYMBOL, is_symbol);
         do_action(context, DO_SYMBOL, sym);
         has_head = true;

@@ -8,7 +8,7 @@
  * Grammar:
  *
  * regex: expr eof { regex }
- * expr: alt
+ * expr: alt | ε
  * alt: cat alt_tail
  * alt_tail: + cat { alt } alt_tail | ε
  * cat: ε { empty } factor cat_tail { cat }
@@ -18,7 +18,8 @@
  *       | a { sym } factor_tail
  * factor_tail: * { star } factor_tail
  *            | + { plus } factor_tail
- *            | ? { optional } factor_tail | ε
+ *            | ? { optional } factor_tail
+ *            | ε
  *
  * TODO: extensions
  * character classes: [a-zA-Z]
@@ -26,21 +27,21 @@
 
 #define GETVALFN (union rval (*) (void *))
 #define ACTION (void (*)(void *, union rval))
-#define OPERATOR_OFFSET (-256)
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
-enum token_type {
-    SYMBOL = -1,
-    ALT = ('|' + OPERATOR_OFFSET),
-    STAR = ('*' + OPERATOR_OFFSET),
-    PLUS = ('+' + OPERATOR_OFFSET),
-    OPTIONAL = ('?' + OPERATOR_OFFSET),
-    DOTALL = ('.' + OPERATOR_OFFSET),
-    LPAREN = ('(' + OPERATOR_OFFSET),
-    RPAREN = (')' + OPERATOR_OFFSET)
-};
+enum symbol_type {
+    // terminals
+    END,
+    SYMBOL,
+    ALT,
+    STAR,
+    PLUS,
+    OPTIONAL,
+    DOTALL,
+    LPAREN,
+    RPAREN,
 
-enum gram_nonterminal {
+    // non-terminals (used during iterative parsing)
     REGEX_NT,
     EXPR_NT,
     ALT_NT,
@@ -51,7 +52,19 @@ enum gram_nonterminal {
     FACTOR_TAIL_NT
 };
 
+#define NUM_SYMBOLS (FACTOR_TAIL_NT + 1)
+#define NUM_TERMINALS (RPAREN + 1)
+#define NUM_NONTERMINALS (NUM_SYMBOLS - NUM_TERMINALS)
+
 enum gram_production {
+    ERROR_P,
+
+    // expr: ε
+    // alt_tail: ε
+    // cat_tail: ε
+    // factor_tail: ε
+    EMPTY_P,
+
     // regex: expr eof { regex }
     REGEX_P,
 
@@ -62,17 +75,13 @@ enum gram_production {
     ALT_CAT_P,
 
     // alt_tail: + cat { alt } alt_tail
-    ALT_TAIL_PLUS_P,
-    // alt_tail: ε
-    ALT_TAIL_EMPTY_P,
+    ALT_TAIL_CAT_P,
 
     // cat: ε { empty } factor cat_tail
     CAT_FACTOR_P,
 
     // cat_tail: factor { cat } cat_tail
     CAT_TAIL_FACTOR_P,
-    // cat_tail: ε
-    CAT_TAIL_EMPTY_P,
 
     // factor: ( expr ) { sub } factor_tail
     FACTOR_SUBEXPR_P,
@@ -108,6 +117,7 @@ struct scan_context {
     char *input;
     int input_col;
     int token;
+    char symbol;
     int token_col;
 };
 
@@ -119,12 +129,12 @@ struct parse_error {
 
 struct parse_context {
     void *result_context;
-    enum gram_production **parse_table;
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
     struct scan_context scan_context;
     int lookahead;
     int lookahead_col;
+    char symbol;
     bool has_error;
     struct parse_error error;
 };
@@ -133,6 +143,7 @@ struct scan_context scan_context(char *input);
 struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
 int token(struct scan_context context);
+char token_sym(struct scan_context context);
 int token_col(struct scan_context context);
 union rval getval(struct parse_context *context);
 void do_action(struct parse_context *context, enum action_type action, union rval lval);
@@ -146,6 +157,7 @@ bool peek(struct parse_context *context, int expected, int (*is) (int c));
 bool expect(struct parse_context *context, int expected, int (*is) (int c));
 int is_symbol(int c);
 int lookahead(struct parse_context *context);
+char symbol(struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();

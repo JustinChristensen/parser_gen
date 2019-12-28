@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <base/list.h>
+#include <base/debug.h>
 #include "regex/nfa.h"
 #include "regex/parser.h"
 #include "regex/result_types.h"
@@ -255,10 +256,9 @@ bool nfa_match(char *str, struct nfa_context *context) {
 
     eps_closure(cstates, nfa.start, already_on);
 
-#ifdef DEBUG
     print_state_table(context->statebuf - numstates, context->statebuf);
     print_nfa_states(cstates);
-#endif
+
     char c;
     struct list *t;
     while ((c = *str++) != '\0') {
@@ -267,9 +267,7 @@ bool nfa_match(char *str, struct nfa_context *context) {
         t = cstates;
         cstates = nstates;
         nstates = t;
-#ifdef DEBUG
         print_nfa_states(cstates);
-#endif
     }
 
     bool result = accepts(cstates, *nfa.end);
@@ -335,32 +333,32 @@ void print_nfa_states(struct list *cstates) {
 }
 
 void print_state(struct nfa_state *state) {
-    printf("(%d, ", state->id);
+    debug_(NULL, "(%d, ", state->id);
     switch (state->type) {
         case ACCEPTING_STATE:
-            printf("accept");
+            debug_(NULL, "accept");
             break;
         case EPSILON_STATE:
-            printf("eps, %p", state->next);
+            debug_(NULL, "eps, %p", state->next);
             break;
         case DOTALL_STATE:
-            printf("dotall, %p", state->next);
+            debug_(NULL, "dotall, %p", state->next);
             break;
         case BRANCH_STATE:
-            printf("branch, %p, %p", state->left, state->right);
+            debug_(NULL, "branch, %p, %p", state->left, state->right);
             break;
         case SYMBOL_STATE:
-            printf("symbol, %p, %c", state->next, state->symbol);
+            debug_(NULL, "symbol, %p, %c", state->next, state->symbol);
             break;
     }
-    printf(")");
+    debug_(NULL, ")");
 }
 
 void print_state_table(struct nfa_state *start, struct nfa_state *end) {
     while (start != end) {
-        printf("%p: ", start);
+        debug_ns_("nfa", "%p: ", start);
         print_state(start);
-        printf("\n");
+        debug_(NULL, "\n");
         start++;
     }
 }

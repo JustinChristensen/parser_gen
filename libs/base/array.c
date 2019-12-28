@@ -5,6 +5,9 @@
 #include <assert.h>
 #include <stdbool.h>
 #include "base/array.h"
+#include "base/debug.h"
+
+#define debug(...) debug_ns_("array", __VA_ARGS__);
 
 struct array array(void *buf, size_t elem_size, unsigned int init_size, enum growth growth, float factor) {
     return (struct array) {
@@ -87,9 +90,7 @@ static void ensure_memory(struct array *arr) {
 
 void aresize(unsigned int size, struct array *arr) {
     if (arr->size == size) return;
-#ifdef DEBUG
-    printf("resizing array, old size: %ld, new size: %ld\n", arr->size, size);
-#endif
+    debug("resizing array, old size: %ld, new size: %ld\n", arr->size, size);
     arr->buf = realloc(arr->buf, size * arr->elem_size);
     assert(arr->buf != NULL);
     if (arr->i > size) arr->i = size;

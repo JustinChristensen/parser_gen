@@ -3,8 +3,12 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <assert.h>
+#include <base/debug.h>
 #include "regex/parser.h"
 #include "regex/result_types.h"
+
+#define sdebug(...) debug_ns_("scanner", __VA_ARGS__);
+#define debug(...) debug_ns_("parser", __VA_ARGS__);
 
 struct scan_context scan_context(char *input) {
     return (struct scan_context) {
@@ -31,9 +35,7 @@ struct scan_context scan(struct scan_context context) {
 
     context.token_col = context.input_col;
 
-#ifdef DEBUG
-    printf("%s\n", context.input);
-#endif
+    sdebug("%s\n", context.input);
 
     if (*context.input == '*') {
         context = consume(context, '*');
@@ -128,11 +130,9 @@ bool peek(struct parse_context *context, int expected, int (*is) (int c)) {
 
 bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
     if (peek(context, expected, is)) {
-#ifdef DEBUG
-        char symbuf[2] = { 0, 0 };
-        printf("success: expected \"%s\", actual \"%s\"\n",
-            lexeme_for(symbuf, expected), lexeme_for(symbuf, context->lookahead));
-#endif
+        debug("success: expected \"%s\", actual \"%s\"\n",
+            lexeme_for(expected), lexeme_for(context->lookahead));
+
         struct scan_context scan_context = scan(context->scan_context);
 
         context->scan_context = scan_context;
@@ -142,11 +142,8 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
 
         return true;
     } else {
-#ifdef DEBUG
-        char symbuf[2] = { 0, 0 };
-        printf("failure: expected \"%s\", actual \"%s\"\n",
-            lexeme_for(symbuf, expected), lexeme_for(symbuf, context->lookahead));
-#endif
+        debug("failure: expected \"%s\", actual \"%s\"\n",
+            lexeme_for(expected), lexeme_for(context->lookahead));
         context->has_error = true;
         context->error = (struct parse_error) {
             .actual = context->lookahead,
@@ -182,30 +179,23 @@ struct parse_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
-char *lexeme_for(char *symbuf, int token) {
+char *lexeme_for(int token) {
     switch (token) {
-        case END:       symbuf = "eof"; break;
-        case ALT:       symbuf = "|"; break;
-        case STAR:      symbuf = "*"; break;
-        case PLUS:      symbuf = "+"; break;
-        case OPTIONAL:  symbuf = "?"; break;
-        case DOTALL:    symbuf = "."; break;
-        case LPAREN:    symbuf = "("; break;
-        case RPAREN:    symbuf = ")"; break;
-        case SYMBOL:    symbuf = "symbol"; break;
-        default:
-            symbuf[0] = token;
-            break;
+        case END:      return "eof";
+        case ALT:      return "|";
+        case STAR:     return "*";
+        case PLUS:     return "+";
+        case OPTIONAL: return "?";
+        case DOTALL:   return ".";
+        case LPAREN:   return "(";
+        case RPAREN:   return ")";
+        case SYMBOL:   return "symbol";
     }
-
-    return symbuf;
 }
 
 void print_parse_error(struct parse_error error) {
-    char symbuf[2] = { 0, 0 };
-
     fprintf(stderr, ERROR_FMT_STRING,
-        lexeme_for(symbuf, error.actual),
-        lexeme_for(symbuf, error.expected),
+        lexeme_for(error.actual),
+        lexeme_for(error.expected),
         error.token_col);
 }

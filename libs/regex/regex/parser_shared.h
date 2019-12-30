@@ -33,6 +33,7 @@ enum symbol_type {
     // terminals
     EOI,
     SYMBOL,
+    NONSYM,
     ALT,
     STAR,
     PLUS,
@@ -155,8 +156,8 @@ struct parse_context parse_context(
     void (**actions)(void *result_context, union rval lval),
     bool use_nonrec
 );
-bool peek(struct parse_context *context, int expected, int (*is) (int c));
-bool expect(struct parse_context *context, int expected, int (*is) (int c));
+bool peek(struct parse_context *context, int expected);
+bool expect(struct parse_context *context, int expected);
 int is_symbol(int c);
 int lookahead(struct parse_context *context);
 char symbol(struct parse_context *context);

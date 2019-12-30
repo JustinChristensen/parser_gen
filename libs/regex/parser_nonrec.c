@@ -140,7 +140,7 @@ void push_production_symbols(enum gram_production production, struct array *stac
     }
 }
 
-static enum gram_production select(int nonterm, int term) {
+static enum gram_production selectp(int nonterm, int term) {
     return parse_table[nonterm][term];
 }
 
@@ -159,17 +159,14 @@ bool parse_regex_nonrec(struct parse_context *context) {
         apeek(&sym, stack);
 
         if (is_terminal(sym)) {
-            int (*is) (int c) = NULL;
-            if (sym == SYMBOL) is = is_symbol;
-
-            if (expect(context, sym, is))
+            if (expect(context, sym))
                 apop(&sym, stack);
             else
                 success = false;
         } else {
             enum gram_production p;
 
-            if ((p = select(NTI(sym), lookahead(context)))) {
+            if ((p = selectp(NTI(sym), lookahead(context)))) {
                 apop(&sym, stack);
                 push_production_symbols(p, stack);
             } else {

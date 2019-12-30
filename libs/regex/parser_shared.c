@@ -7,8 +7,8 @@
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
-#define sdebug(...) debug_ns_("scanner", __VA_ARGS__);
-#define debug(...) debug_ns_("parser", __VA_ARGS__);
+#define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
+#define pdebug(...) debug_ns_("parser", __VA_ARGS__)
 
 struct scan_context scan_context(char *input) {
     return (struct scan_context) {
@@ -35,7 +35,7 @@ struct scan_context scan(struct scan_context context) {
 
     context.token_col = context.input_col;
 
-    sdebug("%s\n", context.input);
+    sdebug("remaining \"%s\"\n", context.input);
 
     if (*context.input == '*') {
         context = consume(context, '*');
@@ -46,11 +46,10 @@ struct scan_context scan(struct scan_context context) {
     } else if (*context.input == '?') {
         context = consume(context, '?');
         context.token = OPTIONAL;
+    } else if (*context.input == '\0') {
+        context.token = EOI;
     } else {
         switch (*context.input) {
-            case '\0':
-                context.token = EOI;
-                break;
             case '.':
                 context.token = DOTALL;
                 break;
@@ -69,8 +68,12 @@ struct scan_context scan(struct scan_context context) {
                     context.input_col++;
                 }
 
-                context.token = SYMBOL;
-                context.symbol = *context.input;
+                context.token = NONSYM;
+
+                if (is_symbol(*context.input)) {
+                    context.token = SYMBOL;
+                    context.symbol = *context.input;
+                }
                 break;
         }
 
@@ -130,13 +133,13 @@ struct parse_context parse_context(
     return context;
 }
 
-bool peek(struct parse_context *context, int expected, int (*is) (int c)) {
-    return (is && (*is)(context->lookahead)) || context->lookahead == expected;
+bool peek(struct parse_context *context, int expected) {
+    return context->lookahead == expected;
 }
 
-bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
-    if (peek(context, expected, is)) {
-        debug("success: expected \"%s\", actual \"%s\"\n",
+bool expect(struct parse_context *context, int expected) {
+    if (peek(context, expected)) {
+        pdebug("success, expected \"%s\", actual \"%s\"\n",
             lexeme_for(expected), lexeme_for(context->lookahead));
 
         struct scan_context scan_context = scan(context->scan_context);
@@ -148,7 +151,7 @@ bool expect(struct parse_context *context, int expected, int (*is) (int c)) {
 
         return true;
     } else {
-        debug("failure: expected \"%s\", actual \"%s\"\n",
+        pdebug("failure, expected \"%s\", actual \"%s\"\n",
             lexeme_for(expected), lexeme_for(context->lookahead));
         context->has_error = true;
         context->error = (struct parse_error) {
@@ -196,6 +199,7 @@ char *lexeme_for(int token) {
         case LPAREN:   return "(";
         case RPAREN:   return ")";
         case SYMBOL:   return "symbol";
+        case NONSYM:   return "newline or control character";
     }
 
     return "";

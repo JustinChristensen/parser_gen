@@ -60,10 +60,10 @@ struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right) {
     };
 }
 
-struct nfa_state symbol_state(char symbol) {
+struct nfa_state symbol_state(char sym) {
     return (struct nfa_state) {
         .type = SYMBOL_STATE,
-        .symbol = symbol,
+        .symbol = sym,
         .next = NULL
     };
 }
@@ -110,9 +110,9 @@ struct nfa dotall_machine(struct nfa_context *context) {
     return machine;
 }
 
-struct nfa symbol_machine(struct nfa_context *context, char symbol) {
+struct nfa symbol_machine(struct nfa_context *context, char sym) {
     struct nfa machine;
-    machine.start = setst(context, symbol_state(symbol));
+    machine.start = setst(context, symbol_state(sym));
     point(&machine, &machine.start->next, NULL);
     return machine;
 }
@@ -318,48 +318,49 @@ void print_nfa_states(struct list *cstates) {
     struct node *node;
 
     if (!empty(cstates)) {
-        printf("{");
+        debug_ns_("nfa", "{");
         node = head(cstates);
         print_state(value(node));
         for (node = node->next; node; node = node->next) {
-            printf(", ");
+            debug_(", ");
             print_state(value(node));
         }
-        printf("}");
+        debug_("}");
     } else {
-        printf("empty");
+        debug_ns_("nfa", "empty");
     }
 
-    printf("\n");
+    debug_("\n");
 }
 
 void print_state(struct nfa_state *state) {
-    debug_(NULL, "(%d, ", state->id);
+    debug_("(%d, ", state->id);
     switch (state->type) {
         case ACCEPTING_STATE:
-            debug_(NULL, "accept");
+            debug_("accept");
             break;
         case EPSILON_STATE:
-            debug_(NULL, "eps, %p", state->next);
+            debug_("eps, %p", state->next);
             break;
         case DOTALL_STATE:
-            debug_(NULL, "dotall, %p", state->next);
+            debug_("dotall, %p", state->next);
             break;
         case BRANCH_STATE:
-            debug_(NULL, "branch, %p, %p", state->left, state->right);
+            debug_("branch, %p, %p", state->left, state->right);
             break;
         case SYMBOL_STATE:
-            debug_(NULL, "symbol, %p, %c", state->next, state->symbol);
+            debug_("symbol, %p, %c", state->next, state->symbol);
             break;
     }
-    debug_(NULL, ")");
+    debug_(")");
 }
 
 void print_state_table(struct nfa_state *start, struct nfa_state *end) {
+    debug_ns_("nfa", "nfa state table\n");
     while (start != end) {
         debug_ns_("nfa", "%p: ", start);
         print_state(start);
-        debug_(NULL, "\n");
+        debug_("\n");
         start++;
     }
 }

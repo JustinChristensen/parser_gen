@@ -6,7 +6,7 @@
 #include <base/list.h>
 #include <base/debug.h>
 #include "regex/nfa.h"
-#include "regex/parser.h"
+#include "regex/run_parser.h"
 #include "regex/result_types.h"
 
 void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
@@ -22,12 +22,13 @@ void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
     [DO_OPTIONAL] = ACTION do_optional_nfa
 };
 
-struct nfa_context nfa_context(struct nfa_state *statebuf) {
+struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {
     return (struct nfa_context) {
         .statebuf = statebuf,
         .numstates = 0,
         .has_error = false,
-        .error = { nullperr() }
+        .error = { nullperr() },
+        .use_nonrec = use_nonrec
     };
 }
 
@@ -158,7 +159,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
 
     if (!has_nfa_error(context)) {
         struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(regex, context, GETVALFN nfa_to_rval, nfa_actions, NULL);
+        struct parse_context pcontext = parse_context(regex, context, GETVALFN nfa_to_rval, nfa_actions, context->use_nonrec);
 
         // overwrite the previous accepting state if we're
         // chaining nfa_regex calls to create alt machines
@@ -167,7 +168,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
             context->numstates--;
         }
 
-        if (!parse_regex(&pcontext)) {
+        if (!run_parser(&pcontext)) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {

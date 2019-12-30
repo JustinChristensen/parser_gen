@@ -1,6 +1,7 @@
 #ifndef REGEX_RESULT_TYPES_H_
 #define REGEX_RESULT_TYPES_H_ 1
 
+#include <stdlib.h>
 #include <stdbool.h>
 
 enum expr_type {

@@ -49,7 +49,7 @@ struct scan_context scan(struct scan_context context) {
     } else {
         switch (*context.input) {
             case '\0':
-                context.token = END;
+                context.token = EOI;
                 break;
             case '.':
                 context.token = DOTALL;
@@ -85,6 +85,10 @@ int token(struct scan_context context) {
     return context.token;
 }
 
+char token_sym(struct scan_context context) {
+    return context.symbol;
+}
+
 int token_col(struct scan_context context) {
     return context.token_col;
 }
@@ -101,7 +105,8 @@ struct parse_context parse_context(
     char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval)
+    void (**actions)(void *result_context, union rval lval),
+    bool use_nonrec
 ) {
     assert(input != NULL);
     assert(result_context != NULL);
@@ -118,7 +123,8 @@ struct parse_context parse_context(
         .lookahead = token(scontext),
         .lookahead_col = token_col(scontext),
         .has_error = false,
-        .error = nullperr()
+        .error = nullperr(),
+        .use_nonrec = use_nonrec
     };
 
     return context;
@@ -159,7 +165,7 @@ int is_symbol(int c) {
     return isprint(c);
 }
 
-int symbol(struct parse_context *context) {
+char symbol(struct parse_context *context) {
     return context->symbol;
 }
 
@@ -181,7 +187,7 @@ struct parse_error parse_error(struct parse_context *context) {
 
 char *lexeme_for(int token) {
     switch (token) {
-        case END:      return "eof";
+        case EOI:      return "eof";
         case ALT:      return "|";
         case STAR:     return "*";
         case PLUS:     return "+";
@@ -191,6 +197,8 @@ char *lexeme_for(int token) {
         case RPAREN:   return ")";
         case SYMBOL:   return "symbol";
     }
+
+    return "";
 }
 
 void print_parse_error(struct parse_error error) {

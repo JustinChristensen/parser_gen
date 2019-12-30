@@ -6,7 +6,7 @@
 #include <base/graphviz.h>
 #include <regex/ast.h>
 #include <regex/nfa.h>
-#include <regex/parser.h>
+#include <regex/run_parser.h>
 #include "dot.h"
 #include "print_ast.h"
 
@@ -20,7 +20,8 @@ enum command_key {
 
 enum arg_key {
     FORMAT,
-    REGEX
+    REGEX,
+    NONREC,
 };
 
 enum output_fmt {
@@ -34,6 +35,7 @@ struct args {
     enum command_key cmd;
     enum output_fmt output;
     char *regex;
+    bool nonrec;
     int posc;
     char **pos;
 };
@@ -42,6 +44,9 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
     while ((key = readarg(context)) != END) {
         switch (key) {
+            case NONREC:
+                args->nonrec = true;
+                break;
             case FORMAT:
                 switch (cmd) {
                     case PRINT:
@@ -84,13 +89,15 @@ int main(int argc, char *argv[]) {
         .cmd = AUTO,
         .output = OUTPUT_TRIAL,
         .regex = NULL,
+        .nonrec = false,
         .posc = 0,
-        .pos = NULL,
+        .pos = NULL
     };
 
     struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, table, or tree" };
     struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: table or dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
+    struct arg parse_nonrec_arg = { NONREC, "nonrec", 0, no_argument, "Use the non-recursive parser instead" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         AUTO,
@@ -100,12 +107,13 @@ int main(int argc, char *argv[]) {
             END_ARGS
         },
         CMDS {
-             {
+            {
                 PRINT,
                 "print",
                 ARGS {
                     regex_arg,
                     print_fmt_arg,
+                    parse_nonrec_arg,
                     help_and_version_args,
                     END_ARGS
                 },
@@ -118,6 +126,7 @@ int main(int argc, char *argv[]) {
                 ARGS {
                     regex_arg,
                     nfa_fmt_arg,
+                    parse_nonrec_arg,
                     help_and_version_args,
                     END_ARGS
                 },
@@ -129,32 +138,31 @@ int main(int argc, char *argv[]) {
         "Construct and simulate automata"
     });
 
-
     if (args.cmd == PRINT) {
-       struct expr exprbuf[EXPR_MAX];
-       struct expr_context econtext = expr_context(exprbuf);
-       char *regex = args.regex ? args.regex : "(a|b)*abbc?";
-       struct parse_context pcontext = parse_context(regex, &econtext, GETVALFN expr_to_rval, expr_actions, NULL);
+        struct expr exprbuf[EXPR_MAX];
+        struct expr_context econtext = expr_context(exprbuf);
+        char *regex = args.regex ? args.regex : "(a|b)*abbc?";
+        struct parse_context pcontext = parse_context(regex, &econtext, GETVALFN expr_to_rval, expr_actions, args.nonrec);
 
-       if (parse_regex(&pcontext)) {
-           struct expr *expr = gexpr(&econtext);
+        if (run_parser(&pcontext)) {
+            struct expr *expr = gexpr(&econtext);
 
-           if (args.output == OUTPUT_DOT) {
-               print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
-           } else if (args.output == OUTPUT_TABLE) {
-               printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
-               print_expr_table(exprbuf, econtext.exprbuf);
-           } else {
-               printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
-               print_expr(expr);
-           }
-       } else {
-           print_parse_error(parse_error(&pcontext));
-           return EXIT_FAILURE;
-       }
+            if (args.output == OUTPUT_DOT) {
+                print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
+            } else if (args.output == OUTPUT_TABLE) {
+                printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
+                print_expr_table(exprbuf, econtext.exprbuf);
+            } else {
+                printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
+                print_expr(expr);
+            }
+        } else {
+            print_parse_error(parse_error(&pcontext));
+            return EXIT_FAILURE;
+        }
     } else if (args.cmd == NFA) {
         struct nfa_state statebuf[STATE_MAX];
-        struct nfa_context ncontext = nfa_context(statebuf);
+        struct nfa_context ncontext = nfa_context(statebuf, args.nonrec);
 
         if (args.regex) {
             nfa_regex(args.regex, &ncontext);

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "regex/parser_nonrec.h"
 #include "regex/parser_shared.h"
 #include "regex/result_types.h"
 #include "base/array.h"
@@ -9,69 +10,70 @@
 // non-terminal index
 #define NTI(sym) (sym - NUM_TERMINALS)
 
-void init_parse_table(enum gram_production ***table) {
-    *table = {
-        [NTI(REGEX_NT)] = {
-            [END] = REGEX_P,
-            [SYMBOL] = REGEX_P,
-            [DOTALL] = REGEX_P,
-            [LPAREN] = REGEX_P
-        },
-        [NTI(EXPR_NT)] = {
-            [END] = EMPTY_P,
-            [SYMBOL] = EXPR_ALT_P,
-            [DOTALL] = EXPR_ALT_P,
-            [LPAREN] = EXPR_ALT_P,
-            [RPAREN] = EMPTY_P
-        },
-        [NTI(ALT_NT)] = {
-            [SYMBOL] = ALT_CAT_P,
-            [DOTALL] = ALT_CAT_P,
-            [LPAREN] = ALT_CAT_P
-        },
-        [NTI(ALT_TAIL_NT)] = {
-            [END] = EMPTY_P,
-            [ALT] = ALT_TAIL_CAT_P,
-            [RPAREN] = EMPTY_P
-        },
-        [NTI(CAT_NT)] = {
-            [SYMBOL] = CAT_FACTOR_P,
-            [DOTALL] = CAT_FACTOR_P,
-            [LPAREN] = CAT_FACTOR_P
-        },
-        [NTI(CAT_TAIL_NT)] = {
-            [END] = EMPTY_P,
-            [SYMBOL] = CAT_TAIL_FACTOR_P,
-            [ALT] = EMPTY_P,
-            [DOTALL] = CAT_TAIL_FACTOR_P,
-            [LPAREN] = CAT_TAIL_FACTOR_P,
-            [RPAREN] = EMPTY_P
-        },
-        [NTI(FACTOR_NT)] = {
-            [SYMBOL] = FACTOR_SYMBOL_P,
-            [DOTALL] = FACTOR_DOTALL_P,
-            [LPAREN] = FACTOR_SUBEXPR_P
-        },
-        [NTI(FACTOR_TAIL_NT)] = {
-            [END] = EMPTY_P,
-            [SYMBOL] = EMPTY_P,
-            [ALT] = EMPTY_P,
-            [STAR] = FACTOR_TAIL_STAR_P,
-            [PLUS] = FACTOR_TAIL_PLUS_P,
-            [OPTIONAL] = FACTOR_TAIL_OPTIONAL_P,
-            [DOTALL] = EMPTY_P,
-            [LPAREN] = EMPTY_P,
-            [RPAREN] = EMPTY_P
-        }
-    };
-}
+static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
+    [NTI(REGEX_NT)] = {
+        [EOI] = REGEX_P,
+        [SYMBOL] = REGEX_P,
+        [DOTALL] = REGEX_P,
+        [LPAREN] = REGEX_P
+    },
+    [NTI(EXPR_NT)] = {
+        [EOI] = EMPTY_P,
+        [SYMBOL] = EXPR_ALT_P,
+        [DOTALL] = EXPR_ALT_P,
+        [LPAREN] = EXPR_ALT_P,
+        [RPAREN] = EMPTY_P
+    },
+    [NTI(ALT_NT)] = {
+        [SYMBOL] = ALT_CAT_P,
+        [DOTALL] = ALT_CAT_P,
+        [LPAREN] = ALT_CAT_P
+    },
+    [NTI(ALT_TAIL_NT)] = {
+        [EOI] = EMPTY_P,
+        [ALT] = ALT_TAIL_CAT_P,
+        [RPAREN] = EMPTY_P
+    },
+    [NTI(CAT_NT)] = {
+        [SYMBOL] = CAT_FACTOR_P,
+        [DOTALL] = CAT_FACTOR_P,
+        [LPAREN] = CAT_FACTOR_P
+    },
+    [NTI(CAT_TAIL_NT)] = {
+        [EOI] = EMPTY_P,
+        [SYMBOL] = CAT_TAIL_FACTOR_P,
+        [ALT] = EMPTY_P,
+        [DOTALL] = CAT_TAIL_FACTOR_P,
+        [LPAREN] = CAT_TAIL_FACTOR_P,
+        [RPAREN] = EMPTY_P
+    },
+    [NTI(FACTOR_NT)] = {
+        [SYMBOL] = FACTOR_SYMBOL_P,
+        [DOTALL] = FACTOR_DOTALL_P,
+        [LPAREN] = FACTOR_SUBEXPR_P
+    },
+    [NTI(FACTOR_TAIL_NT)] = {
+        [EOI] = EMPTY_P,
+        [SYMBOL] = EMPTY_P,
+        [ALT] = EMPTY_P,
+        [STAR] = FACTOR_TAIL_STAR_P,
+        [PLUS] = FACTOR_TAIL_PLUS_P,
+        [OPTIONAL] = FACTOR_TAIL_OPTIONAL_P,
+        [DOTALL] = EMPTY_P,
+        [LPAREN] = EMPTY_P,
+        [RPAREN] = EMPTY_P
+    }
+};
 
 void push_sym(int sym, struct array *stack) {
-    apush(&sum, stack);
+    apush(&sym, stack);
 }
 
 void push_production_symbols(enum gram_production production, struct array *stack) {
+    assert(production != ERROR_P);
+
     switch (production) {
+        case ERROR_P:
         case EMPTY_P: break;
         case REGEX_P:
             // DO_REGEX
@@ -85,7 +87,7 @@ void push_production_symbols(enum gram_production production, struct array *stac
             push_sym(ALT_TAIL_NT, stack);
             push_sym(CAT_NT, stack);
             break;
-        case ALT_TAIL_PLUS_P:
+        case ALT_TAIL_CAT_P:
             push_sym(ALT_TAIL_NT, stack);
             // DO_ALT
             push_sym(EXPR_NT, stack);
@@ -138,8 +140,8 @@ void push_production_symbols(enum gram_production production, struct array *stac
     }
 }
 
-enum gram_production move(int nonterm, int term, enum gram_production **table) {
-    return table[nonterm][term];
+static enum gram_production select(int nonterm, int term) {
+    return parse_table[nonterm][term];
 }
 
 bool is_terminal(int sym) {
@@ -148,13 +150,12 @@ bool is_terminal(int sym) {
 
 bool parse_regex_nonrec(struct parse_context *context) {
     struct array *stack = init_array(sizeof(int), PARSE_STACK_SIZE, 0, 0);
-    enum gram_production table[NUM_NONTERMINALS][NUM_TERMINALS];
+    bool success = true;
     int sym;
 
-    init_parse_table(&table);
     push_sym(REGEX_NT, stack);
 
-    while (!has_parse_error(context) && !aempty(stack)) {
+    while (success && !aempty(stack)) {
         apeek(&sym, stack);
 
         if (is_terminal(sym)) {
@@ -163,16 +164,22 @@ bool parse_regex_nonrec(struct parse_context *context) {
 
             if (expect(context, sym, is))
                 apop(&sym, stack);
+            else
+                success = false;
         } else {
             enum gram_production p;
 
-            if ((p = move(NTI(sym), lookahead(context)))) {
+            if ((p = select(NTI(sym), lookahead(context)))) {
                 apop(&sym, stack);
                 push_production_symbols(p, stack);
             } else {
+                success = false;
             }
         }
     };
 
     free_array(stack);
+
+    return success;
 }
+

@@ -2,6 +2,7 @@
 #define REGEX_PARSER_H_ 1
 
 #include <stdbool.h>
+#include "parser_shared.h"
 #include "result_types.h"
 
 /**

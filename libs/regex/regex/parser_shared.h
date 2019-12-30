@@ -31,7 +31,7 @@
 
 enum symbol_type {
     // terminals
-    END,
+    EOI,
     SYMBOL,
     ALT,
     STAR,
@@ -137,6 +137,7 @@ struct parse_context {
     char symbol;
     bool has_error;
     struct parse_error error;
+    bool use_nonrec;
 };
 
 struct scan_context scan_context(char *input);
@@ -151,7 +152,8 @@ struct parse_context parse_context(
     char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval)
+    void (**actions)(void *result_context, union rval lval),
+    bool use_nonrec
 );
 bool peek(struct parse_context *context, int expected, int (*is) (int c));
 bool expect(struct parse_context *context, int expected, int (*is) (int c));
@@ -161,7 +163,7 @@ char symbol(struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
-char *lexeme_for(char *symbuf, int token);
+char *lexeme_for(int token);
 void print_parse_error(struct parse_error error);
 
 #endif // REGEX_PARSER_SHARED_H_

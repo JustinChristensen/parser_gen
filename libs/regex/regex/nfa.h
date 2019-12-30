@@ -31,6 +31,7 @@ struct nfa_context {
     struct nfa nfa;
     bool has_error;
     struct nfa_error error;
+    bool use_nonrec;
 };
 
 // nfa state constructors
@@ -41,7 +42,7 @@ struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right);
 struct nfa_state symbol_state(char symbol);
 
 // nfa context
-struct nfa_context nfa_context(struct nfa_state *statebuf);
+struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec);
 struct nfa_state *setst(struct nfa_context *context, struct nfa_state state);
 void point(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1);
 void patch(struct nfa machine, struct nfa_state *state);

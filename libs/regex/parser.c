@@ -6,7 +6,7 @@
 #include "regex/result_types.h"
 
 bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, END, NULL)) {
+    if (parse_expr(context) && expect(context, EOI, NULL)) {
         do_action(context, DO_REGEX, NULLRVAL);
         return true;
     }

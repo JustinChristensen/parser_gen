@@ -6,8 +6,10 @@
 #include "regex/parser_shared.h"
 #include "regex/result_types.h"
 #include "base/array.h"
+#include "base/debug.h"
 
 // non-terminal index
+#define pdebug(...) debug_ns_("parser_nonrec", __VA_ARGS__);
 #define NTI(sym) (sym - NUM_TERMINALS)
 
 static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
@@ -140,7 +142,7 @@ void push_production_symbols(enum gram_production production, struct array *stac
     }
 }
 
-static enum gram_production selectp(int nonterm, int term) {
+static enum gram_production selectp(int nonterm, enum symbol_type term) {
     return parse_table[nonterm][term];
 }
 
@@ -148,15 +150,29 @@ bool is_terminal(int sym) {
     return sym < REGEX_NT;
 }
 
-bool parse_regex_nonrec(struct parse_context *context) {
-    struct array *stack = init_array(sizeof(int), PARSE_STACK_SIZE, 0, 0);
-    bool success = true;
+static void debug_sym_stack(struct array *stack) {
     int sym;
+
+    pdebug("symbol stack: ");
+    for (int i = 0; i < asize(stack); i++) {
+        at(&sym, i, stack);
+        debug_("%s ", lexeme_for(sym));
+    }
+
+    debug_("\n");
+}
+
+bool parse_regex_nonrec(struct parse_context *context) {
+    struct array *stack = init_array(sizeof(enum symbol_type), PARSE_STACK_SIZE, 0, 0);
+    bool success = true;
+    enum symbol_type sym;
 
     push_sym(REGEX_NT, stack);
 
     while (success && !aempty(stack)) {
         apeek(&sym, stack);
+
+        debug_sym_stack(stack);
 
         if (is_terminal(sym)) {
             if (expect(context, sym))
@@ -164,12 +180,16 @@ bool parse_regex_nonrec(struct parse_context *context) {
             else
                 success = false;
         } else {
-            enum gram_production p;
+            enum symbol_type la = lookahead(context);
+            enum gram_production p = selectp(NTI(sym), la);
 
-            if ((p = selectp(NTI(sym), lookahead(context)))) {
+            pdebug("[%s][%s] = %d\n", lexeme_for(sym), lexeme_for(la), p);
+
+            if (p) {
                 apop(&sym, stack);
                 push_production_symbols(p, stack);
             } else {
+                set_parse_error(EOI, context);
                 success = false;
             }
         }

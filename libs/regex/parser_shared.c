@@ -35,7 +35,7 @@ struct scan_context scan(struct scan_context context) {
 
     context.token_col = context.input_col;
 
-    sdebug("remaining \"%s\"\n", context.input);
+    sdebug("remaining: \"%s\"\n", context.input);
 
     if (*context.input == '*') {
         context = consume(context, '*');
@@ -81,10 +81,12 @@ struct scan_context scan(struct scan_context context) {
         context.input_col++;
     }
 
+    sdebug("token: %s\n", lexeme_for(context.token));
+
     return context;
 }
 
-int token(struct scan_context context) {
+enum symbol_type token(struct scan_context context) {
     return context.token;
 }
 
@@ -134,11 +136,11 @@ struct parse_context parse_context(
     return context;
 }
 
-bool peek(struct parse_context *context, int expected) {
+bool peek(struct parse_context *context, enum symbol_type expected) {
     return context->lookahead == expected;
 }
 
-bool expect(struct parse_context *context, int expected) {
+bool expect(struct parse_context *context, enum symbol_type expected) {
     if (peek(context, expected)) {
         pdebug("success, expected \"%s\", actual \"%s\"\n",
             lexeme_for(expected), lexeme_for(context->lookahead));
@@ -154,12 +156,7 @@ bool expect(struct parse_context *context, int expected) {
     } else {
         pdebug("failure, expected \"%s\", actual \"%s\"\n",
             lexeme_for(expected), lexeme_for(context->lookahead));
-        context->has_error = true;
-        context->error = (struct parse_error) {
-            .actual = context->lookahead,
-            .token_col = context->lookahead_col,
-            .expected = expected
-        };
+        set_parse_error(expected, context);
 
         return false;
     }
@@ -173,8 +170,17 @@ char symbol(struct parse_context *context) {
     return context->symbol;
 }
 
-int lookahead(struct parse_context *context) {
+enum symbol_type lookahead(struct parse_context *context) {
     return context->lookahead;
+}
+
+void set_parse_error(enum symbol_type expected, struct parse_context *context) {
+    context->has_error = true;
+    context->error = (struct parse_error) {
+        .actual = context->lookahead,
+        .token_col = context->lookahead_col,
+        .expected = expected
+    };
 }
 
 bool has_parse_error(struct parse_context *context) {
@@ -189,21 +195,28 @@ struct parse_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
-char *lexeme_for(int token) {
+char *lexeme_for(enum symbol_type token) {
     switch (token) {
-        case EOI:      return "eof";
-        case ALT:      return "|";
-        case STAR:     return "*";
-        case PLUS:     return "+";
-        case OPTIONAL: return "?";
-        case DOTALL:   return ".";
-        case LPAREN:   return "(";
-        case RPAREN:   return ")";
-        case SYMBOL:   return "symbol";
-        case NONSYM:   return "newline or control character";
-    }
+        case EOI:            return "eof";
+        case NONSYM:         return "newline or control character";
+        case SYMBOL:         return "symbol";
+        case ALT:            return "|";
+        case STAR:           return "*";
+        case PLUS:           return "+";
+        case OPTIONAL:       return "?";
+        case DOTALL:         return ".";
+        case LPAREN:         return "(";
+        case RPAREN:         return ")";
 
-    return "";
+        case REGEX_NT:       return "REGEX";
+        case EXPR_NT:        return "EXPR";
+        case ALT_NT:         return "ALT";
+        case ALT_TAIL_NT:    return "ALT_TAIL";
+        case CAT_NT:         return "CAT";
+        case CAT_TAIL_NT:    return "CAT_TAIL";
+        case FACTOR_NT:      return "FACTOR";
+        case FACTOR_TAIL_NT: return "FACTOR_TAIL";
+    }
 }
 
 void print_parse_error(struct parse_error error) {

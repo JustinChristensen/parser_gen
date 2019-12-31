@@ -133,7 +133,7 @@ struct parse_context {
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
     struct scan_context scan_context;
-    int lookahead;
+    enum symbol_type lookahead;
     int lookahead_col;
     char symbol;
     bool has_error;
@@ -144,7 +144,7 @@ struct parse_context {
 struct scan_context scan_context(char *input);
 struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
-int token(struct scan_context context);
+enum symbol_type token(struct scan_context context);
 char token_sym(struct scan_context context);
 int token_col(struct scan_context context);
 union rval getval(struct parse_context *context);
@@ -156,15 +156,16 @@ struct parse_context parse_context(
     void (**actions)(void *result_context, union rval lval),
     bool use_nonrec
 );
-bool peek(struct parse_context *context, int expected);
-bool expect(struct parse_context *context, int expected);
+bool peek(struct parse_context *context, enum symbol_type expected);
+bool expect(struct parse_context *context, enum symbol_type expected);
 int is_symbol(int c);
-int lookahead(struct parse_context *context);
+enum symbol_type lookahead(struct parse_context *context);
 char symbol(struct parse_context *context);
+void set_parse_error(enum symbol_type expected, struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
-char *lexeme_for(int token);
+char *lexeme_for(enum symbol_type token);
 void print_parse_error(struct parse_error error);
 
 #endif // REGEX_PARSER_SHARED_H_

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <base/args.h>
+#include <base/debug.h>
 #include <base/graphviz.h>
 #include <regex/ast.h>
 #include <regex/nfa.h>
@@ -13,15 +14,13 @@
 enum command_key {
     AUTO,
     PRINT,
-    NFA,
-    NFA_TABLE,
-    NFA_DOT
+    NFA
 };
 
 enum arg_key {
     FORMAT,
     REGEX,
-    NONREC,
+    NONREC
 };
 
 enum output_fmt {
@@ -39,6 +38,27 @@ struct args {
     int posc;
     char **pos;
 };
+
+static char *cmd_str(enum command_key key) {
+    switch (key) {
+        case AUTO: return "AUTO";
+        case PRINT: return "PRINT";
+        case NFA: return "NFA";
+    }
+
+    return "";
+}
+
+static char *output_str(enum output_fmt fmt) {
+    switch (fmt) {
+        case OUTPUT_TRIAL: return "OUTPUT_TRIAL";
+        case OUTPUT_TREE: return "OUTPUT_TREE";
+        case OUTPUT_TABLE: return "OUTPUT_TABLE";
+        case OUTPUT_DOT: return "OUTPUT_DOT";
+    }
+
+    return "";
+}
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
@@ -83,6 +103,22 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     args->posc = argc(context);
 }
 
+#define adebug(...) debug_ns_("args", __VA_ARGS__)
+static void debug_args(struct args args) {
+    adebug("cmd: %s\n", cmd_str(args.cmd));
+    adebug("output: %s\n", output_str(args.output));
+    if (args.regex) adebug("regex: %s\n", args.regex);
+    adebug("nonrec: %s\n", args.nonrec ? "true" : "false");
+    if (args.posc > 0) {
+        adebug("posc: %d\n", args.posc);
+        adebug("pos: ");
+        for (int i = 0; i < args.posc; i++) {
+            debug_("%s ", args.pos[i]);
+        }
+        debug_("\n");
+    }
+}
+
 #define BUFFER_SIZE 4096
 int main(int argc, char *argv[]) {
     struct args args = {
@@ -124,10 +160,10 @@ int main(int argc, char *argv[]) {
                 NFA,
                 "nfa",
                 ARGS {
-                    regex_arg,
                     nfa_fmt_arg,
                     parse_nonrec_arg,
                     help_and_version_args,
+                    regex_arg,
                     END_ARGS
                 },
                 NULL,
@@ -137,6 +173,8 @@ int main(int argc, char *argv[]) {
         },
         "Construct and simulate automata"
     });
+
+    debug_args(args);
 
     if (args.cmd == PRINT) {
         struct expr exprbuf[EXPR_MAX];

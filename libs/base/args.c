@@ -145,20 +145,24 @@ int readarg(struct args_context *context) {
 
     struct args_handlers *handlers = context->handlers;
 
+    void (*handler) (struct args_context *) = NULL;
+
     switch (key) {
         case HELP:
-            if (handlers->help_found) (*handlers->help_found)(context);
+            if (handlers->help_found) handler = *handlers->help_found;
             break;
         case VERSION:
-            if (handlers->version_found) (*handlers->version_found)(context);
+            if (handlers->version_found) handler = handlers->version_found;
             break;
         case MISSING_ARG:
-            if (handlers->missing_arg_found) (*handlers->missing_arg_found)(context);
+            if (handlers->missing_arg_found) handler = *handlers->missing_arg_found;
             break;
         case UNKNOWN_OPTION:
-            if (handlers->unknown_option_found) (*handlers->unknown_option_found)(context);
+            if (handlers->unknown_option_found) handler = handlers->unknown_option_found;
             break;
     }
+
+    if (handler) (*handler)(context);
 
     return key;
 }
@@ -242,11 +246,13 @@ void version_found(struct args_context *context) {
 }
 
 void missing_arg_found(struct args_context *context) {
+    fprintf(stderr, "missing arg\n");
     print_usage(stderr, context);
     exit(EXIT_FAILURE);
 }
 
 void unknown_option_found(struct args_context *context) {
+    fprintf(stderr, "unknown option\n");
     print_usage(stderr, context);
     exit(EXIT_FAILURE);
 }

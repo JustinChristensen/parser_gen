@@ -125,6 +125,7 @@ struct parse_context parse_context(
         .getval = getval,
         .lookahead = token(scontext),
         .lookahead_col = token_col(scontext),
+        .symbol = token_sym(scontext),
         .has_error = false,
         .error = nullperr(),
         .use_nonrec = use_nonrec

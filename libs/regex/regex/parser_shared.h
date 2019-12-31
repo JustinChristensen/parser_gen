@@ -31,9 +31,9 @@
 
 enum symbol_type {
     // terminals
+    NONSYM,
     EOI,
     SYMBOL,
-    NONSYM,
     ALT,
     STAR,
     PLUS,

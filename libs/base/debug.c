@@ -4,7 +4,7 @@
 
 static void vdebug_ns_(char const *ns, char const *format, va_list args) {
     if (getenv("DEBUG")) {
-        if (ns) fprintf(stderr, "[%s]: ", ns);
+        if (ns) fprintf(stderr, "[%s] ", ns);
         vfprintf(stderr, format, args);
         va_end(args);
     }

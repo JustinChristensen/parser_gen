@@ -67,79 +67,31 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     }
 };
 
+#define SYMS (enum symbol_type[])
+static enum symbol_type *rule_table[] = {
+    [ERROR_P] =                SYMS { 0 },
+    [EMPTY_P] =                SYMS { 0 },
+    [REGEX_P] =                SYMS { EOI, EXPR_NT, 0 },
+    [EXPR_ALT_P] =             SYMS { ALT_NT, 0 },
+    [ALT_CAT_P] =              SYMS { ALT_TAIL_NT, CAT_NT, 0 },
+    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, EXPR_NT, ALT, 0 },
+    [CAT_FACTOR_P] =           SYMS { CAT_TAIL_NT, FACTOR_NT, 0 },
+    [CAT_TAIL_FACTOR_P] =      SYMS { CAT_TAIL_NT, FACTOR_NT, 0 },
+    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, RPAREN, EXPR_NT, LPAREN, 0 },
+    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DOTALL, 0 },
+    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, SYMBOL, 0 },
+    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, STAR, 0 },
+    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, PLUS, 0 },
+    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, OPTIONAL, 0 }
+};
+
 void push_sym(int sym, struct array *stack) {
     apush(&sym, stack);
 }
 
 void push_production_symbols(enum gram_production production, struct array *stack) {
-    assert(production != ERROR_P);
-
-    switch (production) {
-        case ERROR_P:
-        case EMPTY_P: break;
-        case REGEX_P:
-            // DO_REGEX
-            push_sym(EOI, stack);
-            push_sym(EXPR_NT, stack);
-            break;
-        case EXPR_ALT_P:
-            push_sym(ALT_NT, stack);
-            break;
-        case ALT_CAT_P:
-            push_sym(ALT_TAIL_NT, stack);
-            push_sym(CAT_NT, stack);
-            break;
-        case ALT_TAIL_CAT_P:
-            push_sym(ALT_TAIL_NT, stack);
-            // DO_ALT
-            push_sym(EXPR_NT, stack);
-            push_sym(ALT, stack);
-            break;
-        case CAT_FACTOR_P:
-            // DO_CAT
-            push_sym(CAT_TAIL_NT, stack);
-            // DO_ALT
-            push_sym(FACTOR_NT, stack);
-            // DO_EMPTY
-            break;
-        case CAT_TAIL_FACTOR_P:
-            push_sym(CAT_TAIL_NT, stack);
-            // DO_CAT
-            push_sym(FACTOR_NT, stack);
-            break;
-        case FACTOR_SUBEXPR_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_SUB
-            push_sym(RPAREN, stack);
-            push_sym(EXPR_NT, stack);
-            push_sym(LPAREN, stack);
-            break;
-        case FACTOR_DOTALL_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_DOTALL
-            push_sym(DOTALL, stack);
-            break;
-        case FACTOR_SYMBOL_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_SYMBOL
-            push_sym(SYMBOL, stack);
-            break;
-        case FACTOR_TAIL_STAR_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_STAR
-            push_sym(STAR, stack);
-            break;
-        case FACTOR_TAIL_PLUS_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_PLUS
-            push_sym(PLUS, stack);
-            break;
-        case FACTOR_TAIL_OPTIONAL_P:
-            push_sym(FACTOR_TAIL_NT, stack);
-            // DO_OPTIONAL
-            push_sym(OPTIONAL, stack);
-            break;
-    }
+    enum symbol_type *sym = rule_table[production];
+    while (*sym) push_sym(*sym, stack), sym++;
 }
 
 static enum gram_production selectp(int nonterm, enum symbol_type term) {
@@ -183,12 +135,13 @@ bool parse_regex_nonrec(struct parse_context *context) {
             enum symbol_type la = lookahead(context);
             enum gram_production p = selectp(NTI(sym), la);
 
-            pdebug("[%s][%s] = %d\n", lexeme_for(sym), lexeme_for(la), p);
+            pdebug("parse_table[%s][%s] = %d\n", lexeme_for(sym), lexeme_for(la), p);
 
             if (p) {
                 apop(&sym, stack);
                 push_production_symbols(p, stack);
             } else {
+                // TODO: make error handling support first/follow sets
                 set_parse_error(EOI, context);
                 success = false;
             }

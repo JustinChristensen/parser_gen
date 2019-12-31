@@ -112,7 +112,7 @@ enum action_type {
     DO_OPTIONAL
 };
 
-#define NUMACTIONS DO_OPTIONAL + 1
+#define NUMACTIONS (DO_OPTIONAL + 1)
 
 struct scan_context {
     char *input;

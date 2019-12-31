@@ -77,7 +77,7 @@ void push_production_symbols(enum gram_production production, struct array *stac
         case EMPTY_P: break;
         case REGEX_P:
             // DO_REGEX
-            push_sym('\0', stack);
+            push_sym(EOI, stack);
             push_sym(EXPR_NT, stack);
             break;
         case EXPR_ALT_P:

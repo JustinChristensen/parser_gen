@@ -4,17 +4,17 @@
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
-void (*expr_actions[NUMACTIONS])(void *context, union rval lval) = {
-    [DO_REGEX] =    ACTION noop_expr,
-    [DO_EMPTY] =    ACTION do_empty_expr,
-    [DO_ALT] =      ACTION do_alt_expr,
-    [DO_CAT] =      ACTION do_cat_expr,
-    [DO_SUB] =      ACTION do_sub_expr,
-    [DO_DOTALL] =   ACTION do_dotall_expr,
-    [DO_SYMBOL] =   ACTION do_symbol_expr,
-    [DO_STAR] =     ACTION do_star_expr,
-    [DO_PLUS] =     ACTION do_plus_expr,
-    [DO_OPTIONAL] = ACTION do_optional_expr
+void (*expr_actions[NUM_ACTIONS])(void *context, union rval lval) = {
+    [DAI(DO_REGEX)] =    ACTION noop_expr,
+    [DAI(DO_EMPTY)] =    ACTION do_empty_expr,
+    [DAI(DO_ALT)] =      ACTION do_alt_expr,
+    [DAI(DO_CAT)] =      ACTION do_cat_expr,
+    [DAI(DO_SUB)] =      ACTION do_sub_expr,
+    [DAI(DO_DOTALL)] =   ACTION do_dotall_expr,
+    [DAI(DO_SYMBOL)] =   ACTION do_symbol_expr,
+    [DAI(DO_STAR)] =     ACTION do_star_expr,
+    [DAI(DO_PLUS)] =     ACTION do_plus_expr,
+    [DAI(DO_OPTIONAL)] = ACTION do_optional_expr
 };
 
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {

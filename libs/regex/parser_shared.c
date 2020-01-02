@@ -102,8 +102,8 @@ union rval getval(struct parse_context *context) {
     return (*context->getval)(context->result_context);
 }
 
-void do_action(struct parse_context *context, enum action_type action, union rval lval) {
-    (*context->actions[action])(context->result_context, lval);
+void do_action(struct parse_context *context, enum symbol_type action, union rval lval) {
+    (*context->actions[DAI(action)])(context->result_context, lval);
 }
 
 struct parse_context parse_context(
@@ -216,6 +216,17 @@ char *lexeme_for(enum symbol_type token) {
         case CAT_TAIL_NT:    return "CAT_TAIL";
         case FACTOR_NT:      return "FACTOR";
         case FACTOR_TAIL_NT: return "FACTOR_TAIL";
+
+        case DO_REGEX:       return "{ regex }";
+        case DO_EMPTY:       return "{ empty }";
+        case DO_ALT:         return "{ alt }";
+        case DO_CAT:         return "{ cat }";
+        case DO_SUB:         return "{ sub }";
+        case DO_DOTALL:      return "{ dotall }";
+        case DO_SYMBOL:      return "{ symbol }";
+        case DO_STAR:        return "{ star }";
+        case DO_PLUS:        return "{ plus }";
+        case DO_OPTIONAL:    return "{ optional }";
     }
 }
 

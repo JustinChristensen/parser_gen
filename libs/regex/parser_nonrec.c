@@ -10,7 +10,6 @@
 
 // non-terminal index
 #define pdebug(...) debug_ns_("parser_nonrec", __VA_ARGS__);
-#define NTI(sym) (sym - NUM_TERMINALS)
 
 static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     [NTI(REGEX_NT)] = {
@@ -71,25 +70,43 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
 static enum symbol_type *rule_table[] = {
     [ERROR_P] =                SYMS { 0 },
     [EMPTY_P] =                SYMS { 0 },
-    [REGEX_P] =                SYMS { EOI, EXPR_NT, 0 },
+    [REGEX_P] =                SYMS { DO_REGEX, EOI, EXPR_NT, 0 },
     [EXPR_ALT_P] =             SYMS { ALT_NT, 0 },
     [ALT_CAT_P] =              SYMS { ALT_TAIL_NT, CAT_NT, 0 },
-    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, EXPR_NT, ALT, 0 },
-    [CAT_FACTOR_P] =           SYMS { CAT_TAIL_NT, FACTOR_NT, 0 },
-    [CAT_TAIL_FACTOR_P] =      SYMS { CAT_TAIL_NT, FACTOR_NT, 0 },
-    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, RPAREN, EXPR_NT, LPAREN, 0 },
-    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DOTALL, 0 },
-    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, SYMBOL, 0 },
-    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, STAR, 0 },
-    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, PLUS, 0 },
-    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, OPTIONAL, 0 }
+    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, DO_ALT, EXPR_NT, ALT, 0 },
+    [CAT_FACTOR_P] =           SYMS { DO_CAT, CAT_TAIL_NT, FACTOR_NT, DO_EMPTY, 0 },
+    [CAT_TAIL_FACTOR_P] =      SYMS { CAT_TAIL_NT, DO_CAT, FACTOR_NT, 0 },
+    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, DO_SUB, RPAREN, EXPR_NT, LPAREN, 0 },
+    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DO_DOTALL, DOTALL, 0 },
+    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, DO_SYMBOL, SYMBOL, 0 },
+    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, DO_STAR, STAR, 0 },
+    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, DO_PLUS, PLUS, 0 },
+    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, DO_OPTIONAL, OPTIONAL, 0 }
 };
 
-void push_sym(int sym, struct array *stack) {
+static void push_sym(int sym, struct array *stack) {
     apush(&sym, stack);
 }
 
-void push_production_symbols(enum gram_production production, struct array *stack) {
+static void push_rval(union rval lval, struct array *results) {
+    apush(&lval, results);
+}
+
+static void push_results(struct parse_context *context, enum symbol_type ssym, struct array *results) {
+    switch (ssym) {
+        case SYMBOL:
+            push_rval((union rval) { .sym = symbol(context) }, results);
+            break;
+        case ALT_TAIL_NT:
+        case CAT_TAIL_NT:
+            push_rval(getval(context), results);
+            break;
+        default:
+            break;
+    }
+}
+
+static void push_production_symbols(enum gram_production production, struct array *stack) {
     enum symbol_type *sym = rule_table[production];
     while (*sym) push_sym(*sym, stack), sym++;
 }
@@ -98,14 +115,18 @@ static enum gram_production selectp(int nonterm, enum symbol_type term) {
     return parse_table[nonterm][term];
 }
 
-bool is_terminal(int sym) {
+static bool is_terminal(int sym) {
     return sym < REGEX_NT;
 }
 
-static void debug_sym_stack(struct array *stack) {
+static bool is_action(int sym) {
+    return sym >= DO_REGEX;
+}
+
+static void debug_sym_stack(int n, struct array *stack) {
     int sym;
 
-    pdebug("symbol stack: ");
+    pdebug("%.4d. symbol stack: ", n);
     for (int i = 0; i < asize(stack); i++) {
         at(&sym, i, stack);
         debug_("%s ", lexeme_for(sym));
@@ -114,41 +135,88 @@ static void debug_sym_stack(struct array *stack) {
     debug_("\n");
 }
 
+static void debug_result_stack(int n, struct array *results) {
+    pdebug("%.4d. result stack size: %d\n", n, asize(results));
+
+}
+
 bool parse_regex_nonrec(struct parse_context *context) {
-    struct array *stack = init_array(sizeof(enum symbol_type), PARSE_STACK_SIZE, 0, 0);
     bool success = true;
-    enum symbol_type sym;
+    struct array *stack = init_array(sizeof(enum symbol_type), PARSE_STACK_SIZE, 0, 0);
+    enum symbol_type ssym; // stack symbol (grammar symbol, not regex symbol)
+    struct array *results = init_array(sizeof(union rval), PARSE_STACK_SIZE, 0, 0); // result value stack
+    int n = 0; // counter for debug output
 
     push_sym(REGEX_NT, stack);
 
     while (success && !aempty(stack)) {
-        apeek(&sym, stack);
+        apeek(&ssym, stack);
 
-        debug_sym_stack(stack);
+        debug_sym_stack(n, stack);
+        debug_result_stack(n, results);
 
-        if (is_terminal(sym)) {
-            if (expect(context, sym))
-                apop(&sym, stack);
-            else
+        if (is_terminal(ssym)) {
+            if (peek(context, ssym)) {
+                push_results(context, ssym, results);
+                expect(context, ssym);
+                apop(&ssym, stack);
+            } else {
                 success = false;
-        } else {
-            enum symbol_type la = lookahead(context);
-            enum gram_production p = selectp(NTI(sym), la);
+            }
+        } else if (is_action(ssym)) {
+            union rval lval;
 
-            pdebug("parse_table[%s][%s] = %d\n", lexeme_for(sym), lexeme_for(la), p);
+            // determine the lhs result value
+            switch (ssym) {
+                case DO_REGEX:
+                case DO_EMPTY:
+                case DO_SUB:
+                case DO_DOTALL:
+                case DO_STAR:
+                case DO_PLUS:
+                case DO_OPTIONAL:
+                    lval = NULLRVAL;
+                    break;
+                default:
+                    // pop the last result off of the result stack
+                    apop(&lval, results);
+                    break;
+            }
+
+            // do the action
+            do_action(context, ssym, lval);
+
+            // push the empty result after doing the action
+            // if more actions require "after" handlers I'll move
+            // this to a separate routine
+            if (ssym == DO_EMPTY)
+                push_rval(getval(context), results);
+
+            // pop the current stack symbol
+            apop(&ssym, stack);
+        } else {
+            push_results(context, ssym, results);
+
+            enum symbol_type la = lookahead(context);
+            enum gram_production p = selectp(NTI(ssym), la);
+
+            pdebug("%.4d. parse_table[%s][%s] = %d\n", n, lexeme_for(ssym), lexeme_for(la), p);
 
             if (p) {
-                apop(&sym, stack);
+                apop(&ssym, stack);
                 push_production_symbols(p, stack);
             } else {
-                // TODO: make error handling support first/follow sets
+                // TODO: make error handling support first/follow sets in error output
                 set_parse_error(EOI, context);
                 success = false;
             }
         }
+
+        n++;
     };
 
     free_array(stack);
+    free_array(results);
 
     return success;
 }

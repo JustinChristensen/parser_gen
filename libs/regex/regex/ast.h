@@ -43,7 +43,7 @@ void do_plus_expr(struct expr_context *context, union rval _);
 void do_optional_expr(struct expr_context *context, union rval _);
 
 // parse action table
-void (*expr_actions[NUMACTIONS])(void *context, union rval lval);
+void (*expr_actions[NUM_ACTIONS])(void *context, union rval lval);
 
 #endif // REGEX_AST_H_
 

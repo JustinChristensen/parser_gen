@@ -9,17 +9,19 @@
 #include "regex/run_parser.h"
 #include "regex/result_types.h"
 
-void (*nfa_actions[NUMACTIONS])(void *context, union rval lval) = {
-    [DO_REGEX] =    ACTION noop_nfa,
-    [DO_EMPTY] =    ACTION do_empty_nfa,
-    [DO_ALT] =      ACTION do_alt_nfa,
-    [DO_CAT] =      ACTION do_cat_nfa,
-    [DO_SUB] =      ACTION noop_nfa,
-    [DO_DOTALL] =   ACTION do_dotall_nfa,
-    [DO_SYMBOL] =   ACTION do_symbol_nfa,
-    [DO_STAR] =     ACTION do_star_nfa,
-    [DO_PLUS] =     ACTION do_plus_nfa,
-    [DO_OPTIONAL] = ACTION do_optional_nfa
+#define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
+
+void (*nfa_actions[NUM_ACTIONS])(void *context, union rval lval) = {
+    [DAI(DO_REGEX)] =    ACTION noop_nfa,
+    [DAI(DO_EMPTY)] =    ACTION do_empty_nfa,
+    [DAI(DO_ALT)] =      ACTION do_alt_nfa,
+    [DAI(DO_CAT)] =      ACTION do_cat_nfa,
+    [DAI(DO_SUB)] =      ACTION noop_nfa,
+    [DAI(DO_DOTALL)] =   ACTION do_dotall_nfa,
+    [DAI(DO_SYMBOL)] =   ACTION do_symbol_nfa,
+    [DAI(DO_STAR)] =     ACTION do_star_nfa,
+    [DAI(DO_PLUS)] =     ACTION do_plus_nfa,
+    [DAI(DO_OPTIONAL)] = ACTION do_optional_nfa
 };
 
 struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {
@@ -258,8 +260,9 @@ bool nfa_match(char *str, struct nfa_context *context) {
     eps_closure(cstates, nfa.start, already_on);
 
     print_state_table(context->statebuf - numstates, context->statebuf);
-    print_nfa_states(cstates);
 
+    ndebug("nfa simulation\n");
+    print_nfa_states(cstates);
     char c;
     struct list *t;
     while ((c = *str++) != '\0') {
@@ -318,7 +321,7 @@ void print_nfa_states(struct list *cstates) {
     struct node *node;
 
     if (!empty(cstates)) {
-        debug_ns_("nfa", "{");
+        ndebug("{");
         node = head(cstates);
         print_state(value(node));
         for (node = node->next; node; node = node->next) {
@@ -327,7 +330,7 @@ void print_nfa_states(struct list *cstates) {
         }
         debug_("}");
     } else {
-        debug_ns_("nfa", "empty");
+        ndebug("empty");
     }
 
     debug_("\n");
@@ -356,9 +359,9 @@ void print_state(struct nfa_state *state) {
 }
 
 void print_state_table(struct nfa_state *start, struct nfa_state *end) {
-    debug_ns_("nfa", "nfa state table\n");
+    ndebug("nfa state table\n");
     while (start != end) {
-        debug_ns_("nfa", "%p: ", start);
+        ndebug("%p: ", start);
         print_state(start);
         debug_("\n");
         start++;

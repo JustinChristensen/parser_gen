@@ -10,7 +10,7 @@
  * regex: expr eof { regex }
  * expr: alt | ε
  * alt: cat alt_tail
- * alt_tail: + cat { alt } alt_tail | ε
+ * alt_tail: + expr { alt } alt_tail | ε
  * cat: ε { empty } factor cat_tail { cat }
  * cat_tail: factor { cat } cat_tail | ε
  * factor: ( expr ) { sub } factor_tail
@@ -50,12 +50,29 @@ enum symbol_type {
     CAT_NT,
     CAT_TAIL_NT,
     FACTOR_NT,
-    FACTOR_TAIL_NT
+    FACTOR_TAIL_NT,
+
+    // parser actions, not symbols per se
+    DO_REGEX,
+    DO_EMPTY,
+    DO_ALT,
+    DO_CAT,
+    DO_SUB,
+    DO_DOTALL,
+    DO_SYMBOL,
+    DO_STAR,
+    DO_PLUS,
+    DO_OPTIONAL
 };
 
-#define NUM_SYMBOLS (FACTOR_TAIL_NT + 1)
+#define NUM_SYMBOLS (DO_OPTIONAL + 1)
 #define NUM_TERMINALS (RPAREN + 1)
-#define NUM_NONTERMINALS (NUM_SYMBOLS - NUM_TERMINALS)
+#define NUM_NONTERMINALS ((FACTOR_TAIL_NT + 1) - NUM_TERMINALS)
+#define NUM_ACTIONS ((DO_OPTIONAL + 1) - NUM_NONTERMINALS)
+// non-terminal index
+#define NTI(sym) (sym - NUM_TERMINALS)
+// do action index
+#define DAI(sym) (sym - NUM_NONTERMINALS)
 
 enum gram_production {
     ERROR_P,
@@ -99,21 +116,6 @@ enum gram_production {
     FACTOR_TAIL_OPTIONAL_P
 };
 
-enum action_type {
-    DO_REGEX,
-    DO_EMPTY,
-    DO_ALT,
-    DO_CAT,
-    DO_SUB,
-    DO_DOTALL,
-    DO_SYMBOL,
-    DO_STAR,
-    DO_PLUS,
-    DO_OPTIONAL
-};
-
-#define NUMACTIONS (DO_OPTIONAL + 1)
-
 struct scan_context {
     char *input;
     int input_col;
@@ -132,6 +134,7 @@ struct parse_context {
     void *result_context;
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
+    void (*printval)(union rval lval); // TODO
     struct scan_context scan_context;
     enum symbol_type lookahead;
     int lookahead_col;
@@ -148,7 +151,7 @@ enum symbol_type token(struct scan_context context);
 char token_sym(struct scan_context context);
 int token_col(struct scan_context context);
 union rval getval(struct parse_context *context);
-void do_action(struct parse_context *context, enum action_type action, union rval lval);
+void do_action(struct parse_context *context, enum symbol_type action, union rval lval);
 struct parse_context parse_context(
     char *input,
     void *result_context,

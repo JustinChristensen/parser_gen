@@ -24,6 +24,7 @@ bool parse_alt(struct parse_context *context, union rval lval) {
         while (true) {
             lval = getval(context);
 
+            // FIXME: should this really be expr?
             if (peek(context, ALT) &&
                 expect(context, ALT) &&
                 parse_expr(context)) {
@@ -67,6 +68,8 @@ bool parse_cat(struct parse_context *context, union rval lval) {
 bool parse_factor(struct parse_context *context) {
     bool has_head = false;
 
+    // FIXME: this doesn't distinguish between selecting ε for expr and
+    // a parse error encountered during expr
     if (peek(context, LPAREN) &&
         expect(context, LPAREN) &&
         parse_expr(context) && expect(context, RPAREN)) {

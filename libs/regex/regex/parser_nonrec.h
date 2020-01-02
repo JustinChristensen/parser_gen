@@ -15,9 +15,6 @@
 
 #define PARSE_STACK_SIZE 7
 
-void push_sym(int sym, struct array *stack);
-void push_production_symbols(enum gram_production production, struct array *stack);
-bool is_terminal(int sym);
 bool parse_regex_nonrec(struct parse_context *context);
 void print_parse_table(enum gram_production **table);
 

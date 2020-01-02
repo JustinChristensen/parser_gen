@@ -80,7 +80,7 @@ void do_plus_nfa(struct nfa_context *context, union rval _);
 void do_optional_nfa(struct nfa_context *context, union rval _);
 
 // parse action table
-void (*nfa_actions[NUMACTIONS])(void *context, union rval lval);
+void (*nfa_actions[NUM_ACTIONS])(void *context, union rval lval);
 
 // debugging tools
 void print_nfa_states(struct list *cstates);

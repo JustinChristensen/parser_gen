@@ -265,7 +265,7 @@ bool nfa_match(char *str, struct nfa_context *context) {
     print_nfa_states(cstates);
     char c;
     struct list *t;
-    while ((c = *str++) != '\0') {
+    while (!empty(cstates) && (c = *str++) != '\0') {
         memset(already_on, false, numstates);
         move(nstates, cstates, c, already_on);
         t = cstates;

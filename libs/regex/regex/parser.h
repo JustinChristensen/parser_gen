@@ -14,8 +14,8 @@
 
 bool parse_regex(struct parse_context *context);
 bool parse_expr(struct parse_context *context);
-bool parse_alt(struct parse_context *context, union rval lval);
-bool parse_cat(struct parse_context *context, union rval lval);
+bool parse_alt(struct parse_context *context);
+bool parse_cat(struct parse_context *context);
 bool parse_factor(struct parse_context *context);
 
 #endif // REGEX_PARSER_H_

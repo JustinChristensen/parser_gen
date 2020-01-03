@@ -15,14 +15,14 @@ bool parse_regex(struct parse_context *context) {
 }
 
 bool parse_expr(struct parse_context *context) {
-    parse_alt(context, getval(context));
+    parse_alt(context);
     return true;
 }
 
-bool parse_alt(struct parse_context *context, union rval lval) {
-    if (parse_cat(context, lval)) {
+bool parse_alt(struct parse_context *context) {
+    if (parse_cat(context)) {
         while (true) {
-            lval = getval(context);
+            union rval lval = getval(context);
 
             // FIXME: should this really be expr?
             if (peek(context, ALT) &&
@@ -41,13 +41,13 @@ bool parse_alt(struct parse_context *context, union rval lval) {
     return false;
 }
 
-bool parse_cat(struct parse_context *context, union rval lval) {
+bool parse_cat(struct parse_context *context) {
     do_action(context, DO_EMPTY, NULLRVAL);
     union rval empty = getval(context);
 
     if (parse_factor(context)) {
         while (true) {
-            lval = getval(context);
+            union rval lval = getval(context);
 
             if (parse_factor(context)) {
                 do_action(context, DO_CAT, lval);

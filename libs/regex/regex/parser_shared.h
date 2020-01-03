@@ -134,7 +134,6 @@ struct parse_context {
     void *result_context;
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
-    void (*printval)(union rval lval); // TODO
     struct scan_context scan_context;
     enum symbol_type lookahead;
     int lookahead_col;

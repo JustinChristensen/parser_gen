@@ -8,7 +8,7 @@
 #include "regex/result_types.h"
 
 #define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
-#define pdebug(...) debug_ns_("parser", __VA_ARGS__)
+#define pdebug(...) debug_ns_("parser_shared", __VA_ARGS__)
 
 struct scan_context scan_context(char *input) {
     return (struct scan_context) {
@@ -103,6 +103,7 @@ union rval getval(struct parse_context *context) {
 }
 
 void do_action(struct parse_context *context, enum symbol_type action, union rval lval) {
+    pdebug("doing action: %s\n", lexeme_for(action));
     (*context->actions[DAI(action)])(context->result_context, lval);
 }
 
@@ -217,16 +218,16 @@ char *lexeme_for(enum symbol_type token) {
         case FACTOR_NT:      return "FACTOR";
         case FACTOR_TAIL_NT: return "FACTOR_TAIL";
 
-        case DO_REGEX:       return "{ regex }";
-        case DO_EMPTY:       return "{ empty }";
-        case DO_ALT:         return "{ alt }";
-        case DO_CAT:         return "{ cat }";
-        case DO_SUB:         return "{ sub }";
-        case DO_DOTALL:      return "{ dotall }";
-        case DO_SYMBOL:      return "{ symbol }";
-        case DO_STAR:        return "{ star }";
-        case DO_PLUS:        return "{ plus }";
-        case DO_OPTIONAL:    return "{ optional }";
+        case DO_REGEX:       return "{regex}";
+        case DO_EMPTY:       return "{empty}";
+        case DO_ALT:         return "{alt}";
+        case DO_CAT:         return "{cat}";
+        case DO_SUB:         return "{sub}";
+        case DO_DOTALL:      return "{dotall}";
+        case DO_SYMBOL:      return "{symbol}";
+        case DO_STAR:        return "{star}";
+        case DO_PLUS:        return "{plus}";
+        case DO_OPTIONAL:    return "{optional}";
     }
 }
 

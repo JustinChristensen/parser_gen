@@ -2,7 +2,7 @@ TARGETS := all clean
 SUBDIRS := \
 libs \
 src/auto \
-src/parse \
+src/parser_gen \
 src/sdt \
 test
 

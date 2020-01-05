@@ -3,8 +3,11 @@
 #include <base/args.h>
 
 enum command_key {
-    GRAM
+    GEN_PARSER
 };
+
+// enum arg_key {
+// };
 
 struct args {
     enum command_key cmd;
@@ -22,20 +25,18 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 
 int main(int argc, char *argv[]) {
     struct args args = {
-        .cmd = GRAM,
-        .posc = 0,
-        .pos = NULL,
+        .cmd = GEN_PARSER
     };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
-        GRAM,
+        GEN_PARSER,
         NULL,
         ARGS {
             help_and_version_args,
             END_ARGS
         },
         NULL,
-        "Analyze a grammar and generate a report"
+        "Generate a parser"
     });
 
     return EXIT_SUCCESS;

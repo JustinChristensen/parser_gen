@@ -2,7 +2,7 @@ TOPDIR := ../..
 include $(TOPDIR)/make/common_vars.mk
 
 PROG := libgram.so
-LIBS += -lm
+LIBS += -lm -lregex
 
 include $(TOPDIR)/make/common_targets.mk
 

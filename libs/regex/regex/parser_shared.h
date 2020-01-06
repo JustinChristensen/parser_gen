@@ -30,8 +30,9 @@
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
 enum symbol_type {
-    // terminals
     NONSYM,
+
+    // terminals
     EOI,
     SYMBOL,
     ALT,

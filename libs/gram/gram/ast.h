@@ -4,31 +4,38 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-struct grammar_node {
+struct grammar {
+    struct token_def *token_defs;
+    struct rule *rules;
 };
 
-struct header_node {
+struct token_def {
+    struct token_def *next;
+    char *id;
+    char *regex;
 };
 
-struct token_defs_node {
+struct rule {
+    struct rule *next;
+    char *id;
+    struct alt *alts;
 };
 
-struct token_def_node {
+struct alt {
+    struct alt *next;
+    struct rhs *rhses;
 };
 
-struct rules_node {
+enum rhs_type {
+    TERM,
+    NONTERM,
+    EMPTY
 };
 
-struct rule_node {
-};
-
-struct alts_node {
-};
-
-struct rhses_node {
-};
-
-struct rhs_node {
+struct rhs {
+    struct rhs *next;
+    enum rhs_type type;
+    char *sym;
 };
 
 #endif // GRAM_AST_H_

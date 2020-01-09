@@ -23,7 +23,6 @@ static enum gram_symbol *first_sets[] {
     [GRAMMAR_NT]      = FIRST { SECTION_T, EOF_T, 0 },
     [RULES_NT]        = FIRST { ID_T, EOF_T, 0  },
     [RULE_NT]         = FIRST { ID_T, 0 },
-    [BODY_NT]         = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, 0 },
     [ALTS_NT]         = FIRST { ALT_T, SEMICOLON_T, 0  },
     [ALT_NT]          = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, 0 },
     [RHSES_NT]        = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, ALT_T, SEMICOLON_T, 0 },
@@ -166,23 +165,14 @@ bool parse_rule(struct gram_parse_context *context) {
 
     if (expect(ID_T, context) &&
         expect(ALT_T, context) &&
-        parse_body(context) &&
+        parse_alt(context) &&
+        parse_alts(context) &&
         expect(SEMICOLON_T, context))
         do_action(DO_RULE, id, context);
         return true;
     }
 
     set_parse_error(RULE_NT, context);
-
-    return false;
-}
-
-bool parse_body(struct gram_parse_context *context) {
-    if (parse_alt(context) && parse_alts(context)) {
-        return true;
-    }
-
-    set_parse_error(BODY_NT, context);
 
     return false;
 }

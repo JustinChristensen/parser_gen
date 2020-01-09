@@ -18,12 +18,11 @@ comment       /\/\/.*{nl}/
 
 ---
 parser_spec  = pattern_defs grammar eof;
-pattern_defs = pattern_def pattern_defs | $empty;
+pattern_defs = pattern_def { += pattern_def } pattern_defs | $empty;
 pattern_def  = id regex { pattern_def } ;
 grammar      = "---" rules | $empty;
 rules        = rule { += rule } rules | $empty;
-rule         = id '=' body ';' { rule };
-body         = alt alts;
+rule         = id '=' alt alts ';' { rule };
 alts         = '|' alt { += alt } alts | $empty;
 alt          = rhs rhses { alt };
 rhses        = rhs { += rhs } rhses | $empty;
@@ -57,18 +56,28 @@ enum gram_symbol {
     GRAMMAR_NT,
     RULES_NT,
     RULE_NT,
-    BODY_NT,
     ALTS_NT,
     ALT_NT,
     RHSES_NT,
-    RHS_NT
+    RHS_NT,
 
     // actions
+    DO_PARSER_SPEC,
+    DO_APPEND_PATTERN_DEF,
+    DO_PATTERN_DEF,
+    DO_APPEND_RULE,
+    DO_RULE,
+    DO_ALT,
+    DO_APPEND_ALT,
+    DO_APPEND_RHS,
+    DO_ID_RHS,
+    DO_LIT_RHS,
+    DO_LIT_RHS,
+    DO_EMPTY_RHS
 };
 
 #define NUM_TERMINALS (COMMENT_T + 1)
 #define NUM_NONTERMINALS (RHS_NT + 1 - NUM_TERMINALS)
-#define NUM_SYMBOLS (RHS_NT + 1)
 
 struct gram_loc {
     int line;

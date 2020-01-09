@@ -4,14 +4,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-struct grammar {
-    struct token_def *token_defs;
+struct parser_spec {
+    struct pattern_def *pattern_defs;
     struct rule *rules;
 };
 
-struct token_def {
-    struct token_def *next;
-    char *id;
+struct pattern_def {
+    struct pattern_def *next;
+    char *name;
     char *regex;
 };
 
@@ -27,8 +27,8 @@ struct alt {
 };
 
 enum rhs_type {
-    TERM,
-    NONTERM,
+    ID,
+    LITERAL,
     EMPTY
 };
 

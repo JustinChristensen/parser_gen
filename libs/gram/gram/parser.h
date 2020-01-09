@@ -3,44 +3,44 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <regex/dfa.h>
 
 /*
-nl            /\n/
 alpha         /[A-Za-z_]/
 alnum         /{alpha}|[0-9]/
 id            /{alpha}{alnum}* /
 char          /'{alnum}+'/
 string        /"{alnum}+"/
-literal       /({char}|{string})/
 symbol        /({identifier}|{literal})/
-expression    /\/{non-nl}\//
+regex         /\/{non-nl}\//
 comment       /\/\/.*{nl}/
 
 ---
-grammar      = header "---" nl rules eof;
-header       = token_defs nl | $empty;
-token_defs   = token_def token_defs | $empty;
-token_def    = id expression nl;
-rules        = rule rules | $empty;
-lhs          = id;
-rule         = lhs '=' bodies ';';
-bodies       = alt alts;
-alts         = '|' alt alts | $empty;
-alt          = rhs rhses;
-rhses        = rhs rhses | $empty;
-rhs          = id | literal | "$empty";
+parser_spec  = pattern_defs grammar eof;
+pattern_defs = pattern_def pattern_defs | $empty;
+pattern_def  = id regex { pattern_def } ;
+grammar      = "---" rules | $empty;
+rules        = rule { += rule } rules | $empty;
+rule         = id '=' body ';' { rule };
+body         = alt alts;
+alts         = '|' alt { += alt } alts | $empty;
+alt          = rhs rhses { alt };
+rhses        = rhs { += rhs } rhses | $empty;
+rhs          = id { id_rhs(lexeme) }
+             | char { lit_rhs(lexeme) }
+             | string { lit_rhs(lexeme) }
+             | "$empty" { empty };
 
 */
 
 enum gram_symbol {
-    NOT_REC,
+    NIL,
 
     // terminals
     EOF_T,
     ID_T,
     REGEX_T,
-    NEWLINE_T,
     SECTION_T,
     ASSIGN_T,
     ALT_T,
@@ -51,13 +51,13 @@ enum gram_symbol {
     COMMENT_T,
 
     // non-terminals
+    PARSER_SPEC_NT,
+    PATTERN_DEFS_NT,
+    PATTERN_DEF_NT,
     GRAMMAR_NT,
-    HEADER_NT,
-    TOKEN_DEFS_NT,
-    TOKEN_DEF_NT,
     RULES_NT,
     RULE_NT,
-    BODIES_NT,
+    BODY_NT,
     ALTS_NT,
     ALT_NT,
     RHSES_NT,
@@ -65,6 +65,10 @@ enum gram_symbol {
 
     // actions
 };
+
+#define NUM_TERMINALS (COMMENT_T + 1)
+#define NUM_NONTERMINALS (RHS_NT + 1 - NUM_TERMINALS)
+#define NUM_SYMBOLS (RHS_NT + 1)
 
 struct gram_loc {
     int line;
@@ -103,25 +107,36 @@ struct gram_parse_context {
 
 union gram_result {
     void *ast;
+    char *id;
+    char *lit;
+    struct {
+        char *id;
+        char *regex;
+    } pdef;
 };
+
+static const union gram_result NULL_RESULT = { NULL };
 
 struct gram_scan_context gram_scan_context(char *input);
 struct gram_parse_context gram_parse_context(char *input, void *result_context);
-struct gram_parse_error has_parse_error(struct gram_parse_context *context);
+struct gram_parse_error gram_parse_error();
+void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context);
 bool has_parse_error(struct gram_parse_context *context);
 bool peek(enum gram_symbol expected, struct gram_parse_context *context);
 bool expect(enum gram_symbol expected, struct gram_parse_context *context);
 void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context);
+union gram_result result(struct gram_parse_context *context);
+bool parse_parser_spec(struct gram_parse_context *context);
+bool parse_pattern_defs(struct gram_parse_context *context);
+bool parse_pattern_def(struct gram_parse_context *context);
 bool parse_grammar(struct gram_parse_context *context);
-bool parse_header(struct gram_parse_context *context);
-bool parse_token_defs(struct gram_parse_context *context);
-bool parse_token_def(struct gram_parse_context *context);
 bool parse_rules(struct gram_parse_context *context);
-bool parse_lhs(struct gram_parse_context *context);
 bool parse_rule(struct gram_parse_context *context);
+bool parse_bodies(struct gram_parse_context *context);
+bool parse_alt(struct gram_parse_context *context);
 bool parse_alts(struct gram_parse_context *context);
 bool parse_rhses(struct gram_parse_context *context);
 bool parse_rhs(struct gram_parse_context *context);
-void generate_parser(FILE *handle, struct gram_parse_context *context);
+void generate_lr_parser(FILE *handle, struct gram_parse_context *context);
 
 #endif // GRAM_PARSER_H_

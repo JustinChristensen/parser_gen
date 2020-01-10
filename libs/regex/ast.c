@@ -5,16 +5,16 @@
 #include "regex/result_types.h"
 
 void (*expr_actions[NUM_ACTIONS])(void *context, union rval lval) = {
-    [DAI(DO_REGEX)] =    ACTION noop_expr,
-    [DAI(DO_EMPTY)] =    ACTION do_empty_expr,
-    [DAI(DO_ALT)] =      ACTION do_alt_expr,
-    [DAI(DO_CAT)] =      ACTION do_cat_expr,
-    [DAI(DO_SUB)] =      ACTION do_sub_expr,
-    [DAI(DO_DOTALL)] =   ACTION do_dotall_expr,
-    [DAI(DO_SYMBOL)] =   ACTION do_symbol_expr,
-    [DAI(DO_STAR)] =     ACTION do_star_expr,
-    [DAI(DO_PLUS)] =     ACTION do_plus_expr,
-    [DAI(DO_OPTIONAL)] = ACTION do_optional_expr
+    [AI(DO_REGEX)] =    ACTION noop_expr,
+    [AI(DO_EMPTY)] =    ACTION do_empty_expr,
+    [AI(DO_ALT)] =      ACTION do_alt_expr,
+    [AI(DO_CAT)] =      ACTION do_cat_expr,
+    [AI(DO_SUB)] =      ACTION do_sub_expr,
+    [AI(DO_DOTALL)] =   ACTION do_dotall_expr,
+    [AI(DO_SYMBOL)] =   ACTION do_symbol_expr,
+    [AI(DO_STAR)] =     ACTION do_star_expr,
+    [AI(DO_PLUS)] =     ACTION do_plus_expr,
+    [AI(DO_OPTIONAL)] = ACTION do_optional_expr
 };
 
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {

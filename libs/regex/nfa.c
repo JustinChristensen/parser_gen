@@ -12,16 +12,16 @@
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
 void (*nfa_actions[NUM_ACTIONS])(void *context, union rval lval) = {
-    [DAI(DO_REGEX)] =    ACTION noop_nfa,
-    [DAI(DO_EMPTY)] =    ACTION do_empty_nfa,
-    [DAI(DO_ALT)] =      ACTION do_alt_nfa,
-    [DAI(DO_CAT)] =      ACTION do_cat_nfa,
-    [DAI(DO_SUB)] =      ACTION noop_nfa,
-    [DAI(DO_DOTALL)] =   ACTION do_dotall_nfa,
-    [DAI(DO_SYMBOL)] =   ACTION do_symbol_nfa,
-    [DAI(DO_STAR)] =     ACTION do_star_nfa,
-    [DAI(DO_PLUS)] =     ACTION do_plus_nfa,
-    [DAI(DO_OPTIONAL)] = ACTION do_optional_nfa
+    [AI(DO_REGEX)] =    ACTION noop_nfa,
+    [AI(DO_EMPTY)] =    ACTION do_empty_nfa,
+    [AI(DO_ALT)] =      ACTION do_alt_nfa,
+    [AI(DO_CAT)] =      ACTION do_cat_nfa,
+    [AI(DO_SUB)] =      ACTION noop_nfa,
+    [AI(DO_DOTALL)] =   ACTION do_dotall_nfa,
+    [AI(DO_SYMBOL)] =   ACTION do_symbol_nfa,
+    [AI(DO_STAR)] =     ACTION do_star_nfa,
+    [AI(DO_PLUS)] =     ACTION do_plus_nfa,
+    [AI(DO_OPTIONAL)] = ACTION do_optional_nfa
 };
 
 struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {

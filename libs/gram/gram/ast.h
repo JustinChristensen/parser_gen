@@ -41,10 +41,11 @@ struct rhs {
 
 struct gram_ast_context {
     void *ast;
-    struct alloc *alloc;
+    struct balloc *alloc;
 };
 
-struct gram_ast_context gram_ast_context(void *ast, struct alloc *alloc);
+struct gram_ast_context gram_ast_context(void *ast, struct balloc *alloc);
+void set_ast(void *ast, struct gram_ast_context *context);
 
 struct parser_spec parser_spec(struct pattern_def *pattern_defs, struct rule *rules);
 struct pattern_def pattern_def(char *id, char *regex, struct pattern_def *next);
@@ -55,16 +56,17 @@ struct rhs lit_rhs(char *sym, struct rhs *next);
 struct rhs empty_rhs(struct rhs *next);
 
 void do_parser_spec(union gram_result result, struct gram_ast_context *context);
-void do_append_pattern_def(union gram_result result, struct gram_ast_context *context);
 void do_pattern_def(union gram_result result, struct gram_ast_context *context);
-void do_append_rule(union gram_result result, struct gram_ast_context *context);
+void do_append_pattern_def(union gram_result result, struct gram_ast_context *context);
 void do_rule(union gram_result result, struct gram_ast_context *context);
+void do_append_rule(union gram_result result, struct gram_ast_context *context);
 void do_alt(union gram_result result, struct gram_ast_context *context);
 void do_append_alt(union gram_result result, struct gram_ast_context *context);
-void do_append_rhs(union gram_result result, struct gram_ast_context *context);
 void do_id_rhs(union gram_result result, struct gram_ast_context *context);
 void do_lit_rhs(union gram_result result, struct gram_ast_context *context);
 void do_empty_rhs(union gram_result result, struct gram_ast_context *context);
+void do_append_rhs(union gram_result result, struct gram_ast_context *context);
+void do_head(union gram_result result, struct gram_ast_context *context);
 
 void (**gram_ast_actions)(union gram_result result, void *context);
 

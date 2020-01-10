@@ -73,7 +73,7 @@ enum symbol_type {
 // non-terminal index
 #define NTI(sym) (sym - NUM_TERMINALS)
 // do action index
-#define DAI(sym) (sym - NUM_NONTERMINALS)
+#define AI(sym) (sym - NUM_NONTERMINALS)
 
 enum gram_production {
     ERROR_P,

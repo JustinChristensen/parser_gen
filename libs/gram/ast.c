@@ -2,19 +2,34 @@
 
 #define ACTION (void (*)(union gram_result, void *))
 void (*gram_ast_actions[])(union gram_result result, void *context) = {
-    [DO_PARSER_SPEC] = ACTION do_parser_spec,
-    [DO_APPEND_PATTERN_DEF] = ACTION do_append_pattern_def,
-    [DO_PATTERN_DEF] = ACTION do_pattern_def,
-    [DO_APPEND_RULE] = ACTION do_append_rule,
-    [DO_RULE] = ACTION do_rule,
-    [DO_ALT] = ACTION do_alt,
-    [DO_APPEND_ALT] = ACTION do_append_alt,
-    [DO_APPEND_RHS] = ACTION do_append_rhs,
-    [DO_ID_RHS] = ACTION do_id_rhs,
-    [DO_LIT_RHS] = ACTION do_lit_rhs,
-    [DO_EMPTY_RHS] = ACTION do_empty_rhs
+    [AI(DO_PARSER_SPEC)] = ACTION do_parser_spec,
+    [AI(DO_PATTERN_DEF)] = ACTION do_pattern_def,
+    [AI(DO_APPEND_PATTERN_DEF)] = ACTION do_append_pattern_def,
+    [AI(DO_PATTERN_DEFS_HEAD)] = ACTION do_head,
+    [AI(DO_RULE)] = ACTION do_rule,
+    [AI(DO_APPEND_RULE)] = ACTION do_append_rule,
+    [AI(DO_RULES_HEAD)] = ACTION do_head,
+    [AI(DO_ALT)] = ACTION do_alt,
+    [AI(DO_APPEND_ALT)] = ACTION do_append_alt,
+    [AI(DO_ALTS_HEAD)] = ACTION do_head,
+    [AI(DO_ID_RHS)] = ACTION do_id_rhs,
+    [AI(DO_LIT_RHS)] = ACTION do_lit_rhs,
+    [AI(DO_EMPTY_RHS)] = ACTION do_empty_rhs,
+    [AI(DO_APPEND_RHS)] = ACTION do_append_rhs
+    [AI(DO_RHSES_HEAD)] = ACTION do_head
 };
 #undef ACTION
+
+struct gram_ast_context gram_ast_context(void *ast, struct balloc *alloc) {
+    return (struct gram_ast_context) {
+        .ast = ast,
+        .alloc = alloc
+    };
+}
+
+void set_ast(void *ast, struct gram_ast_context *context) {
+    context->ast = ast;
+}
 
 struct parser_spec parser_spec(struct pattern_def *pattern_defs, struct rule *rules) {
     return (struct parser_spec) { pattern_defs, rules };
@@ -47,25 +62,22 @@ struct rhs empty_rhs(struct rhs *next) {
 void do_parser_spec(union gram_result result, struct gram_ast_context *context) {
 }
 
-void do_append_pattern_def(union gram_result result, struct gram_ast_context *context) {
-}
-
 void do_pattern_def(union gram_result result, struct gram_ast_context *context) {
 }
 
-void do_append_rule(union gram_result result, struct gram_ast_context *context) {
+void do_append_pattern_def(union gram_result result, struct gram_ast_context *context) {
 }
 
 void do_rule(union gram_result result, struct gram_ast_context *context) {
+}
+
+void do_append_rule(union gram_result result, struct gram_ast_context *context) {
 }
 
 void do_alt(union gram_result result, struct gram_ast_context *context) {
 }
 
 void do_append_alt(union gram_result result, struct gram_ast_context *context) {
-}
-
-void do_append_rhs(union gram_result result, struct gram_ast_context *context) {o
 }
 
 void do_id_rhs(union gram_result result, struct gram_ast_context *context) {
@@ -77,5 +89,11 @@ void do_lit_rhs(union gram_result result, struct gram_ast_context *context) {
 void do_empty_rhs(union gram_result result, struct gram_ast_context *context) {
 }
 
+void do_append_rhs(union gram_result result, struct gram_ast_context *context) {o
+}
+
+void do_head(union gram_result result, struct gram_ast_context *context) {
+    set_ast(result.ast, context);
+}
 
 

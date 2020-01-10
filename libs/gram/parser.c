@@ -23,7 +23,7 @@ static enum gram_symbol *first_sets[] {
     [GRAMMAR_NT]      = FIRST { SECTION_T, EOF_T, 0 },
     [RULES_NT]        = FIRST { ID_T, EOF_T, 0  },
     [RULE_NT]         = FIRST { ID_T, 0 },
-    [ALTS_NT]         = FIRST { ALT_T, SEMICOLON_T, 0  },
+    [ALTS_NT]         = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, 0  },
     [ALT_NT]          = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, 0 },
     [RHSES_NT]        = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, ALT_T, SEMICOLON_T, 0 },
     [RHS_NT]          = FIRST { ID_T, CHAR_T, STRING_T, EMPTY_T, 0 }
@@ -46,35 +46,74 @@ static union gram_result pdef_result(char *id, char *regex) {
     return (union gram_result) { .pdef = { id, regex } };
 }
 
-struct gram_scan_context gram_scan_context(char *input) {
+struct gram_scan_context gram_scan_context(char *input, struct dfa_context *re_context) {
+    return (struct gram_scan_context) {
+        .input = input,
+        .re_context = re_context
+    };
 }
 
-struct gram_parse_context gram_parse_context(char *input, void *result_context) {
+struct gram_parse_context gram_parse_context(
+    void *result_context,
+    void (**actions)(union gram_result result, void *result_context),
+    union gram_result (*get_result)(void *result_context)
+) {
+    // TODO: pass this to parser? otherwise the scanner will drop it
     struct dfa_context *regex_context = dfa_context(PATTERNS {
-        // TODO: eof, alpha, alnum, char, string
         { ID_T,        "id",        "{alpha}{alnum}*" },
         { REGEX_T,     "regex",     "\/[^/\n]*\/"     },
         { SECTION_T,   "section",   "---"             },
         { ASSIGN_T,    "assign",    "="               },
         { ALT_T,       "alt",       "|"               },
         { SEMICOLON_T, "semicolon", ";"               },
-        { EMPTY_T,     "empty",     "\$empty"         },
+        { EMPTY_T,     "empty",     "empty"           },
         { COMMENT_T,   "comment",   "\/\/.*\n"        },
         END_PATTERNS
     });
 
-    return (gram_parse_context) {
+    return (struct gram_parse_context) {
         .result_context = result_context,
-        .scan_context = gram_scan_context(input, regex_context)
+        .actions = actions,
+        .get_result = get_result,
+        .scan_context = gram_scan_context(NULL, regex_context)
     };
 }
 
-// bool peek(enum gram_symbol expected, struct gram_parse_context *context);
-// bool expect(enum gram_symbol expected, struct gram_parse_context *context);
-// void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context);
-// union gram_result result(struct gram_parse_context *context);
+enum gram_symbol lookahead(struct gram_parse_context *context) {
+    return context->token.type;
+}
 
-bool parse_parser_spec(struct gram_parse_context *context) {
+bool peek(enum gram_symbol expected, struct gram_parse_context *context) {
+    return lookahead(context) == expected;
+}
+
+bool expect(enum gram_symbol expected, struct gram_parse_context *context) {
+    if (peek(expected, context)) {
+        context->scan_context = scan(context->scan_context);
+        context->token = token(context->scan_context);
+        return true;
+    }
+
+    set_parse_error(expected, context);
+
+    return false;
+}
+
+void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context) {
+    context->actions[AI(action)](val, context->result_context);
+}
+
+union gram_result result(struct gram_parse_context *context) {
+    return context->get_result(context->result_context);
+}
+
+void start_scanning(char *input, struct gram_parse_context *context) {
+    context->scan_context = scan(set_input(input, context->scan_context));
+}
+
+bool parse_parser_spec(char *input, struct gram_parse_context *context) {
+    start_scanning(input, context);
+
     if (parse_pattern_defs(context)) {
         union gram_result pdefs = result(context);
 
@@ -91,16 +130,20 @@ bool parse_pattern_defs(struct gram_parse_context *context) {
     if (peek(SECTION_T, context) || peek(EOF_T, context)) {
         return true; // ε
     } else if (parse_pattern_def(context)) {
+        union gram_result head = result(context);
+
         while (true) {
-            union gram_result last_pdef = result(context);
+            union gram_result prev = result(context);
 
             if (peek(ID_T, context) && parse_pattern_def(context)) {
-                do_action(DO_APPEND_PATTERN_DEF, last_pdef, context);
+                do_action(DO_APPEND_PATTERN_DEF, prev, context);
                 continue;
             }
 
             break;
         }
+
+        do_action(DO_PATTERN_DEFS_HEAD, head, context);
 
         return true;
     }
@@ -141,16 +184,20 @@ bool parse_rules(struct gram_parse_context *context) {
     if (peek(EOF_T, context)) {
         return true; // ε
     } else if (parse_rule(context)) {
+        union gram_result head = result(context);
+
         while (true) {
-            union gram_result last_rule = result(context);
+            union gram_result prev = result(context);
 
             if (peek(ID_T, context) && parse_rule(context)) {
-                do_action(DO_APPEND_RULE, last_rule, context);
+                do_action(DO_APPEND_RULE, prev, context);
                 continue;
             }
 
             break;
         }
+
+        do_action(DO_RULES_HEAD, head, context);
 
         return true;
     }
@@ -165,7 +212,6 @@ bool parse_rule(struct gram_parse_context *context) {
 
     if (expect(ID_T, context) &&
         expect(ALT_T, context) &&
-        parse_alt(context) &&
         parse_alts(context) &&
         expect(SEMICOLON_T, context)) {
         do_action(DO_RULE, id, context);
@@ -177,30 +223,43 @@ bool parse_rule(struct gram_parse_context *context) {
     return false;
 }
 
-bool parse_alt(struct gram_parse_context *context) {
-    if (parse_rhs(context) && parse_rhses(context)) {
-        do_action(DO_ALT, NULL_RESULT, context);
+bool parse_alts(struct gram_parse_context *context) {
+    if (parse_alt(context)) {
+        union gram_result head = result(context);
+
+        while (true) {
+            union gram_result prev = result(context);
+
+            if (peek(ALT_T, context) && expect(ALT_T, context) && parse_alt(context)) {
+                do_action(DO_APPEND_ALT, prev, context);
+                continue;
+            }
+
+            break;
+        }
+
+        do_action(DO_ALTS_HEAD, head, context);
+
         return true;
     }
 
-    set_parse_error(ALT_NT, context);
+    set_parse_error(ALTS_NT, context);
 
     return false;
 }
 
-bool parse_alts(struct gram_parse_context *context) {
-    if (peek(SEMICOLON_T, context)) {
-        return true;  // ε
-    } else if (expect(ALT_T, context)) {
-        union gram_result last_alt = result(context);
+bool parse_alt(struct gram_parse_context *context) {
+    if (parse_rhs(context)) {
+        union gram_result head = result(context);
 
-        if (parse_alt(context)) {
-            do_action(DO_APPEND_ALT, last_alt, context);
-            if (parse_alts(context)) return true;
+        if (parse_rhses(context)) {
+            do_action(DO_RHSES_HEAD, head, context);
+            do_action(DO_ALT, NULL_RESULT, context);
+            return true;
         }
     }
 
-    set_parse_error(ALTS_NT, context);
+    set_parse_error(ALT_NT, context);
 
     return false;
 }
@@ -209,10 +268,10 @@ bool parse_rhses(struct gram_parse_context *context) {
     if (peek(ALT_T, context) || peek(SEMICOLON_T, context)) {
         return true; // ε
     } else {
-        union gram_result last_rhs = result(context);
+        union gram_result prev = result(context);
 
         if (parse_rhs(context)) {
-            do_action(DO_APPEND_RHS, last_rhs, context);
+            do_action(DO_APPEND_RHS, prev, context);
             if (parse_rhses(context)) return true;
         }
     }

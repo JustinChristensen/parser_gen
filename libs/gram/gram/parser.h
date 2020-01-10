@@ -31,6 +31,14 @@ rhs          = id { id_rhs(lexeme) }
              | string { lit_rhs(lexeme) }
              | "$empty" { empty };
 
+Note:
+parse_pattern_defs and parse_rules could be made recursive by making a separate routine
+    for the head of the list that doesn't try to append the (non-existant) previous term, or
+    by ensuring that pattern_def precedeces any place where pattern_defs is used in the above grammar
+
+parse_alts and parse_rhses could be made iterative, and that might reduce the need for checking
+    if the current token is in the follow set, i.e. ALT_T, SEMICOLON_T
+
 */
 
 enum gram_symbol {
@@ -72,7 +80,6 @@ enum gram_symbol {
     DO_APPEND_RHS,
     DO_ID_RHS,
     DO_LIT_RHS,
-    DO_LIT_RHS,
     DO_EMPTY_RHS
 };
 
@@ -103,17 +110,6 @@ struct gram_parse_error {
     enum gram_symbol *expected;
 };
 
-struct gram_ast_context {
-    void *ast;
-};
-
-struct gram_parse_context {
-    void *result_context;
-    struct gram_scan_context *scan_context;
-    bool has_error;
-    struct gram_parse_error error;
-};
-
 union gram_result {
     void *ast;
     char *id;
@@ -126,8 +122,20 @@ union gram_result {
 
 static const union gram_result NULL_RESULT = { NULL };
 
+struct gram_parse_context {
+    void *result_context;
+    void (**actions)(union gram_result result, void *result_context);
+    struct gram_scan_context *scan_context;
+    bool has_error;
+    struct gram_parse_error error;
+};
+
 struct gram_scan_context gram_scan_context(char *input);
-struct gram_parse_context gram_parse_context(char *input, void *result_context);
+struct gram_parse_context gram_parse_context(
+    char *input,
+    void *result_context,
+    void (**actions)(union gram_result result, void *result_context)
+);
 struct gram_parse_error gram_parse_error();
 void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context);
 bool has_parse_error(struct gram_parse_context *context);

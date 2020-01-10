@@ -89,7 +89,7 @@ bool parse_parser_spec(struct gram_parse_context *context) {
 
 bool parse_pattern_defs(struct gram_parse_context *context) {
     if (peek(SECTION_T, context) || peek(EOF_T, context)) {
-        return true;
+        return true; // ε
     } else if (parse_pattern_def(context)) {
         while (true) {
             union gram_result last_pdef = result(context);
@@ -127,7 +127,7 @@ bool parse_pattern_def(struct gram_parse_context *context) {
 
 bool parse_grammar(struct gram_parse_context *context) {
     if (peek(EOF_T, context)) {
-        return true;
+        return true; // ε
     } else if (expect(SECTION_T, context) && parse_rules(context)) {
         return true;
     }
@@ -139,7 +139,7 @@ bool parse_grammar(struct gram_parse_context *context) {
 
 bool parse_rules(struct gram_parse_context *context) {
     if (peek(EOF_T, context)) {
-        return true;
+        return true; // ε
     } else if (parse_rule(context)) {
         while (true) {
             union gram_result last_rule = result(context);
@@ -167,7 +167,7 @@ bool parse_rule(struct gram_parse_context *context) {
         expect(ALT_T, context) &&
         parse_alt(context) &&
         parse_alts(context) &&
-        expect(SEMICOLON_T, context))
+        expect(SEMICOLON_T, context)) {
         do_action(DO_RULE, id, context);
         return true;
     }
@@ -190,7 +190,7 @@ bool parse_alt(struct gram_parse_context *context) {
 
 bool parse_alts(struct gram_parse_context *context) {
     if (peek(SEMICOLON_T, context)) {
-        return true;
+        return true;  // ε
     } else if (expect(ALT_T, context)) {
         union gram_result last_alt = result(context);
 
@@ -207,7 +207,7 @@ bool parse_alts(struct gram_parse_context *context) {
 
 bool parse_rhses(struct gram_parse_context *context) {
     if (peek(ALT_T, context) || peek(SEMICOLON_T, context)) {
-        return true;
+        return true; // ε
     } else {
         union gram_result last_rhs = result(context);
 

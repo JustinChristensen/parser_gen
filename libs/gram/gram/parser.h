@@ -16,20 +16,22 @@ symbol        /({identifier}|{literal})/
 regex         /\/{non-nl}\//
 comment       /\/\/.*{nl}/
 
-parser_spec  = pattern_defs grammar eof;
-pattern_defs = pattern_def { += pattern_def } pattern_defs | $empty;
-pattern_def  = id regex { pattern_def } ;
-grammar      = "---" rules | $empty;
-rules        = rule { += rule } rules | $empty;
-rule         = id '=' alts ';' { rule };
-alts         = alt alts_tail;
-alts_tail    = '|' alt { += alt } alts_tail | $empty;
-alt          = rhs rhses { alt };
-rhses        = rhs { += rhs } rhses | $empty;
-rhs          = id { id_rhs(lexeme) }
-             | char { lit_rhs(lexeme) }
-             | string { lit_rhs(lexeme) }
-             | "$empty" { empty };
+parser_spec       = pattern_defs_head grammar eof;
+pattern_defs_head = pattern_def pattern_defs { pattern_defs_head } | $empty;
+pattern_defs      = pattern_def { += pattern_def } pattern_defs | $empty;
+pattern_def       = id regex { pattern_def };
+grammar           = "---" rules_head | $empty;
+rules_head        = rule rules { rules_head } | $empty;
+rules             = rule { += rule } rules | $empty;
+rule              = id '=' alts_head ';' { rule };
+alts_head         = alt alts { alts_head };
+alts              = '|' alt { += alt } alts | $empty;
+alt               = rhs rhses { rhses_head } { alt };
+rhses             = rhs { += rhs } rhses | $empty;
+rhs               = id { id_rhs(lexeme) }
+                  | char { lit_rhs(lexeme) }
+                  | string { lit_rhs(lexeme) }
+                  | "$empty" { empty };
 */
 
 enum gram_symbol {
@@ -50,12 +52,14 @@ enum gram_symbol {
 
     // non-terminals
     PARSER_SPEC_NT,
+    PATTERN_DEFS_HEAD_NT,
     PATTERN_DEFS_NT,
     PATTERN_DEF_NT,
     GRAMMAR_NT,
+    RULES_HEAD_NT,
     RULES_NT,
     RULE_NT,
-    BODIES_NT,
+    ALTS_HEAD_NT,
     ALTS_NT,
     ALT_NT,
     RHSES_NT,
@@ -107,6 +111,10 @@ struct gram_parse_error {
     enum gram_symbol *expected;
 };
 
+#define GRAM_PARSE_ERROR_FMT_START "| Parse Error\n|\n| Got: %s\n| Expected: "
+#define GRAM_PARSE_ERROR_FMT_LOC "\n|\n| At: "
+#define GRAM_PARSE_ERROR_FMT_END "\n|\n"
+
 union gram_result {
     void *ast;
     char *id;
@@ -141,21 +149,26 @@ struct gram_parse_context gram_parse_context(
 struct gram_parse_error gram_parse_error();
 void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context);
 bool has_parse_error(struct gram_parse_context *context);
+void print_parse_error(struct gram_parse_error *error);
 enum gram_symbol lookahead(struct gram_parse_context *context);
+struct gram_loc location(struct gram_parse_context *context);
+char *lexeme(struct gram_parse_context *context);
 bool peek(enum gram_symbol expected, struct gram_parse_context *context);
 bool expect(enum gram_symbol expected, struct gram_parse_context *context);
 void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context);
 union gram_result result(struct gram_parse_context *context);
 void start_scanning(char *input, struct gram_parse_context *context);
 bool parse_parser_spec(char *input, struct gram_parse_context *context);
+bool parse_pattern_defs_head(struct gram_parse_context *context);
 bool parse_pattern_defs(struct gram_parse_context *context);
 bool parse_pattern_def(struct gram_parse_context *context);
 bool parse_grammar(struct gram_parse_context *context);
+bool parse_rules_head(struct gram_parse_context *context);
 bool parse_rules(struct gram_parse_context *context);
 bool parse_rule(struct gram_parse_context *context);
-bool parse_bodies(struct gram_parse_context *context);
-bool parse_alt(struct gram_parse_context *context);
+bool parse_alts_head(struct gram_parse_context *context);
 bool parse_alts(struct gram_parse_context *context);
+bool parse_alt(struct gram_parse_context *context);
 bool parse_rhses(struct gram_parse_context *context);
 bool parse_rhs(struct gram_parse_context *context);
 void generate_lr_parser(FILE *handle, struct gram_parse_context *context);

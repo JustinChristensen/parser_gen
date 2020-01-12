@@ -3,7 +3,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <base/alloc.h>
+#include <base/array.h>
+
+#define AST_START_SIZE 13
 
 struct parser_spec {
     struct pattern_def *pattern_defs;
@@ -39,13 +41,21 @@ struct rhs {
     struct rhs *next;
 };
 
-struct gram_ast_context {
-    void *ast;
-    struct balloc *alloc;
+union ast_type {
+    struct parser_spec *s;
+    struct pattern_def *pd;
+    struct rule *r;
+    struct alt *a;
+    struct rhs *rh;
 };
 
-struct gram_ast_context gram_ast_context(void *ast, struct balloc *alloc);
-void set_ast(void *ast, struct gram_ast_context *context);
+struct gram_ast_context {
+    void *ast;
+    struct array *nodes;
+};
+
+struct gram_ast_context gram_ast_context();
+void free_ast_context(struct gram_ast_context *context);
 
 struct parser_spec parser_spec(struct pattern_def *pattern_defs, struct rule *rules);
 struct pattern_def pattern_def(char *id, char *regex, struct pattern_def *next);

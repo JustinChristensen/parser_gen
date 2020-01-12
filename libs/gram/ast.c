@@ -1,33 +1,41 @@
+#include <base/array.h>
+#include "gram/parser.h"
 #include "gram/ast.h"
 
 #define ACTION (void (*)(union gram_result, void *))
 void (*gram_ast_actions[])(union gram_result result, void *context) = {
     [AI(DO_PARSER_SPEC)] = ACTION do_parser_spec,
+
     [AI(DO_PATTERN_DEF)] = ACTION do_pattern_def,
     [AI(DO_APPEND_PATTERN_DEF)] = ACTION do_append_pattern_def,
     [AI(DO_PATTERN_DEFS_HEAD)] = ACTION do_head,
+
     [AI(DO_RULE)] = ACTION do_rule,
     [AI(DO_APPEND_RULE)] = ACTION do_append_rule,
     [AI(DO_RULES_HEAD)] = ACTION do_head,
+
     [AI(DO_ALT)] = ACTION do_alt,
     [AI(DO_APPEND_ALT)] = ACTION do_append_alt,
     [AI(DO_ALTS_HEAD)] = ACTION do_head,
+
     [AI(DO_ID_RHS)] = ACTION do_id_rhs,
     [AI(DO_LIT_RHS)] = ACTION do_lit_rhs,
     [AI(DO_EMPTY_RHS)] = ACTION do_empty_rhs,
-    [AI(DO_APPEND_RHS)] = ACTION do_append_rhs
+    [AI(DO_APPEND_RHS)] = ACTION do_append_rhs,
     [AI(DO_RHSES_HEAD)] = ACTION do_head
 };
 #undef ACTION
 
-struct gram_ast_context gram_ast_context(void *ast, struct balloc *alloc) {
-    return (struct gram_ast_context) {
-        .ast = ast,
-        .alloc = alloc
-    };
+struct gram_ast_context gram_ast_context() {
+    struct array *nodes = init_array(sizeof (union ast_type), AST_START_SIZE, 0, 0);
+    return (struct gram_ast_context) { NULL, nodes };
 }
 
-void set_ast(void *ast, struct gram_ast_context *context) {
+void free_ast_context(struct gram_ast_context *context) {
+    free_array(context->nodes);
+}
+
+static void set_ast(void *ast, struct gram_ast_context *context) {
     context->ast = ast;
 }
 

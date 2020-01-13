@@ -85,28 +85,23 @@ enum gram_symbol {
 
 #define NUM_TERMINALS (COMMENT_T + 1)
 #define NUM_NONTERMINALS (RHS_NT + 1 - NUM_TERMINALS)
-
-struct gram_loc {
-    int line;
-    int col;
-};
+#define AI(sym) (sym - NUM_NONTERMINALS)
 
 struct gram_token {
     enum gram_symbol type;
-    struct gram_loc loc;
+    struct dfa_loc loc;
     char *lexeme;
-    size_t lxlen;
 };
 
 struct gram_scan_context {
     struct dfa_context *re_context;
     char *input;
-    struct gram_loc input_loc;
+    struct dfa_loc input_loc;
     struct gram_token token;
 };
 
 struct gram_parse_error {
-    struct gram_loc loc;
+    struct dfa_loc loc;
     enum gram_symbol actual;
     enum gram_symbol *expected;
 };
@@ -140,6 +135,7 @@ struct gram_parse_context {
 struct gram_scan_context gram_scan_context(char *input, struct dfa_context *re_context);
 struct gram_scan_context set_input(char *input, struct gram_scan_context context);
 struct gram_scan_context scan(struct gram_scan_context context);
+struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme);
 struct gram_token token(struct gram_scan_context context);
 struct gram_parse_context gram_parse_context(
     void *result_context,
@@ -153,6 +149,7 @@ void print_parse_error(struct gram_parse_error *error);
 enum gram_symbol lookahead(struct gram_parse_context *context);
 struct gram_loc location(struct gram_parse_context *context);
 char *lexeme(struct gram_parse_context *context);
+char *lexeme_for(enum gram_symbol sym);
 bool peek(enum gram_symbol expected, struct gram_parse_context *context);
 bool expect(enum gram_symbol expected, struct gram_parse_context *context);
 void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context);

@@ -52,9 +52,34 @@ static union gram_result pdef_result(char *id, char *regex) {
 
 struct gram_scan_context gram_scan_context(char *input, struct dfa_context *re_context) {
     return (struct gram_scan_context) {
+        .re_context = re_context,
         .input = input,
-        .re_context = re_context
+        .input_loc = gram_loc(0, 0)
     };
+}
+
+struct gram_scan_context set_input(char *input, struct gram_scan_context context) {
+    context.input = input;
+    return context;
+}
+
+struct gram_scan_context scan(struct gram_scan_context context) {
+    struct dfa_match match = dfa_match_state(context.input, context.input_loc);
+    enum gram_symbol sym = dfa_match(&match, context.re_context);
+    context.token = gram_token(sym,
+        dfa_match_loc(&match),
+        dfa_match_lexeme(&match));
+    context.input = dfa_match_input(&match);
+    context.input_loc = dfa_match_iloc(&match);
+    return context;
+}
+
+struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme) {
+    return (struct gram_token) { type, loc, lexeme };
+}
+
+struct gram_token token(struct gram_scan_context context) {
+    return context.token;
 }
 
 struct gram_parse_context gram_parse_context(
@@ -64,6 +89,7 @@ struct gram_parse_context gram_parse_context(
 ) {
     // TODO: pass this to parser? otherwise the scanner will drop it
     struct dfa_context *regex_context = dfa_context(PATTERNS {
+        RE_ALPHA(0), RE_ALNUM(0), RE_SPACE(0), RE_EOF(EOF_T),
         { ID_T,        "id",        "{alpha}{alnum}*" },
         { REGEX_T,     "regex",     "\/[^/\n]*\/"     },
         { SECTION_T,   "section",   "---"             },
@@ -99,7 +125,15 @@ bool has_parse_error(struct gram_parse_context *context) {
 void print_parse_error(struct gram_parse_error error) {
     enum gram_symbol *sym = error.expected;
     fprintf(stderr, GRAM_PARSE_ERROR_FMT_START, lexeme_for(error.actual));
-    // print expected
+    if (*sym) {
+        fprintf(stderr, "%s", lexeme_for(*sym));
+        sym++;
+        while (*sym)
+            fprintf(stderr, ", %s", lexeme_for(*sym)),
+            sym++;
+    }
+    fprintf(stderr, GRAM_PARSE_ERROR_FMT_LOC);
+    dfa_print_loc(stderr, error.loc);
     fprintf(stderr, GRAM_PARSE_ERROR_FMT_END);
 }
 
@@ -136,7 +170,7 @@ void do_action(enum gram_symbol action, union gram_result val, struct gram_parse
 }
 
 union gram_result result(struct gram_parse_context *context) {
-    return context->get_result(context->result_context);
+    return context->result(context->result_context);
 }
 
 void start_scanning(char *input, struct gram_parse_context *context) {

@@ -34,52 +34,30 @@ static enum gram_symbol *first_sets[] {
 };
 #undef FIRST
 
-static enum gram_symbol *first_set(enum gram_symbol sym) {
-    return first_sets[sym];
-}
+static union gram_result id_result(char *id)
+    { return (union gram_result) { .id = id }; }
+static union gram_result lit_result(char *lit)
+    { return (union gram_result) { .lit = lit }; }
+static union gram_result pdef_result(char *id, char *regex)
+    { return (union gram_result) { .pdef = { id, regex } }; }
 
-static union gram_result id_result(char *id) {
-    return (union gram_result) { .id = id };
-}
-
-static union gram_result lit_result(char *lit) {
-    return (union gram_result) { .lit = lit };
-}
-
-static union gram_result pdef_result(char *id, char *regex) {
-    return (union gram_result) { .pdef = { id, regex } };
-}
-
-struct gram_scan_context gram_scan_context(char *input, struct dfa_context *re_context) {
-    return (struct gram_scan_context) {
-        .re_context = re_context,
-        .input = input,
-        .input_loc = gram_loc(0, 0)
-    };
-}
-
-struct gram_scan_context set_input(char *input, struct gram_scan_context context) {
-    context.input = input;
-    return context;
-}
-
-struct gram_scan_context scan(struct gram_scan_context context) {
-    struct dfa_match match = dfa_match_state(context.input, context.input_loc);
-    enum gram_symbol sym = dfa_match(&match, context.re_context);
-    context.token = gram_token(sym,
-        dfa_match_loc(&match),
-        dfa_match_lexeme(&match));
-    context.input = dfa_match_input(&match);
-    context.input_loc = dfa_match_iloc(&match);
-    return context;
+struct gram_token scan(struct gram_parse_context *context) {
+    struct dfa_match *match = &context->match_state;
+    enum gram_symbol sym = dfa_match(match);
+    return gram_token(sym, dfa_match_loc(match), dfa_match_lexeme(match));
 }
 
 struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme) {
     return (struct gram_token) { type, loc, lexeme };
 }
 
-struct gram_token token(struct gram_scan_context context) {
-    return context.token;
+void free_token(struct gram_token *token) {
+    free(token->lexeme);
+    token->lexeme = NULL;
+}
+
+struct gram_token token(struct gram_parse_context *context) {
+    return context->token;
 }
 
 struct gram_parse_context gram_parse_context(
@@ -87,17 +65,15 @@ struct gram_parse_context gram_parse_context(
     void (**actions)(union gram_result result, void *result_context),
     union gram_result (*get_result)(void *result_context)
 ) {
-    // TODO: pass this to parser? otherwise the scanner will drop it
-    struct dfa_context *regex_context = dfa_context(PATTERNS {
+    static struct dfa_context scanner = dfa_context(PATTERNS {
         RE_ALPHA(0), RE_ALNUM(0), RE_SPACE(0), RE_EOF(EOF_T),
+        RE_REGEX(REGEX_T), RE_LINE_COMMENT(COMMENT_T),
         { ID_T,        "id",        "{alpha}{alnum}*" },
-        { REGEX_T,     "regex",     "\/[^/\n]*\/"     },
         { SECTION_T,   "section",   "---"             },
         { ASSIGN_T,    "assign",    "="               },
         { ALT_T,       "alt",       "|"               },
         { SEMICOLON_T, "semicolon", ";"               },
-        { EMPTY_T,     "empty",     "empty"           },
-        { COMMENT_T,   "comment",   "\/\/.*\n"        },
+        { EMPTY_T,     "empty",     "\$empty"         },
         END_PATTERNS
     });
 
@@ -105,8 +81,12 @@ struct gram_parse_context gram_parse_context(
         .result_context = result_context,
         .actions = actions,
         .get_result = get_result,
-        .scan_context = gram_scan_context(NULL, regex_context)
+        .scanner = scanner
     };
+}
+
+static enum gram_symbol *first_set(enum gram_symbol sym) {
+    return first_sets[sym];
 }
 
 void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context) {
@@ -155,8 +135,8 @@ bool peek(enum gram_symbol expected, struct gram_parse_context *context) {
 
 bool expect(enum gram_symbol expected, struct gram_parse_context *context) {
     if (peek(expected, context)) {
-        context->scan_context = scan(context->scan_context);
-        context->token = token(context->scan_context);
+        free_token(&context->token);
+        context->token = scan(context);
         return true;
     }
 
@@ -174,7 +154,8 @@ union gram_result result(struct gram_parse_context *context) {
 }
 
 void start_scanning(char *input, struct gram_parse_context *context) {
-    context->scan_context = scan(set_input(input, context->scan_context));
+    context->match_state = dfa_match_state(input, dfa_loc(0, 0), context->scanner);
+    context->token = scan(context);
     context->has_error = false;
 }
 

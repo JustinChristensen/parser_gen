@@ -1,4 +1,3 @@
-#include <base/array.h>
 #include "gram/parser.h"
 #include "gram/ast.h"
 
@@ -26,16 +25,11 @@ void (*gram_ast_actions[])(union gram_result result, void *context) = {
 };
 #undef ACTION
 
-struct gram_ast_context gram_ast_context() {
-    struct array *nodes = init_array(sizeof (union ast_type), AST_START_SIZE, 0, 0);
-    return (struct gram_ast_context) { NULL, nodes };
+struct gram_ast_context gram_ast_context(union ast_type *nodebuf) {
+    return (struct gram_ast_context) { NULL, nodebuf };
 }
 
-void free_ast_context(struct gram_ast_context *context) {
-    free_array(context->nodes);
-}
-
-static void set_ast(void *ast, struct gram_ast_context *context) {
+static void sast(void *ast, struct gram_ast_context *context) {
     context->ast = ast;
 }
 
@@ -68,6 +62,7 @@ struct rhs empty_rhs(struct rhs *next) {
 }
 
 void do_parser_spec(union gram_result result, struct gram_ast_context *context) {
+    struct rule *rules = context->ast;
 }
 
 void do_pattern_def(union gram_result result, struct gram_ast_context *context) {
@@ -97,11 +92,11 @@ void do_lit_rhs(union gram_result result, struct gram_ast_context *context) {
 void do_empty_rhs(union gram_result result, struct gram_ast_context *context) {
 }
 
-void do_append_rhs(union gram_result result, struct gram_ast_context *context) {o
+void do_append_rhs(union gram_result result, struct gram_ast_context *context) {
 }
 
 void do_head(union gram_result result, struct gram_ast_context *context) {
-    set_ast(result.ast, context);
+    sast(result.ast, context);
 }
 
 

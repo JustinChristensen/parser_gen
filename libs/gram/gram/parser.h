@@ -95,8 +95,6 @@ struct gram_token {
 
 struct gram_scan_context {
     struct dfa_context *re_context;
-    char *input;
-    struct dfa_loc input_loc;
     struct gram_token token;
 };
 
@@ -126,17 +124,17 @@ struct gram_parse_context {
     void *result_context;
     void (**actions)(union gram_result result, void *result_context);
     union gram_result (*result)(void *result_context);
-    struct gram_scan_context scan_context;
+    struct dfa_context scanner;
+    struct dfa_match match_state;
     struct gram_token token;
     bool has_error;
     struct gram_parse_error error;
 };
 
-struct gram_scan_context gram_scan_context(char *input, struct dfa_context *re_context);
-struct gram_scan_context set_input(char *input, struct gram_scan_context context);
 struct gram_scan_context scan(struct gram_scan_context context);
 struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme);
-struct gram_token token(struct gram_scan_context context);
+void free_token(struct gram_token *token);
+struct gram_token token(struct gram_parse_context context);
 struct gram_parse_context gram_parse_context(
     void *result_context,
     void (**actions)(union gram_result result, void *result_context),

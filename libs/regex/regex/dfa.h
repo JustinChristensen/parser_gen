@@ -26,7 +26,7 @@ struct regex_pattern {
     char *pattern;
 };
 
-static const struct regex_pattern NULL_PATTERN = { 0, NULL, NULL };
+static struct regex_pattern const NULL_PATTERN = { 0, NULL, NULL };
 
 #define PATTERNS (struct regex_pattern[])
 #define END_PATTERNS NULL_PATTERN

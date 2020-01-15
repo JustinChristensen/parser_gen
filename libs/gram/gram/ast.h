@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define AST_START_SIZE 13
-
 struct parser_spec {
     struct pattern_def *pattern_defs;
     struct rule *rules;
@@ -36,33 +34,37 @@ enum rhs_type {
 
 struct rhs {
     enum rhs_type type;
-    char *sym;
+    union {
+        char *sym;
+    };
     struct rhs *next;
-};
-
-union ast_type {
-    struct parser_spec s;
-    struct pattern_def pd;
-    struct rule r;
-    struct alt a;
-    struct rhs rh;
 };
 
 struct gram_ast_context {
     void *ast;
-    union ast_type *nodebuf;
-    int num_nodes;
 };
 
-struct gram_ast_context gram_ast_context(union ast_type *nodebuf);
+union gram_result ast_to_result(struct gram_ast_context *context);
+struct parser_spec *get_parser_spec(struct gram_ast_context *context);
 
-struct parser_spec parser_spec(struct pattern_def *pattern_defs, struct rule *rules);
+struct parser_spec parser_spec(struct pattern_def *defs, struct rule *rules);
 struct pattern_def pattern_def(char *id, char *regex, struct pattern_def *next);
 struct rule rule(char *id, struct alt *alts, struct rule *next);
 struct alt alt(struct rhs *rhses, struct alt *next);
-struct rhs id_rhs(char *sym, struct rhs *next);
-struct rhs lit_rhs(char *sym, struct rhs *next);
-struct rhs empty_rhs(struct rhs *next);
+
+struct parser_spec *init_parser_spec(struct pattern_def *pattern_defs, struct rule *rules);
+struct pattern_def *init_pattern_def(char *id, char *regex, struct pattern_def *next);
+struct rule *init_rule(char *id, struct alt *alts, struct rule *next);
+struct alt *init_alt(struct rhs *rhses, struct alt *next);
+struct rhs *init_id_rhs(char *sym, struct rhs *next);
+struct rhs *init_lit_rhs(char *sym, struct rhs *next);
+struct rhs *init_empty_rhs(struct rhs *next);
+
+void free_parser_spec(struct parser_spec *spec);
+void free_pattern_def(struct pattern_def *def);
+void free_rule(struct rule *rule);
+void free_alt(struct alt *alt);
+void free_rhs(struct rhs *rhs);
 
 void do_parser_spec(union gram_result result, struct gram_ast_context *context);
 void do_pattern_def(union gram_result result, struct gram_ast_context *context);

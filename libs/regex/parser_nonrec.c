@@ -65,8 +65,8 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     }
 };
 
-#define SYMS (enum symbol_type[])
-static enum symbol_type *rule_table[] = {
+#define SYMS (enum regex_symbol[])
+static enum regex_symbol *rule_table[] = {
     [ERROR_P] =                SYMS { 0 },
     [EMPTY_P] =                SYMS { 0 },
     [REGEX_P] =                SYMS { DO_REGEX, EOI, EXPR_NT, 0 },
@@ -87,11 +87,11 @@ static void push_sym(int sym, struct array *stack) { apush(&sym, stack); }
 static void push_rval(union rval lval, struct array *results) { apush(&lval, results); }
 
 static void push_production_symbols(enum gram_production production, struct array *stack) {
-    enum symbol_type *sym = rule_table[production];
+    enum regex_symbol *sym = rule_table[production];
     while (*sym) push_sym(*sym, stack), sym++;
 }
 
-static enum gram_production selectp(int nonterm, enum symbol_type term) {
+static enum gram_production selectp(int nonterm, enum regex_symbol term) {
     return parse_table[nonterm][term];
 }
 
@@ -121,9 +121,9 @@ static void debug_result_stack(struct array *results) {
 
 bool parse_regex_nonrec(struct parse_context *context) {
     bool success = true;
-    struct array *stack = init_array(sizeof(enum symbol_type), PARSE_STACK_SIZE, 0, 0),
+    struct array *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
                  *results = init_array(sizeof(union rval), PARSE_STACK_SIZE, 0, 0);
-    enum symbol_type ssym;
+    enum regex_symbol ssym;
 
     push_sym(REGEX_NT, stack);
 
@@ -155,7 +155,7 @@ bool parse_regex_nonrec(struct parse_context *context) {
 
             apop(&ssym, stack);
         } else {
-            enum symbol_type la = lookahead(context);
+            enum regex_symbol la = lookahead(context);
             enum gram_production p = selectp(NTI(ssym), la);
 
             pdebug("parse_table[%s][%s] = %d\n", lexeme_for(ssym), lexeme_for(la), p);

@@ -86,7 +86,7 @@ struct scan_context scan(struct scan_context context) {
     return context;
 }
 
-enum symbol_type token(struct scan_context context) {
+enum regex_symbol token(struct scan_context context) {
     return context.token;
 }
 
@@ -102,7 +102,7 @@ union rval getval(struct parse_context *context) {
     return (*context->getval)(context->result_context);
 }
 
-void do_action(struct parse_context *context, enum symbol_type action, union rval lval) {
+void do_action(struct parse_context *context, enum regex_symbol action, union rval lval) {
     pdebug("doing action: %s\n", lexeme_for(action));
     (*context->actions[DAI(action)])(context->result_context, lval);
 }
@@ -137,11 +137,11 @@ struct parse_context parse_context(
     return context;
 }
 
-bool peek(struct parse_context *context, enum symbol_type expected) {
+bool peek(struct parse_context *context, enum regex_symbol expected) {
     return context->lookahead == expected;
 }
 
-bool expect(struct parse_context *context, enum symbol_type expected) {
+bool expect(struct parse_context *context, enum regex_symbol expected) {
     if (peek(context, expected)) {
         pdebug("success, expected \"%s\", actual \"%s\"\n",
             lexeme_for(expected), lexeme_for(context->lookahead));
@@ -171,11 +171,11 @@ char symbol(struct parse_context *context) {
     return context->symbol;
 }
 
-enum symbol_type lookahead(struct parse_context *context) {
+enum regex_symbol lookahead(struct parse_context *context) {
     return context->lookahead;
 }
 
-void set_parse_error(enum symbol_type expected, struct parse_context *context) {
+void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
     context->has_error = true;
     context->error = (struct parse_error) {
         .actual = context->lookahead,
@@ -196,7 +196,7 @@ struct parse_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
-char *lexeme_for(enum symbol_type token) {
+char *lexeme_for(enum regex_symbol token) {
     switch (token) {
         case EOI:            return "eof";
         case NONSYM:         return "newline or control character";

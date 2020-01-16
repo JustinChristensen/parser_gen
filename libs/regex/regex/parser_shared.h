@@ -29,7 +29,7 @@
 #define ACTION (void (*)(void *, union rval))
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
-enum symbol_type {
+enum regex_symbol {
     NONSYM,
 
     // terminals
@@ -136,7 +136,7 @@ struct parse_context {
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
     struct scan_context scan_context;
-    enum symbol_type lookahead;
+    enum regex_symbol lookahead;
     int lookahead_col;
     char symbol;
     bool has_error;
@@ -147,11 +147,11 @@ struct parse_context {
 struct scan_context scan_context(char *input);
 struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
-enum symbol_type token(struct scan_context context);
+enum regex_symbol token(struct scan_context context);
 char token_sym(struct scan_context context);
 int token_col(struct scan_context context);
 union rval getval(struct parse_context *context);
-void do_action(struct parse_context *context, enum symbol_type action, union rval lval);
+void do_action(struct parse_context *context, enum regex_symbol action, union rval lval);
 struct parse_context parse_context(
     char *input,
     void *result_context,
@@ -159,16 +159,16 @@ struct parse_context parse_context(
     void (**actions)(void *result_context, union rval lval),
     bool use_nonrec
 );
-bool peek(struct parse_context *context, enum symbol_type expected);
-bool expect(struct parse_context *context, enum symbol_type expected);
+bool peek(struct parse_context *context, enum regex_symbol expected);
+bool expect(struct parse_context *context, enum regex_symbol expected);
 int is_symbol(int c);
-enum symbol_type lookahead(struct parse_context *context);
+enum regex_symbol lookahead(struct parse_context *context);
 char symbol(struct parse_context *context);
-void set_parse_error(enum symbol_type expected, struct parse_context *context);
+void set_parse_error(enum regex_symbol expected, struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
-char *lexeme_for(enum symbol_type token);
+char *lexeme_for(enum regex_symbol token);
 void print_parse_error(struct parse_error error);
 
 #endif // REGEX_PARSER_SHARED_H_

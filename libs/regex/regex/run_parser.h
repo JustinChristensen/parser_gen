@@ -1,7 +1,7 @@
 #ifndef REGEX_RUN_PARSER_H_
 #define REGEX_RUN_PARSER_H_ 1
 
-#include "parser_shared.h"
+#include "parser.h"
 
 bool run_parser(struct parse_context *context);
 

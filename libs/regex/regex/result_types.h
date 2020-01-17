@@ -30,10 +30,16 @@ struct expr {
     };
 };
 
+struct nfa_range {
+    char start;
+    char end;
+};
+
 enum nfa_state_type {
     ACCEPTING_STATE,
     EPSILON_STATE,
     BRANCH_STATE,
+    RANGE_STATE,
     SYMBOL_STATE,
     DOTALL_STATE
 };
@@ -44,6 +50,7 @@ struct nfa_state {
     union {
         // epsilon, dotall, symbol
         struct { struct nfa_state *next; char symbol; };
+        struct { struct nfa_state *nextr; struct nfa_range range; };
         // branch
         struct { struct nfa_state *left; struct nfa_state *right; };
         // accepting

@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <base/array.h>
+#include <base/debug.h>
+#include "regex/parser.h"
 #include "regex/parser_nonrec.h"
-#include "regex/parser_shared.h"
 #include "regex/result_types.h"
-#include "base/array.h"
-#include "base/debug.h"
 
 #define pdebug(...) debug_ns_("parser_nonrec", __VA_ARGS__);
 

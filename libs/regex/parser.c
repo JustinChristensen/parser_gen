@@ -1,110 +1,239 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <ctype.h>
+#include <assert.h>
+#include <base/debug.h>
 #include "regex/parser.h"
-#include "regex/parser_shared.h"
 #include "regex/result_types.h"
 
-bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, EOI)) {
-        do_action(context, DO_REGEX, NULLRVAL);
-        return true;
+#define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
+#define pdebug(...) debug_ns_("parser", __VA_ARGS__)
+
+struct scan_context scan_context(char *input) {
+    return (struct scan_context) {
+        .input = input,
+        .input_col = 1,
+        .token_col = 1
+    };
+}
+
+struct scan_context consume(struct scan_context context, char c) {
+    while (*context.input == c || isblank(*context.input)) {
+        context.input++;
+        context.input_col++;
     }
 
-    return false;
+    return context;
 }
 
-bool parse_expr(struct parse_context *context) {
-    parse_alt(context);
-    return true;
-}
+struct scan_context scan(struct scan_context context) {
+    while (isblank(*context.input)) {
+        context.input_col++;
+        context.input++;
+    }
 
-bool parse_alt(struct parse_context *context) {
-    if (parse_cat(context)) {
-        while (true) {
-            union rval lval = getval(context);
+    context.token_col = context.input_col;
 
-            // FIXME: should this really be expr?
-            if (peek(context, ALT) &&
-                expect(context, ALT) &&
-                parse_expr(context)) {
-                do_action(context, DO_ALT, lval);
-                continue;
-            }
+    sdebug("remaining: \"%s\"\n", context.input);
 
-            break;
+    if (*context.input == '*') {
+        context = consume(context, '*');
+        context.token = STAR_T;
+    } else if (*context.input == '+') {
+        context = consume(context, '+');
+        context.token = PLUS_T;
+    } else if (*context.input == '?') {
+        context = consume(context, '?');
+        context.token = OPTIONAL_T;
+    } else if (*context.input == '\0') {
+        context.token = EOF_T;
+    } else {
+        switch (*context.input) {
+            case '.':
+                context.token = DOTALL_T;
+                break;
+            case '|':
+                context.token = ALT_T;
+                break;
+            case '(':
+                context.token = LPAREN_T;
+                break;
+            case ')':
+                context.token = RPAREN_T;
+                break;
+            default:
+                if (*context.input == '\\') {
+                    context.input++;
+                    context.input_col++;
+                }
+
+                context.token = NONSYM;
+
+                if (is_symbol(*context.input)) {
+                    context.token = SYMBOL_T;
+                    context.symbol = *context.input;
+                }
+                break;
         }
 
-        return true;
+        context.input++;
+        context.input_col++;
     }
 
-    return false;
+    sdebug("token: %s\n", lexeme_for(context.token));
+
+    return context;
 }
 
-bool parse_cat(struct parse_context *context) {
-    do_action(context, DO_EMPTY, NULLRVAL);
-    union rval empty = getval(context);
-
-    if (parse_factor(context)) {
-        while (true) {
-            union rval lval = getval(context);
-
-            if (parse_factor(context)) {
-                do_action(context, DO_CAT, lval);
-                continue;
-            }
-
-            break;
-        }
-
-        do_action(context, DO_CAT, empty);
-
-        return true;
-    }
-
-    return false;
+enum regex_symbol token(struct scan_context context) {
+    return context.token;
 }
 
-bool parse_factor(struct parse_context *context) {
-    bool has_head = false;
-
-    // FIXME: this doesn't distinguish between selecting ε for expr and
-    // a parse error encountered during expr
-    if (peek(context, LPAREN) &&
-        expect(context, LPAREN) &&
-        parse_expr(context) && expect(context, RPAREN)) {
-        do_action(context, DO_SUB, NULLRVAL);
-        has_head = true;
-    } else if (peek(context, DOTALL)) {
-        expect(context, DOTALL);
-        do_action(context, DO_DOTALL, NULLRVAL);
-        has_head = true;
-    } else if (peek(context, SYMBOL)) {
-        union rval sym = { .sym = symbol(context) };
-        expect(context, SYMBOL);
-        do_action(context, DO_SYMBOL, sym);
-        has_head = true;
-    }
-
-    if (has_head) {
-        while (true) {
-            if (peek(context, STAR) && expect(context, STAR)) {
-                do_action(context, DO_STAR, NULLRVAL);
-                continue;
-            } else if (peek(context, PLUS) && expect(context, PLUS)) {
-                do_action(context, DO_PLUS, NULLRVAL);
-                continue;
-            } else if (peek(context, OPTIONAL) && expect(context, OPTIONAL)) {
-                do_action(context, DO_OPTIONAL, NULLRVAL);
-                continue;
-            }
-
-            break;
-        }
-
-        return true;
-    }
-
-    return false;
+char token_sym(struct scan_context context) {
+    return context.symbol;
 }
 
+int token_col(struct scan_context context) {
+    return context.token_col;
+}
+
+union rval getval(struct parse_context *context) {
+    return (*context->getval)(context->result_context);
+}
+
+void do_action(struct parse_context *context, enum regex_symbol action, union rval lval) {
+    pdebug("doing action: %s\n", lexeme_for(action));
+    (*context->actions[DAI(action)])(context->result_context, lval);
+}
+
+struct parse_context parse_context(
+    char *input,
+    void *result_context,
+    union rval (*getval)(void *result_context),
+    void (**actions)(void *result_context, union rval lval),
+    bool use_nonrec
+) {
+    assert(input != NULL);
+    assert(result_context != NULL);
+    assert(actions != NULL);
+    assert(getval != NULL);
+
+    struct scan_context scontext = scan(scan_context(input));
+
+    struct parse_context context = {
+        .scan_context = scontext,
+        .result_context = result_context,
+        .actions = actions,
+        .getval = getval,
+        .lookahead = token(scontext),
+        .lookahead_col = token_col(scontext),
+        .symbol = token_sym(scontext),
+        .has_error = false,
+        .error = nullperr(),
+        .use_nonrec = use_nonrec
+    };
+
+    return context;
+}
+
+bool peek(struct parse_context *context, enum regex_symbol expected) {
+    return context->lookahead == expected;
+}
+
+bool expect(struct parse_context *context, enum regex_symbol expected) {
+    if (peek(context, expected)) {
+        pdebug("success, expected \"%s\", actual \"%s\"\n",
+            lexeme_for(expected), lexeme_for(context->lookahead));
+
+        struct scan_context scan_context = scan(context->scan_context);
+
+        context->scan_context = scan_context;
+        context->lookahead = token(scan_context);
+        context->lookahead_col = token_col(scan_context);
+        context->symbol = token_sym(scan_context);
+
+        return true;
+    } else {
+        pdebug("failure, expected \"%s\", actual \"%s\"\n",
+            lexeme_for(expected), lexeme_for(context->lookahead));
+        set_parse_error(expected, context);
+
+        return false;
+    }
+}
+
+int is_symbol(int c) {
+    return isprint(c);
+}
+
+char symbol(struct parse_context *context) {
+    return context->symbol;
+}
+
+enum regex_symbol lookahead(struct parse_context *context) {
+    return context->lookahead;
+}
+
+void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
+    context->has_error = true;
+    context->error = (struct parse_error) {
+        .actual = context->lookahead,
+        .token_col = context->lookahead_col,
+        .expected = expected
+    };
+}
+
+bool has_parse_error(struct parse_context *context) {
+    return context->has_error;
+}
+
+struct parse_error nullperr() {
+    return (struct parse_error) { 0, 0, 0 };
+}
+
+struct parse_error parse_error(struct parse_context *context) {
+    return context->error;
+}
+
+char *lexeme_for(enum regex_symbol token) {
+    switch (token) {
+        case EOI:            return "eof";
+        case NONSYM:         return "newline or control character";
+        case SYMBOL:         return "symbol";
+        case ALT:            return "|";
+        case STAR:           return "*";
+        case PLUS:           return "+";
+        case OPTIONAL:       return "?";
+        case DOTALL:         return ".";
+        case LPAREN:         return "(";
+        case RPAREN:         return ")";
+
+        case REGEX_NT:       return "REGEX";
+        case EXPR_NT:        return "EXPR";
+        case ALT_NT:         return "ALT";
+        case ALT_TAIL_NT:    return "ALT_TAIL";
+        case CAT_NT:         return "CAT";
+        case CAT_TAIL_NT:    return "CAT_TAIL";
+        case FACTOR_NT:      return "FACTOR";
+        case FACTOR_TAIL_NT: return "FACTOR_TAIL";
+
+        case DO_REGEX:       return "{regex}";
+        case DO_EMPTY:       return "{empty}";
+        case DO_ALT:         return "{alt}";
+        case DO_CAT:         return "{cat}";
+        case DO_SUB:         return "{sub}";
+        case DO_DOTALL:      return "{dotall}";
+        case DO_SYMBOL:      return "{symbol}";
+        case DO_STAR:        return "{star}";
+        case DO_PLUS:        return "{plus}";
+        case DO_OPTIONAL:    return "{optional}";
+    }
+}
+
+void print_parse_error(struct parse_error error) {
+    fprintf(stderr, ERROR_FMT_STRING,
+        lexeme_for(error.actual),
+        lexeme_for(error.expected),
+        error.token_col);
+}

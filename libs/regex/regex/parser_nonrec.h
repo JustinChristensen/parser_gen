@@ -2,9 +2,9 @@
 #define REGEX_PARSER_NONREC_H_ 1
 
 #include <stdbool.h>
-#include "result_types.h"
-#include "regex/parser_shared.h"
 #include <base/array.h>
+#include "result_types.h"
+#include "regex/parser.h"
 
 /**
  * LL(1)

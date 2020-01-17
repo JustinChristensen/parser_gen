@@ -28,6 +28,8 @@ struct nfa_error {
 struct nfa_context {
     struct nfa_state *statebuf;
     size_t numstates;
+    struct nfa_range *rangebuf;
+    size_t numranges;
     struct nfa nfa;
     bool has_error;
     struct nfa_error error;
@@ -39,6 +41,7 @@ struct nfa_state accepting_state();
 struct nfa_state epsilon_state(struct nfa_state *next);
 struct nfa_state dotall_state(struct nfa_state *next);
 struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right);
+struct nfa_state range_state(struct nfa_range range);
 struct nfa_state symbol_state(char symbol);
 
 // nfa context

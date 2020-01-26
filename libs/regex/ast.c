@@ -4,7 +4,7 @@
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
-void (*expr_actions[NUM_ACTIONS])(void *context, union rval lval) = {
+void (*expr_actions[])(void *context, union rval lval) = {
     [AI(DO_REGEX)] =    ACTION noop_expr,
     [AI(DO_EMPTY)] =    ACTION do_empty_expr,
     [AI(DO_ALT)] =      ACTION do_alt_expr,

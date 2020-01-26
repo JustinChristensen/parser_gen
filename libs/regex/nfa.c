@@ -11,7 +11,7 @@
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
-void (*nfa_actions[NUM_ACTIONS])(void *context, union rval lval) = {
+void (*nfa_actions[])(void *context, union rval lval) = {
     [AI(DO_REGEX)] =    ACTION noop_nfa,
     [AI(DO_EMPTY)] =    ACTION do_empty_nfa,
     [AI(DO_ALT)] =      ACTION do_alt_nfa,

@@ -6,7 +6,7 @@
 #include "regex/result_types.h"
 
 bool parse_regex(struct parse_context *context) {
-    if (parse_expr(context) && expect(context, EOI)) {
+    if (parse_expr(context) && expect(context, EOF_T)) {
         do_action(context, DO_REGEX, NULLRVAL);
         return true;
     }
@@ -25,8 +25,8 @@ bool parse_alt(struct parse_context *context) {
             union rval lval = getval(context);
 
             // FIXME: should this really be expr?
-            if (peek(context, ALT) &&
-                expect(context, ALT) &&
+            if (peek(context, ALT_T) &&
+                expect(context, ALT_T) &&
                 parse_expr(context)) {
                 do_action(context, DO_ALT, lval);
                 continue;
@@ -70,31 +70,31 @@ bool parse_factor(struct parse_context *context) {
 
     // FIXME: this doesn't distinguish between selecting ε for expr and
     // a parse error encountered during expr
-    if (peek(context, LPAREN) &&
-        expect(context, LPAREN) &&
-        parse_expr(context) && expect(context, RPAREN)) {
+    if (peek(context, LPAREN_T) &&
+        expect(context, LPAREN_T) &&
+        parse_expr(context) && expect(context, RPAREN_T)) {
         do_action(context, DO_SUB, NULLRVAL);
         has_head = true;
-    } else if (peek(context, DOTALL)) {
-        expect(context, DOTALL);
+    } else if (peek(context, DOTALL_T)) {
+        expect(context, DOTALL_T);
         do_action(context, DO_DOTALL, NULLRVAL);
         has_head = true;
-    } else if (peek(context, SYMBOL)) {
+    } else if (peek(context, SYMBOL_T)) {
         union rval sym = { .sym = symbol(context) };
-        expect(context, SYMBOL);
+        expect(context, SYMBOL_T);
         do_action(context, DO_SYMBOL, sym);
         has_head = true;
     }
 
     if (has_head) {
         while (true) {
-            if (peek(context, STAR) && expect(context, STAR)) {
+            if (peek(context, STAR_T) && expect(context, STAR_T)) {
                 do_action(context, DO_STAR, NULLRVAL);
                 continue;
-            } else if (peek(context, PLUS) && expect(context, PLUS)) {
+            } else if (peek(context, PLUS_T) && expect(context, PLUS_T)) {
                 do_action(context, DO_PLUS, NULLRVAL);
                 continue;
-            } else if (peek(context, OPTIONAL) && expect(context, OPTIONAL)) {
+            } else if (peek(context, OPTIONAL_T) && expect(context, OPTIONAL_T)) {
                 do_action(context, DO_OPTIONAL, NULLRVAL);
                 continue;
             }

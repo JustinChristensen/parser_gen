@@ -30,13 +30,15 @@
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
 enum regex_symbol {
-    NONSYM,
+    ERROR,
 
     // terminals
     EOF_T,
     SYMBOL_T,
+    RANGE_T,
+    NUM_T,
     ALT_T,
-    STAR_t,
+    STAR_T,
     PLUS_T,
     OPTIONAL_T,
     DOTALL_T,
@@ -45,9 +47,7 @@ enum regex_symbol {
     CLASS_T,
     NEG_CLASS_T,
     END_CLASS_T,
-    RANGE_T,
     LBRACE_T,
-    INT_T,
     RBRACE_T,
 
     // non-terminals (used during iterative parsing)
@@ -74,7 +74,7 @@ enum regex_symbol {
 };
 
 #define NUM_SYMBOLS (DO_OPTIONAL + 1)
-#define NUM_TERMINALS (RPAREN + 1)
+#define NUM_TERMINALS (RBRACE_T + 1)
 #define NUM_NONTERMINALS ((FACTOR_TAIL_NT + 1) - NUM_TERMINALS)
 #define NUM_ACTIONS ((DO_OPTIONAL + 1) - NUM_NONTERMINALS)
 // non-terminal index
@@ -127,13 +127,29 @@ enum gram_production {
 struct scan_context {
     char *input;
     int input_col;
-    int token;
-    char symbol;
-    int token_col;
+
+    // sub-scanners (or scanner states, depending on your point of view)
+    bool in_class;
+    bool in_braces;
+
+    // token
+    struct {
+        enum regex_symbol type;
+        char *lexeme;
+        int lexeme_col;
+        union {
+            char sym;
+            int num;
+            struct {
+                char start;
+                char end;
+            };
+        };
+    };
 };
 
 struct parse_error {
-    int token_col;
+    int lexeme_col;
     int expected;
     int actual;
 };
@@ -152,11 +168,11 @@ struct parse_context {
 };
 
 struct scan_context scan_context(char *input);
-struct scan_context consume(struct scan_context context, char c);
 struct scan_context scan(struct scan_context context);
-enum regex_symbol token(struct scan_context context);
-char token_sym(struct scan_context context);
-int token_col(struct scan_context context);
+enum regex_symbol token_type(struct scan_context context);
+char *lexeme(struct scan_context context);
+int lexeme_col(struct scan_context context);
+
 union rval getval(struct parse_context *context);
 void do_action(struct parse_context *context, enum regex_symbol action, union rval lval);
 struct parse_context parse_context(
@@ -175,7 +191,7 @@ void set_parse_error(enum regex_symbol expected, struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
-char *lexeme_for(enum regex_symbol token);
+char *str_for_sym(enum regex_symbol token);
 void print_parse_error(struct parse_error error);
 
 #endif // REGEX_PARSER_H_

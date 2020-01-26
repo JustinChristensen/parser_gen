@@ -14,7 +14,8 @@
 enum command_key {
     AUTO,
     PRINT,
-    NFA
+    NFA,
+    SCAN_ONLY
 };
 
 enum arg_key {
@@ -41,9 +42,10 @@ struct args {
 
 static char *cmd_str(enum command_key key) {
     switch (key) {
-        case AUTO: return "AUTO";
-        case PRINT: return "PRINT";
-        case NFA: return "NFA";
+        case AUTO:      return "AUTO";
+        case PRINT:     return "PRINT";
+        case NFA:       return "NFA";
+        case SCAN_ONLY: return "SCAN_ONLY";
     }
 
     return "";
@@ -169,6 +171,17 @@ int main(int argc, char *argv[]) {
                 NULL,
                 "Construct and simulate an NFA"
             },
+            {
+                SCAN_ONLY,
+                "scan",
+                ARGS {
+                    help_and_version_args,
+                    regex_arg,
+                    END_ARGS
+                },
+                NULL,
+                "Run the scanner standalone"
+            },
             END_CMDS
         },
         "Construct and simulate automata"
@@ -248,6 +261,27 @@ int main(int argc, char *argv[]) {
         } else {
             print_nfa_error(nfa_error(&ncontext));
             return EXIT_FAILURE;
+        }
+    } else if (args.cmd == SCAN_ONLY && args.regex) {
+        struct scan_context context = scan(scan_context(args.regex));
+
+        while (true) {
+            char *str = lexeme(context);
+            printf("%3d %-17s %-20s", lexeme_col(context), str_for_sym(context.type), str);
+
+            if (context.type == SYMBOL_T) {
+                printf("%d ", context.sym);
+            } else if (context.type == NUM_T) {
+                printf("%d ", context.num);
+            } else if (context.type == RANGE_T) {
+                printf("%d %d ", context.start, context.end);
+            }
+
+            printf("\n");
+            free(str);
+
+            if (context.type == EOF_T) break;
+            else context = scan(context);
         }
     }
 

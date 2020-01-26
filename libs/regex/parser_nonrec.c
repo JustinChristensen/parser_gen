@@ -12,56 +12,56 @@
 
 static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     [NTI(REGEX_NT)] = {
-        [EOI] = REGEX_P,
-        [SYMBOL] = REGEX_P,
-        [DOTALL] = REGEX_P,
-        [LPAREN] = REGEX_P
+        [EOF_T] = REGEX_P,
+        [SYMBOL_T] = REGEX_P,
+        [DOTALL_T] = REGEX_P,
+        [LPAREN_T] = REGEX_P
     },
     [NTI(EXPR_NT)] = {
-        [EOI] = EMPTY_P,
-        [SYMBOL] = EXPR_ALT_P,
-        [DOTALL] = EXPR_ALT_P,
-        [LPAREN] = EXPR_ALT_P,
-        [RPAREN] = EMPTY_P
+        [EOF_T] = EMPTY_P,
+        [SYMBOL_T] = EXPR_ALT_P,
+        [DOTALL_T] = EXPR_ALT_P,
+        [LPAREN_T] = EXPR_ALT_P,
+        [RPAREN_T] = EMPTY_P
     },
     [NTI(ALT_NT)] = {
-        [SYMBOL] = ALT_CAT_P,
-        [DOTALL] = ALT_CAT_P,
-        [LPAREN] = ALT_CAT_P
+        [SYMBOL_T] = ALT_CAT_P,
+        [DOTALL_T] = ALT_CAT_P,
+        [LPAREN_T] = ALT_CAT_P
     },
     [NTI(ALT_TAIL_NT)] = {
-        [EOI] = EMPTY_P,
-        [ALT] = ALT_TAIL_CAT_P,
-        [RPAREN] = EMPTY_P
+        [EOF_T] = EMPTY_P,
+        [ALT_T] = ALT_TAIL_CAT_P,
+        [RPAREN_T] = EMPTY_P
     },
     [NTI(CAT_NT)] = {
-        [SYMBOL] = CAT_FACTOR_P,
-        [DOTALL] = CAT_FACTOR_P,
-        [LPAREN] = CAT_FACTOR_P
+        [SYMBOL_T] = CAT_FACTOR_P,
+        [DOTALL_T] = CAT_FACTOR_P,
+        [LPAREN_T] = CAT_FACTOR_P
     },
     [NTI(CAT_TAIL_NT)] = {
-        [EOI] = EMPTY_P,
-        [SYMBOL] = CAT_TAIL_FACTOR_P,
-        [ALT] = EMPTY_P,
-        [DOTALL] = CAT_TAIL_FACTOR_P,
-        [LPAREN] = CAT_TAIL_FACTOR_P,
-        [RPAREN] = EMPTY_P
+        [EOF_T] = EMPTY_P,
+        [SYMBOL_T] = CAT_TAIL_FACTOR_P,
+        [ALT_T] = EMPTY_P,
+        [DOTALL_T] = CAT_TAIL_FACTOR_P,
+        [LPAREN_T] = CAT_TAIL_FACTOR_P,
+        [RPAREN_T] = EMPTY_P
     },
     [NTI(FACTOR_NT)] = {
-        [SYMBOL] = FACTOR_SYMBOL_P,
-        [DOTALL] = FACTOR_DOTALL_P,
-        [LPAREN] = FACTOR_SUBEXPR_P
+        [SYMBOL_T] = FACTOR_SYMBOL_P,
+        [DOTALL_T] = FACTOR_DOTALL_P,
+        [LPAREN_T] = FACTOR_SUBEXPR_P
     },
     [NTI(FACTOR_TAIL_NT)] = {
-        [EOI] = EMPTY_P,
-        [SYMBOL] = EMPTY_P,
-        [ALT] = EMPTY_P,
-        [STAR] = FACTOR_TAIL_STAR_P,
-        [PLUS] = FACTOR_TAIL_PLUS_P,
-        [OPTIONAL] = FACTOR_TAIL_OPTIONAL_P,
-        [DOTALL] = EMPTY_P,
-        [LPAREN] = EMPTY_P,
-        [RPAREN] = EMPTY_P
+        [EOF_T] = EMPTY_P,
+        [SYMBOL_T] = EMPTY_P,
+        [ALT_T] = EMPTY_P,
+        [STAR_T] = FACTOR_TAIL_STAR_P,
+        [PLUS_T] = FACTOR_TAIL_PLUS_P,
+        [OPTIONAL_T] = FACTOR_TAIL_OPTIONAL_P,
+        [DOTALL_T] = EMPTY_P,
+        [LPAREN_T] = EMPTY_P,
+        [RPAREN_T] = EMPTY_P
     }
 };
 
@@ -69,18 +69,18 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
 static enum regex_symbol *rule_table[] = {
     [ERROR_P] =                SYMS { 0 },
     [EMPTY_P] =                SYMS { 0 },
-    [REGEX_P] =                SYMS { DO_REGEX, EOI, EXPR_NT, 0 },
+    [REGEX_P] =                SYMS { DO_REGEX, EOF_T, EXPR_NT, 0 },
     [EXPR_ALT_P] =             SYMS { ALT_NT, 0 },
     [ALT_CAT_P] =              SYMS { ALT_TAIL_NT, CAT_NT, 0 },
-    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, DO_ALT, EXPR_NT, ALT, 0 },
+    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, DO_ALT, EXPR_NT, ALT_T, 0 },
     [CAT_FACTOR_P] =           SYMS { DO_CAT, CAT_TAIL_NT, FACTOR_NT, DO_EMPTY, 0 },
     [CAT_TAIL_FACTOR_P] =      SYMS { CAT_TAIL_NT, DO_CAT, FACTOR_NT, 0 },
-    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, DO_SUB, RPAREN, EXPR_NT, LPAREN, 0 },
-    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DO_DOTALL, DOTALL, 0 },
-    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, DO_SYMBOL, SYMBOL, 0 },
-    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, DO_STAR, STAR, 0 },
-    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, DO_PLUS, PLUS, 0 },
-    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, DO_OPTIONAL, OPTIONAL, 0 }
+    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, DO_SUB, RPAREN_T, EXPR_NT, LPAREN_T, 0 },
+    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DO_DOTALL, DOTALL_T, 0 },
+    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, DO_SYMBOL, SYMBOL_T, 0 },
+    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, DO_STAR, STAR_T, 0 },
+    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, DO_PLUS, PLUS_T, 0 },
+    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, DO_OPTIONAL, OPTIONAL_T, 0 }
 };
 
 static void push_sym(int sym, struct array *stack) { apush(&sym, stack); }
@@ -109,7 +109,7 @@ static void debug_sym_stack(struct array *stack) {
     pdebug("symbol stack: ");
     for (int i = 0; i < asize(stack); i++) {
         at(&sym, i, stack);
-        debug_("%s ", lexeme_for(sym));
+        debug_("%s ", str_for_sym(sym));
     }
 
     debug_("\n");
@@ -134,7 +134,7 @@ bool parse_regex_nonrec(struct parse_context *context) {
 
         if (is_terminal(ssym)) {
             if (peek(context, ssym)) {
-                if (ssym == SYMBOL)
+                if (ssym == SYMBOL_T)
                     push_rval((union rval) { .sym = symbol(context) }, results);
 
                 expect(context, ssym);
@@ -158,7 +158,7 @@ bool parse_regex_nonrec(struct parse_context *context) {
             enum regex_symbol la = lookahead(context);
             enum gram_production p = selectp(NTI(ssym), la);
 
-            pdebug("parse_table[%s][%s] = %d\n", lexeme_for(ssym), lexeme_for(la), p);
+            pdebug("parse_table[%s][%s] = %d\n", str_for_sym(ssym), str_for_sym(la), p);
 
             if (p) {
                 // the top of the tail loop
@@ -169,7 +169,7 @@ bool parse_regex_nonrec(struct parse_context *context) {
                 push_production_symbols(p, stack);
             } else {
                 // TODO: make error handling support first/follow sets in error output
-                set_parse_error(EOI, context);
+                set_parse_error(EOF_T, context);
                 success = false;
             }
         }

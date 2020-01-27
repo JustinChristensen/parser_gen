@@ -3,6 +3,6 @@
 
 #include "parser.h"
 
-bool run_parser(struct parse_context *context);
+bool run_parser(char *input, struct parse_context *context);
 
 #endif // REGEX_RUN_PARSER_H_

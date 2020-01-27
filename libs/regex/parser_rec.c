@@ -5,7 +5,9 @@
 #include "regex/parser_rec.h"
 #include "regex/result_types.h"
 
-bool parse_regex(struct parse_context *context) {
+bool parse_regex(char *regex, struct parse_context *context) {
+    start_scanning(regex, context);
+
     if (parse_expr(context) && expect(context, EOF_T)) {
         do_action(context, DO_REGEX, NULLRVAL);
         return true;

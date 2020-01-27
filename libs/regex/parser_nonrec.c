@@ -119,12 +119,14 @@ static void debug_result_stack(struct array *results) {
     pdebug("result stack size: %d\n", asize(results));
 }
 
-bool parse_regex_nonrec(struct parse_context *context) {
+bool parse_regex_nonrec(char *regex, struct parse_context *context) {
     bool success = true;
-    struct array *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
-                 *results = init_array(sizeof(union rval), PARSE_STACK_SIZE, 0, 0);
+    struct array
+        *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
+        *results = init_array(sizeof(union rval), PARSE_STACK_SIZE, 0, 0);
     enum regex_symbol ssym;
 
+    start_scanning(regex, context);
     push_sym(REGEX_NT, stack);
 
     while (success && !aempty(stack)) {

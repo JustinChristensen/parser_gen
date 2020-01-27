@@ -5,32 +5,34 @@
 #include <ctype.h>
 #include <assert.h>
 #include <base/debug.h>
+#include "regex/base.h"
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
 #define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
 #define pdebug(...) debug_ns_("parser", __VA_ARGS__)
 
-struct scan_context scan_context(char *input) {
-    return (struct scan_context) {
+struct regex_token regex_token(char *input) {
+    return scan((struct regex_token) {
         .input = input,
         .input_col = 1,
-        .lexeme_col = 1
-    };
+        .in_class = false,
+        .in_braces = false
+    });
 }
 
-static struct scan_context consume(struct scan_context context, char c) {
-    while (*context.input == c || isblank(*context.input)) {
-        context.input++;
-        context.input_col++;
+static struct regex_token consume(struct regex_token token, char c) {
+    while (*token.input == c || isblank(*token.input)) {
+        token.input++;
+        token.input_col++;
     }
 
-    return context;
+    return token;
 }
 
-static struct scan_context scan_escape(struct scan_context context) {
-    char *ip = context.input;
-    int ic = context.input_col;
+static struct regex_token scan_escape(struct regex_token token) {
+    char *ip = token.input;
+    int ic = token.input_col;
     enum regex_symbol type = ERROR;
     char sym = '\0';
 
@@ -54,78 +56,80 @@ static struct scan_context scan_escape(struct scan_context context) {
         sym = *ip;
     }
 
-    context.sym = sym;
-    context.type = type;
-    context.input = ++ip;
-    context.input_col = ++ic;
+    token.val.sym = sym;
+    token.type = type;
+    token.input = ++ip;
+    token.input_col = ++ic;
 
-    return context;
+    return token;
 }
 
-static struct scan_context scan_range(struct scan_context context) {
-    context.type = ERROR;
-    context = scan_escape(context);
+static struct regex_token scan_range(struct regex_token token) {
+    token.type = ERROR;
+    token = scan_escape(token);
 
-    if (context.type == SYMBOL_T) {
-        char start = context.sym;
+    if (token.type == SYMBOL_T) {
+        struct char_range range;
 
-        if (*context.input == '-') {
-            context.input++;
-            context.input_col++;
+        range.start = token.val.sym;
 
-            context = scan_escape(context);
-            context.end = context.sym;
-            context.start = start;
+        if (*token.input == '-') {
+            token.input++;
+            token.input_col++;
 
-            if (context.start > context.end) {
-                start = context.start;
-                context.start = context.end;
-                context.end = start;
+            token = scan_escape(token);
+            range.end = token.val.sym;
+
+            if (range.start > range.end) {
+                char start = range.start;
+                range.start = range.end;
+                range.end = start;
             }
         } else {
-            context.end = context.start;
+            range.end = range.start;
         }
 
-        context.type = RANGE_T;
+        token.val.range = range;
+        token.type = RANGE_T;
     }
 
-    return context;
+    return token;
 }
 
-struct scan_context scan(struct scan_context context) {
-    char *ip = context.input;
-    int ic = context.input_col;
+struct regex_token scan(struct regex_token token) {
+    char *ip = token.input;
+    int ic = token.input_col;
     enum regex_symbol type = ERROR;
 
-    context.lexeme = ip;
-    context.lexeme_col = ic;
+    token.lexeme = ip;
+    token.lexeme_col = ic;
 
     sdebug("remaining: \"%s\"\n", ip);
 
     if (*ip == '\0') {
         type = EOF_T;
-    } else if (context.in_class) {
+    } else if (token.in_class) {
         if (*ip == ']') {
             type = END_CLASS_T;
-            context.in_class = false;
+            token.in_class = false;
             ic++, ip++;
         } else if (*ip == '\\' || is_symbol(*ip)) {
-            context = scan_range(context);
-            ip = context.input;
-            ic = context.input_col;
-            type = context.type;
+            token = scan_range(token);
+            ip = token.input;
+            ic = token.input_col;
+            type = token.type;
         } else {
             ic++, ip++;
         }
-    } else if (context.in_braces) {
+    } else if (token.in_braces) {
         if (*ip == '}') {
             type = RBRACE_T;
-            context.in_braces = false;
+            token.in_braces = false;
             ic++, ip++;
         } else if (isdigit(*ip)) {
             char *end;
             type = NUM_T;
-            context.num = strtol(ip, &end, 10);
+            token.val.num = strtol(ip, &end, 10);
             ic += end - ip;
             ip = end;
         } else {
@@ -133,17 +137,17 @@ struct scan_context scan(struct scan_context context) {
         }
     } else {
         if (*ip == '*') {
-            context = consume(context, '*');
+            token = consume(token, '*');
             type = STAR_T;
-            ip = context.input, ic = context.input_col;
+            ip = token.input, ic = token.input_col;
         } else if (*ip == '+') {
-            context = consume(context, '+');
+            token = consume(token, '+');
             type = PLUS_T;
-            ip = context.input, ic = context.input_col;
+            ip = token.input, ic = token.input_col;
         } else if (*ip == '?') {
-            context = consume(context, '?');
+            token = consume(token, '?');
             type = OPTIONAL_T;
-            ip = context.input, ic = context.input_col;
+            ip = token.input, ic = token.input_col;
         } else {
             switch (*ip) {
                 case '.':
@@ -164,12 +168,12 @@ struct scan_context scan(struct scan_context context) {
                     break;
                 case '{':
                     type = LBRACE_T;
-                    context.in_braces = true;
+                    token.in_braces = true;
                     ic++, ip++;
                     break;
                 case '[':
                     type = CLASS_T;
-                    context.in_class = true;
+                    token.in_class = true;
                     ic++, ip++;
 
                     if (*ip == '^') {
@@ -179,35 +183,55 @@ struct scan_context scan(struct scan_context context) {
                     break;
                 default:
                     if (*ip == '\\' || is_symbol(*ip)) {
-                        context = scan_escape(context);
-                        type = context.type, ip = context.input, ic = context.input_col;
+                        token = scan_escape(token);
+                        type = token.type, ip = token.input, ic = token.input_col;
                     }
                     break;
             }
         }
     }
 
-    context.input = ip;
-    context.input_col = ic;
-    context.type = type;
+    token.input = ip;
+    token.input_col = ic;
+    token.type = type;
 
-    sdebug("token: %s\n", str_for_sym(context.type));
+    sdebug("token: %s\n", str_for_sym(token.type));
 
-    return context;
+    return token;
 }
 
-enum regex_symbol token_type(struct scan_context context) {
-    return context.type;
+enum regex_symbol token_type(struct regex_token token) {
+    return token.type;
 }
 
-int lexeme_col(struct scan_context context) {
-    return context.lexeme_col;
+union regex_token_val token_val(struct regex_token token) {
+    return token.val;
 }
 
-char *lexeme(struct scan_context context) {
-    char *lexeme = strndup(context.lexeme, context.input - context.lexeme);
-    assert(lexeme != NULL);
-    return lexeme;
+int token_col(struct regex_token token) {
+    return token.lexeme_col;
+}
+
+void token_lexeme(char *lbuf, struct regex_token token) {
+    strncpy(lbuf, token.lexeme, token.input - token.lexeme);
+}
+
+static void print_token_val(struct regex_token token) {
+    if (token.type == SYMBOL_T) {
+        printf("%d ", token.val.sym);
+    } else if (token.type == NUM_T) {
+        printf("%d ", token.val.num);
+    } else if (token.type == RANGE_T) {
+        printf("%d %d ", token.val.range.start, token.val.range.end);
+    }
+}
+
+void print_token(struct regex_token token) {
+    char lexeme[BUFSIZ] = "";
+    token_lexeme(lexeme, token);
+    printf("%3d %-17s %-20s", token_col(token), str_for_sym(token.type), lexeme);
+    print_token_val(token);
+    printf("\n");
 }
 
 union rval getval(struct parse_context *context) {
@@ -220,33 +244,33 @@ void do_action(struct parse_context *context, enum regex_symbol action, union rv
 }
 
 struct parse_context parse_context(
-    char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
     void (**actions)(void *result_context, union rval lval),
     bool use_nonrec
 ) {
-    assert(input != NULL);
     assert(result_context != NULL);
     assert(actions != NULL);
     assert(getval != NULL);
 
-    struct scan_context scontext = scan(scan_context(input));
-
     struct parse_context context = {
-        .scan_context = scontext,
         .result_context = result_context,
         .actions = actions,
         .getval = getval,
-        .lookahead = token_type(scontext),
-        .lookahead_col = lexeme_col(scontext),
-        .symbol = scontext.sym,
         .has_error = false,
         .error = nullperr(),
         .use_nonrec = use_nonrec
     };
 
     return context;
+}
+
+void start_scanning(char *input, struct parse_context *context) {
+    struct regex_token token = regex_token(input);
+    context->token = token;
+    context->lookahead = token_type(token);
+    context->lookahead_col = token_col(token);
+    context->lookahead_val = token_val(token);
 }
 
 bool peek(struct parse_context *context, enum regex_symbol expected) {
@@ -258,33 +282,41 @@ bool expect(struct parse_context *context, enum regex_symbol expected) {
         pdebug("success, expected \"%s\", actual \"%s\"\n",
             str_for_sym(expected), str_for_sym(context->lookahead));
 
-        struct scan_context scan_context = scan(context->scan_context);
+        struct regex_token token = scan(context->token);
 
-        context->scan_context = scan_context;
-        context->lookahead = token_type(scan_context);
-        context->lookahead_col = lexeme_col(scan_context);
-        context->symbol = scan_context.sym;
+        context->token = token;
+        context->lookahead = token_type(token);
+        context->lookahead_col = token_col(token);
+        context->lookahead_val = token_val(token);
 
         return true;
-    } else {
-        pdebug("failure, expected \"%s\", actual \"%s\"\n",
-            str_for_sym(expected), str_for_sym(context->lookahead));
-        set_parse_error(expected, context);
-
-        return false;
     }
+
+    pdebug("failure, expected \"%s\", actual \"%s\"\n",
+        str_for_sym(expected), str_for_sym(context->lookahead));
+    set_parse_error(expected, context);
+
+    return false;
 }
 
 int is_symbol(int c) {
     return isprint(c);
 }
 
-char symbol(struct parse_context *context) {
-    return context->symbol;
-}
-
 enum regex_symbol lookahead(struct parse_context *context) {
     return context->lookahead;
+}
+
+char symbol(struct parse_context *context) {
+    return context->lookahead_val.sym;
+}
+
+struct char_range range(struct parse_context *context) {
+    return context->lookahead_val.range;
+}
+
+int number(struct parse_context *context) {
+    return context->lookahead_val.num;
 }
 
 void set_parse_error(enum regex_symbol expected, struct parse_context *context) {

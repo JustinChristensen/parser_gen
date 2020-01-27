@@ -1,7 +1,13 @@
 #ifndef REGEX_BASE_H_
 #define REGEX_BASE_H_ 1
 
-#include "<stdlib.h>"
+#include <stdlib.h>
+#include <stdio.h>
+
+struct char_range {
+    char start;
+    char end;
+};
 
 struct regex_loc {
     int line;

@@ -193,9 +193,9 @@ int main(int argc, char *argv[]) {
         struct expr exprbuf[EXPR_MAX];
         struct expr_context econtext = expr_context(exprbuf);
         char *regex = args.regex ? args.regex : "(a|b)*abbc?";
-        struct parse_context pcontext = parse_context(regex, &econtext, GETVALFN expr_to_rval, expr_actions, args.nonrec);
+        struct parse_context pcontext = parse_context(&econtext, GETVALFN expr_to_rval, expr_actions, args.nonrec);
 
-        if (run_parser(&pcontext)) {
+        if (run_parser(regex, &pcontext)) {
             struct expr *expr = gexpr(&econtext);
 
             if (args.output == OUTPUT_DOT) {
@@ -263,25 +263,12 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else if (args.cmd == SCAN_ONLY && args.regex) {
-        struct scan_context context = scan(scan_context(args.regex));
+        struct regex_token token = regex_token(args.regex);
 
         while (true) {
-            char *str = lexeme(context);
-            printf("%3d %-17s %-20s", lexeme_col(context), str_for_sym(context.type), str);
-
-            if (context.type == SYMBOL_T) {
-                printf("%d ", context.sym);
-            } else if (context.type == NUM_T) {
-                printf("%d ", context.num);
-            } else if (context.type == RANGE_T) {
-                printf("%d %d ", context.start, context.end);
-            }
-
-            printf("\n");
-            free(str);
-
-            if (context.type == EOF_T) break;
-            else context = scan(context);
+            print_token(token);
+            if (token.type == EOF_T) break;
+            else token = scan(token);
         }
     }
 

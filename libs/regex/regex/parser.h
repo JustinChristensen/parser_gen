@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "result_types.h"
+#include "base.h"
 
 /**
  * Grammar:
@@ -124,27 +125,24 @@ enum gram_production {
     FACTOR_TAIL_OPTIONAL_P
 };
 
-struct scan_context {
+union regex_token_val {
+    char sym;
+    int num;
+    struct char_range range;
+};
+
+struct regex_token {
     char *input;
     int input_col;
 
-    // sub-scanners (or scanner states, depending on your point of view)
     bool in_class;
     bool in_braces;
 
-    // token
     struct {
         enum regex_symbol type;
         char *lexeme;
         int lexeme_col;
-        union {
-            char sym;
-            int num;
-            struct {
-                char start;
-                char end;
-            };
-        };
+        union regex_token_val val;
     };
 };
 
@@ -158,35 +156,39 @@ struct parse_context {
     void *result_context;
     void (**actions)(void *result_context, union rval lval);
     union rval (*getval)(void *result_context);
-    struct scan_context scan_context;
+    struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;
-    char symbol;
+    union regex_token_val lookahead_val;
     bool has_error;
     struct parse_error error;
     bool use_nonrec;
 };
 
-struct scan_context scan_context(char *input);
-struct scan_context scan(struct scan_context context);
-enum regex_symbol token_type(struct scan_context context);
-char *lexeme(struct scan_context context);
-int lexeme_col(struct scan_context context);
+struct regex_token regex_token(char *input);
+struct regex_token scan(struct regex_token token);
+enum regex_symbol token_type(struct regex_token token);
+union regex_token_val token_val(struct regex_token token);
+void token_lexeme(char *lbuf, struct regex_token token);
+int token_col(struct regex_token token);
+void print_token(struct regex_token token);
 
 union rval getval(struct parse_context *context);
 void do_action(struct parse_context *context, enum regex_symbol action, union rval lval);
 struct parse_context parse_context(
-    char *input,
     void *result_context,
     union rval (*getval)(void *result_context),
     void (**actions)(void *result_context, union rval lval),
     bool use_nonrec
 );
+void start_scanning(char *input, struct parse_context *context);
 bool peek(struct parse_context *context, enum regex_symbol expected);
 bool expect(struct parse_context *context, enum regex_symbol expected);
 int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
 char symbol(struct parse_context *context);
+struct char_range range(struct parse_context *context);
+int number(struct parse_context *context);
 void set_parse_error(enum regex_symbol expected, struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);

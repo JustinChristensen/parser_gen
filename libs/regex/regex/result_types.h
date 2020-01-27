@@ -92,7 +92,6 @@ struct dfa_node {
     struct dfa_pos pos; // computed position properties
 };
 
-
 union rval {
     struct expr *expr;
     struct nfa mach;

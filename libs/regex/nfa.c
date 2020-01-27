@@ -161,7 +161,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
 
     if (!has_nfa_error(context)) {
         struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(regex, context, GETVALFN nfa_to_rval, nfa_actions, context->use_nonrec);
+        struct parse_context pcontext = parse_context(context, GETVALFN nfa_to_rval, nfa_actions, context->use_nonrec);
 
         // overwrite the previous accepting state if we're
         // chaining nfa_regex calls to create alt machines
@@ -170,7 +170,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
             context->numstates--;
         }
 
-        if (!run_parser(&pcontext)) {
+        if (!run_parser(regex, &pcontext)) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {

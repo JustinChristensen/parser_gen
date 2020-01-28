@@ -38,6 +38,7 @@ enum regex_symbol {
     SYMBOL_T,
     RANGE_T,
     NUM_T,
+    ID_T,
     ALT_T,
     STAR_T,
     PLUS_T,
@@ -172,6 +173,7 @@ union regex_token_val token_val(struct regex_token token);
 void token_lexeme(char *lbuf, struct regex_token token);
 int token_col(struct regex_token token);
 void print_token(struct regex_token token);
+void print_token_table(char *regex);
 
 union rval getval(struct parse_context *context);
 void do_action(struct parse_context *context, enum regex_symbol action, union rval lval);

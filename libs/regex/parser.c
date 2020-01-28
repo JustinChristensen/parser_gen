@@ -126,6 +126,11 @@ struct regex_token scan(struct regex_token token) {
             type = RBRACE_T;
             token.in_braces = false;
             ic++, ip++;
+        } else if (*ip == '_' || isalpha(*ip)) {
+            type = ID_T;
+            ic++, ip++;
+            while (*ip == '_' || isalnum(*ip))
+                ic++, ip++;
         } else if (isdigit(*ip)) {
             char *end;
             type = NUM_T;
@@ -232,6 +237,17 @@ void print_token(struct regex_token token) {
     printf("%3d %-17s %-20s", token_col(token), str_for_sym(token.type), lexeme);
     print_token_val(token);
     printf("\n");
+}
+
+void print_token_table(char *regex) {
+    struct regex_token token = regex_token(regex);
+
+    printf("%-3s %-17s %-20s %-s\n", "col", "symbol", "lexeme", "value");
+    while (true) {
+        print_token(token);
+        if (token.type == EOF_T) break;
+        else token = scan(token);
+    }
 }
 
 union rval getval(struct parse_context *context) {
@@ -348,6 +364,7 @@ char *str_for_sym(enum regex_symbol type) {
         case SYMBOL_T:         return "SYMBOL_T";
         case RANGE_T:          return "RANGE_T";
         case NUM_T:            return "NUM_T";
+        case ID_T:             return "ID_T";
         case ALT_T:            return "ALT_T";
         case STAR_T:           return "STAR_T";
         case PLUS_T:           return "PLUS_T";
@@ -361,25 +378,25 @@ char *str_for_sym(enum regex_symbol type) {
         case LBRACE_T:         return "LBRACE_T";
         case RBRACE_T:         return "RBRACE_T";
 
-        case REGEX_NT:       return "REGEX";
-        case EXPR_NT:        return "EXPR";
-        case ALT_NT:         return "ALT";
-        case ALT_TAIL_NT:    return "ALT_TAIL";
-        case CAT_NT:         return "CAT";
-        case CAT_TAIL_NT:    return "CAT_TAIL";
-        case FACTOR_NT:      return "FACTOR";
-        case FACTOR_TAIL_NT: return "FACTOR_TAIL";
+        case REGEX_NT:         return "REGEX";
+        case EXPR_NT:          return "EXPR";
+        case ALT_NT:           return "ALT";
+        case ALT_TAIL_NT:      return "ALT_TAIL";
+        case CAT_NT:           return "CAT";
+        case CAT_TAIL_NT:      return "CAT_TAIL";
+        case FACTOR_NT:        return "FACTOR";
+        case FACTOR_TAIL_NT:   return "FACTOR_TAIL";
 
-        case DO_REGEX:       return "{regex}";
-        case DO_EMPTY:       return "{empty}";
-        case DO_ALT:         return "{alt}";
-        case DO_CAT:         return "{cat}";
-        case DO_SUB:         return "{sub}";
-        case DO_DOTALL:      return "{dotall}";
-        case DO_SYMBOL:      return "{symbol}";
-        case DO_STAR:        return "{star}";
-        case DO_PLUS:        return "{plus}";
-        case DO_OPTIONAL:    return "{optional}";
+        case DO_REGEX:         return "{regex}";
+        case DO_EMPTY:         return "{empty}";
+        case DO_ALT:           return "{alt}";
+        case DO_CAT:           return "{cat}";
+        case DO_SUB:           return "{sub}";
+        case DO_DOTALL:        return "{dotall}";
+        case DO_SYMBOL:        return "{symbol}";
+        case DO_STAR:          return "{star}";
+        case DO_PLUS:          return "{plus}";
+        case DO_OPTIONAL:      return "{optional}";
     }
 }
 

@@ -263,13 +263,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     } else if (args.cmd == SCAN_ONLY && args.regex) {
-        struct regex_token token = regex_token(args.regex);
-
-        while (true) {
-            print_token(token);
-            if (token.type == EOF_T) break;
-            else token = scan(token);
-        }
+        print_token_table(args.regex);
     }
 
     return EXIT_SUCCESS;

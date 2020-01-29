@@ -8,7 +8,7 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    if (parse_expr(context) && expect(context, EOF_T)) {
+    if (parse_alts(context) && expect(EOF_T, context)) {
         do_action(context, DO_REGEX, NULLRVAL);
         return true;
     }
@@ -16,79 +16,94 @@ bool parse_regex(char *regex, struct parse_context *context) {
     return false;
 }
 
-bool parse_expr(struct parse_context *context) {
-    parse_alt(context);
-    return true;
+bool parse_alts(struct parse_context *context) {
+    if (peek(RPAREN_T, context) || peek(EOF_T, context)) {
+        return true;
+    } else if (parse_alt(context)) {
+        bool success = true;
+
+        while (true) {
+            union regex_result prev_alt = result(context);
+
+            if (peek(ALT_T, context)) {
+                success = expect(ALT_T, context) && parse_alt(context);
+
+                if (success) {
+                    do_action(DO_ALT, prev_alt, context);
+                    continue;
+                }
+            }
+
+            break;
+        }
+
+        return success;
+    }
+
+    set_parse_error(ALTS_NT, context);
+
+    return false;
 }
 
 bool parse_alt(struct parse_context *context) {
-    if (parse_cat(context)) {
-        while (true) {
-            union rval lval = getval(context);
+    bool success = true;
 
-            // FIXME: should this really be expr?
-            if (peek(context, ALT_T) &&
-                expect(context, ALT_T) &&
-                parse_expr(context)) {
-                do_action(context, DO_ALT, lval);
-                continue;
-            }
+    do_action(DO_EMPTY, NULLRVAL, context);
 
-            break;
+    while (true) {
+        union regex_result prev_factor = result(context);
+
+        if (peek(ALT_T, context) ||
+            peek(RPAREN_T, context) ||
+            peek(EOF_T, context)) break;
+
+        if ((success = parse_factor(context))) {
+            do_action(DO_CAT, prev_factor, context);
+            continue;
         }
 
-        return true;
+        break;
     }
+
+    if (success) return true;
+
+    set_parse_error(ALT_NT, context);
 
     return false;
 }
 
-bool parse_cat(struct parse_context *context) {
-    do_action(context, DO_EMPTY, NULLRVAL);
-    union rval empty = getval(context);
-
-    if (parse_factor(context)) {
-        while (true) {
-            union rval lval = getval(context);
-
-            if (parse_factor(context)) {
-                do_action(context, DO_CAT, lval);
-                continue;
-            }
-
-            break;
-        }
-
-        do_action(context, DO_CAT, empty);
-
-        return true;
-    }
-
-    return false;
+bool parse_ranges(struct parse_context *context) {
 }
 
 bool parse_factor(struct parse_context *context) {
-    bool has_head = false;
+    bool success = false;
 
-    // FIXME: this doesn't distinguish between selecting ε for expr and
-    // a parse error encountered during expr
-    if (peek(context, LPAREN_T) &&
-        expect(context, LPAREN_T) &&
-        parse_expr(context) && expect(context, RPAREN_T)) {
-        do_action(context, DO_SUB, NULLRVAL);
-        has_head = true;
-    } else if (peek(context, DOTALL_T)) {
-        expect(context, DOTALL_T);
-        do_action(context, DO_DOTALL, NULLRVAL);
-        has_head = true;
-    } else if (peek(context, SYMBOL_T)) {
-        union rval sym = { .sym = symbol(context) };
-        expect(context, SYMBOL_T);
-        do_action(context, DO_SYMBOL, sym);
-        has_head = true;
+    if (peek(LPAREN_T, context)) {
+        success = expect(LPAREN_T, context) &&
+                  parse_alts(context) &&
+                  expect(RPAREN_T, context);
+        if (success) do_action(context, DO_SUB, NULLRVAL);
+    } else if (peek(LBRACE_T, context)) {
+    } else if (peek(CLASS_T, context)) {
+    } else if (peek(NEG_CLASS_T, context)) {
+    } else if (peek(DOTALL_T, context)) {
+        success = expect(DOTALL_T, context);
+        do_action(DO_DOTALL, NULLRVAL, context);
+    } else if (peek(SYMBOL_T, context)) {
+        union regex_result sym = { .sym = symbol(context) };
+        success = expect(SYMBOL_T, context);
+        do_action(DO_SYMBOL, sym, context);
     }
 
-    if (has_head) {
+    if (success && parse_unops(context))
+        return true;
+
+    set_parse_error(FACTOR_NT, context);
+
+    return false;
+}
+
+bool parse_unops(struct parse_context *context) {
         while (true) {
             if (peek(context, STAR_T) && expect(context, STAR_T)) {
                 do_action(context, DO_STAR, NULLRVAL);
@@ -105,8 +120,4 @@ bool parse_factor(struct parse_context *context) {
         }
 
         return true;
-    }
-
-    return false;
 }
-

@@ -11,7 +11,7 @@
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
-void (*nfa_actions[])(void *context, union rval lval) = {
+void (*nfa_actions[])(void *context, union regex_result lval) = {
     [AI(DO_REGEX)] =    ACTION noop_nfa,
     [AI(DO_EMPTY)] =    ACTION do_empty_nfa,
     [AI(DO_ALT)] =      ACTION do_alt_nfa,
@@ -94,8 +94,8 @@ struct nfa gmachine(struct nfa_context *context) {
     return context->nfa;
 }
 
-union rval nfa_to_rval(struct nfa_context *context) {
-    return (union rval) { .mach = gmachine(context) };
+union regex_result nfa_to_rval(struct nfa_context *context) {
+    return (union regex_result) { .mach = gmachine(context) };
 }
 
 struct nfa empty_machine(struct nfa_context *context) {
@@ -174,7 +174,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {
-            if (lmachine.end) do_alt_nfa(context, (union rval) lmachine);
+            if (lmachine.end) do_alt_nfa(context, (union regex_result) lmachine);
             patch(gmachine(context), setst(context, accepting_state()));
         }
     }
@@ -283,37 +283,37 @@ bool nfa_match(char *str, struct nfa_context *context) {
     return result;
 }
 
-void noop_nfa(struct nfa_context *context, union rval _) {}
+void noop_nfa(struct nfa_context *context, union regex_result _) {}
 
-void do_empty_nfa(struct nfa_context *context, union rval _) {
+void do_empty_nfa(struct nfa_context *context, union regex_result _) {
     smachine(context, empty_machine(context));
 }
 
-void do_alt_nfa(struct nfa_context *context, union rval lnfa) {
+void do_alt_nfa(struct nfa_context *context, union regex_result lnfa) {
     smachine(context, alt_machine(context, lnfa.mach, gmachine(context)));
 }
 
-void do_cat_nfa(struct nfa_context *context, union rval lnfa) {
+void do_cat_nfa(struct nfa_context *context, union regex_result lnfa) {
     smachine(context, cat_machine(lnfa.mach, gmachine(context)));
 }
 
-void do_dotall_nfa(struct nfa_context *context, union rval _) {
+void do_dotall_nfa(struct nfa_context *context, union regex_result _) {
     smachine(context, dotall_machine(context));
 }
 
-void do_symbol_nfa(struct nfa_context *context, union rval sym) {
+void do_symbol_nfa(struct nfa_context *context, union regex_result sym) {
     smachine(context, symbol_machine(context, sym.sym));
 }
 
-void do_star_nfa(struct nfa_context *context, union rval _) {
+void do_star_nfa(struct nfa_context *context, union regex_result _) {
     smachine(context, closure_machine(context, gmachine(context)));
 }
 
-void do_plus_nfa(struct nfa_context *context, union rval _) {
+void do_plus_nfa(struct nfa_context *context, union regex_result _) {
     smachine(context, posclosure_machine(context, gmachine(context)));
 }
 
-void do_optional_nfa(struct nfa_context *context, union rval _) {
+void do_optional_nfa(struct nfa_context *context, union regex_result _) {
     smachine(context, optional_machine(context, gmachine(context)));
 }
 

@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include "parser.h"
-#include "result_types.h"
 
 /**
  * LL(1)
@@ -13,9 +12,11 @@
  */
 
 bool parse_regex(char *regex, struct parse_context *context);
-bool parse_expr(struct parse_context *context);
+bool parse_alts(struct parse_context *context);
 bool parse_alt(struct parse_context *context);
-bool parse_cat(struct parse_context *context);
+bool parse_factors(struct parse_context *context);
 bool parse_factor(struct parse_context *context);
+bool parse_ranges(struct parse_context *context);
+bool parse_unops(struct parse_context *context);
 
 #endif // REGEX_PARSER_REC_H_

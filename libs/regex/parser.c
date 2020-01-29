@@ -234,7 +234,7 @@ static void print_token_val(struct regex_token token) {
 void print_token(struct regex_token token) {
     char lexeme[BUFSIZ] = "";
     token_lexeme(lexeme, token);
-    printf("%3d %-17s %-20s", token_col(token), str_for_sym(token.type), lexeme);
+    printf("%3d %-17s %-20s ", token_col(token), str_for_sym(token.type), lexeme);
     print_token_val(token);
     printf("\n");
 }
@@ -250,29 +250,29 @@ void print_token_table(char *regex) {
     }
 }
 
-union rval getval(struct parse_context *context) {
-    return (*context->getval)(context->result_context);
+union regex_result result(struct parse_context *context) {
+    return (*context->get_result)(context->result_context);
 }
 
-void do_action(struct parse_context *context, enum regex_symbol action, union rval lval) {
+void do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
     pdebug("doing action: %s\n", str_for_sym(action));
-    (*context->actions[AI(action)])(context->result_context, lval);
+    (*context->actions[AI(action)])(context->result_context, val);
 }
 
 struct parse_context parse_context(
     void *result_context,
-    union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval),
+    union regex_result (*get_result)(void *result_context),
+    void (**actions)(void *result_context, union regex_result lval),
     bool use_nonrec
 ) {
     assert(result_context != NULL);
     assert(actions != NULL);
-    assert(getval != NULL);
+    assert(get_result != NULL);
 
     struct parse_context context = {
         .result_context = result_context,
         .actions = actions,
-        .getval = getval,
+        .get_result = get_result,
         .has_error = false,
         .error = nullperr(),
         .use_nonrec = use_nonrec
@@ -287,14 +287,15 @@ void start_scanning(char *input, struct parse_context *context) {
     context->lookahead = token_type(token);
     context->lookahead_col = token_col(token);
     context->lookahead_val = token_val(token);
+    context->has_error = false;
 }
 
-bool peek(struct parse_context *context, enum regex_symbol expected) {
+bool peek(enum regex_symbol expected, struct parse_context *context) {
     return context->lookahead == expected;
 }
 
-bool expect(struct parse_context *context, enum regex_symbol expected) {
-    if (peek(context, expected)) {
+bool expect(enum regex_symbol expected, struct parse_context *context) {
+    if (peek(expected, context)) {
         pdebug("success, expected \"%s\", actual \"%s\"\n",
             str_for_sym(expected), str_for_sym(context->lookahead));
 
@@ -310,6 +311,7 @@ bool expect(struct parse_context *context, enum regex_symbol expected) {
 
     pdebug("failure, expected \"%s\", actual \"%s\"\n",
         str_for_sym(expected), str_for_sym(context->lookahead));
+
     set_parse_error(expected, context);
 
     return false;

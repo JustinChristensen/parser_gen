@@ -4,7 +4,7 @@
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
-void (*expr_actions[])(void *context, union rval lval) = {
+void (*expr_actions[])(void *context, union regex_result lval) = {
     [AI(DO_REGEX)] =    ACTION noop_expr,
     [AI(DO_EMPTY)] =    ACTION do_empty_expr,
     [AI(DO_ALT)] =      ACTION do_alt_expr,
@@ -97,45 +97,45 @@ struct expr *gexpr(struct expr_context *context) {
     return context->expr;
 }
 
-union rval expr_to_rval(struct expr_context *context) {
-    return (union rval) { .expr = gexpr(context) };
+union regex_result expr_to_rval(struct expr_context *context) {
+    return (union regex_result) { .expr = gexpr(context) };
 }
 
-void noop_expr(struct expr_context *context, union rval _) {}
+void noop_expr(struct expr_context *context, union regex_result _) {}
 
-void do_empty_expr(struct expr_context *context, union rval _) {
+void do_empty_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, empty_expr());
 }
 
-void do_alt_expr(struct expr_context *context, union rval lexpr) {
+void do_alt_expr(struct expr_context *context, union regex_result lexpr) {
     sexpr(context, alt_expr(lexpr.expr, gexpr(context)));
 }
 
-void do_cat_expr(struct expr_context *context, union rval lexpr) {
+void do_cat_expr(struct expr_context *context, union regex_result lexpr) {
     sexpr(context, cat_expr(lexpr.expr, gexpr(context)));
 }
 
-void do_sub_expr(struct expr_context *context, union rval _) {
+void do_sub_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, sub_expr(gexpr(context)));
 }
 
-void do_dotall_expr(struct expr_context *context, union rval _) {
+void do_dotall_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, dotall_expr());
 }
 
-void do_symbol_expr(struct expr_context *context, union rval sym) {
+void do_symbol_expr(struct expr_context *context, union regex_result sym) {
     sexpr(context, symbol_expr(sym.sym));
 }
 
-void do_star_expr(struct expr_context *context, union rval _) {
+void do_star_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, star_expr(gexpr(context)));
 }
 
-void do_plus_expr(struct expr_context *context, union rval _) {
+void do_plus_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, plus_expr(gexpr(context)));
 }
 
-void do_optional_expr(struct expr_context *context, union rval _) {
+void do_optional_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, optional_expr(gexpr(context)));
 }
 

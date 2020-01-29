@@ -1,0 +1,70 @@
+'|'
+'.'
+'('
+')'
+'['
+'[^'
+']'
+'a-b'
+'{'
+'}'
+
+regex       = alts_head eof { regex };
+alts_head   = alt alts
+            | $empty;
+alts        = '|' alt { alt } alts
+            | $empty;
+alt         = { empty } factor factors
+            | $empty;
+factors     = factor { cat } factors
+            | $empty;
+ranges      = 'a-z' { range } ranges
+            | $empty;
+factor      = '(' alts_head ')' { sub } unops
+            | '{' id '}' { id } unops
+            | '[' ranges ']' { char_class } unops
+            | '[^' ranges ']' { neg_char_class } unops
+            | '.' { dotall } unops
+            | a { sym } unops;
+unops       = '*' { star } unops
+            | '+' { plus } unops
+            | '?' { optional } unops
+            | '{' number '}' { repeat_exact } unops
+            | $empty;
+
+FIRST(regex) =          FIRST(alts_head)
+FIRST(alts_head) =      FIRST(alt) + FIRST(alts) + { ε }
+    FOLLOW(alts_head) = { ')', eof }
+FIRST(alts) =           { '|' } + { ε }
+    FOLLOW(alts) =      FOLLOW(alts_head)
+FIRST(alt) =            FIRST(factor) + { ε }
+    FOLLOW(alt) =       FIRST(alts)
+FIRST(factors) =        FIRST(factor) + { ε }
+    FOLLOW(factors) =   FOLLOW(alt)
+FIRST(factor) =         { '(', '{', '[', '[^', '.', 'a' }
+FIRST(ranges) =         { 'a-z' } + { ε }
+    FOLLOW(ranges) =    { ']' }
+FIRST(unops) =          { '*', '+', '?', '{' } + { ε }
+    FOLLOW(unops) =     FIRST(factor)
+
+character class ideas:
+1. Alternatives
+    - add a single "range" or "interval" state
+    - merge and sort from the class during parsing, i.e.:
+        [a-zde0-53-934]
+        [a-h d e 0-5 3-9 3 4]
+        [a-h 0-9]
+        [a-z0-9]
+    - if a negated class, invert the above merged and sorted interval list
+    - create a machine from the list of intervals as branching machines of range
+      and symbol states
+    - PROS: simulation logic only needs to consider single range or symbol at a time
+    - CONS: potentially many more states, for alphabet a-z,
+        [^a] would then create 25 symbol states and 24 branching states
+
+2. Single State
+    - list of merged and sorted intervals directly on the state
+    - PROS: single state
+    - CONS: simulation logic is more complex, requires a loop
+
+

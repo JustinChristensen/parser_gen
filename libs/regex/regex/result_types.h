@@ -92,14 +92,16 @@ struct dfa_node {
     struct dfa_pos pos; // computed position properties
 };
 
-union rval {
+// TODO: is this really a union of the token value type
+//       and the parser types??
+union regex_result {
     struct expr *expr;
     struct nfa mach;
     struct dfa_node node;
     char sym;
 };
 
-static const union rval NULLRVAL = { NULL };
+static const union regex_result NULLRVAL = { NULL };
 
 #endif // REGEX_RESULT_TYPES_H_
 

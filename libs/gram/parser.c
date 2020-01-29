@@ -150,7 +150,7 @@ void do_action(enum gram_symbol action, union gram_result val, struct gram_parse
 }
 
 union gram_result result(struct gram_parse_context *context) {
-    return context->result(context->result_context);
+    return context->get_result(context->result_context);
 }
 
 void start_scanning(char *input, struct gram_parse_context *context) {

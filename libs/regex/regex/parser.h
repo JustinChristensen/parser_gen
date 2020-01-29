@@ -26,8 +26,8 @@
  * character classes: [a-zA-Z]
  */
 
-#define GETVALFN (union rval (*) (void *))
-#define ACTION (void (*)(void *, union rval))
+#define GETVALFN (union regex_result (*) (void *))
+#define ACTION (void (*)(void *, union regex_result))
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
 
 enum regex_symbol {
@@ -54,13 +54,13 @@ enum regex_symbol {
 
     // non-terminals (used during iterative parsing)
     REGEX_NT,
-    EXPR_NT,
+    ALTS_HEAD_NT,
+    ALTS_NT,
     ALT_NT,
-    ALT_TAIL_NT,
-    CAT_NT,
-    CAT_TAIL_NT,
+    FACTORS_NT,
     FACTOR_NT,
-    FACTOR_TAIL_NT,
+    RANGES_NT,
+    UNOPS_NT,
 
     // parser actions
     DO_REGEX,
@@ -68,17 +68,22 @@ enum regex_symbol {
     DO_ALT,
     DO_CAT,
     DO_SUB,
+    DO_ID,
+    DO_CHAR_CLASS,
+    DO_NEG_CHAR_CLASS,
     DO_DOTALL,
     DO_SYMBOL,
+    DO_RANGE,
     DO_STAR,
     DO_PLUS,
-    DO_OPTIONAL
+    DO_OPTIONAL,
+    DO_REPEAT_EXACT
 };
 
 #define NUM_SYMBOLS (DO_OPTIONAL + 1)
 #define NUM_TERMINALS (RBRACE_T + 1)
-#define NUM_NONTERMINALS ((FACTOR_TAIL_NT + 1) - NUM_TERMINALS)
-#define NUM_ACTIONS ((DO_OPTIONAL + 1) - NUM_NONTERMINALS)
+#define NUM_NONTERMINALS ((UNOPS_NT + 1) - NUM_TERMINALS)
+#define NUM_ACTIONS ((DO_REPEAT_EXACT + 1) - NUM_NONTERMINALS)
 // non-terminal index
 #define NTI(sym) (sym - NUM_TERMINALS)
 // do action index
@@ -155,8 +160,8 @@ struct parse_error {
 
 struct parse_context {
     void *result_context;
-    void (**actions)(void *result_context, union rval lval);
-    union rval (*getval)(void *result_context);
+    void (**actions)(void *result_context, union regex_result lval);
+    union regex_result (*get_result)(void *result_context);
     struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;
@@ -175,12 +180,12 @@ int token_col(struct regex_token token);
 void print_token(struct regex_token token);
 void print_token_table(char *regex);
 
-union rval getval(struct parse_context *context);
-void do_action(struct parse_context *context, enum regex_symbol action, union rval lval);
+union regex_result result(struct parse_context *context);
+void do_action(struct parse_context *context, enum regex_symbol action, union regex_result lval);
 struct parse_context parse_context(
     void *result_context,
-    union rval (*getval)(void *result_context),
-    void (**actions)(void *result_context, union rval lval),
+    union regex_result (*get_result)(void *result_context),
+    void (**actions)(void *result_context, union regex_result lval),
     bool use_nonrec
 );
 void start_scanning(char *input, struct parse_context *context);

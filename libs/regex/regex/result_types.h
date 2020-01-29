@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include "base.h"
 
 enum expr_type {
     NULL_EXPR,
@@ -10,11 +11,16 @@ enum expr_type {
     DOTALL_EXPR,
     ALT_EXPR,
     CAT_EXPR,
+    SUB_EXPR,
+    ID_EXPR,
+    CHAR_CLASS_EXPR,
+    NEG_CLASS_EXPR,
+    SYMBOL_EXPR,
+    RANGE_EXPR,
     STAR_EXPR,
     PLUS_EXPR,
     OPTIONAL_EXPR,
-    SUB_EXPR,
-    SYMBOL_EXPR
+    REPEAT_EXACT_EXPR
 };
 
 struct expr {
@@ -22,8 +28,10 @@ struct expr {
     union {
         // alt, cat
         struct { struct expr *lexpr; struct expr *rexpr; };
-        // star, plus, optional, sub
+        // star, plus, optional, sub, range
         struct { struct expr *expr; };
+        // sym
+        struct { int num; };
         // sym
         struct { char symbol; };
         // empty, dotall
@@ -92,16 +100,20 @@ struct dfa_node {
     struct dfa_pos pos; // computed position properties
 };
 
-// TODO: is this really a union of the token value type
-//       and the parser types??
-union regex_result {
-    struct expr *expr;
-    struct nfa mach;
-    struct dfa_node node;
+union regex_token_val {
     char sym;
+    int num;
+    struct char_range range;
 };
 
-static const union regex_result NULLRVAL = { NULL };
+union regex_result {
+    char *id;
+    union regex_token_val tval;
+    struct expr *expr;
+    struct nfa mach;
+};
+
+static const union regex_result NULLRVAL = { 0 };
 
 #endif // REGEX_RESULT_TYPES_H_
 

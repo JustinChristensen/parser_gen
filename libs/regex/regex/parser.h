@@ -5,27 +5,6 @@
 #include "result_types.h"
 #include "base.h"
 
-/**
- * Grammar:
- *
- * regex: expr eof { regex }
- * expr: alt | ε
- * alt: cat alt_tail
- * alt_tail: + expr { alt } alt_tail | ε
- * cat: ε { empty } factor cat_tail { cat }
- * cat_tail: factor { cat } cat_tail | ε
- * factor: ( expr ) { sub } factor_tail
- *       | . { dotall } factor_tail
- *       | a { sym } factor_tail
- * factor_tail: * { star } factor_tail
- *            | + { plus } factor_tail
- *            | ? { optional } factor_tail
- *            | ε
- *
- * TODO: extensions
- * character classes: [a-zA-Z]
- */
-
 #define GETVALFN (union regex_result (*) (void *))
 #define ACTION (void (*)(void *, union regex_result))
 #define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
@@ -58,8 +37,8 @@ enum regex_symbol {
     ALTS_NT,
     ALT_NT,
     FACTORS_NT,
-    FACTOR_NT,
     RANGES_NT,
+    FACTOR_NT,
     UNOPS_NT,
 
     // parser actions
@@ -70,7 +49,7 @@ enum regex_symbol {
     DO_SUB,
     DO_ID,
     DO_CHAR_CLASS,
-    DO_NEG_CHAR_CLASS,
+    DO_NEG_CLASS,
     DO_DOTALL,
     DO_SYMBOL,
     DO_RANGE,
@@ -131,12 +110,6 @@ enum gram_production {
     FACTOR_TAIL_OPTIONAL_P
 };
 
-union regex_token_val {
-    char sym;
-    int num;
-    struct char_range range;
-};
-
 struct regex_token {
     char *input;
     int input_col;
@@ -181,7 +154,7 @@ void print_token(struct regex_token token);
 void print_token_table(char *regex);
 
 union regex_result result(struct parse_context *context);
-void do_action(struct parse_context *context, enum regex_symbol action, union regex_result lval);
+void do_action(enum regex_symbol action, union regex_result val, struct parse_context *context);
 struct parse_context parse_context(
     void *result_context,
     union regex_result (*get_result)(void *result_context),
@@ -189,13 +162,12 @@ struct parse_context parse_context(
     bool use_nonrec
 );
 void start_scanning(char *input, struct parse_context *context);
-bool peek(struct parse_context *context, enum regex_symbol expected);
-bool expect(struct parse_context *context, enum regex_symbol expected);
+bool peek(enum regex_symbol expected, struct parse_context *context);
+bool expect(enum regex_symbol expected, struct parse_context *context);
 int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
-char symbol(struct parse_context *context);
-struct char_range range(struct parse_context *context);
-int number(struct parse_context *context);
+union regex_result lookahead_val(struct parse_context *context);
+union regex_result id_val(char *id, struct parse_context *context);
 void set_parse_error(enum regex_symbol expected, struct parse_context *context);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);

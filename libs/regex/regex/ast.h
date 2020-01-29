@@ -33,8 +33,8 @@ union regex_result expr_to_rval(struct expr_context *context);
 // parse actions
 void noop_expr(struct expr_context *context, union regex_result _);
 void do_empty_expr(struct expr_context *context, union regex_result _);
-void do_alt_expr(struct expr_context *context, union regex_result lexpr);
-void do_cat_expr(struct expr_context *context, union regex_result lexpr);
+void do_alt_expr(struct expr_context *context, union regex_result expr);
+void do_cat_expr(struct expr_context *context, union regex_result expr);
 void do_sub_expr(struct expr_context *context, union regex_result _);
 void do_dotall_expr(struct expr_context *context, union regex_result _);
 void do_symbol_expr(struct expr_context *context, union regex_result sym);

@@ -325,16 +325,13 @@ enum regex_symbol lookahead(struct parse_context *context) {
     return context->lookahead;
 }
 
-char symbol(struct parse_context *context) {
-    return context->lookahead_val.sym;
+union regex_result lookahead_val(struct parse_context *context) {
+    return (union regex_result) { .tval = context->lookahead_val };
 }
 
-struct char_range range(struct parse_context *context) {
-    return context->lookahead_val.range;
-}
-
-int number(struct parse_context *context) {
-    return context->lookahead_val.num;
+union regex_result id_val(char *idbuf, struct parse_context *context) {
+    token_lexeme(idbuf, context->token);
+    return (union regex_result) { .id = idbuf };
 }
 
 void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
@@ -360,45 +357,50 @@ struct parse_error parse_error(struct parse_context *context) {
 
 char *str_for_sym(enum regex_symbol type) {
     switch (type) {
-        case ERROR:            return "ERROR";
+        case ERROR:             return "ERROR";
 
-        case EOF_T:            return "EOF_T";
-        case SYMBOL_T:         return "SYMBOL_T";
-        case RANGE_T:          return "RANGE_T";
-        case NUM_T:            return "NUM_T";
-        case ID_T:             return "ID_T";
-        case ALT_T:            return "ALT_T";
-        case STAR_T:           return "STAR_T";
-        case PLUS_T:           return "PLUS_T";
-        case OPTIONAL_T:       return "OPTIONAL_T";
-        case DOTALL_T:         return "DOTALL_T";
-        case LPAREN_T:         return "LPAREN_T";
-        case RPAREN_T:         return "RPAREN_T";
-        case CLASS_T:          return "CLASS_T";
-        case NEG_CLASS_T:      return "NEG_CLASS_T";
-        case END_CLASS_T:      return "END_CLASS_T";
-        case LBRACE_T:         return "LBRACE_T";
-        case RBRACE_T:         return "RBRACE_T";
+        case EOF_T:             return "eof";
+        case SYMBOL_T:          return "a";
+        case RANGE_T:           return "a-z";
+        case NUM_T:             return "999";
+        case ID_T:              return "id";
+        case ALT_T:             return "|";
+        case STAR_T:            return "*";
+        case PLUS_T:            return "+";
+        case OPTIONAL_T:        return "?";
+        case DOTALL_T:          return ".";
+        case LPAREN_T:          return "(";
+        case RPAREN_T:          return ")";
+        case CLASS_T:           return "[";
+        case NEG_CLASS_T:       return "[^";
+        case END_CLASS_T:       return "]";
+        case LBRACE_T:          return "{";
+        case RBRACE_T:          return "}";
 
-        case REGEX_NT:         return "REGEX";
-        case EXPR_NT:          return "EXPR";
-        case ALT_NT:           return "ALT";
-        case ALT_TAIL_NT:      return "ALT_TAIL";
-        case CAT_NT:           return "CAT";
-        case CAT_TAIL_NT:      return "CAT_TAIL";
-        case FACTOR_NT:        return "FACTOR";
-        case FACTOR_TAIL_NT:   return "FACTOR_TAIL";
+        case REGEX_NT:          return "REGEX";
+        case ALTS_HEAD_NT:      return "ALTS_HEAD";
+        case ALTS_NT:           return "ALTS";
+        case ALT_NT:            return "ALT";
+        case FACTORS_NT:        return "FACTORS";
+        case RANGES_NT:         return "RANGES";
+        case FACTOR_NT:         return "FACTORS";
+        case UNOPS_NT:          return "UNOPS";
 
-        case DO_REGEX:         return "{regex}";
-        case DO_EMPTY:         return "{empty}";
-        case DO_ALT:           return "{alt}";
-        case DO_CAT:           return "{cat}";
-        case DO_SUB:           return "{sub}";
-        case DO_DOTALL:        return "{dotall}";
-        case DO_SYMBOL:        return "{symbol}";
-        case DO_STAR:          return "{star}";
-        case DO_PLUS:          return "{plus}";
-        case DO_OPTIONAL:      return "{optional}";
+        case DO_REGEX:          return "{regex}";
+        case DO_EMPTY:          return "{empty}";
+        case DO_ALT:            return "{alt}";
+        case DO_CAT:            return "{cat}";
+        case DO_SUB:            return "{sub}";
+        case DO_ID:             return "{id}";
+        case DO_CHAR_CLASS:     return "{char_class}";
+        case DO_NEG_CLASS:      return "{neg_class}";
+        case DO_DOTALL:         return "{dotall}";
+        case DO_SYMBOL:         return "{symbol}";
+        case DO_RANGE:          return "{range}";
+        case DO_STAR:           return "{star}";
+        case DO_PLUS:           return "{plus}";
+        case DO_OPTIONAL:       return "{optional}";
+        case DO_REPEAT_EXACT:   return "{repeat_exact}";
     }
 }
 

@@ -12,16 +12,21 @@
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
 void (*nfa_actions[])(void *context, union regex_result lval) = {
-    [AI(DO_REGEX)] =    ACTION noop_nfa,
-    [AI(DO_EMPTY)] =    ACTION do_empty_nfa,
-    [AI(DO_ALT)] =      ACTION do_alt_nfa,
-    [AI(DO_CAT)] =      ACTION do_cat_nfa,
-    [AI(DO_SUB)] =      ACTION noop_nfa,
-    [AI(DO_DOTALL)] =   ACTION do_dotall_nfa,
-    [AI(DO_SYMBOL)] =   ACTION do_symbol_nfa,
-    [AI(DO_STAR)] =     ACTION do_star_nfa,
-    [AI(DO_PLUS)] =     ACTION do_plus_nfa,
-    [AI(DO_OPTIONAL)] = ACTION do_optional_nfa
+    [AI(DO_REGEX)] =        ACTION noop_nfa,
+    [AI(DO_EMPTY)] =        ACTION do_empty_nfa,
+    [AI(DO_ALT)] =          ACTION do_alt_nfa,
+    [AI(DO_CAT)] =          ACTION do_cat_nfa,
+    [AI(DO_SUB)] =          ACTION noop_nfa,
+    [AI(DO_ID)] =           ACTION noop_nfa,
+    [AI(DO_CHAR_CLASS)] =   ACTION noop_nfa,
+    [AI(DO_NEG_CLASS)] =    ACTION noop_nfa,
+    [AI(DO_DOTALL)] =       ACTION do_dotall_nfa,
+    [AI(DO_SYMBOL)] =       ACTION do_symbol_nfa,
+    [AI(DO_RANGE)] =        ACTION noop_nfa,
+    [AI(DO_STAR)] =         ACTION do_star_nfa,
+    [AI(DO_PLUS)] =         ACTION do_plus_nfa,
+    [AI(DO_OPTIONAL)] =     ACTION do_optional_nfa,
+    [AI(DO_REPEAT_EXACT)] = ACTION noop_nfa
 };
 
 struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {
@@ -302,7 +307,7 @@ void do_dotall_nfa(struct nfa_context *context, union regex_result _) {
 }
 
 void do_symbol_nfa(struct nfa_context *context, union regex_result sym) {
-    smachine(context, symbol_machine(context, sym.sym));
+    smachine(context, symbol_machine(context, sym.tval.sym));
 }
 
 void do_star_nfa(struct nfa_context *context, union regex_result _) {

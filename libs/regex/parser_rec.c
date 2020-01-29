@@ -9,7 +9,7 @@ bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
     if (parse_alts(context) && expect(EOF_T, context)) {
-        do_action(context, DO_REGEX, NULLRVAL);
+        do_action(DO_REGEX, NULLRVAL, context);
         return true;
     }
 
@@ -73,6 +73,27 @@ bool parse_alt(struct parse_context *context) {
 }
 
 bool parse_ranges(struct parse_context *context) {
+    bool success = true;
+
+    while (true) {
+        if (peek(END_CLASS_T, context)) break;
+        else {
+            union regex_result range = lookahead_val(context);
+
+            if (expect(RANGE_T, context)) {
+                do_action(DO_RANGE, range, context);
+                continue;
+            } else success = false;
+        }
+
+        break;
+    }
+
+    if (success) return true;
+
+    set_parse_error(RANGES_NT, context);
+
+    return false;
 }
 
 bool parse_factor(struct parse_context *context) {
@@ -82,15 +103,28 @@ bool parse_factor(struct parse_context *context) {
         success = expect(LPAREN_T, context) &&
                   parse_alts(context) &&
                   expect(RPAREN_T, context);
-        if (success) do_action(context, DO_SUB, NULLRVAL);
+        if (success) do_action(DO_SUB, NULLRVAL, context);
     } else if (peek(LBRACE_T, context)) {
+        success = expect(LBRACE_T, context);
+        char idbuf[BUFSIZ] = "";
+        union regex_result id = id_val(idbuf, context);
+        success = success && expect(ID_T, context) && expect(RBRACE_T, context);
+        if (success) do_action(DO_ID, id, context);
     } else if (peek(CLASS_T, context)) {
+        success = expect(CLASS_T, context) &&
+                  parse_ranges(context) &&
+                  expect(END_CLASS_T, context);
+        if (success) do_action(DO_CHAR_CLASS, NULLRVAL, context);
     } else if (peek(NEG_CLASS_T, context)) {
+        success = expect(NEG_CLASS_T, context) &&
+                  parse_ranges(context) &&
+                  expect(END_CLASS_T, context);
+        if (success) do_action(DO_NEG_CLASS, NULLRVAL, context);
     } else if (peek(DOTALL_T, context)) {
         success = expect(DOTALL_T, context);
         do_action(DO_DOTALL, NULLRVAL, context);
     } else if (peek(SYMBOL_T, context)) {
-        union regex_result sym = { .sym = symbol(context) };
+        union regex_result sym = lookahead_val(context);
         success = expect(SYMBOL_T, context);
         do_action(DO_SYMBOL, sym, context);
     }
@@ -104,20 +138,31 @@ bool parse_factor(struct parse_context *context) {
 }
 
 bool parse_unops(struct parse_context *context) {
-        while (true) {
-            if (peek(context, STAR_T) && expect(context, STAR_T)) {
-                do_action(context, DO_STAR, NULLRVAL);
-                continue;
-            } else if (peek(context, PLUS_T) && expect(context, PLUS_T)) {
-                do_action(context, DO_PLUS, NULLRVAL);
-                continue;
-            } else if (peek(context, OPTIONAL_T) && expect(context, OPTIONAL_T)) {
-                do_action(context, DO_OPTIONAL, NULLRVAL);
+    bool success = true;
+
+    while (true) {
+        if (peek(STAR_T, context) && expect(STAR_T, context)) {
+            do_action(DO_STAR, NULLRVAL, context);
+            continue;
+        } else if (peek(PLUS_T, context) && expect(PLUS_T, context)) {
+            do_action(DO_PLUS, NULLRVAL, context);
+            continue;
+        } else if (peek(OPTIONAL_T, context) && expect(OPTIONAL_T, context)) {
+            do_action(DO_OPTIONAL, NULLRVAL, context);
+            continue;
+        } else if (peek(LBRACE_T, context)) {
+            success = expect(LBRACE_T, context);
+            union regex_result num = lookahead_val(context);
+            success = success && expect(NUM_T, context) && expect(RBRACE_T, context);
+
+            if (success) {
+                do_action(DO_REPEAT_EXACT, num, context);
                 continue;
             }
-
-            break;
         }
 
-        return true;
+        break;
+    }
+
+    return success;
 }

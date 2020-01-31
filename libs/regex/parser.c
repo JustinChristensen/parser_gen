@@ -340,12 +340,14 @@ union regex_result id_val(char *idbuf, struct parse_context *context) {
 }
 
 void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
-    context->has_error = true;
-    context->error = (struct parse_error) {
-        .actual = context->lookahead,
-        .lexeme_col = context->lookahead_col,
-        .expected = expected
-    };
+    if (!context->has_error) {
+        context->has_error = true;
+        context->error = (struct parse_error) {
+            .actual = context->lookahead,
+            .lexeme_col = context->lookahead_col,
+            .expected = expected
+        };
+    }
 }
 
 bool has_parse_error(struct parse_context *context) {

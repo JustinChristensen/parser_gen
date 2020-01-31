@@ -20,6 +20,7 @@ bool parse_regex(char *regex, struct parse_context *context) {
 
 bool parse_alts(struct parse_context *context) {
     if (peek(RPAREN_T, context) || peek(EOF_T, context)) {
+        do_action(DO_EMPTY, NULLRVAL, context);
         return true;
     } else if (parse_alt(context)) {
         bool success = true;
@@ -75,23 +76,35 @@ bool parse_alt(struct parse_context *context) {
 }
 
 bool parse_ranges(struct parse_context *context) {
-    bool success = true;
+    if (peek(END_CLASS_T, context)) {
+        return true;
+    } else {
+        struct regex_result head = lookahead_val(context);
+        bool success = true;
 
-    while (true) {
-        if (peek(END_CLASS_T, context)) break;
-        else {
-            union regex_result range = lookahead_val(context);
+        if (expect(RANGE_T, context)) {
+            do_action(DO_RANGE, head, context);
+            head = result(context);
 
-            if (expect(RANGE_T, context)) {
-                do_action(DO_RANGE, range, context);
-                continue;
-            } else success = false;
+            while (true) {
+                if (peek(END_CLASS_T, context)) break;
+                else {
+                    union regex_result range = lookahead_val(context);
+
+                    if (expect(RANGE_T, context)) {
+                        do_action(DO_RANGE, range, context);
+                        continue;
+                    } else success = false;
+                }
+
+                break;
+            }
+        } else {
+            success = false;
         }
 
-        break;
+        if (success) return true;
     }
-
-    if (success) return true;
 
     set_parse_error(RANGES_NT, context);
 

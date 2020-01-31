@@ -13,11 +13,11 @@ void (*expr_actions[])(void *context, union regex_result lval) = {
     [AI(DO_CAT)] =          ACTION do_cat_expr,
     [AI(DO_SUB)] =          ACTION do_sub_expr,
     [AI(DO_ID)] =           ACTION do_id_expr,
-    [AI(DO_CHAR_CLASS)] =   ACTION noop_expr,
-    [AI(DO_NEG_CLASS)] =    ACTION noop_expr,
+    [AI(DO_CHAR_CLASS)] =   ACTION do_char_class,
+    [AI(DO_NEG_CLASS)] =    ACTION do_neg_class,
     [AI(DO_DOTALL)] =       ACTION do_dotall_expr,
     [AI(DO_SYMBOL)] =       ACTION do_symbol_expr,
-    [AI(DO_RANGE)] =        ACTION noop_expr,
+    [AI(DO_RANGE)] =        ACTION do_range,
     [AI(DO_STAR)] =         ACTION do_star_expr,
     [AI(DO_PLUS)] =         ACTION do_plus_expr,
     [AI(DO_OPTIONAL)] =     ACTION do_optional_expr,
@@ -73,6 +73,28 @@ struct expr sub_expr(struct expr *expr) {
     return (struct expr) {
         .type = SUB_EXPR,
         .expr = expr
+    };
+}
+
+struct expr range_expr(struct expr *next, struct char_range range) {
+    return (struct expr) {
+        .type = RANGE_EXPR,
+        .expr = next,
+        .range = range
+    };
+}
+
+struct expr char_class_expr(struct expr *ranges) {
+    return (struct expr) {
+        .type = CHAR_CLASS_EXPR,
+        .ranges = ranges
+    };
+}
+
+struct expr neg_class_expr(struct expr *ranges) {
+    return (struct expr) {
+        .type = NEG_CLASS_EXPR,
+        .ranges = ranges
     };
 }
 
@@ -160,10 +182,18 @@ void do_sub_expr(struct expr_context *context, union regex_result _) {
 }
 
 void do_id_expr(struct expr_context *context, union regex_result id) {
-    // TODO: semi-monadic either thing on a context?
+    // TODO: semi-monadic either thing on a context to handle OOM?
     char *dupid = strdup(id.id);
     assert(dupid != NULL);
     sexpr(context, id_expr(dupid));
+}
+
+void do_char_class(struct expr_context *context, union regex_result range) {
+    sexpr(context, char_class_expr(range.range));
+}
+
+void do_neg_class(struct expr_context *context, union regex_result range) {
+    sexpr(context, neg_class_expr(range.range));
 }
 
 void do_dotall_expr(struct expr_context *context, union regex_result _) {
@@ -188,5 +218,11 @@ void do_optional_expr(struct expr_context *context, union regex_result _) {
 
 void do_repeat_exact_expr(struct expr_context *context, union regex_result num) {
     sexpr(context, repeat_exact_expr(num.tval.num, gexpr(context)));
+}
+
+void do_range(struct expr_context *context, union regex_result range) {
+    struct expr *prev_range = gexpr(context);
+    sexpr(context, range_expr(NULL, range.tval.range));
+    prev_range->expr = gexpr(context);
 }
 

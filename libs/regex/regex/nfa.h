@@ -83,7 +83,7 @@ void do_plus_nfa(struct nfa_context *context, union regex_result _);
 void do_optional_nfa(struct nfa_context *context, union regex_result _);
 
 // parse action table
-void (*nfa_actions[NUM_ACTIONS])(void *context, union regex_result lval);
+extern void (*nfa_actions[NUM_ACTIONS])(void *context, union regex_result lval);
 
 // debugging tools
 void print_nfa_states(struct list *cstates);

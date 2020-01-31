@@ -70,6 +70,13 @@ void print_expr(struct expr *expr) {
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
+                case REPEAT_EXACT_EXPR:
+                    indent(indent_level);
+                    printf("{%d}", expr->num);
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
                 case SUB_EXPR:
                     indent(indent_level);
                     printf("()");
@@ -81,6 +88,10 @@ void print_expr(struct expr *expr) {
                     indent(indent_level);
                     printf("%c", expr->symbol);
                     break;
+                case ID_EXPR:
+                    indent(indent_level);
+                    printf("{%s}", expr->id);
+                    break;
             }
 
             printf("\n");
@@ -91,7 +102,7 @@ void print_expr(struct expr *expr) {
     exprs = sp = NULL;
 }
 
-void print_expr_table(struct expr *start, struct expr*end) {
+void print_expr_table(struct expr *start, struct expr *end) {
     while (start != end) {
         printf("%p: (", start);
         switch (start->type) {
@@ -118,8 +129,14 @@ void print_expr_table(struct expr *start, struct expr*end) {
             case OPTIONAL_EXPR:
                 printf("? %p", start->expr);
                 break;
+            case REPEAT_EXACT_EXPR:
+                printf("{%d} %p", start->num, start->expr);
+                break;
             case SUB_EXPR:
                 printf("() %p", start->expr);
+                break;
+            case ID_EXPR:
+                printf("{%s}", start->id);
                 break;
             case SYMBOL_EXPR:
                 printf("%c", start->symbol);

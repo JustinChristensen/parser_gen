@@ -28,6 +28,7 @@ enum regex_symbol {
     CLASS_T,
     NEG_CLASS_T,
     END_CLASS_T,
+    ID_BRACE_T,
     LBRACE_T,
     RBRACE_T,
 
@@ -62,11 +63,11 @@ enum regex_symbol {
 #define NUM_SYMBOLS (DO_OPTIONAL + 1)
 #define NUM_TERMINALS (RBRACE_T + 1)
 #define NUM_NONTERMINALS ((UNOPS_NT + 1) - NUM_TERMINALS)
-#define NUM_ACTIONS ((DO_REPEAT_EXACT + 1) - NUM_NONTERMINALS)
+#define NUM_ACTIONS ((DO_REPEAT_EXACT + 1) - (UNOPS_NT + 1))
 // non-terminal index
 #define NTI(sym) (sym - NUM_TERMINALS)
 // do action index
-#define AI(sym) (sym - NUM_NONTERMINALS)
+#define AI(sym) (sym - (UNOPS_NT + 1))
 
 enum gram_production {
     ERROR_P,

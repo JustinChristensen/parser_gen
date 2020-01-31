@@ -21,7 +21,7 @@ factors     = factor { cat } factors
 ranges      = 'a-z' { range } ranges
             | $empty;
 factor      = '(' alts_head ')' { sub } unops
-            | '{' id '}' { id } unops
+            | '{=' id '}' { id } unops
             | '[' ranges ']' { char_class } unops
             | '[^' ranges ']' { neg_char_class } unops
             | '.' { dotall } unops

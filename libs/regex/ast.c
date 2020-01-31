@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 #include "regex/ast.h"
 #include "regex/parser.h"
 #include "regex/result_types.h"
@@ -19,7 +21,7 @@ void (*expr_actions[])(void *context, union regex_result lval) = {
     [AI(DO_STAR)] =         ACTION do_star_expr,
     [AI(DO_PLUS)] =         ACTION do_plus_expr,
     [AI(DO_OPTIONAL)] =     ACTION do_optional_expr,
-    [AI(DO_REPEAT_EXACT)] = ACTION noop_expr
+    [AI(DO_REPEAT_EXACT)] = ACTION do_repeat_exact_expr
 };
 
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {
@@ -59,10 +61,25 @@ struct expr optional_expr(struct expr *expr) {
     };
 }
 
+struct expr repeat_exact_expr(int num, struct expr *expr) {
+    return (struct expr) {
+        .type = REPEAT_EXACT_EXPR,
+        .expr = expr,
+        .num = num
+    };
+}
+
 struct expr sub_expr(struct expr *expr) {
     return (struct expr) {
         .type = SUB_EXPR,
         .expr = expr
+    };
+}
+
+struct expr id_expr(char *id) {
+    return (struct expr) {
+        .type = ID_EXPR,
+        .id = id
     };
 }
 
@@ -87,15 +104,16 @@ struct expr empty_expr() {
 
 struct expr_context expr_context(struct expr *exprbuf) {
     return (struct expr_context) {
-        .exprbuf = exprbuf,
+        .bufstart = exprbuf,
+        .bufp = exprbuf,
         .expr = NULL
     };
 }
 
 void sexpr(struct expr_context *context, struct expr expr) {
-    *context->exprbuf = expr;
-    context->expr = context->exprbuf;
-    context->exprbuf++;
+    *context->bufp = expr;
+    context->expr = context->bufp;
+    context->bufp++;
 }
 
 struct expr *gexpr(struct expr_context *context) {
@@ -104,6 +122,23 @@ struct expr *gexpr(struct expr_context *context) {
 
 union regex_result expr_to_rval(struct expr_context *context) {
     return (union regex_result) { .expr = gexpr(context) };
+}
+
+void free_expr_context(struct expr_context *context) {
+    struct expr *expr = context->bufstart;
+
+    while (expr != context->bufp) {
+        switch (expr->type) {
+            case ID_EXPR:
+                free(expr->id);
+                expr->id = NULL;
+                break;
+            default:
+                break;
+        }
+
+        expr++;
+    }
 }
 
 void noop_expr(struct expr_context *context, union regex_result _) {}
@@ -124,6 +159,13 @@ void do_sub_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, sub_expr(gexpr(context)));
 }
 
+void do_id_expr(struct expr_context *context, union regex_result id) {
+    // TODO: semi-monadic either thing on a context?
+    char *dupid = strdup(id.id);
+    assert(dupid != NULL);
+    sexpr(context, id_expr(dupid));
+}
+
 void do_dotall_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, dotall_expr());
 }
@@ -142,5 +184,9 @@ void do_plus_expr(struct expr_context *context, union regex_result _) {
 
 void do_optional_expr(struct expr_context *context, union regex_result _) {
     sexpr(context, optional_expr(gexpr(context)));
+}
+
+void do_repeat_exact_expr(struct expr_context *context, union regex_result num) {
+    sexpr(context, repeat_exact_expr(num.tval.num, gexpr(context)));
 }
 

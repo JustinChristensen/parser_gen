@@ -201,16 +201,18 @@ int main(int argc, char *argv[]) {
             if (args.output == OUTPUT_DOT) {
                 print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
             } else if (args.output == OUTPUT_TABLE) {
-                printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
-                print_expr_table(exprbuf, econtext.exprbuf);
+                printf("constructed %ld expressions\n", econtext.bufp - exprbuf);
+                print_expr_table(exprbuf, econtext.bufp);
             } else {
-                printf("constructed %ld expressions\n", econtext.exprbuf - exprbuf);
+                printf("constructed %ld expressions\n", econtext.bufp - exprbuf);
                 print_expr(expr);
             }
         } else {
             print_parse_error(parse_error(&pcontext));
             return EXIT_FAILURE;
         }
+
+        free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
         struct nfa_state statebuf[STATE_MAX];
         struct nfa_context ncontext = nfa_context(statebuf, args.nonrec);

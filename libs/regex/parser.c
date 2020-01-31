@@ -40,7 +40,7 @@ static struct regex_token scan_escape(struct regex_token token) {
         ip++, ic++;
 
         switch (*ip) {
-            case 'f': sym = '\n'; break;
+            case 'f': sym = '\f'; break;
             case 'n': sym = '\n'; break;
             case 'r': sym = '\r'; break;
             case 't': sym = '\t'; break;
@@ -175,6 +175,11 @@ struct regex_token scan(struct regex_token token) {
                     type = LBRACE_T;
                     token.in_braces = true;
                     ic++, ip++;
+
+                    if (*ip == '=') {
+                        ic++, ip++;
+                        type = ID_BRACE_T;
+                    }
                     break;
                 case '[':
                     type = CLASS_T;
@@ -362,7 +367,7 @@ char *str_for_sym(enum regex_symbol type) {
         case EOF_T:             return "eof";
         case SYMBOL_T:          return "a";
         case RANGE_T:           return "a-z";
-        case NUM_T:             return "999";
+        case NUM_T:             return "num";
         case ID_T:              return "id";
         case ALT_T:             return "|";
         case STAR_T:            return "*";
@@ -374,6 +379,7 @@ char *str_for_sym(enum regex_symbol type) {
         case CLASS_T:           return "[";
         case NEG_CLASS_T:       return "[^";
         case END_CLASS_T:       return "]";
+        case ID_BRACE_T:        return "{=";
         case LBRACE_T:          return "{";
         case RBRACE_T:          return "}";
 

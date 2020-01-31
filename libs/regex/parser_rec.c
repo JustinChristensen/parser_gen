@@ -13,6 +13,8 @@ bool parse_regex(char *regex, struct parse_context *context) {
         return true;
     }
 
+    set_parse_error(REGEX_NT, context);
+
     return false;
 }
 
@@ -104,8 +106,8 @@ bool parse_factor(struct parse_context *context) {
                   parse_alts(context) &&
                   expect(RPAREN_T, context);
         if (success) do_action(DO_SUB, NULLRVAL, context);
-    } else if (peek(LBRACE_T, context)) {
-        success = expect(LBRACE_T, context);
+    } else if (peek(ID_BRACE_T, context)) {
+        success = expect(ID_BRACE_T, context);
         char idbuf[BUFSIZ] = "";
         union regex_result id = id_val(idbuf, context);
         success = success && expect(ID_T, context) && expect(RBRACE_T, context);
@@ -164,5 +166,9 @@ bool parse_unops(struct parse_context *context) {
         break;
     }
 
-    return success;
+    if (success) return true;
+
+    set_parse_error(UNOPS_NT, context);
+
+    return false;
 }

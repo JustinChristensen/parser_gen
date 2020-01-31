@@ -11,7 +11,7 @@ void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct expr *expr) {
 }
 
 void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
-    char sym[2] = { 0 };
+    char label[128] = "";
 
     switch (expr->type) {
         case NULL_EXPR:
@@ -22,6 +22,10 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             break;
         case DOTALL_EXPR:
             append_node(graph, parent, ".", NULL);
+            break;
+        case ID_EXPR:
+            sprintf(label, "{%s}", expr->id);
+            append_node(graph, parent, label, NULL);
             break;
         case ALT_EXPR:
             parent = append_node(graph, parent, "|", NULL);
@@ -45,13 +49,18 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             parent = append_node(graph, parent, "?", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
+        case REPEAT_EXACT_EXPR:
+            sprintf(label, "{%d}", expr->num);
+            parent = append_node(graph, parent, label, NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
         case SUB_EXPR:
             parent = append_node(graph, parent, "()", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
         case SYMBOL_EXPR:
-            sym[0] = expr->symbol;
-            parent = append_node(graph, parent, sym, NULL);
+            sprintf(label, "%c", expr->symbol);
+            parent = append_node(graph, parent, label, NULL);
             break;
     }
 }

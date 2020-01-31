@@ -13,10 +13,9 @@ enum expr_type {
     CAT_EXPR,
     SUB_EXPR,
     ID_EXPR,
-    CHAR_CLASS_EXPR,
-    NEG_CLASS_EXPR,
+    // CHAR_CLASS_EXPR,
+    // NEG_CLASS_EXPR,
     SYMBOL_EXPR,
-    RANGE_EXPR,
     STAR_EXPR,
     PLUS_EXPR,
     OPTIONAL_EXPR,
@@ -28,12 +27,17 @@ struct expr {
     union {
         // alt, cat
         struct { struct expr *lexpr; struct expr *rexpr; };
-        // star, plus, optional, sub, range
-        struct { struct expr *expr; };
+        // star, plus, optional, sub, repeat_exact
+        struct {
+            struct expr *expr;
+            union {
+                int num;
+            };
+        };
         // sym
-        struct { int num; };
-        // sym
-        struct { char symbol; };
+        char symbol;
+        // id
+        char *id;
         // empty, dotall
     };
 };

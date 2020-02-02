@@ -8,7 +8,7 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    if (parse_alts(context) && expect(EOF_T, context)) {
+    if (parse_expr(context) && expect(EOF_T, context)) {
         do_action(DO_REGEX, NULLRVAL, context);
         return true;
     }
@@ -18,11 +18,30 @@ bool parse_regex(char *regex, struct parse_context *context) {
     return false;
 }
 
-bool parse_alts(struct parse_context *context) {
+bool parse_expr(struct parse_context *context) {
     if (peek(RPAREN_T, context) || peek(EOF_T, context)) {
         do_action(DO_EMPTY, NULLRVAL, context);
         return true;
-    } else if (parse_alt(context)) {
+    } else if (parse_alts(context)) {
+        return true;
+    }
+
+    set_parse_error(EXPR_NT, context);
+
+    return false;
+}
+
+bool parse_sub(struct parse_context *context) {
+    if (peek(EOF_T, context)) {
+        set_parse_error(SUB_NT, context);
+        return false;
+    }
+
+    return parse_expr(context);
+}
+
+bool parse_alts(struct parse_context *context) {
+    if (parse_alt(context)) {
         bool success = true;
 
         while (true) {
@@ -76,37 +95,48 @@ bool parse_alt(struct parse_context *context) {
 }
 
 bool parse_ranges(struct parse_context *context) {
-    if (peek(END_CLASS_T, context)) {
+    bool success = true;
+
+    while (true) {
+        if (peek(END_CLASS_T, context)) break;
+        else {
+            union regex_result range = lookahead_val(context);
+
+            if (expect(RANGE_T, context)) {
+                do_action(DO_RANGE, range, context);
+                continue;
+            } else success = false;
+        }
+
+        break;
+    }
+
+    if (success) return true;
+
+    set_parse_error(RANGES_NT, context);
+
+    return false;
+}
+
+bool parse_char_class(struct parse_context *context) {
+    if (peek(END_CLASS_T, context) && expect(END_CLASS_T, context)) {
+        do_action(DO_CHAR_CLASS, NULLRVAL, context);
         return true;
     } else {
-        struct regex_result head = lookahead_val(context);
-        bool success = true;
+        union regex_result head = lookahead_val(context);
 
         if (expect(RANGE_T, context)) {
             do_action(DO_RANGE, head, context);
             head = result(context);
 
-            while (true) {
-                if (peek(END_CLASS_T, context)) break;
-                else {
-                    union regex_result range = lookahead_val(context);
-
-                    if (expect(RANGE_T, context)) {
-                        do_action(DO_RANGE, range, context);
-                        continue;
-                    } else success = false;
-                }
-
-                break;
+            if (parse_ranges(context) && expect(END_CLASS_T, context)) {
+                do_action(DO_CHAR_CLASS, head, context);
+                return true;
             }
-        } else {
-            success = false;
         }
-
-        if (success) return true;
     }
 
-    set_parse_error(RANGES_NT, context);
+    set_parse_error(CHAR_CLASS_NT, context);
 
     return false;
 }
@@ -116,7 +146,7 @@ bool parse_factor(struct parse_context *context) {
 
     if (peek(LPAREN_T, context)) {
         success = expect(LPAREN_T, context) &&
-                  parse_alts(context) &&
+                  parse_sub(context) &&
                   expect(RPAREN_T, context);
         if (success) do_action(DO_SUB, NULLRVAL, context);
     } else if (peek(ID_BRACE_T, context)) {
@@ -126,14 +156,9 @@ bool parse_factor(struct parse_context *context) {
         success = success && expect(ID_T, context) && expect(RBRACE_T, context);
         if (success) do_action(DO_ID, id, context);
     } else if (peek(CLASS_T, context)) {
-        success = expect(CLASS_T, context) &&
-                  parse_ranges(context) &&
-                  expect(END_CLASS_T, context);
-        if (success) do_action(DO_CHAR_CLASS, NULLRVAL, context);
+        success = expect(CLASS_T, context) && parse_char_class(context);
     } else if (peek(NEG_CLASS_T, context)) {
-        success = expect(NEG_CLASS_T, context) &&
-                  parse_ranges(context) &&
-                  expect(END_CLASS_T, context);
+        success = expect(NEG_CLASS_T, context) && parse_char_class(context);
         if (success) do_action(DO_NEG_CLASS, NULLRVAL, context);
     } else if (peek(DOTALL_T, context)) {
         success = expect(DOTALL_T, context);

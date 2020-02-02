@@ -2,6 +2,7 @@
 #define REGEX_BASE_H_ 1
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 struct char_range {
@@ -33,6 +34,7 @@ static struct regex_pattern const NULL_PATTERN = { 0, NULL, NULL };
 #define RE_EOF(sym)          { sym, "eof",          ""              }
 
 void regex_print_loc(FILE *handle, struct regex_loc loc);
+void regex_print_range(FILE *handle, struct char_range r);
 bool is_null_pattern(struct regex_pattern pattern);
 
 #endif // REGEX_BASE_H_

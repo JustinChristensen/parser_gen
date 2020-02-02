@@ -9,21 +9,22 @@
 '{'
 '}'
 
-regex       = alts_head eof { regex };
-alts_head   = alt alts
-            | $empty;
+regex       = expr eof { regex };
+expr        = alt alts
+            | { empty } $empty;
 alts        = '|' alt { alt } alts
             | $empty;
 alt         = { empty } factor factors
             | $empty;
 factors     = factor { cat } factors
             | $empty;
+char_class  = ranges ']' { char_class }
 ranges      = 'a-z' { range } ranges
             | $empty;
-factor      = '(' alts_head ')' { sub } unops
-            | '{=' id '}' { id } unops
-            | '[' ranges ']' { char_class } unops
-            | '[^' ranges ']' { neg_char_class } unops
+factor      = '(' sub ')' { sub } unops
+            | '{' id '}' { id } unops
+            | '[' char_class unops
+            | '[^' char_class { neg_char_class } unops
             | '.' { dotall } unops
             | a { sym } unops;
 unops       = '*' { star } unops

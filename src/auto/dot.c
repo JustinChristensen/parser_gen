@@ -11,6 +11,8 @@ void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct expr *expr) {
 }
 
 void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
+    if (!expr) return;
+
     char label[128] = "";
 
     switch (expr->type) {
@@ -56,6 +58,19 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             break;
         case SUB_EXPR:
             parent = append_node(graph, parent, "()", NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
+        case CHAR_CLASS_EXPR:
+            parent = append_node(graph, parent, "[]", NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
+        case NEG_CLASS_EXPR:
+            parent = append_node(graph, parent, "[^]", NULL);
+            expr_to_graph(graph, parent, expr->expr);
+            break;
+        case RANGE_EXPR:
+            sprintf(label, "%c-%c", expr->range.start, expr->range.end);
+            parent = append_node(graph, parent, label, NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
         case SYMBOL_EXPR:

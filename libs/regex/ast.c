@@ -91,13 +91,6 @@ struct expr char_class_expr(struct expr *ranges) {
     };
 }
 
-struct expr neg_class_expr(struct expr *ranges) {
-    return (struct expr) {
-        .type = NEG_CLASS_EXPR,
-        .ranges = ranges
-    };
-}
-
 struct expr id_expr(char *id) {
     return (struct expr) {
         .type = ID_EXPR,
@@ -188,12 +181,12 @@ void do_id_expr(struct expr_context *context, union regex_result id) {
     sexpr(context, id_expr(dupid));
 }
 
-void do_char_class(struct expr_context *context, union regex_result range) {
-    sexpr(context, char_class_expr(range.range));
+void do_char_class(struct expr_context *context, union regex_result expr) {
+    sexpr(context, char_class_expr(expr.expr));
 }
 
-void do_neg_class(struct expr_context *context, union regex_result range) {
-    sexpr(context, neg_class_expr(range.range));
+void do_neg_class(struct expr_context *context, union regex_result expr) {
+    gexpr(context)->type = NEG_CLASS_EXPR;
 }
 
 void do_dotall_expr(struct expr_context *context, union regex_result _) {

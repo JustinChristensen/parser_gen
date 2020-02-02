@@ -12,6 +12,43 @@
 #define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
 #define pdebug(...) debug_ns_("parser", __VA_ARGS__)
 
+#define FIRST (enum regex_symbol[])
+static enum regex_symbol const * const first_sets[] = {
+    [EOF_T] =       FIRST { EOF_T, 0 },
+    [SYMBOL_T] =    FIRST { SYMBOL_T, 0 },
+    [RANGE_T] =     FIRST { RANGE_T, 0 },
+    [NUM_T] =       FIRST { NUM_T, 0 },
+    [ID_T] =        FIRST { ID_T, 0 },
+    [ALT_T] =       FIRST { ALT_T, 0 },
+    [STAR_T] =      FIRST { STAR_T, 0 },
+    [PLUS_T] =      FIRST { PLUS_T, 0 },
+    [OPTIONAL_T] =  FIRST { OPTIONAL_T, 0 },
+    [DOTALL_T] =    FIRST { DOTALL_T, 0 },
+    [LPAREN_T] =    FIRST { LPAREN_T, 0 },
+    [RPAREN_T] =    FIRST { RPAREN_T, 0 },
+    [CLASS_T] =     FIRST { CLASS_T, 0 },
+    [NEG_CLASS_T] = FIRST { NEG_CLASS_T, 0 },
+    [END_CLASS_T] = FIRST { END_CLASS_T, 0 },
+    [ID_BRACE_T] =  FIRST { ID_BRACE_T, 0 },
+    [LBRACE_T] =    FIRST { LBRACE_T, 0 },
+    [RBRACE_T] =    FIRST { RBRACE_T, 0 },
+
+    [REGEX_NT] =      FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, EOF_T, 0 },
+    [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, RPAREN_T, EOF_T, 0 },
+    [SUB_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, RPAREN_T, 0 },
+    [ALTS_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
+    [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
+    [FACTOR_NT] =     FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
+    [RANGES_NT] =     FIRST { RANGE_T, END_CLASS_T, 0 },
+    [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+};
+#undef FIRST
+
+static enum regex_symbol const * const first_set(enum regex_symbol sym) {
+    return first_sets[sym];
+}
+
 struct regex_token regex_token(char *input) {
     return scan((struct regex_token) {
         .input = input,
@@ -79,18 +116,16 @@ static struct regex_token scan_range(struct regex_token token) {
 
             token = scan_escape(token);
             range.end = token.val.sym;
-
-            if (range.start > range.end) {
-                char start = range.start;
-                range.start = range.end;
-                range.end = start;
-            }
         } else {
             range.end = range.start;
         }
 
-        token.val.range = range;
-        token.type = RANGE_T;
+        if (range.start <= range.end) {
+            token.type = RANGE_T;
+            token.val.range = range;
+        } else {
+            token.type = ERROR;
+        }
     }
 
     return token;
@@ -176,8 +211,7 @@ struct regex_token scan(struct regex_token token) {
                     token.in_braces = true;
                     ic++, ip++;
 
-                    if (*ip == '=') {
-                        ic++, ip++;
+                    if (*ip == '_' || isalpha(*ip)) {
                         type = ID_BRACE_T;
                     }
                     break;
@@ -317,8 +351,6 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
     pdebug("failure, expected \"%s\", actual \"%s\"\n",
         str_for_sym(expected), str_for_sym(context->lookahead));
 
-    set_parse_error(expected, context);
-
     return false;
 }
 
@@ -341,13 +373,32 @@ union regex_result id_val(char *idbuf, struct parse_context *context) {
 
 void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
     if (!context->has_error) {
+        pdebug("parse error %s\n", str_for_sym(expected));
         context->has_error = true;
         context->error = (struct parse_error) {
             .actual = context->lookahead,
             .lexeme_col = context->lookahead_col,
-            .expected = expected
+            .expected = first_set(expected)
         };
     }
+}
+
+static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
+    if (*sym) {
+        fprintf(handle, "%s", str_for_sym(*sym));
+        sym++;
+
+        while (*sym) {
+            fprintf(handle, ", %s", str_for_sym(*sym));
+            sym++;
+        }
+    }
+}
+
+void print_parse_error(struct parse_error error) {
+    fprintf(stderr, ERROR_FMT_STRING, str_for_sym(error.actual));
+    print_symbol_list(stderr, error.expected);
+    fprintf(stderr, ERROR_FMT_STRING_END, error.lexeme_col);
 }
 
 bool has_parse_error(struct parse_context *context) {
@@ -381,17 +432,18 @@ char *str_for_sym(enum regex_symbol type) {
         case CLASS_T:           return "[";
         case NEG_CLASS_T:       return "[^";
         case END_CLASS_T:       return "]";
-        case ID_BRACE_T:        return "{=";
+        case ID_BRACE_T:        return "{id";
         case LBRACE_T:          return "{";
         case RBRACE_T:          return "}";
 
         case REGEX_NT:          return "REGEX";
-        case ALTS_HEAD_NT:      return "ALTS_HEAD";
+        case EXPR_NT:           return "EXPR";
+        case SUB_NT:            return "SUB";
         case ALTS_NT:           return "ALTS";
         case ALT_NT:            return "ALT";
-        case FACTORS_NT:        return "FACTORS";
+        case FACTOR_NT:         return "FACTOR";
+        case CHAR_CLASS_NT:     return "CHAR_CLASS";
         case RANGES_NT:         return "RANGES";
-        case FACTOR_NT:         return "FACTORS";
         case UNOPS_NT:          return "UNOPS";
 
         case DO_REGEX:          return "{regex}";
@@ -412,9 +464,3 @@ char *str_for_sym(enum regex_symbol type) {
     }
 }
 
-void print_parse_error(struct parse_error error) {
-    fprintf(stderr, ERROR_FMT_STRING,
-        str_for_sym(error.actual),
-        str_for_sym(error.expected),
-        error.lexeme_col);
-}

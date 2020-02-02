@@ -7,7 +7,8 @@
 
 #define GETVALFN (union regex_result (*) (void *))
 #define ACTION (void (*)(void *, union regex_result))
-#define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: %s\n|\n| At Column: %d\n|\n"
+#define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: "
+#define ERROR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
 
 enum regex_symbol {
     ERROR,
@@ -32,17 +33,18 @@ enum regex_symbol {
     LBRACE_T,
     RBRACE_T,
 
-    // non-terminals (used during iterative parsing)
+    // non-terminals
     REGEX_NT,
-    ALTS_HEAD_NT,
+    EXPR_NT,
+    SUB_NT,
     ALTS_NT,
     ALT_NT,
-    FACTORS_NT,
-    RANGES_NT,
     FACTOR_NT,
+    CHAR_CLASS_NT,
+    RANGES_NT,
     UNOPS_NT,
 
-    // parser actions
+    // actions
     DO_REGEX,
     DO_EMPTY,
     DO_ALT,
@@ -128,8 +130,8 @@ struct regex_token {
 
 struct parse_error {
     int lexeme_col;
-    int expected;
-    int actual;
+    enum regex_symbol actual;
+    enum regex_symbol const *expected;
 };
 
 struct parse_context {
@@ -170,10 +172,10 @@ enum regex_symbol lookahead(struct parse_context *context);
 union regex_result lookahead_val(struct parse_context *context);
 union regex_result id_val(char *id, struct parse_context *context);
 void set_parse_error(enum regex_symbol expected, struct parse_context *context);
+void print_parse_error(struct parse_error error);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
 char *str_for_sym(enum regex_symbol token);
-void print_parse_error(struct parse_error error);
 
 #endif // REGEX_PARSER_H_

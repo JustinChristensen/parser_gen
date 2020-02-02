@@ -84,6 +84,27 @@ void print_expr(struct expr *expr) {
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
+                case CHAR_CLASS_EXPR:
+                    indent(indent_level);
+                    printf("[]");
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
+                case NEG_CLASS_EXPR:
+                    indent(indent_level);
+                    printf("[^]");
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
+                case RANGE_EXPR:
+                    indent(indent_level);
+                    regex_print_range(stdout, expr->range);
+                    indent_level++;
+                    *sp++ = NULL;
+                    *sp++ = expr->expr;
+                    break;
                 case SYMBOL_EXPR:
                     indent(indent_level);
                     printf("%c", expr->symbol);
@@ -134,6 +155,16 @@ void print_expr_table(struct expr *start, struct expr *end) {
                 break;
             case SUB_EXPR:
                 printf("() %p", start->expr);
+                break;
+            case CHAR_CLASS_EXPR:
+                printf("[] %p", start->expr);
+                break;
+            case NEG_CLASS_EXPR:
+                printf("[^] %p", start->expr);
+                break;
+            case RANGE_EXPR:
+                regex_print_range(stdout, start->range);
+                printf(" %p", start->expr);
                 break;
             case ID_EXPR:
                 printf("{%s}", start->id);

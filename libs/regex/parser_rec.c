@@ -19,29 +19,22 @@ bool parse_regex(char *regex, struct parse_context *context) {
 }
 
 bool parse_expr(struct parse_context *context) {
-    if (peek(RPAREN_T, context) || peek(EOF_T, context)) {
+    if (peek_end(context)) {
         do_action(DO_EMPTY, NULLRVAL, context);
         return true;
     } else if (parse_alts(context)) {
         return true;
     }
 
-    set_parse_error(EXPR_NT, context);
+    set_parse_error(context->in_sub ? SUB_EXPR_NT : EXPR_NT, context);
 
     return false;
 }
 
-bool parse_sub(struct parse_context *context) {
-    if (peek(EOF_T, context)) {
-        set_parse_error(SUB_NT, context);
-        return false;
-    }
-
-    return parse_expr(context);
-}
-
 bool parse_alts(struct parse_context *context) {
-    if (parse_alt(context)) {
+    if (peek_end(context)) {
+        return true;
+    } else if (parse_alt(context)) {
         bool success = true;
 
         while (true) {
@@ -62,7 +55,7 @@ bool parse_alts(struct parse_context *context) {
         return success;
     }
 
-    set_parse_error(ALTS_NT, context);
+    set_parse_error(context->in_sub ? SUB_ALTS_NT : ALTS_NT, context);
 
     return false;
 }
@@ -75,9 +68,7 @@ bool parse_alt(struct parse_context *context) {
     while (true) {
         union regex_result prev_factor = result(context);
 
-        if (peek(ALT_T, context) ||
-            peek(RPAREN_T, context) ||
-            peek(EOF_T, context)) break;
+        if (peek(ALT_T, context) || peek_end(context)) break;
 
         if ((success = parse_factor(context))) {
             do_action(DO_CAT, prev_factor, context);
@@ -89,7 +80,7 @@ bool parse_alt(struct parse_context *context) {
 
     if (success) return true;
 
-    set_parse_error(ALT_NT, context);
+    set_parse_error(context->in_sub ? SUB_ALT_NT : ALT_NT, context);
 
     return false;
 }
@@ -145,9 +136,12 @@ bool parse_factor(struct parse_context *context) {
     bool success = false;
 
     if (peek(LPAREN_T, context)) {
+        bool in_sub = context->in_sub;
+        context->in_sub = true;
         success = expect(LPAREN_T, context) &&
-                  parse_sub(context) &&
+                  parse_expr(context) &&
                   expect(RPAREN_T, context);
+        context->in_sub = in_sub;
         if (success) do_action(DO_SUB, NULLRVAL, context);
     } else if (peek(ID_BRACE_T, context)) {
         success = expect(ID_BRACE_T, context);

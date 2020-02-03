@@ -36,12 +36,14 @@ enum regex_symbol {
     // non-terminals
     REGEX_NT,
     EXPR_NT,
-    SUB_NT,
     ALTS_NT,
     ALT_NT,
     FACTOR_NT,
     CHAR_CLASS_NT,
     RANGES_NT,
+    SUB_EXPR_NT,
+    SUB_ALTS_NT,
+    SUB_ALT_NT,
     UNOPS_NT,
 
     // actions
@@ -138,6 +140,7 @@ struct parse_context {
     void *result_context;
     void (**actions)(void *result_context, union regex_result lval);
     union regex_result (*get_result)(void *result_context);
+    bool in_sub;
     struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;
@@ -166,6 +169,7 @@ struct parse_context parse_context(
 );
 void start_scanning(char *input, struct parse_context *context);
 bool peek(enum regex_symbol expected, struct parse_context *context);
+bool peek_end(struct parse_context *context);
 bool expect(enum regex_symbol expected, struct parse_context *context);
 int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);

@@ -12,44 +12,44 @@
 #define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
 #define pdebug(...) debug_ns_("parser", __VA_ARGS__)
 
-#define FIRST (enum regex_symbol[])
-static enum regex_symbol const * const first_sets[] = {
-    [EOF_T] =       FIRST { EOF_T, 0 },
-    [SYMBOL_T] =    FIRST { SYMBOL_T, 0 },
-    [RANGE_T] =     FIRST { RANGE_T, 0 },
-    [NUM_T] =       FIRST { NUM_T, 0 },
-    [ID_T] =        FIRST { ID_T, 0 },
-    [ALT_T] =       FIRST { ALT_T, 0 },
-    [STAR_T] =      FIRST { STAR_T, 0 },
-    [PLUS_T] =      FIRST { PLUS_T, 0 },
-    [OPTIONAL_T] =  FIRST { OPTIONAL_T, 0 },
-    [DOTALL_T] =    FIRST { DOTALL_T, 0 },
-    [LPAREN_T] =    FIRST { LPAREN_T, 0 },
-    [RPAREN_T] =    FIRST { RPAREN_T, 0 },
-    [CLASS_T] =     FIRST { CLASS_T, 0 },
-    [NEG_CLASS_T] = FIRST { NEG_CLASS_T, 0 },
-    [END_CLASS_T] = FIRST { END_CLASS_T, 0 },
-    [ID_BRACE_T] =  FIRST { ID_BRACE_T, 0 },
-    [LBRACE_T] =    FIRST { LBRACE_T, 0 },
-    [RBRACE_T] =    FIRST { RBRACE_T, 0 },
+// #define FIRST (enum regex_symbol[])
+// static enum regex_symbol const * const first_sets[] = {
+//     [EOF_T] =       FIRST { EOF_T, 0 },
+//     [SYMBOL_T] =    FIRST { SYMBOL_T, 0 },
+//     [RANGE_T] =     FIRST { RANGE_T, 0 },
+//     [NUM_T] =       FIRST { NUM_T, 0 },
+//     [ID_T] =        FIRST { ID_T, 0 },
+//     [ALT_T] =       FIRST { ALT_T, 0 },
+//     [STAR_T] =      FIRST { STAR_T, 0 },
+//     [PLUS_T] =      FIRST { PLUS_T, 0 },
+//     [OPTIONAL_T] =  FIRST { OPTIONAL_T, 0 },
+//     [DOTALL_T] =    FIRST { DOTALL_T, 0 },
+//     [LPAREN_T] =    FIRST { LPAREN_T, 0 },
+//     [RPAREN_T] =    FIRST { RPAREN_T, 0 },
+//     [CLASS_T] =     FIRST { CLASS_T, 0 },
+//     [NEG_CLASS_T] = FIRST { NEG_CLASS_T, 0 },
+//     [END_CLASS_T] = FIRST { END_CLASS_T, 0 },
+//     [ID_BRACE_T] =  FIRST { ID_BRACE_T, 0 },
+//     [LBRACE_T] =    FIRST { LBRACE_T, 0 },
+//     [RBRACE_T] =    FIRST { RBRACE_T, 0 },
+//
+//     [REGEX_NT] =      FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, EOF_T, 0 },
+//     [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, EOF_T, 0 },
+//     [ALTS_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
+//     [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
+//     [FACTOR_NT] =     FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+//     [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
+//     [RANGES_NT] =     FIRST { RANGE_T, END_CLASS_T, 0 },
+//     [SUB_EXPR_NT] =   FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, RPAREN_T, 0 },
+//     [SUB_ALTS_NT] =   FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, RPAREN_T, 0 },
+//     [SUB_ALT_NT] =    FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, RPAREN_T, 0 },
+//     [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+// };
+// #undef FIRST
 
-    [REGEX_NT] =      FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, EOF_T, 0 },
-    [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, EOF_T, 0 },
-    [ALTS_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
-    [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
-    [FACTOR_NT] =     FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
-    [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
-    [RANGES_NT] =     FIRST { RANGE_T, END_CLASS_T, 0 },
-    [SUB_EXPR_NT] =   FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, RPAREN_T, 0 },
-    [SUB_ALTS_NT] =   FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, RPAREN_T, 0 },
-    [SUB_ALT_NT] =    FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, RPAREN_T, 0 },
-    [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
-};
-#undef FIRST
-
-static enum regex_symbol const * const first_set(enum regex_symbol sym) {
-    return first_sets[sym];
-}
+// static enum regex_symbol const * const first_set(enum regex_symbol sym) {
+//     return first_sets[sym];
+// }
 
 struct regex_token regex_token(char *input) {
     return scan((struct regex_token) {
@@ -359,7 +359,7 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
     pdebug("failure, expected \"%s\", actual \"%s\"\n",
         str_for_sym(expected), str_for_sym(context->lookahead));
 
-    return false;
+    return set_syntax_error(expected, context);
 }
 
 int is_symbol(int c) {
@@ -386,7 +386,8 @@ bool set_syntax_error(enum regex_symbol expected, struct parse_context *context)
         .type = SYNTAX_ERROR,
         .actual = context->lookahead,
         .lexeme_col = context->lookahead_col,
-        .expected = first_set(expected)
+        // .expected = first_set(expected)
+        .expected = expected
     };
 
     return false;
@@ -401,23 +402,24 @@ bool set_oom_error(struct parse_context *context) {
     return false;
 }
 
-static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
-    if (*sym) {
-        fprintf(handle, "%s", str_for_sym(*sym));
-        sym++;
-
-        while (*sym) {
-            fprintf(handle, ", %s", str_for_sym(*sym));
-            sym++;
-        }
-    }
-}
+// static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
+//     if (*sym) {
+//         fprintf(handle, "%s", str_for_sym(*sym));
+//         sym++;
+//
+//         while (*sym) {
+//             fprintf(handle, ", %s", str_for_sym(*sym));
+//             sym++;
+//         }
+//     }
+// }
 
 void print_parse_error(struct parse_error error) {
     switch (error.type) {
         case SYNTAX_ERROR:
             fprintf(stderr, SYNERR_FMT_STRING, str_for_sym(error.actual));
-            print_symbol_list(stderr, error.expected);
+            // print_symbol_list(stderr, error.expected);
+            fprintf(stderr, "%s", str_for_sym(error.expected));
             fprintf(stderr, SYNERR_FMT_STRING_END, error.lexeme_col);
             break;
         case OUT_OF_MEMORY:

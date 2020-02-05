@@ -142,7 +142,8 @@ struct parse_error {
         struct {
             int lexeme_col;
             enum regex_symbol actual;
-            enum regex_symbol const *expected;
+            // enum regex_symbol const *expected;
+            enum regex_symbol expected;
         };
         char *id;
     };

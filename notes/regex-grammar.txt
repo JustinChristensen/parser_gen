@@ -21,20 +21,12 @@ factors     = factor { cat } factors
 char_class  = ranges ']' { char_class }
 ranges      = 'a-z' { range } ranges
             | $empty;
-factor      = '(' sub_expr ')' { sub } unops
+factor      = '(' expr ')' { sub } unops
             | '{' id '}' { id } unops
             | '[' char_class unops
             | '[^' char_class { neg_char_class } unops
             | '.' { dotall } unops
             | a { sym } unops;
-sub_expr    = sub_alt sub_alts
-            | { empty } $empty;
-sub_alts    = '|' sub_alt { alt } sub_alts
-            | $empty;
-sub_alt     = { empty } sub_factor sub_factors
-            | $empty;
-sub_factors = factor { cat } sub_factors
-            | $empty;
 unops       = '*' { star } unops
             | '+' { plus } unops
             | '?' { optional } unops

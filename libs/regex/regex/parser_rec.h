@@ -13,7 +13,6 @@
 
 bool parse_regex(char *regex, struct parse_context *context);
 bool parse_expr(struct parse_context *context);
-bool parse_sub(struct parse_context *context);
 bool parse_alts(struct parse_context *context);
 bool parse_alt(struct parse_context *context);
 bool parse_char_class(struct parse_context *context);

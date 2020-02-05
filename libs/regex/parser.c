@@ -295,15 +295,15 @@ union regex_result result(struct parse_context *context) {
     return (*context->get_result)(context->result_context);
 }
 
-void do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
+bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
     pdebug("doing action: %s\n", str_for_sym(action));
-    (*context->actions[AI(action)])(context->result_context, val);
+    return (*context->actions[AI(action)])(val, context);
 }
 
 struct parse_context parse_context(
     void *result_context,
     union regex_result (*get_result)(void *result_context),
-    void (**actions)(void *result_context, union regex_result lval),
+    bool (**actions)(union regex_result val, struct parse_context *context),
     bool use_nonrec
 ) {
     assert(result_context != NULL);
@@ -379,16 +379,26 @@ union regex_result id_val(char *idbuf, struct parse_context *context) {
     return (union regex_result) { .id = idbuf };
 }
 
-void set_parse_error(enum regex_symbol expected, struct parse_context *context) {
-    if (!context->has_error) {
-        pdebug("parse error %s\n", str_for_sym(expected));
-        context->has_error = true;
-        context->error = (struct parse_error) {
-            .actual = context->lookahead,
-            .lexeme_col = context->lookahead_col,
-            .expected = first_set(expected)
-        };
-    }
+bool set_syntax_error(enum regex_symbol expected, struct parse_context *context) {
+    pdebug("parse error %s\n", str_for_sym(expected));
+    context->has_error = true;
+    context->error = (struct parse_error) {
+        .type = SYNTAX_ERROR,
+        .actual = context->lookahead,
+        .lexeme_col = context->lookahead_col,
+        .expected = first_set(expected)
+    };
+
+    return false;
+}
+
+bool set_oom_error(struct parse_context *context) {
+    context->has_error = true;
+    context->error = (struct parse_error) {
+        .type = OUT_OF_MEMORY
+    };
+
+    return false;
 }
 
 static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
@@ -404,9 +414,19 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
 }
 
 void print_parse_error(struct parse_error error) {
-    fprintf(stderr, ERROR_FMT_STRING, str_for_sym(error.actual));
-    print_symbol_list(stderr, error.expected);
-    fprintf(stderr, ERROR_FMT_STRING_END, error.lexeme_col);
+    switch (error.type) {
+        case SYNTAX_ERROR:
+            fprintf(stderr, SYNERR_FMT_STRING, str_for_sym(error.actual));
+            print_symbol_list(stderr, error.expected);
+            fprintf(stderr, SYNERR_FMT_STRING_END, error.lexeme_col);
+            break;
+        case OUT_OF_MEMORY:
+            fprintf(stderr, OOM_FMT_STRING);
+            break;
+        case REGEX_NOT_DEFINED:
+            // noop
+            break;
+    }
 }
 
 bool has_parse_error(struct parse_context *context) {
@@ -414,7 +434,7 @@ bool has_parse_error(struct parse_context *context) {
 }
 
 struct parse_error nullperr() {
-    return (struct parse_error) { 0, 0, 0 };
+    return (struct parse_error) { 0, { } };
 }
 
 struct parse_error parse_error(struct parse_context *context) {

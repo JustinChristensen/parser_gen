@@ -11,22 +11,22 @@
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
-void (*nfa_actions[])(void *context, union regex_result lval) = {
-    [AI(DO_REGEX)] =        ACTION noop_nfa,
-    [AI(DO_EMPTY)] =        ACTION do_empty_nfa,
-    [AI(DO_ALT)] =          ACTION do_alt_nfa,
-    [AI(DO_CAT)] =          ACTION do_cat_nfa,
-    [AI(DO_SUB)] =          ACTION noop_nfa,
-    [AI(DO_ID)] =           ACTION noop_nfa,
-    [AI(DO_CHAR_CLASS)] =   ACTION noop_nfa,
-    [AI(DO_NEG_CLASS)] =    ACTION noop_nfa,
-    [AI(DO_DOTALL)] =       ACTION do_dotall_nfa,
-    [AI(DO_SYMBOL)] =       ACTION do_symbol_nfa,
-    [AI(DO_RANGE)] =        ACTION noop_nfa,
-    [AI(DO_STAR)] =         ACTION do_star_nfa,
-    [AI(DO_PLUS)] =         ACTION do_plus_nfa,
-    [AI(DO_OPTIONAL)] =     ACTION do_optional_nfa,
-    [AI(DO_REPEAT_EXACT)] = ACTION noop_nfa
+bool (*nfa_actions[])(union regex_result val, struct parse_context *context) = {
+    [AI(DO_REGEX)] =        noop_nfa,
+    [AI(DO_EMPTY)] =        do_empty_nfa,
+    [AI(DO_ALT)] =          do_alt_nfa,
+    [AI(DO_CAT)] =          do_cat_nfa,
+    [AI(DO_SUB)] =          noop_nfa,
+    [AI(DO_ID)] =           noop_nfa,
+    [AI(DO_CHAR_CLASS)] =   noop_nfa,
+    [AI(DO_NEG_CLASS)] =    noop_nfa,
+    [AI(DO_DOTALL)] =       do_dotall_nfa,
+    [AI(DO_SYMBOL)] =       do_symbol_nfa,
+    [AI(DO_RANGE)] =        noop_nfa,
+    [AI(DO_STAR)] =         do_star_nfa,
+    [AI(DO_PLUS)] =         do_plus_nfa,
+    [AI(DO_OPTIONAL)] =     do_optional_nfa,
+    [AI(DO_REPEAT_EXACT)] = noop_nfa
 };
 
 struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {
@@ -99,7 +99,7 @@ struct nfa gmachine(struct nfa_context *context) {
     return context->nfa;
 }
 
-union regex_result nfa_to_rval(struct nfa_context *context) {
+union regex_result nfa_to_result(struct nfa_context *context) {
     return (union regex_result) { .mach = gmachine(context) };
 }
 
@@ -166,7 +166,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
 
     if (!has_nfa_error(context)) {
         struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(context, GETVALFN nfa_to_rval, nfa_actions, context->use_nonrec);
+        struct parse_context pcontext = parse_context(context, GETVALFN nfa_to_result, nfa_actions, context->use_nonrec);
 
         // overwrite the previous accepting state if we're
         // chaining nfa_regex calls to create alt machines
@@ -179,7 +179,7 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
             context->has_error = pcontext.has_error;
             context->error = (struct nfa_error) { pcontext.error };
         } else {
-            if (lmachine.end) do_alt_nfa(context, (union regex_result) lmachine);
+            if (lmachine.end) do_alt_nfa((union regex_result) lmachine, &pcontext);
             patch(gmachine(context), setst(context, accepting_state()));
         }
     }
@@ -288,38 +288,54 @@ bool nfa_match(char *str, struct nfa_context *context) {
     return result;
 }
 
-void noop_nfa(struct nfa_context *context, union regex_result _) {}
+bool noop_nfa(union regex_result _, struct parse_context *context) { return true; }
 
-void do_empty_nfa(struct nfa_context *context, union regex_result _) {
-    smachine(context, empty_machine(context));
+bool do_empty_nfa(union regex_result _, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, empty_machine(rcontext));
+    return true;
 }
 
-void do_alt_nfa(struct nfa_context *context, union regex_result lnfa) {
-    smachine(context, alt_machine(context, lnfa.mach, gmachine(context)));
+bool do_alt_nfa(union regex_result nfa, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, alt_machine(rcontext, nfa.mach, gmachine(rcontext)));
+    return true;
 }
 
-void do_cat_nfa(struct nfa_context *context, union regex_result lnfa) {
-    smachine(context, cat_machine(lnfa.mach, gmachine(context)));
+bool do_cat_nfa(union regex_result nfa, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, cat_machine(nfa.mach, gmachine(rcontext)));
+    return true;
 }
 
-void do_dotall_nfa(struct nfa_context *context, union regex_result _) {
-    smachine(context, dotall_machine(context));
+bool do_dotall_nfa(union regex_result _, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, dotall_machine(rcontext));
+    return true;
 }
 
-void do_symbol_nfa(struct nfa_context *context, union regex_result sym) {
-    smachine(context, symbol_machine(context, sym.tval.sym));
+bool do_symbol_nfa(union regex_result sym, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, symbol_machine(rcontext, sym.tval.sym));
+    return true;
 }
 
-void do_star_nfa(struct nfa_context *context, union regex_result _) {
-    smachine(context, closure_machine(context, gmachine(context)));
+bool do_star_nfa(union regex_result _, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, closure_machine(rcontext, gmachine(rcontext)));
+    return true;
 }
 
-void do_plus_nfa(struct nfa_context *context, union regex_result _) {
-    smachine(context, posclosure_machine(context, gmachine(context)));
+bool do_plus_nfa(union regex_result _, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, posclosure_machine(rcontext, gmachine(rcontext)));
+    return true;
 }
 
-void do_optional_nfa(struct nfa_context *context, union regex_result _) {
-    smachine(context, optional_machine(context, gmachine(context)));
+bool do_optional_nfa(union regex_result _, struct parse_context *context) {
+    struct nfa_context *rcontext = context->result_context;
+    smachine(rcontext, optional_machine(rcontext, gmachine(rcontext)));
+    return true;
 }
 
 void print_nfa_states(struct list *cstates) {

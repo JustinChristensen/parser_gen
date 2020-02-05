@@ -53,7 +53,7 @@ void smachine(struct nfa_context *context, struct nfa machine);
 
 // nfa machine constructors
 struct nfa gmachine(struct nfa_context *context);
-union regex_result nfa_to_rval(struct nfa_context *context);
+union regex_result nfa_to_result(struct nfa_context *context);
 struct nfa empty_machine(struct nfa_context *context);
 struct nfa symbol_machine(struct nfa_context *context, char symbol);
 struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right);
@@ -72,18 +72,18 @@ bool accepts(struct list *cstates, struct nfa_state *accept);
 bool nfa_match(char *str, struct nfa_context *context);
 
 // parse actions
-void noop_nfa(struct nfa_context *context, union regex_result _);
-void do_empty_nfa(struct nfa_context *context, union regex_result _);
-void do_alt_nfa(struct nfa_context *context, union regex_result lnfa);
-void do_cat_nfa(struct nfa_context *context, union regex_result lnfa);
-void do_dotall_nfa(struct nfa_context *context, union regex_result _);
-void do_symbol_nfa(struct nfa_context *context, union regex_result sym);
-void do_star_nfa(struct nfa_context *context, union regex_result _);
-void do_plus_nfa(struct nfa_context *context, union regex_result _);
-void do_optional_nfa(struct nfa_context *context, union regex_result _);
+bool noop_nfa(union regex_result _, struct parse_context *context);
+bool do_empty_nfa(union regex_result _, struct parse_context *context);
+bool do_alt_nfa(union regex_result nfa, struct parse_context *context);
+bool do_cat_nfa(union regex_result nfa, struct parse_context *context);
+bool do_dotall_nfa(union regex_result _, struct parse_context *context);
+bool do_symbol_nfa(union regex_result sym, struct parse_context *context);
+bool do_star_nfa(union regex_result _, struct parse_context *context);
+bool do_plus_nfa(union regex_result _, struct parse_context *context);
+bool do_optional_nfa(union regex_result _, struct parse_context *context);
 
 // parse action table
-extern void (*nfa_actions[NUM_ACTIONS])(void *context, union regex_result lval);
+extern bool (*nfa_actions[NUM_ACTIONS])(union regex_result val, struct parse_context *context);
 
 // debugging tools
 void print_nfa_states(struct list *cstates);

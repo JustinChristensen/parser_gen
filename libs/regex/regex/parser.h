@@ -6,9 +6,9 @@
 #include "base.h"
 
 #define GETVALFN (union regex_result (*) (void *))
-#define ACTION (void (*)(void *, union regex_result))
-#define ERROR_FMT_STRING "| Parse Error\n|\n| Got: %s\n| Expected: "
-#define ERROR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
+#define SYNERR_FMT_STRING "| Syntax Error\n|\n| Got: %s\n| Expected: "
+#define SYNERR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
+#define OOM_FMT_STRING "out of memory\n"
 
 enum regex_symbol {
     ERROR,
@@ -130,24 +130,36 @@ struct regex_token {
     };
 };
 
+enum error_type {
+    SYNTAX_ERROR,
+    OUT_OF_MEMORY,
+    REGEX_NOT_DEFINED
+};
+
 struct parse_error {
-    int lexeme_col;
-    enum regex_symbol actual;
-    enum regex_symbol const *expected;
+    enum error_type type;
+    union {
+        struct {
+            int lexeme_col;
+            enum regex_symbol actual;
+            enum regex_symbol const *expected;
+        };
+        char *id;
+    };
 };
 
 struct parse_context {
     void *result_context;
-    void (**actions)(void *result_context, union regex_result lval);
     union regex_result (*get_result)(void *result_context);
+    bool (**actions)(union regex_result val, struct parse_context *pcontext);
     bool in_sub;
     struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;
     union regex_token_val lookahead_val;
+    bool use_nonrec;
     bool has_error;
     struct parse_error error;
-    bool use_nonrec;
 };
 
 struct regex_token regex_token(char *input);
@@ -160,11 +172,11 @@ void print_token(struct regex_token token);
 void print_token_table(char *regex);
 
 union regex_result result(struct parse_context *context);
-void do_action(enum regex_symbol action, union regex_result val, struct parse_context *context);
+bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context);
 struct parse_context parse_context(
     void *result_context,
     union regex_result (*get_result)(void *result_context),
-    void (**actions)(void *result_context, union regex_result lval),
+    bool (**actions)(union regex_result val, struct parse_context *context),
     bool use_nonrec
 );
 void start_scanning(char *input, struct parse_context *context);
@@ -175,7 +187,8 @@ int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
 union regex_result lookahead_val(struct parse_context *context);
 union regex_result id_val(char *id, struct parse_context *context);
-void set_parse_error(enum regex_symbol expected, struct parse_context *context);
+bool set_syntax_error(enum regex_symbol expected, struct parse_context *context);
+bool set_oom_error(struct parse_context *context);
 void print_parse_error(struct parse_error error);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);

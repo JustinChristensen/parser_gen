@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
         struct expr exprbuf[EXPR_MAX];
         struct expr_context econtext = expr_context(exprbuf);
         char *regex = args.regex ? args.regex : "(a|b)*abbc?";
-        struct parse_context pcontext = parse_context(&econtext, GETVALFN expr_to_rval, expr_actions, args.nonrec);
+        struct parse_context pcontext = parse_context(&econtext, GETVALFN expr_to_result, expr_actions, args.nonrec);
 
         if (run_parser(regex, &pcontext)) {
             struct expr *expr = gexpr(&econtext);

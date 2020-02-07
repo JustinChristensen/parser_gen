@@ -8,54 +8,28 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    if (parse_expr(context) &&
+    if (peek(EXPR_NT, context) &&
+        parse_expr(context) &&
         expect(EOF_T, context) &&
         do_action(DO_REGEX, NULLRVAL, context)) {
         return true;
     }
 
-    set_syntax_error(REGEX_NT, context);
-
-    return false;
+    return set_syntax_error(REGEX_NT, context);
 }
 
 bool parse_expr(struct parse_context *context) {
-    if (peek_end(context) && do_action(DO_EMPTY, NULLRVAL, context)) {
-        return true;
-    } else if (parse_alts(context)) {
+    if (parse_alt(context) && parse_alts(context)) {
         return true;
     }
 
-    set_syntax_error(context->in_sub ? SUB_EXPR_NT : EXPR_NT, context);
-
-    return false;
-}
-
-bool parse_alts(struct parse_context *context) {
-    if (peek_end(context)) {
-        return true;
-    } else if (parse_alt(context)) {
-        bool success = true;
-
-        while (peek(ALT_T, context) && success) {
-            union regex_result prev_alt = result(context);
-
-            success =
-                expect(ALT_T, context) &&
-                parse_alt(context) &&
-                do_action(DO_ALT, prev_alt, context);
-        }
-
-        return success;
-    }
-
-    return set_syntax_error(context->in_sub ? SUB_ALTS_NT : ALTS_NT, context);
+    return set_syntax_error(EXPR_NT, context);
 }
 
 bool parse_alt(struct parse_context *context) {
     bool success = do_action(DO_EMPTY, NULLRVAL, context);
 
-    while (!peek(ALT_T, context) && !peek_end(context) && success) {
+    while (peek(FACTOR_NT, context) && success) {
         union regex_result prev_factor = result(context);
 
         success =
@@ -63,15 +37,28 @@ bool parse_alt(struct parse_context *context) {
             do_action(DO_CAT, prev_factor, context);
     }
 
-    if (success) return true;
+    return success || set_syntax_error(ALT_NT, context);
+}
 
-    return set_syntax_error(context->in_sub ? SUB_ALT_NT : ALT_NT, context);
+bool parse_alts(struct parse_context *context) {
+    bool success = true;
+
+    while (peek(ALT_T, context) && success) {
+        union regex_result prev_alt = result(context);
+
+        success =
+            expect(ALT_T, context) &&
+            parse_alt(context) &&
+            do_action(DO_ALT, prev_alt, context);
+    }
+
+    return success || set_syntax_error(ALTS_NT, context);
 }
 
 bool parse_ranges(struct parse_context *context) {
     bool success = true;
 
-    while (!peek(END_CLASS_T, context) && success) {
+    while (peek(RANGE_T, context) && success) {
         union regex_result range = lookahead_val(context);
 
         success =
@@ -79,9 +66,7 @@ bool parse_ranges(struct parse_context *context) {
             do_action(DO_RANGE, range, context);
     }
 
-    if (success) return true;
-
-    return set_syntax_error(RANGES_NT, context);
+    return success || set_syntax_error(RANGES_NT, context);
 }
 
 bool parse_char_class(struct parse_context *context) {
@@ -110,14 +95,11 @@ bool parse_factor(struct parse_context *context) {
     bool success = false;
 
     if (peek(LPAREN_T, context)) {
-        bool in_sub = context->in_sub;
-        context->in_sub = true;
         success =
             expect(LPAREN_T, context) &&
             parse_expr(context) &&
             expect(RPAREN_T, context) &&
             do_action(DO_SUB, NULLRVAL, context);
-        context->in_sub = in_sub;
     } else if (peek(ID_BRACE_T, context)) {
         success = expect(ID_BRACE_T, context);
         char idbuf[BUFSIZ] = "";
@@ -140,10 +122,7 @@ bool parse_factor(struct parse_context *context) {
         success = expect(SYMBOL_T, context) && do_action(DO_SYMBOL, sym, context);
     }
 
-    if (success && parse_unops(context))
-        return true;
-
-    return set_syntax_error(FACTOR_NT, context);
+    return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context)
 }
 
 bool parse_unops(struct parse_context *context) {
@@ -168,7 +147,5 @@ bool parse_unops(struct parse_context *context) {
         }
     }
 
-    if (success) return true;
-
-    return set_syntax_error(UNOPS_NT, context);
+    return success || set_syntax_error(UNOPS_NT, context);
 }

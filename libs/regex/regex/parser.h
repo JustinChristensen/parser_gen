@@ -41,9 +41,6 @@ enum regex_symbol {
     FACTOR_NT,
     CHAR_CLASS_NT,
     RANGES_NT,
-    SUB_EXPR_NT,
-    SUB_ALTS_NT,
-    SUB_ALT_NT,
     UNOPS_NT,
 
     // actions
@@ -64,14 +61,15 @@ enum regex_symbol {
     DO_REPEAT_EXACT
 };
 
-#define NUM_SYMBOLS (DO_OPTIONAL + 1)
+#define NUM_SYMBOLS_ACTIONS (DO_OPTIONAL + 1)
+#define NUM_SYMBOLS (UNOPS_NT + 1)
 #define NUM_TERMINALS (RBRACE_T + 1)
-#define NUM_NONTERMINALS ((UNOPS_NT + 1) - NUM_TERMINALS)
-#define NUM_ACTIONS ((DO_REPEAT_EXACT + 1) - (UNOPS_NT + 1))
+#define NUM_NONTERMINALS (NUM_SYMBOLS - NUM_TERMINALS)
+#define NUM_ACTIONS ((DO_REPEAT_EXACT + 1) - NUM_SYMBOLS)
 // non-terminal index
 #define NTI(sym) (sym - NUM_TERMINALS)
 // do action index
-#define AI(sym) (sym - (UNOPS_NT + 1))
+#define AI(sym) (sym - NUM_SYMBOLS)
 
 enum gram_production {
     ERROR_P,
@@ -142,8 +140,7 @@ struct parse_error {
         struct {
             int lexeme_col;
             enum regex_symbol actual;
-            // enum regex_symbol const *expected;
-            enum regex_symbol expected;
+            enum regex_symbol const *expected;
         };
         char *id;
     };
@@ -153,7 +150,6 @@ struct parse_context {
     void *result_context;
     union regex_result (*get_result)(void *result_context);
     bool (**actions)(union regex_result val, struct parse_context *pcontext);
-    bool in_sub;
     struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;

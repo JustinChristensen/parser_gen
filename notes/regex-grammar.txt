@@ -10,18 +10,18 @@
 '}'
 
 regex       = expr eof { regex };
-expr        = alt alts
-            | { empty } $empty;
+sub         = expr ')' ;
+expr        = alt alts ;
 alts        = '|' alt { alt } alts
             | $empty;
 alt         = { empty } factor factors
-            | $empty;
+            | { empty } $empty;
 factors     = factor { cat } factors
             | $empty;
 char_class  = ranges ']' { char_class }
 ranges      = 'a-z' { range } ranges
             | $empty;
-factor      = '(' expr ')' { sub } unops
+factor      = '(' sub { sub } unops
             | '{' id '}' { id } unops
             | '[' char_class unops
             | '[^' char_class { neg_char_class } unops
@@ -33,20 +33,24 @@ unops       = '*' { star } unops
             | '{' number '}' { repeat_exact } unops
             | $empty;
 
-FIRST(regex) =          FIRST(alts_head)
-FIRST(alts_head) =      FIRST(alt) + FIRST(alts) + { ε }
-    FOLLOW(alts_head) = { ')', eof }
-FIRST(alts) =           { '|' } + { ε }
-    FOLLOW(alts) =      FOLLOW(alts_head)
-FIRST(alt) =            FIRST(factor) + { ε }
-    FOLLOW(alt) =       FIRST(alts)
-FIRST(factors) =        FIRST(factor) + { ε }
-    FOLLOW(factors) =   FOLLOW(alt)
-FIRST(factor) =         { '(', '{', '[', '[^', '.', 'a' }
-FIRST(ranges) =         { 'a-z' } + { ε }
-    FOLLOW(ranges) =    { ']' }
-FIRST(unops) =          { '*', '+', '?', '{' } + { ε }
-    FOLLOW(unops) =     FIRST(factor)
+REGEX       ->EXPR eof .
+EXPR        -> ALT ALTS | .
+ALTS        -> alt ALT ALTS | .
+ALT         -> FACTOR FACTORS .
+FACTORS     -> FACTOR FACTORS | .
+CHAR_CLASS  -> RANGES rbracket .
+RANGES      -> range RANGES | .
+FACTOR      -> lparen EXPR rparen UNOPS
+            | id_brace id rbrace UNOPS
+            | lclass CHAR_CLASS UNOPS
+            | lneg CHAR_CLASS UNOPS
+            | dotall UNOPS
+            | a UNOPS .
+UNOPS       -> star UNOPS
+            | plus UNOPS
+            | optional UNOPS
+            | lbrace number rbrace UNOPS
+            | .
 
 character class ideas:
 1. Alternatives
@@ -67,5 +71,26 @@ character class ideas:
     - list of merged and sorted intervals directly on the state
     - PROS: single state
     - CONS: simulation logic is more complex, requires a loop
+
+
+REGEX       -> EXPR eof .
+SUB         -> EXPR rparen .
+EXPR        -> ALT ALTS .
+ALTS        -> alt ALT ALTS | .
+ALT         -> FACTOR FACTORS | .
+FACTORS     -> FACTOR FACTORS | .
+CHAR_CLASS  -> RANGES rbracket .
+RANGES      -> range RANGES | .
+FACTOR      -> lparen SUB UNOPS
+            | id_brace id rbrace UNOPS
+            | lclass CHAR_CLASS UNOPS
+            | lneg CHAR_CLASS UNOPS
+            | dotall UNOPS
+            | a UNOPS .
+UNOPS       -> star UNOPS
+            | plus UNOPS
+            | optional UNOPS
+            | lbrace number rbrace UNOPS
+            | .
 
 

@@ -34,13 +34,14 @@ static enum regex_symbol const * const first_sets[] = {
     [RBRACE_T] =      FIRST { RBRACE_T, 0 },
 
     [REGEX_NT] =      FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
-    [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, RPAREN_T, 0 },
-    [ALTS_NT] =       FIRST { ALT_T, EOF_T, RPAREN_T, 0 },
-    [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, RPAREN_T, 0 },
+    [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
+    [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [ALTS_NT] =       FIRST { ALT_T, 0 },
     [FACTOR_NT] =     FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [FACTORS_NT] =    FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
     [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
-    [RANGES_NT] =     FIRST { RANGE_T, END_CLASS_T, 0 },
-    [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, RPAREN_T, 0 },
+    [RANGES_NT] =     FIRST { RANGE_T, 0 },
+    [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, 0 },
 };
 #undef FIRST
 
@@ -329,7 +330,14 @@ void start_scanning(char *input, struct parse_context *context) {
 }
 
 bool peek(enum regex_symbol expected, struct parse_context *context) {
-    return context->lookahead == expected;
+    enum regex_symbol const *s = first_set(expected);
+
+    while (*s) {
+        if (context->lookahead == *s) return true;
+        else s++;
+    }
+
+    return false;
 }
 
 bool expect(enum regex_symbol expected, struct parse_context *context) {
@@ -459,9 +467,10 @@ char *str_for_sym(enum regex_symbol type) {
 
         case REGEX_NT:          return "REGEX";
         case EXPR_NT:           return "EXPR";
-        case ALTS_NT:           return "ALTS";
         case ALT_NT:            return "ALT";
+        case ALTS_NT:           return "ALTS";
         case FACTOR_NT:         return "FACTOR";
+        case FACTORS_NT:        return "FACTORS";
         case CHAR_CLASS_NT:     return "CHAR_CLASS";
         case RANGES_NT:         return "RANGES";
         case UNOPS_NT:          return "UNOPS";

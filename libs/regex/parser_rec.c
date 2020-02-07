@@ -8,8 +8,7 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    if (peek(EXPR_NT, context) &&
-        parse_expr(context) &&
+    if (parse_expr(context) &&
         expect(EOF_T, context) &&
         do_action(DO_REGEX, NULLRVAL, context)) {
         return true;
@@ -122,7 +121,7 @@ bool parse_factor(struct parse_context *context) {
         success = expect(SYMBOL_T, context) && do_action(DO_SYMBOL, sym, context);
     }
 
-    return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context)
+    return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context);
 }
 
 bool parse_unops(struct parse_context *context) {

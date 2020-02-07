@@ -74,14 +74,13 @@ character class ideas:
 
 
 REGEX       -> EXPR eof .
-SUB         -> EXPR rparen .
 EXPR        -> ALT ALTS .
 ALTS        -> alt ALT ALTS | .
 ALT         -> FACTOR FACTORS | .
 FACTORS     -> FACTOR FACTORS | .
 CHAR_CLASS  -> RANGES rbracket .
 RANGES      -> range RANGES | .
-FACTOR      -> lparen SUB UNOPS
+FACTOR      -> lparen EXPR rparen UNOPS
             | id_brace id rbrace UNOPS
             | lclass CHAR_CLASS UNOPS
             | lneg CHAR_CLASS UNOPS

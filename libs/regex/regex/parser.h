@@ -36,9 +36,10 @@ enum regex_symbol {
     // non-terminals
     REGEX_NT,
     EXPR_NT,
-    ALTS_NT,
     ALT_NT,
+    ALTS_NT,
     FACTOR_NT,
+    FACTORS_NT,
     CHAR_CLASS_NT,
     RANGES_NT,
     UNOPS_NT,
@@ -178,7 +179,6 @@ struct parse_context parse_context(
 );
 void start_scanning(char *input, struct parse_context *context);
 bool peek(enum regex_symbol expected, struct parse_context *context);
-bool peek_end(struct parse_context *context);
 bool expect(enum regex_symbol expected, struct parse_context *context);
 int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);

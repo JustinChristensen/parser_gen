@@ -10,7 +10,6 @@
 '}'
 
 regex       = expr eof { regex };
-sub         = expr ')' ;
 expr        = alt alts ;
 alts        = '|' alt { alt } alts
             | $empty;
@@ -21,7 +20,7 @@ factors     = factor { cat } factors
 char_class  = ranges ']' { char_class }
 ranges      = 'a-z' { range } ranges
             | $empty;
-factor      = '(' sub { sub } unops
+factor      = '(' expr ')' { sub } unops
             | '{' id '}' { id } unops
             | '[' char_class unops
             | '[^' char_class { neg_char_class } unops
@@ -32,25 +31,6 @@ unops       = '*' { star } unops
             | '?' { optional } unops
             | '{' number '}' { repeat_exact } unops
             | $empty;
-
-REGEX       ->EXPR eof .
-EXPR        -> ALT ALTS | .
-ALTS        -> alt ALT ALTS | .
-ALT         -> FACTOR FACTORS .
-FACTORS     -> FACTOR FACTORS | .
-CHAR_CLASS  -> RANGES rbracket .
-RANGES      -> range RANGES | .
-FACTOR      -> lparen EXPR rparen UNOPS
-            | id_brace id rbrace UNOPS
-            | lclass CHAR_CLASS UNOPS
-            | lneg CHAR_CLASS UNOPS
-            | dotall UNOPS
-            | a UNOPS .
-UNOPS       -> star UNOPS
-            | plus UNOPS
-            | optional UNOPS
-            | lbrace number rbrace UNOPS
-            | .
 
 character class ideas:
 1. Alternatives
@@ -73,23 +53,29 @@ character class ideas:
     - CONS: simulation logic is more complex, requires a loop
 
 
-REGEX       -> EXPR eof .
-EXPR        -> ALT ALTS .
-ALTS        -> alt ALT ALTS | .
-ALT         -> FACTOR FACTORS | .
-FACTORS     -> FACTOR FACTORS | .
-CHAR_CLASS  -> RANGES rbracket .
-RANGES      -> range RANGES | .
-FACTOR      -> lparen EXPR rparen UNOPS
-            | id_brace id rbrace UNOPS
-            | lclass CHAR_CLASS UNOPS
-            | lneg CHAR_CLASS UNOPS
-            | dotall UNOPS
-            | a UNOPS .
-UNOPS       -> star UNOPS
-            | plus UNOPS
-            | optional UNOPS
-            | lbrace number rbrace UNOPS
-            | .
+ERROR HANDLING
+
+Computing the "next" set of tokens based on parser state:
+
+In a table-driven parser I'd use a stack and parsing a sub-expression would look like this:
+
+"("
+
+')' EXPR '('        NEXT = FIRST('(')                               '(' is not nullable, so I don't need to consider the rest of the stack
+')' EXPR            NEXT = FIRST(EXPR) ∪ FIRST(')')                 EXPR is nullable, so I need to consider the next grammar symbol
+')' ALTS ALT        NEXT = FIRST(ALT) ∪ FIRST(ALTS) ∪ FIRST(')')    ALT and ALTS are nullable, so I need to consider the next grammar symbols
+')' ALTS            NEXT = FIRST(ALTS) ∪ FIRST(')')                 ALTS is nullable, so I need to consider the next grammar symbol
+')'                 NEXT = FIRST(')')                               ')' is not nullable, so I don't need to consider the rest of the stack
+
+"(a"
+
+')' EXPR '('              NEXT = FIRST('(')                               '(' is not nullable, so I don't need to consider the rest of the stack
+')' EXPR                  NEXT = FIRST(EXPR) ∪ FIRST(')')                 EXPR is nullable, so I need to consider the next grammar symbol
+')' ALTS ALT              NEXT = FIRST(ALT) ∪ FIRST(ALTS) ∪ FIRST(')')    ALT and ALTS are nullable, so I need to consider the next grammar symbols
+')' ALTS FACTORS FACTOR   NEXT = FIRST(FACTOR) ∪ FIRST(FACTORS) ∪ FIRST(ALTS) ∪ FIRST(')')    " "
+    = { '(' '{a' '[' '[^' '.' 'a' '|' ')' }
+
+The KEY THING is computing FIRST(current state of the parser stack)
+
 
 

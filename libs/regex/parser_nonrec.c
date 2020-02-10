@@ -12,56 +12,83 @@
 
 static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     [NTI(REGEX_NT)] = {
-        [EOF_T] = REGEX_P,
-        [SYMBOL_T] = REGEX_P,
-        [DOTALL_T] = REGEX_P,
-        [LPAREN_T] = REGEX_P
+        [EOF_T] = REGEX_EXPR_P,
+        [SYMBOL_T] = REGEX_EXPR_P,
+        [ALT_T] = REGEX_EXPR_P,
+        [DOTALL_T] = REGEX_EXPR_P,
+        [LPAREN_T] = REGEX_EXPR_P,
+        [CLASS_T] = REGEX_EXPR_P,
+        [NEG_CLASS_T] = REGEX_EXPR_P,
+        [ID_BRACE_T] = REGEX_EXPR_P
     },
     [NTI(EXPR_NT)] = {
-        [EOF_T] = EMPTY_P,
+        [EOF_T] = EXPR_EMPTY_P,
         [SYMBOL_T] = EXPR_ALT_P,
+        [ALT_T] = EXPR_ALT_P,
         [DOTALL_T] = EXPR_ALT_P,
         [LPAREN_T] = EXPR_ALT_P,
-        [RPAREN_T] = EMPTY_P
+        [RPAREN_T] = EXPR_EMPTY_P,
+        [CLASS_T] = EXPR_ALT_P,
+        [NEG_CLASS_T] = EXPR_ALT_P,
+        [ID_BRACE_T] = EXPR_ALT_P
     },
     [NTI(ALT_NT)] = {
-        [SYMBOL_T] = ALT_CAT_P,
-        [DOTALL_T] = ALT_CAT_P,
-        [LPAREN_T] = ALT_CAT_P
+        [EOF_T] = ALT_EMPTY_P,
+        [SYMBOL_T] = ALT_FACTOR_P,
+        [ALT_T] = ALT_EMPTY_P,
+        [DOTALL_T] = ALT_FACTOR_P,
+        [LPAREN_T] = ALT_FACTOR_P,
+        [RPAREN_T] = ALT_EMPTY_P,
+        [CLASS_T] = ALT_FACTOR_P,
+        [NEG_CLASS_T] = ALT_FACTOR_P,
+        [ID_BRACE_T] = ALT_FACTOR_P
     },
-    [NTI(ALT_TAIL_NT)] = {
+    [NTI(ALTS_NT)] = {
         [EOF_T] = EMPTY_P,
-        [ALT_T] = ALT_TAIL_CAT_P,
-        [RPAREN_T] = EMPTY_P
-    },
-    [NTI(CAT_NT)] = {
-        [SYMBOL_T] = CAT_FACTOR_P,
-        [DOTALL_T] = CAT_FACTOR_P,
-        [LPAREN_T] = CAT_FACTOR_P
-    },
-    [NTI(CAT_TAIL_NT)] = {
-        [EOF_T] = EMPTY_P,
-        [SYMBOL_T] = CAT_TAIL_FACTOR_P,
-        [ALT_T] = EMPTY_P,
-        [DOTALL_T] = CAT_TAIL_FACTOR_P,
-        [LPAREN_T] = CAT_TAIL_FACTOR_P,
+        [ALT_T] = ALTS_ALT_P,
         [RPAREN_T] = EMPTY_P
     },
     [NTI(FACTOR_NT)] = {
         [SYMBOL_T] = FACTOR_SYMBOL_P,
         [DOTALL_T] = FACTOR_DOTALL_P,
-        [LPAREN_T] = FACTOR_SUBEXPR_P
+        [LPAREN_T] = FACTOR_SUBEXPR_P,
+        [CLASS_T] = FACTOR_CLASS_P,
+        [NEG_CLASS_T] = FACTOR_NEG_CLASS_P,
+        [ID_BRACE_T] = FACTOR_ID_P
     },
-    [NTI(FACTOR_TAIL_NT)] = {
+    [NTI(FACTORS_NT)] = {
+        [EOF_T] = EMPTY_P,
+        [SYMBOL_T] = FACTORS_FACTOR_P,
+        [ALT_T] = EMPTY_P,
+        [DOTALL_T] = FACTORS_FACTOR_P,
+        [LPAREN_T] = FACTORS_FACTOR_P,
+        [RPAREN_T] = EMPTY_P,
+        [CLASS_T] = FACTORS_FACTOR_P,
+        [NEG_CLASS_T] = FACTORS_FACTOR_P,
+        [ID_BRACE_T] = FACTORS_FACTOR_P
+    },
+    [NTI(CHAR_CLASS_NT)] = {
+        [RANGE_T] = CHAR_CLASS_RANGES_P,
+        [END_CLASS_T] = CHAR_CLASS_RBRACKET_P
+    },
+    [NTI(RANGES_NT)] = {
+        [RANGE_T] = RANGES_RANGE_P,
+        [END_CLASS_T] = EMPTY_P
+    },
+    [NTI(UNOPS_NT)] = {
         [EOF_T] = EMPTY_P,
         [SYMBOL_T] = EMPTY_P,
         [ALT_T] = EMPTY_P,
-        [STAR_T] = FACTOR_TAIL_STAR_P,
-        [PLUS_T] = FACTOR_TAIL_PLUS_P,
-        [OPTIONAL_T] = FACTOR_TAIL_OPTIONAL_P,
+        [STAR_T] = UNOPS_STAR_P,
+        [PLUS_T] = UNOPS_PLUS_P,
+        [OPTIONAL_T] = UNOPS_OPTIONAL_P,
         [DOTALL_T] = EMPTY_P,
         [LPAREN_T] = EMPTY_P,
-        [RPAREN_T] = EMPTY_P
+        [RPAREN_T] = EMPTY_P,
+        [CLASS_T] = EMPTY_P,
+        [NEG_CLASS_T] = EMPTY_P,
+        [ID_BRACE_T] = EMPTY_P,
+        [LBRACE_T] = UNOPS_REPEAT_EXACT_P
     }
 };
 
@@ -69,22 +96,30 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
 static enum regex_symbol *rule_table[] = {
     [ERROR_P] =                SYMS { 0 },
     [EMPTY_P] =                SYMS { 0 },
-    [REGEX_P] =                SYMS { DO_REGEX, EOF_T, EXPR_NT, 0 },
-    [EXPR_ALT_P] =             SYMS { ALT_NT, 0 },
-    [ALT_CAT_P] =              SYMS { ALT_TAIL_NT, CAT_NT, 0 },
-    [ALT_TAIL_CAT_P] =         SYMS { ALT_TAIL_NT, DO_ALT, EXPR_NT, ALT_T, 0 },
-    [CAT_FACTOR_P] =           SYMS { DO_CAT, CAT_TAIL_NT, FACTOR_NT, DO_EMPTY, 0 },
-    [CAT_TAIL_FACTOR_P] =      SYMS { CAT_TAIL_NT, DO_CAT, FACTOR_NT, 0 },
-    [FACTOR_SUBEXPR_P] =       SYMS { FACTOR_TAIL_NT, DO_SUB, RPAREN_T, EXPR_NT, LPAREN_T, 0 },
-    [FACTOR_DOTALL_P] =        SYMS { FACTOR_TAIL_NT, DO_DOTALL, DOTALL_T, 0 },
-    [FACTOR_SYMBOL_P] =        SYMS { FACTOR_TAIL_NT, DO_SYMBOL, SYMBOL_T, 0 },
-    [FACTOR_TAIL_STAR_P] =     SYMS { FACTOR_TAIL_NT, DO_STAR, STAR_T, 0 },
-    [FACTOR_TAIL_PLUS_P] =     SYMS { FACTOR_TAIL_NT, DO_PLUS, PLUS_T, 0 },
-    [FACTOR_TAIL_OPTIONAL_P] = SYMS { FACTOR_TAIL_NT, DO_OPTIONAL, OPTIONAL_T, 0 }
+    [REGEX_EXPR_P] =           SYMS { DO_REGEX, EOF_T, EXPR_NT, 0 },
+    [EXPR_EMPTY_P] =           SYMS { DO_EMPTY, 0 },
+    [EXPR_ALT_P] =             SYMS { ALTS_NT, ALT_NT, 0 },
+    [ALT_FACTOR_P] =           SYMS { FACTORS_NT, DO_EMPTY, 0 },
+    [ALT_EMPTY_P] =            SYMS { DO_EMPTY, 0 },
+    [ALTS_ALT_P] =             SYMS { ALTS_NT, DO_ALT, ALT_NT, ALT_T, 0 },
+    [FACTORS_FACTOR_P] =       SYMS { FACTORS_NT, DO_CAT, FACTOR_NT, 0 },
+    [CHAR_CLASS_RBRACKET_P] =  SYMS { DO_CHAR_CLASS, END_CLASS_T, 0 },
+    [CHAR_CLASS_RANGES_P] =    SYMS { DO_CHAR_CLASS, END_CLASS_T, RANGES_NT, DO_RANGES, RANGE_T, 0 },
+    [RANGES_RANGE_P] =         SYMS { RANGES_NT, DO_RANGE, RANGE_T, 0 },
+    [FACTOR_SUBEXPR_P] =       SYMS { UNOPS_NT, DO_SUB, RPAREN_T, EXPR_NT, LPAREN_T, 0 },
+    [FACTOR_ID_P] =            SYMS { UNOPS_NT, DO_ID, RBRACE_T, ID_T, ID_BRACE_T, 0 },
+    [FACTOR_CLASS_P] =         SYMS { UNOPS_NT, CHAR_CLASS_NT, CLASS_T, 0 },
+    [FACTOR_NEG_CLASS_P] =     SYMS { UNOPS_NT, DO_NEG_CLASS, CHAR_CLASS_NT, NEG_CLASS_T, 0 },
+    [FACTOR_DOTALL_P] =        SYMS { UNOPS_NT, DO_DOTALL, DOTALL_T, 0 },
+    [FACTOR_SYMBOL_P] =        SYMS { UNOPS_NT, DO_SYMBOL, SYMBOL_T, 0 },
+    [UNOPS_STAR_P] =           SYMS { UNOPS_NT, DO_STAR, STAR_T, 0 },
+    [UNOPS_PLUS_P] =           SYMS { UNOPS_NT, DO_PLUS, PLUS_T, 0 },
+    [UNOPS_OPTIONAL_P] =       SYMS { UNOPS_NT, DO_OPTIONAL, OPTIONAL_T, 0 },
+    [UNOPS_REPEAT_EXACT_P] =   SYMS { UNOPS_NT, DO_REPEAT_EXACT, RBRACE_T, NUM_T, LBRACE_T, 0 },
 };
 
 static void push_sym(int sym, struct array *stack) { apush(&sym, stack); }
-static void push_rval(union rval lval, struct array *results) { apush(&lval, results); }
+static void push_result(union regex_result val, struct array *results) { apush(&val, results); }
 
 static void push_production_symbols(enum gram_production production, struct array *stack) {
     enum regex_symbol *sym = rule_table[production];
@@ -115,15 +150,21 @@ static void debug_sym_stack(struct array *stack) {
     debug_("\n");
 }
 
+static int psize = 0;
 static void debug_result_stack(struct array *results) {
-    pdebug("result stack size: %d\n", asize(results));
+    int csize = asize(results);
+
+    if (csize != psize) {
+        pdebug("result stack size: %d\n", csize);
+        psize = csize;
+    }
 }
 
 bool parse_regex_nonrec(char *regex, struct parse_context *context) {
     bool success = true;
     struct array
         *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
-        *results = init_array(sizeof(union rval), PARSE_STACK_SIZE, 0, 0);
+        *results = init_array(sizeof(union regex_result), PARSE_STACK_SIZE, 0, 0);
     enum regex_symbol ssym;
 
     start_scanning(regex, context);
@@ -135,43 +176,59 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
         debug_sym_stack(stack);
 
         if (is_terminal(ssym)) {
-            if (peek(context, ssym)) {
-                if (ssym == SYMBOL_T)
-                    push_rval((union rval) { .sym = symbol(context) }, results);
+            if (peek(ssym, context)) {
+                if (ssym == SYMBOL_T || ssym == RANGE_T || ssym == NUM_T)
+                    push_result(lookahead_val(context), results);
 
-                expect(context, ssym);
+                expect(ssym, context);
                 apop(&ssym, stack);
             } else {
                 success = false;
             }
         } else if (is_action(ssym)) {
-            union rval lval = NULLRVAL;
+            union regex_result val = NULLRVAL;
 
-            if (ssym == DO_ALT || ssym == DO_CAT || ssym == DO_SYMBOL)
-                apop(&lval, results);
+            // actions that use local variables in the
+            // recursive routines
+            switch (ssym) {
+                case DO_ALT:
+                case DO_CAT:
+                case DO_SYMBOL:
+                case DO_RANGES:
+                case DO_RANGE:
+                case DO_CHAR_CLASS:
+                case DO_REPEAT_EXACT:
+                    apop(&val, results);
+                    break;
+                default:
+                    break;
+            }
 
-            do_action(context, ssym, lval);
+            do_action(ssym, val, context);
 
-            if (ssym == DO_EMPTY)
-                push_rval(getval(context), results);
+            // push the last result onto the result stack
+            if (ssym == DO_RANGES)
+                push_result(result(context), results);
 
             apop(&ssym, stack);
         } else {
             enum regex_symbol la = lookahead(context);
             enum gram_production p = selectp(NTI(ssym), la);
 
-            pdebug("parse_table[%s][%s] = %d\n", str_for_sym(ssym), str_for_sym(la), p);
+            pdebug("parse_table[%s][%s] = %s\n", str_for_sym(ssym), str_for_sym(la), str_for_prod(p));
 
             if (p) {
                 // the top of the tail loop
-                if (p == ALT_TAIL_CAT_P || p == CAT_TAIL_FACTOR_P)
-                    push_rval(getval(context), results);
+                if (p == ALTS_ALT_P || p == FACTORS_FACTOR_P)
+                    push_result(result(context), results);
+                else if (p == CHAR_CLASS_RBRACKET_P)
+                    push_result(NULLRVAL, results);
 
                 apop(&ssym, stack);
                 push_production_symbols(p, stack);
             } else {
                 // TODO: make error handling support first/follow sets in error output
-                set_parse_error(EOF_T, context);
+                set_syntax_error(EOF_T, context);
                 success = false;
             }
         }

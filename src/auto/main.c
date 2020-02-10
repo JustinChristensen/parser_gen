@@ -149,10 +149,10 @@ int main(int argc, char *argv[]) {
                 PRINT,
                 "print",
                 ARGS {
-                    regex_arg,
                     print_fmt_arg,
                     parse_nonrec_arg,
                     help_and_version_args,
+                    regex_arg,
                     END_ARGS
                 },
                 NULL,

@@ -358,7 +358,7 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
     pdebug("failure, expected \"%s\", actual \"%s\"\n",
         str_for_sym(expected), str_for_sym(context->lookahead));
 
-    return false;
+    return set_syntax_error(expected, context);
 }
 
 int is_symbol(int c) {
@@ -442,7 +442,7 @@ struct parse_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
-char *str_for_sym(enum regex_symbol type) {
+char const *str_for_sym(enum regex_symbol type) {
     switch (type) {
         case ERROR:             return "ERROR";
 
@@ -485,6 +485,7 @@ char *str_for_sym(enum regex_symbol type) {
         case DO_NEG_CLASS:      return "{neg_class}";
         case DO_DOTALL:         return "{dotall}";
         case DO_SYMBOL:         return "{symbol}";
+        case DO_RANGES:         return "{ranges}";
         case DO_RANGE:          return "{range}";
         case DO_STAR:           return "{star}";
         case DO_PLUS:           return "{plus}";
@@ -492,4 +493,32 @@ char *str_for_sym(enum regex_symbol type) {
         case DO_REPEAT_EXACT:   return "{repeat_exact}";
     }
 }
+
+char const *str_for_prod(enum gram_production p) {
+    switch (p) {
+        case ERROR_P:               return "ERROR_P";
+        case EMPTY_P:               return "EMPTY_P";
+        case REGEX_EXPR_P:          return "REGEX_EXPR_P";
+        case EXPR_EMPTY_P:          return "EXPR_EMPTY_P";
+        case EXPR_ALT_P:            return "EXPR_ALT_P";
+        case ALT_FACTOR_P:          return "ALT_FACTOR_P";
+        case ALT_EMPTY_P:           return "ALT_EMPTY_P";
+        case ALTS_ALT_P:            return "ALTS_ALT_P";
+        case FACTORS_FACTOR_P:      return "FACTORS_FACTOR_P";
+        case CHAR_CLASS_RBRACKET_P: return "CHAR_CLASS_RBRACKET_P";
+        case CHAR_CLASS_RANGES_P:   return "CHAR_CLASS_RANGES_P";
+        case RANGES_RANGE_P:        return "RANGES_RANGE_P";
+        case FACTOR_SUBEXPR_P:      return "FACTOR_SUBEXPR_P";
+        case FACTOR_ID_P:           return "FACTOR_ID_P";
+        case FACTOR_CLASS_P:        return "FACTOR_CLASS_P";
+        case FACTOR_NEG_CLASS_P:    return "FACTOR_NEG_CLASS_P";
+        case FACTOR_DOTALL_P:       return "FACTOR_DOTALL_P";
+        case FACTOR_SYMBOL_P:       return "FACTOR_SYMBOL_P";
+        case UNOPS_STAR_P:          return "UNOPS_STAR_P";
+        case UNOPS_PLUS_P:          return "UNOPS_PLUS_P";
+        case UNOPS_OPTIONAL_P:      return "UNOPS_OPTIONAL_P";
+        case UNOPS_REPEAT_EXACT_P:  return "UNOPS_REPEAT_EXACT_P";
+    }
+}
+
 

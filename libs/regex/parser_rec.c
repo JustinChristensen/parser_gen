@@ -8,21 +8,18 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    if (parse_expr(context) &&
+    return parse_expr(context) &&
         expect(EOF_T, context) &&
-        do_action(DO_REGEX, NULLRVAL, context)) {
-        return true;
-    }
-
-    return set_syntax_error(REGEX_NT, context);
+        do_action(DO_REGEX, NULLRVAL, context);
 }
 
 bool parse_expr(struct parse_context *context) {
-    if (parse_alt(context) && parse_alts(context)) {
-        return true;
-    }
+    if (peek(EOF_T, context) || peek(RPAREN_T, context)) {
+        return do_action(DO_EMPTY, NULLRVAL, context);
+    } else if (parse_alt(context) &&
+        parse_alts(context)) return true;
 
-    return set_syntax_error(EXPR_NT, context);
+    return false;
 }
 
 bool parse_alt(struct parse_context *context) {
@@ -36,7 +33,7 @@ bool parse_alt(struct parse_context *context) {
             do_action(DO_CAT, prev_factor, context);
     }
 
-    return success || set_syntax_error(ALT_NT, context);
+    return success;
 }
 
 bool parse_alts(struct parse_context *context) {
@@ -51,7 +48,7 @@ bool parse_alts(struct parse_context *context) {
             do_action(DO_ALT, prev_alt, context);
     }
 
-    return success || set_syntax_error(ALTS_NT, context);
+    return success;
 }
 
 bool parse_ranges(struct parse_context *context) {
@@ -65,29 +62,27 @@ bool parse_ranges(struct parse_context *context) {
             do_action(DO_RANGE, range, context);
     }
 
-    return success || set_syntax_error(RANGES_NT, context);
+    return success;
 }
 
 bool parse_char_class(struct parse_context *context) {
-    if (peek(END_CLASS_T, context) &&
-        expect(END_CLASS_T, context) &&
-        do_action(DO_CHAR_CLASS, NULLRVAL, context)) {
-        return true;
+    bool success = true;
+    union regex_result head = lookahead_val(context);
+
+    if (peek(RANGE_T, context) &&
+        expect(RANGE_T, context) &&
+        do_action(DO_RANGES, head, context)) {
+        head = result(context);
+        success = parse_ranges(context);
     } else {
-        union regex_result head = lookahead_val(context);
-
-        if (expect(RANGE_T, context) && do_action(DO_RANGE, head, context)) {
-            head = result(context);
-
-            if (parse_ranges(context) &&
-                expect(END_CLASS_T, context) &&
-                do_action(DO_CHAR_CLASS, head, context)) {
-                return true;
-            }
-        }
+        head = NULLRVAL;
     }
 
-    return set_syntax_error(CHAR_CLASS_NT, context);
+    if (success &&
+        expect(END_CLASS_T, context) &&
+        do_action(DO_CHAR_CLASS, head, context)) return true;
+
+    return false;
 }
 
 bool parse_factor(struct parse_context *context) {
@@ -121,7 +116,7 @@ bool parse_factor(struct parse_context *context) {
         success = expect(SYMBOL_T, context) && do_action(DO_SYMBOL, sym, context);
     }
 
-    return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context);
+    return success ? parse_unops(context) : false;
 }
 
 bool parse_unops(struct parse_context *context) {
@@ -146,5 +141,5 @@ bool parse_unops(struct parse_context *context) {
         }
     }
 
-    return success || set_syntax_error(UNOPS_NT, context);
+    return success;
 }

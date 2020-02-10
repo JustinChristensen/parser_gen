@@ -16,6 +16,7 @@ bool (*expr_actions[])(union regex_result val, struct parse_context *context) = 
     [AI(DO_NEG_CLASS)] =    do_neg_class,
     [AI(DO_DOTALL)] =       do_dotall_expr,
     [AI(DO_SYMBOL)] =       do_symbol_expr,
+    [AI(DO_RANGES)] =       do_range,
     [AI(DO_RANGE)] =        do_range,
     [AI(DO_STAR)] =         do_star_expr,
     [AI(DO_PLUS)] =         do_plus_expr,

@@ -10,14 +10,15 @@
 '}'
 
 regex       = expr eof { regex };
-expr        = alt alts ;
+expr        = alt alts | { empty } $empty;
 alts        = '|' alt { alt } alts
             | $empty;
-alt         = { empty } factor factors
+alt         = { empty } factors
             | { empty } $empty;
 factors     = factor { cat } factors
             | $empty;
-char_class  = ranges ']' { char_class }
+char_class  = ']' { char_class }
+            | range { ranges_head } ranges ']' { char_class }
 ranges      = 'a-z' { range } ranges
             | $empty;
 factor      = '(' expr ')' { sub } unops
@@ -77,5 +78,37 @@ In a table-driven parser I'd use a stack and parsing a sub-expression would look
 
 The KEY THING is computing FIRST(current state of the parser stack)
 
+
+
+(a      REGEX                                                   {
+(a      EXPR EOF
+(a      ALT ALTS EOF
+(a      FACTOR FACTORS ALTS EOF
+(a      lparen EXPR rparen UNOPS FACTORS ALTS EOF
+a       lparen EXPR rparen UNOPS FACTORS ALTS EOF
+a       lparen ALT ALTS rparen UNOPS FACTORS ALTS EOF
+a       lparen FACTOR FACTORS ALTS rparen UNOPS FACTORS ALTS EOF
+a       lparen a FACTORS ALTS rparen UNOPS FACTORS ALTS EOF
+        lparen a ALTS rparen UNOPS FACTORS ALTS EOF
+        lparen a rparen UNOPS FACTORS ALTS EOF
+
+
+TODO: return computation descriptors from expect, peek, and the non-terminal
+routines and implement an "&&" combinator that merges two descriptors
+
+This will give me the ability to construct the "next" set of possible tokens on the fly
+
+This could also be used to construct a parse table on the fly
+
+For example:
+sub_desc = then(then(expect(LPAREN_T), expect(EXPR_NT)), expect(RPAREN_T))
+if (parse(input, sub_desc)) { good() } else { bad(desc.error) }
+
+primitives:
+peek
+expect
+
+combinators:
+then
 
 

@@ -22,6 +22,7 @@ bool (*nfa_actions[])(union regex_result val, struct parse_context *context) = {
     [AI(DO_NEG_CLASS)] =    noop_nfa,
     [AI(DO_DOTALL)] =       do_dotall_nfa,
     [AI(DO_SYMBOL)] =       do_symbol_nfa,
+    [AI(DO_RANGES)] =       noop_nfa,
     [AI(DO_RANGE)] =        noop_nfa,
     [AI(DO_STAR)] =         do_star_nfa,
     [AI(DO_PLUS)] =         do_plus_nfa,

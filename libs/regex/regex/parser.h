@@ -55,6 +55,7 @@ enum regex_symbol {
     DO_NEG_CLASS,
     DO_DOTALL,
     DO_SYMBOL,
+    DO_RANGES,
     DO_RANGE,
     DO_STAR,
     DO_PLUS,
@@ -75,43 +76,58 @@ enum regex_symbol {
 enum gram_production {
     ERROR_P,
 
-    // expr: ε
-    // alt_tail: ε
-    // cat_tail: ε
-    // factor_tail: ε
+    // $empty
     EMPTY_P,
 
-    // regex: expr eof { regex }
-    REGEX_P,
+    // regex = expr eof { regex };
+    REGEX_EXPR_P,
 
-    // expr: alt
+    // expr = { empty } $empty;
+    EXPR_EMPTY_P,
+    // expr = alt alts;
     EXPR_ALT_P,
 
-    // alt: cat alt_tail
-    ALT_CAT_P,
+    // alt = { empty } factors;
+    ALT_FACTOR_P,
+    // alt = { empty } $empty;
+    ALT_EMPTY_P,
 
-    // alt_tail: + cat { alt } alt_tail
-    ALT_TAIL_CAT_P,
+    // alts  = '|' alt { alt } alts:
+    ALTS_ALT_P,
 
-    // cat: ε { empty } factor cat_tail
-    CAT_FACTOR_P,
+    // factors = factor { cat } factors;
+    FACTORS_FACTOR_P,
 
-    // cat_tail: factor { cat } cat_tail
-    CAT_TAIL_FACTOR_P,
+    // char_class = ']' { char_class };
+    CHAR_CLASS_RBRACKET_P,
 
-    // factor: ( expr ) { sub } factor_tail
+    // char_class = 'a-z' { range_head } ranges ']' { char_class };
+    CHAR_CLASS_RANGES_P,
+
+    // ranges      = 'a-z' { range } ranges
+    RANGES_RANGE_P,
+
+    // factor = '(' expr ')' { sub } unops;
     FACTOR_SUBEXPR_P,
-    // factor: . { dotall } factor_tail
+    // factor = '{' id '}' { id } unops;
+    FACTOR_ID_P,
+    // factor = '[' char_class unops;
+    FACTOR_CLASS_P,
+    // factor = '[^' char_class { neg_char_class } unops;
+    FACTOR_NEG_CLASS_P,
+    // factor = '.' { dotall } unops;
     FACTOR_DOTALL_P,
-    // factor: a { sym } factor_tail
+    // factor = a { sym } unops;;
     FACTOR_SYMBOL_P,
 
-    // factor_tail: * { star } factor_tail
-    FACTOR_TAIL_STAR_P,
-    // factor_tail: + { plus } factor_tail
-    FACTOR_TAIL_PLUS_P,
-    // factor_tail: ? { optional } factor_tail
-    FACTOR_TAIL_OPTIONAL_P
+    // unops = '*' { star } unops;
+    UNOPS_STAR_P,
+    // unops = '+' { plus } unops;
+    UNOPS_PLUS_P,
+    // unops = '?' { optional } unops;
+    UNOPS_OPTIONAL_P,
+    // unops = '{' number '}' { repeat_exact } unops;
+    UNOPS_REPEAT_EXACT_P
 };
 
 struct regex_token {
@@ -190,6 +206,7 @@ void print_parse_error(struct parse_error error);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);
 struct parse_error nullperr();
-char *str_for_sym(enum regex_symbol token);
+char const *str_for_prod(enum gram_production p);
+char const *str_for_sym(enum regex_symbol token);
 
 #endif // REGEX_PARSER_H_

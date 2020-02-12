@@ -14,12 +14,12 @@ bool parse_regex(char *regex, struct parse_context *context) {
 }
 
 bool parse_expr(struct parse_context *context) {
-    if (peek(EOF_T, context) || peek(RPAREN_T, context)) {
+    if (peek(EOF_T, context) || peek(RPAREN_T, context))
         return do_action(DO_EMPTY, NULLRVAL, context);
-    } else if (parse_alt(context) &&
-        parse_alts(context)) return true;
+    else if (parse_alt(context) && parse_alts(context))
+        return true;
 
-    return false;
+    return set_syntax_error(EXPR_NT, context);
 }
 
 bool parse_alt(struct parse_context *context) {
@@ -33,7 +33,7 @@ bool parse_alt(struct parse_context *context) {
             do_action(DO_CAT, prev_factor, context);
     }
 
-    return success;
+    return success || set_syntax_error(ALT_NT, context);
 }
 
 bool parse_alts(struct parse_context *context) {
@@ -48,7 +48,7 @@ bool parse_alts(struct parse_context *context) {
             do_action(DO_ALT, prev_alt, context);
     }
 
-    return success;
+    return success || set_syntax_error(ALTS_NT, context);
 }
 
 bool parse_ranges(struct parse_context *context) {
@@ -62,7 +62,7 @@ bool parse_ranges(struct parse_context *context) {
             do_action(DO_RANGE, range, context);
     }
 
-    return success;
+    return success || set_syntax_error(RANGES_NT, context);
 }
 
 bool parse_char_class(struct parse_context *context) {
@@ -78,11 +78,11 @@ bool parse_char_class(struct parse_context *context) {
         head = NULLRVAL;
     }
 
-    if (success &&
+    success = success &&
         expect(END_CLASS_T, context) &&
-        do_action(DO_CHAR_CLASS, head, context)) return true;
+        do_action(DO_CHAR_CLASS, head, context);
 
-    return false;
+    return success || set_syntax_error(CHAR_CLASS_NT, context);
 }
 
 bool parse_factor(struct parse_context *context) {
@@ -116,7 +116,7 @@ bool parse_factor(struct parse_context *context) {
         success = expect(SYMBOL_T, context) && do_action(DO_SYMBOL, sym, context);
     }
 
-    return success ? parse_unops(context) : false;
+    return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context);
 }
 
 bool parse_unops(struct parse_context *context) {
@@ -141,5 +141,5 @@ bool parse_unops(struct parse_context *context) {
         }
     }
 
-    return success;
+    return success || set_syntax_error(UNOPS_NT, context);
 }

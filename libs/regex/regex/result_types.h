@@ -50,6 +50,7 @@ enum nfa_state_type {
     ACCEPTING_STATE,
     EPSILON_STATE,
     BRANCH_STATE,
+    CLASS_STATE,
     SYMBOL_STATE,
     DOTALL_STATE
 };
@@ -58,8 +59,14 @@ struct nfa_state {
     enum nfa_state_type type;
     int id;
     union {
-        // epsilon, dotall, symbol
-        struct { struct nfa_state *next; char symbol; };
+        // epsilon, dotall, symbol, class
+        struct {
+            struct nfa_state *next;
+            union {
+                char symbol;
+                bool *char_class;
+            };
+        };
         // branch
         struct { struct nfa_state *left; struct nfa_state *right; };
         // accepting

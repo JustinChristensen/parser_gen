@@ -358,7 +358,7 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
     pdebug("failure, expected \"%s\", actual \"%s\"\n",
         str_for_sym(expected), str_for_sym(context->lookahead));
 
-    return set_syntax_error(expected, context);
+    return false;
 }
 
 int is_symbol(int c) {
@@ -402,6 +402,15 @@ bool set_oom_error(struct parse_context *context) {
     return false;
 }
 
+bool set_repeat_zero_error(struct parse_context *context) {
+    context->has_error = true;
+    context->error = (struct parse_error) {
+        .type = REPEAT_ZERO
+    };
+
+    return false;
+}
+
 static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
     if (*sym) {
         fprintf(handle, "%s", str_for_sym(*sym));
@@ -425,7 +434,9 @@ void print_parse_error(struct parse_error error) {
             fprintf(stderr, OOM_FMT_STRING);
             break;
         case REGEX_NOT_DEFINED:
-            // noop
+            break;
+        case REPEAT_ZERO:
+            fprintf(stderr, REPEAT_ZERO_FMT_STRING);
             break;
     }
 }

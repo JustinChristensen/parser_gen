@@ -86,8 +86,6 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                     case NFA:
                         if (strcmp("dot", argval()) == 0) {
                             args->output = OUTPUT_DOT;
-                        } else if (strcmp("table", argval()) == 0) {
-                            args->output = OUTPUT_TABLE;
                         } else {
                             print_usage(stderr, context);
                             exit(EXIT_FAILURE);
@@ -133,7 +131,7 @@ int main(int argc, char *argv[]) {
     };
 
     struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, table, or tree" };
-    struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: table or dot" };
+    struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
     struct arg parse_nonrec_arg = { NONREC, "nonrec", 0, no_argument, "Use the non-recursive parser instead" };
 
@@ -230,10 +228,7 @@ int main(int argc, char *argv[]) {
         struct nfa mach = gmachine(&ncontext);
 
         if (!has_nfa_error(&ncontext)) {
-            if (args.output == OUTPUT_TABLE) {
-                printf("start state: %p, end state: %p\n", mach.start, *mach.end);
-                print_state_table(statebuf, ncontext.statebuf);
-            } else if (args.output == OUTPUT_DOT) {
+            if (args.output == OUTPUT_DOT) {
                 nfa_to_graph(mach.start);
             } else {
                 FILE *in = NULL;
@@ -264,6 +259,8 @@ int main(int argc, char *argv[]) {
             print_nfa_error(nfa_error(&ncontext));
             return EXIT_FAILURE;
         }
+
+        free_nfa_context(&ncontext);
     } else if (args.cmd == SCAN_ONLY && args.regex) {
         print_token_table(args.regex);
     }

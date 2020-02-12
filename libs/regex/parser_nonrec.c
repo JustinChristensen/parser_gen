@@ -183,7 +183,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
                 expect(ssym, context);
                 apop(&ssym, stack);
             } else {
-                success = false;
+                success = set_syntax_error(ssym, context);
             }
         } else if (is_action(ssym)) {
             union regex_result val = NULLRVAL;
@@ -227,9 +227,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
                 apop(&ssym, stack);
                 push_production_symbols(p, stack);
             } else {
-                // TODO: make error handling support first/follow sets in error output
-                set_syntax_error(EOF_T, context);
-                success = false;
+                success = set_syntax_error(ssym, context);
             }
         }
 

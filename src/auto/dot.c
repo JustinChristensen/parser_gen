@@ -103,7 +103,7 @@ void nfa_to_graph(struct nfa_state *state) {
 void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to, Agnode_t *from, char *edge_label) {
     if (!nodes[to->id]) {
         static char namebuf[NAMEBUFSIZE] = "";
-        char symbuf[2] = "";
+        char label[2] = "";
 
         // create a node
         sprintf(namebuf, "n%d", to->id);
@@ -130,14 +130,19 @@ void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to,
             case DOTALL_STATE:
                 agset(node, "color", "pink");
                 agset(node, "fontcolor", "pink");
-                symbuf[0] = '.';
-                nfa_state_to_graph(graph, nodes, to->next, node, symbuf);
+                label[0] = '.';
+                nfa_state_to_graph(graph, nodes, to->next, node, label);
+                break;
+            case CLASS_STATE:
+                agset(node, "color", "purple");
+                agset(node, "fontcolor", "purple");
+                nfa_state_to_graph(graph, nodes, to->next, node, "[a-z]");
                 break;
             case SYMBOL_STATE:
                 agset(node, "color", "blue");
                 agset(node, "fontcolor", "blue");
-                symbuf[0] = to->symbol;
-                nfa_state_to_graph(graph, nodes, to->next, node, symbuf);
+                label[0] = to->symbol;
+                nfa_state_to_graph(graph, nodes, to->next, node, label);
                 break;
         }
     }

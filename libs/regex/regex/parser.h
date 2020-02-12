@@ -9,6 +9,7 @@
 #define SYNERR_FMT_STRING "| Syntax Error\n|\n| Got: %s\n| Expected: "
 #define SYNERR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
 #define OOM_FMT_STRING "out of memory\n"
+#define REPEAT_ZERO_FMT_STRING "cannot repeat zero times\n"
 
 enum regex_symbol {
     ERROR,
@@ -148,7 +149,8 @@ struct regex_token {
 enum error_type {
     SYNTAX_ERROR,
     OUT_OF_MEMORY,
-    REGEX_NOT_DEFINED
+    REGEX_NOT_DEFINED,
+    REPEAT_ZERO
 };
 
 struct parse_error {
@@ -202,6 +204,7 @@ union regex_result lookahead_val(struct parse_context *context);
 union regex_result id_val(char *id, struct parse_context *context);
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context);
 bool set_oom_error(struct parse_context *context);
+bool set_repeat_zero_error(struct parse_context *context);
 void print_parse_error(struct parse_error error);
 bool has_parse_error(struct parse_context *context);
 struct parse_error parse_error(struct parse_context *context);

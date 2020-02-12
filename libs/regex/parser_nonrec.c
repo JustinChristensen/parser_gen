@@ -204,7 +204,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
                     break;
             }
 
-            do_action(ssym, val, context);
+            success = do_action(ssym, val, context);
 
             // push the last result onto the result stack
             if (ssym == DO_RANGES)

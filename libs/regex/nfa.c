@@ -416,27 +416,17 @@ static bool endptr(struct nfa_state **p, struct nfa *mach) {
 }
 
 static struct nfa_state *_clone_machine(
-    bool *visited,
+    struct nfa_state **visited,
     struct nfa *newmach,
     struct nfa_state *state,
     struct nfa *oldmach,
     struct parse_context *context
 ) {
-    // FIXME: this doesn't handle cycles, such as those created by
-    // closure and positive closure
-    //
-    // also, think about what the semantics of the following are:
-    // (a)?{3}    up to 3 a's
-    // (a)*{3}    0 or more 's
-    // (a)+{3}    3 or more a's
-    // (a){3}?
-    // (a){3}*
-    // (a){3}+
-    if (visited[state->id]) return state;
+    if (visited[state->id]) return visited[state->id];
 
-    visited[state->id] = true;
+    struct nfa_state *nextstate;
 
-    struct nfa_state *nextstate = setst(context->result_context, *state);
+    nextstate = visited[state->id] = setst(context->result_context, *state);
 
     // in theory class states could share, but that makes certain things
     // more difficult, so I'll add state state sharing to the wishlist
@@ -489,16 +479,21 @@ static struct nfa_state *_clone_machine(
 bool clone_machine(struct nfa mach, struct parse_context *context) {
     struct nfa_context *rcontext = context->result_context;
     struct nfa newmach = { NULL, NULL, NULL };
-    bool *visited = calloc(rcontext->numstates, sizeof *visited);
-    newmach.start = _clone_machine(visited, &newmach, mach.start, &mach, context);
-    free(visited);
+    struct nfa_state **visited = calloc(rcontext->numstates, sizeof *visited);
 
-    if (newmach.start) {
-        smachine(rcontext, newmach);
-        return true;
+    if (visited) {
+        newmach.start = _clone_machine(visited, &newmach, mach.start, &mach, context);
+        free(visited);
+
+        if (newmach.start) {
+            smachine(rcontext, newmach);
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    return false;
+    return set_oom_error(context);
 }
 
 bool noop_nfa(union regex_result _, struct parse_context *context) { return true; }

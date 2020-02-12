@@ -136,9 +136,7 @@ bool parse_unops(struct parse_context *context) {
                 expect(NUM_T, context) &&
                 expect(RBRACE_T, context) &&
                 do_action(DO_REPEAT_EXACT, num, context);
-        } else {
-            break;
-        }
+        } else break;
     }
 
     return success || set_syntax_error(UNOPS_NT, context);

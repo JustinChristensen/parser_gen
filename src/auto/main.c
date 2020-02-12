@@ -212,6 +212,7 @@ int main(int argc, char *argv[]) {
 
         free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
+        // TODO: base this on array
         struct nfa_state statebuf[STATE_MAX];
         struct nfa_context ncontext = nfa_context(statebuf, args.nonrec);
 

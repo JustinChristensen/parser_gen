@@ -599,7 +599,9 @@ bool do_optional_nfa(union regex_result _, struct parse_context *context) {
 }
 
 bool do_repeat_exact_nfa(union regex_result num, struct parse_context *context) {
-    if (num.tval.num > 0 ) {
+    int n = num.tval.num;
+
+    if (n > 0) {
         struct nfa_context *rcontext = context->result_context;
         struct nfa lhs, orig = gmachine(rcontext);
         bool success = true;
@@ -608,7 +610,7 @@ bool do_repeat_exact_nfa(union regex_result num, struct parse_context *context) 
         debug_nfa(orig);
         debug_state_table(rcontext->bufstart, rcontext->bufp);
 
-        for (int i = 1, n = num.tval.num; i < n && success; i++) {
+        for (int i = 1; i < n && success; i++) {
             lhs = gmachine(rcontext);
             clone_machine(orig, context);
             success = do_cat_nfa((union regex_result) { .mach = lhs }, context);

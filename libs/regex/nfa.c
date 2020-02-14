@@ -5,19 +5,20 @@
 #include <string.h>
 #include <base/list.h>
 #include <base/debug.h>
+#include <base/array.h>
 #include "regex/nfa.h"
 #include "regex/run_parser.h"
 #include "regex/result_types.h"
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
-bool (*nfa_actions[])(union regex_result val, struct parse_context *context) = {
-    [AI(DO_REGEX)] =        noop_nfa,
+bool (*nfa_actions[])(union regex_result val, struct nfa_context *context) = {
+    [AI(DO_REGEX)] =        do_regex_nfa,
     [AI(DO_EMPTY)] =        do_empty_nfa,
     [AI(DO_ALT)] =          do_alt_nfa,
     [AI(DO_CAT)] =          do_cat_nfa,
     [AI(DO_SUB)] =          noop_nfa,
-    [AI(DO_ID)] =           noop_nfa,
+    [AI(DO_ID)] =           do_id_nfa,
     [AI(DO_CHAR_CLASS)] =   do_class_nfa,
     [AI(DO_NEG_CLASS)] =    do_neg_class_nfa,
     [AI(DO_DOTALL)] =       do_dotall_nfa,
@@ -102,13 +103,39 @@ static void debug_nfa(struct nfa mach) {
     }
 }
 
-struct nfa_context nfa_context(struct nfa_state *statebuf, bool use_nonrec) {
-    return (struct nfa_context) {
-        .bufstart = statebuf,
-        .bufp = statebuf,
-        .error = { nullperr() },
-        .use_nonrec = use_nonrec
-    };
+static struct nfa_state_pool *state_pool() {
+    struct nfa_state_pool *pool = malloc(sizeof *pool);
+
+    if (pool) {
+        *pool = (struct nfa_state_pool) { .next = NULL, .n = 0 };
+    }
+
+    return pool;
+}
+
+static struct nfa_state_pool *next_state_pool(struct nfa_state_pool *prev) {
+    prev->next = state_pool();
+    return prev->next;
+}
+
+struct nfa_context nfa_context(struct regex_pattern const *pat, bool use_nonrec) {
+    struct nfa_context context = { .use_nonrec = use_nonrec };
+
+    if (context.state_pool = state_pool()) {
+        context.state_pools = context.state_pool;
+
+        if (pat) {
+            while (pat->pattern) {
+                nfa_regex(pat->sym, pat->tag, pat->pattern, &context);
+                pat++;
+            }
+        }
+    } else {
+        context.has_error = true;
+        context.error = oom_error();
+    }
+
+    return context;
 }
 
 struct nfa_state accepting_state() {
@@ -155,16 +182,36 @@ struct nfa_state symbol_state(char sym) {
     };
 }
 
-struct nfa_state *setst(struct nfa_context *context, struct nfa_state state) {
-    state.id = context->numstates++;
-    *context->bufp = state;
-    return context->bufp++;
+struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
+    struct nfa_state_pool *pool = context->state_pool;
+    struct nfa_state *statep = NULL;
+
+    if (pool->n == STATE_POOL_SIZE) {
+        pool = context->state_pool = next_state_pool(context->state_pool);
+    }
+
+    if (pool) {
+        state.id = context->numstates++;
+        pool->states[pool->n] = state;
+        statep = &pool->states[pool->n];
+        pool->n++;
+    } else {
+        context->has_error = true;
+        context->error = oom_error();
+    }
+
+    return statep;
 }
 
 void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1) {
     machine->end = end;
     machine->end1 = end1;
 }
+
+// TODO: merge operation
+// - if the machine has two end pointers
+//      - creates an epsilon state and points the ends to it
+// - otherwise does nothing
 
 void point(struct nfa machine, struct nfa_state *state) {
     *machine.end = state;
@@ -185,35 +232,36 @@ union regex_result nfa_to_result(struct nfa_context *context) {
 
 struct nfa empty_machine(struct nfa_context *context) {
     struct nfa machine;
-    machine.start = setst(context, epsilon_state(NULL));
+    machine.start = setst(epsilon_state(NULL), context);
     dangle(&machine, &machine.start->next, NULL);
     return machine;
 }
 
 struct nfa dotall_machine(struct nfa_context *context) {
     struct nfa machine;
-    machine.start = setst(context, dotall_state(NULL));
+    machine.start = setst(dotall_state(NULL), context);
     dangle(&machine, &machine.start->next, NULL);
     return machine;
 }
 
 struct nfa class_machine(struct nfa_context *context, bool *char_class) {
     struct nfa machine;
-    machine.start = setst(context, class_state(char_class));
+    machine.start = setst(class_state(char_class), context);
     dangle(&machine, &machine.start->next, NULL);
     return machine;
 }
 
 struct nfa symbol_machine(struct nfa_context *context, char sym) {
     struct nfa machine;
-    machine.start = setst(context, symbol_state(sym));
+    machine.start = setst(symbol_state(sym), context);
     dangle(&machine, &machine.start->next, NULL);
     return machine;
 }
 
 struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right) {
     struct nfa machine;
-    machine.start = setst(context, branch_state(left.start, right.start));
+    machine.start = setst(branch_state(left.start, right.start), context);
+    // TODO: we only need an epsilon state here if the machine has two end pointers
     point(left, setst(context, epsilon_state(NULL)));
     point(right, setst(context, epsilon_state(NULL)));
     dangle(&machine, &(*left.end)->next, &(*right.end)->next);
@@ -231,15 +279,15 @@ struct nfa cat_machine(struct nfa first, struct nfa second) {
 struct nfa posclosure_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
     machine.start = inner.start;
-    point(inner, setst(context, branch_state(inner.start, NULL)));
+    point(inner, setst(branch_state(inner.start, NULL), context));
     dangle(&machine, &(*inner.end)->right, NULL);
     return machine;
 }
 
 struct nfa optional_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
-    point(inner, setst(context, epsilon_state(NULL)));
-    machine.start = setst(context, branch_state(inner.start, NULL));
+    point(inner, setst(epsilon_state(NULL), context));
+    machine.start = setst(branch_state(inner.start, NULL), context);
     dangle(&machine, &(*inner.end)->next, &machine.start->right);
     return machine;
 }
@@ -248,10 +296,10 @@ struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
     return optional_machine(context, posclosure_machine(context, inner));
 }
 
-struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
-    assert(context != NULL);
+void nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
+    if (!context || !pattern) return;
 
-    if (!has_nfa_error(context)) {
+    if (!nfa_has_error(context)) {
         struct nfa lmachine = gmachine(context);
         struct parse_context pcontext = parse_context(context, GETVALFN nfa_to_result, nfa_actions, context->use_nonrec);
 
@@ -264,10 +312,10 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
 
         if (!run_parser(regex, &pcontext)) {
             context->has_error = pcontext.has_error;
-            context->error = (struct nfa_error) { pcontext.error };
+            context->error = pcontext.error;
         } else {
             if (lmachine.end) do_alt_nfa((union regex_result) lmachine, &pcontext);
-            point(gmachine(context), setst(context, accepting_state()));
+            point(gmachine(context), setst(accepting_state(), context));
             debug_state_table(context->bufstart, context->bufp);
             debug_nfa(gmachine(context));
         }
@@ -276,34 +324,43 @@ struct nfa_context *nfa_regex(char *regex, struct nfa_context *context) {
     return context;
 }
 
-bool has_nfa_error(struct nfa_context *context) {
+bool nfa_has_error(struct nfa_context *context) {
     return context->has_error;
 }
 
-struct nfa_error nfa_error(struct nfa_context *context) {
+struct regex_error nfa_error(struct nfa_context *context) {
     return context->error;
 }
 
+void free_nfa_states(struct nfa_state *states, int n) {
+    if (!states) return;
 
-void print_nfa_error(struct nfa_error error) {
-    print_parse_error(error.perror);
-}
+    for (int i = 0; i < n; i++) {
+        struct nfa_state state = states[i];
 
-void free_nfa_context(struct nfa_context *context) {
-    struct nfa_state *state = context->bufstart;
-
-    while (state != context->bufp) {
-        switch (state->type) {
+        switch (state.type) {
             case CLASS_STATE:
-                free(state->char_class);
-                state->char_class = NULL;
+                free(state.char_class);
+                state.char_class = NULL;
                 break;
             default:
                 break;
         }
-
-        state++;
     }
+}
+
+void free_nfa_context(struct nfa_context *context) {
+    if (!context) return;
+
+    struct nfa_state_pool *pool, *next;
+
+    for (pool = *context->state_pools; pool != NULL; pool = next) {
+        next = pool->next;
+        free_nfa_states(pool->states, pool->n);
+        free(pool);
+    }
+
+    context->state_pools = context->state_pool = NULL;
 }
 
 void eps_closure(struct list *nstates, struct nfa_state *state, bool *already_on) {
@@ -372,7 +429,7 @@ bool accepts(struct list *cstates, struct nfa_state *accept) {
     return false;
 }
 
-bool nfa_match(char *str, struct nfa_context *context) {
+int nfa_match(struct nfa_match *match) {
     struct nfa nfa = context->nfa;
     size_t numstates = context->numstates;
     bool *already_on = calloc(numstates, sizeof *already_on);
@@ -420,13 +477,13 @@ static struct nfa_state *_clone_machine(
     struct nfa *newmach,
     struct nfa_state *state,
     struct nfa *oldmach,
-    struct parse_context *context
+    struct nfa_context *context
 ) {
     if (visited[state->id]) return visited[state->id];
 
     struct nfa_state *nextstate;
 
-    nextstate = visited[state->id] = setst(context->result_context, *state);
+    nextstate = visited[state->id] = setst(*state, context);
 
     // in theory class states could share, but that makes certain things
     // more difficult, so I'll add state state sharing to the wishlist
@@ -437,7 +494,8 @@ static struct nfa_state *_clone_machine(
             memcpy(char_class, state->char_class, CLASS_SIZE);
             nextstate->char_class = char_class;
         } else {
-            set_oom_error(context);
+            context->has_error = true;
+            context->error = oom_error();
             return NULL;
         }
     }
@@ -476,76 +534,86 @@ static struct nfa_state *_clone_machine(
     return nextstate;
 }
 
-bool clone_machine(struct nfa mach, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
+bool clone_machine(struct nfa mach, struct nfa_context *context) {
     struct nfa newmach = { NULL, NULL, NULL };
-    struct nfa_state **visited = calloc(rcontext->numstates, sizeof *visited);
+    struct nfa_state **visited = calloc(context->numstates, sizeof *visited);
 
-    if (visited) {
-        newmach.start = _clone_machine(visited, &newmach, mach.start, &mach, context);
-        free(visited);
-
-        if (newmach.start) {
-            smachine(rcontext, newmach);
-            return true;
-        } else {
-            return false;
-        }
+    if (!visited) {
+        context->has_error = true;
+        context->error = oom_error();
+        return false;
     }
 
-    return set_oom_error(context);
+    newmach.start = _clone_machine(visited, &newmach, mach.start, &mach, context);
+    free(visited);
+
+    if (newmach.start) {
+        smachine(context, newmach);
+        return true;
+    }
+
+    return false;
 }
 
-bool noop_nfa(union regex_result _, struct parse_context *context) { return true; }
+bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
 
-bool do_empty_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, empty_machine(rcontext));
+bool do_regex_nfa(union regex_result _, struct nfa_context *context) {
     return true;
 }
 
-bool do_alt_nfa(union regex_result nfa, struct parse_context *context) {
+bool do_id_nfa(union regex_result _, struct nfa_context *context) {
+    return true;
+}
+
+bool do_empty_nfa(union regex_result _, struct nfa_context *context) {
+    smachine(context, empty_machine(rcontext));
+    return true;
+}
+
+bool do_alt_nfa(union regex_result nfa, struct nfa_context *context) {
     struct nfa_context *rcontext = context->result_context;
     smachine(rcontext, alt_machine(rcontext, nfa.mach, gmachine(rcontext)));
     return true;
 }
 
-bool do_cat_nfa(union regex_result nfa, struct parse_context *context) {
+bool do_cat_nfa(union regex_result nfa, struct nfa_context *context) {
     struct nfa_context *rcontext = context->result_context;
     smachine(rcontext, cat_machine(nfa.mach, gmachine(rcontext)));
     return true;
 }
 
-bool do_dotall_nfa(union regex_result _, struct parse_context *context) {
+bool do_dotall_nfa(union regex_result _, struct nfa_context *context) {
     struct nfa_context *rcontext = context->result_context;
     smachine(rcontext, dotall_machine(rcontext));
     return true;
 }
 
-bool do_symbol_nfa(union regex_result sym, struct parse_context *context) {
+bool do_symbol_nfa(union regex_result sym, struct nfa_context *context) {
     struct nfa_context *rcontext = context->result_context;
     smachine(rcontext, symbol_machine(rcontext, sym.tval.sym));
     return true;
 }
 
-static bool *get_classy(struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    bool *char_class = rcontext->current_class;
+static bool *get_classy(struct nfa_context *context) {
+    bool *char_class = context->current_class;
 
     // allocate a new in-progress character class
     if (!char_class) {
         // prioritizing time and implementation complexity over space
         // i.e. this could be a table of bitmaps to conserve bytes
         char_class = calloc(CLASS_SIZE, sizeof *char_class);
-        if (!char_class) set_oom_error(context);
+        if (!char_class) {
+            context->has_error = true;
+            context->error = oom_error();
+        }
     }
 
-    rcontext->current_class = char_class;
+    context->current_class = char_class;
 
     return char_class;
 }
 
-bool do_range_nfa(union regex_result range, struct parse_context *context) {
+bool do_range_nfa(union regex_result range, struct nfa_context *context) {
     bool *char_class;
 
     if ((char_class = get_classy(context))) {
@@ -558,47 +626,42 @@ bool do_range_nfa(union regex_result range, struct parse_context *context) {
     return false;
 }
 
-bool do_class_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
+bool do_class_nfa(union regex_result _, struct nfa_context *context) {
     bool *char_class;
 
     if ((char_class = get_classy(context))) {
-        smachine(rcontext, class_machine(rcontext, char_class));
-        rcontext->current_class = NULL;
+        smachine(context, class_machine(context, char_class));
+        context->current_class = NULL;
         return true;
     }
 
     return false;
 }
 
-bool do_neg_class_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    bool *char_class = gmachine(rcontext).start->char_class;
+bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) {
+    bool *char_class = gmachine(context).start->char_class;
     if (char_class) {
         for (int i = 0; i < CLASS_SIZE; i++) char_class[i] = !char_class[i];
     }
     return true;
 }
 
-bool do_star_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, closure_machine(rcontext, gmachine(rcontext)));
+bool do_star_nfa(union regex_result _, struct nfa_context *context) {
+    smachine(context, closure_machine(context, gmachine(context)));
     return true;
 }
 
-bool do_plus_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, posclosure_machine(rcontext, gmachine(rcontext)));
+bool do_plus_nfa(union regex_result _, struct nfa_context *context) {
+    smachine(context, posclosure_machine(context, gmachine(context)));
     return true;
 }
 
-bool do_optional_nfa(union regex_result _, struct parse_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, optional_machine(rcontext, gmachine(rcontext)));
+bool do_optional_nfa(union regex_result _, struct nfa_context *context) {
+    smachine(context, optional_machine(context, gmachine(context)));
     return true;
 }
 
-bool do_repeat_exact_nfa(union regex_result num, struct parse_context *context) {
+bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context) {
     int n = num.tval.num;
 
     if (n > 0) {

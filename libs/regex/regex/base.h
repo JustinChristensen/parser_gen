@@ -33,6 +33,7 @@ static struct regex_pattern const NULL_PATTERN = { 0, NULL, NULL };
 #define RE_REGEX(sym)        { sym, "regex",        "\/[^\/]\/"     }
 #define RE_EOF(sym)          { sym, "eof",          ""              }
 
+struct regex_loc regex_loc(int line, int col);
 void regex_print_loc(FILE *handle, struct regex_loc loc);
 void regex_print_range(FILE *handle, struct char_range r);
 bool is_null_pattern(struct regex_pattern pattern);

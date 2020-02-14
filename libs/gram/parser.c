@@ -154,7 +154,7 @@ union gram_result result(struct gram_parse_context *context) {
 }
 
 void start_scanning(char *input, struct gram_parse_context *context) {
-    context->match_state = dfa_match_state(input, dfa_loc(0, 0), context->scanner);
+    context->match_state = dfa_match_state(input, regex_loc(0, 0), context->scanner);
     context->token = scan(context);
     context->has_error = false;
 }

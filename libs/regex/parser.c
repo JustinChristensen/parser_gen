@@ -295,7 +295,10 @@ union regex_result result(struct parse_context *context) {
 
 bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
     pdebug("doing action: %s\n", str_for_sym(action));
-    return (*context->actions[AI(action)])(val, context);
+    bool success = (*context->actions[AI(action)])(val, context->result_context);
+    // TODO: copy error to parse context
+    // wait, does a parser depend on an NFA context? or does the NFA depend on the parser?
+    // should there really be three contexts?
 }
 
 struct parse_context parse_context(
@@ -378,16 +381,32 @@ union regex_result id_val(char *idbuf, struct parse_context *context) {
     return (union regex_result) { .id = idbuf };
 }
 
+struct regex_error syntax_error(
+    enum regex_symbol actual,
+    int lexeme_col,
+    enum regex_symbol expected
+) {
+    return (struct regex_error) {
+        .type = SYNTAX_ERROR,
+        .actual = actual,
+        .lexeme_col = lexeme_col,
+        .expected = first_set(expected)
+    };
+}
+
+struct regex_error oom_error() {
+    return (struct regex_error) { .type = OUT_OF_MEMORY };
+}
+
+struct regex_error repeat_zero_error() {
+    return (struct regex_error) { .type = REPEAT_ZERO }
+}
+
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context) {
     if (!context->has_error) {
         pdebug("parse error %s\n", str_for_sym(expected));
         context->has_error = true;
-        context->error = (struct parse_error) {
-            .type = SYNTAX_ERROR,
-            .actual = context->lookahead,
-            .lexeme_col = context->lookahead_col,
-            .expected = first_set(expected)
-        };
+        context->error = syntax_error(context->lookahead, context->lookahead_col, expected);
     }
 
     return false;
@@ -395,19 +414,13 @@ bool set_syntax_error(enum regex_symbol expected, struct parse_context *context)
 
 bool set_oom_error(struct parse_context *context) {
     context->has_error = true;
-    context->error = (struct parse_error) {
-        .type = OUT_OF_MEMORY
-    };
-
+    context->error = oom_error();
     return false;
 }
 
 bool set_repeat_zero_error(struct parse_context *context) {
     context->has_error = true;
-    context->error = (struct parse_error) {
-        .type = REPEAT_ZERO
-    };
-
+    context->error = repeat_zero_error();
     return false;
 }
 
@@ -423,7 +436,7 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
     }
 }
 
-void print_parse_error(struct parse_error error) {
+void print_regex_error(struct regex_error error) {
     switch (error.type) {
         case SYNTAX_ERROR:
             fprintf(stderr, SYNERR_FMT_STRING, str_for_sym(error.actual));
@@ -445,11 +458,11 @@ bool has_parse_error(struct parse_context *context) {
     return context->has_error;
 }
 
-struct parse_error nullperr() {
-    return (struct parse_error) { 0, { } };
+struct regex_error nullperr() {
+    return (struct regex_error) { 0, { } };
 }
 
-struct parse_error parse_error(struct parse_context *context) {
+struct regex_error parse_error(struct parse_context *context) {
     return context->error;
 }
 
@@ -531,5 +544,4 @@ char const *str_for_prod(enum gram_production p) {
         case UNOPS_REPEAT_EXACT_P:  return "UNOPS_REPEAT_EXACT_P";
     }
 }
-
 

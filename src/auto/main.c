@@ -212,18 +212,16 @@ int main(int argc, char *argv[]) {
 
         free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
-        // TODO: base this on array
-        struct nfa_state statebuf[STATE_MAX];
-        struct nfa_context ncontext = nfa_context(statebuf, args.nonrec);
+        struct nfa_context ncontext = nfa_context(NULL, args.nonrec);
 
         if (args.regex) {
-            nfa_regex(args.regex, &ncontext);
+            nfa_regex(0, NULL, args.regex, &ncontext);
         } else {
-            nfa_regex("if", &ncontext);
-            nfa_regex("else", &ncontext);
-            nfa_regex("for", &ncontext);
-            nfa_regex("while", &ncontext);
-            nfa_regex("do", &ncontext);
+            nfa_regex(0, NULL, "if", &ncontext);
+            nfa_regex(1, NULL, "else", &ncontext);
+            nfa_regex(2, NULL, "for", &ncontext);
+            nfa_regex(3, NULL, "while", &ncontext);
+            nfa_regex(4, NULL, "do", &ncontext);
         }
 
         struct nfa mach = gmachine(&ncontext);
@@ -257,7 +255,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            print_nfa_error(nfa_error(&ncontext));
+            print_regex_error(nfa_error(&ncontext));
             return EXIT_FAILURE;
         }
 

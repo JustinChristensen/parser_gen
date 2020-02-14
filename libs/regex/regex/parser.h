@@ -153,7 +153,7 @@ enum error_type {
     REPEAT_ZERO
 };
 
-struct parse_error {
+struct regex_error {
     enum error_type type;
     union {
         struct {
@@ -175,7 +175,7 @@ struct parse_context {
     union regex_token_val lookahead_val;
     bool use_nonrec;
     bool has_error;
-    struct parse_error error;
+    struct regex_error error;
 };
 
 struct regex_token regex_token(char *input);
@@ -202,13 +202,20 @@ int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
 union regex_result lookahead_val(struct parse_context *context);
 union regex_result id_val(char *id, struct parse_context *context);
+struct regex_error syntax_error(
+    enum regex_symbol actual,
+    int lexeme_col,
+    enum regex_symbol expected
+);
+struct regex_error oom_error();
+struct regex_error repeat_zero_error();
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context);
 bool set_oom_error(struct parse_context *context);
 bool set_repeat_zero_error(struct parse_context *context);
-void print_parse_error(struct parse_error error);
+void print_regex_error(struct regex_error error);
 bool has_parse_error(struct parse_context *context);
-struct parse_error parse_error(struct parse_context *context);
-struct parse_error nullperr();
+struct regex_error parse_error(struct parse_context *context);
+struct regex_error nullperr();
 char const *str_for_prod(enum gram_production p);
 char const *str_for_sym(enum regex_symbol token);
 

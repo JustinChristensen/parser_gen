@@ -3,10 +3,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "regex/base.h"
+#include "base.h"
 
 struct dfa_context {
-    struct regex_pattern const **patterns
+    struct regex_pattern const *patterns
 };
 
 struct dfa_match {
@@ -22,6 +22,6 @@ void dfa_regex(int sym, char *tag, char *pattern, struct dfa_context *context);
 struct dfa_match dfa_match_state(char *input, struct regex_loc loc, struct dfa_context *context);
 int dfa_match(struct dfa_match *match);
 struct regex_loc dfa_match_loc(struct dfa_match *match);
-char *dfa_match_lexeme(struct dfa_match *match);
+void dfa_match_lexeme(char *lexeme, struct dfa_match *match);
 
 #endif // REGEX_DFA_H_

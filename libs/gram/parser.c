@@ -66,12 +66,12 @@ struct gram_parse_context gram_parse_context(
     union gram_result (*get_result)(void *result_context)
 ) {
     static struct dfa_context scanner = dfa_context(PATTERNS {
-        RE_ALPHA(0), RE_ALNUM(0), RE_SPACE(0), RE_EOF(EOF_T),
+        RE_ALPHA(-1), RE_ALNUM(-1), RE_SPACE(-1), RE_EOF(EOF_T),
         RE_REGEX(REGEX_T), RE_LINE_COMMENT(COMMENT_T),
         { ID_T,        "id",        "{alpha}{alnum}*" },
         { SECTION_T,   "section",   "---"             },
         { ASSIGN_T,    "assign",    "="               },
-        { ALT_T,       "alt",       "|"               },
+        { ALT_T,       "alt",       "\|"              },
         { SEMICOLON_T, "semicolon", ";"               },
         { EMPTY_T,     "empty",     "\$empty"         },
         END_PATTERNS

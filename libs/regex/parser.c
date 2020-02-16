@@ -18,7 +18,7 @@ static enum regex_symbol const * const first_sets[] = {
     [SYMBOL_T] =      FIRST { SYMBOL_T, 0 },
     [RANGE_T] =       FIRST { RANGE_T, 0 },
     [NUM_T] =         FIRST { NUM_T, 0 },
-    [ID_T] =          FIRST { ID_T, 0 },
+    [TAG_T] =         FIRST { TAG_T, 0 },
     [ALT_T] =         FIRST { ALT_T, 0 },
     [STAR_T] =        FIRST { STAR_T, 0 },
     [PLUS_T] =        FIRST { PLUS_T, 0 },
@@ -29,16 +29,16 @@ static enum regex_symbol const * const first_sets[] = {
     [CLASS_T] =       FIRST { CLASS_T, 0 },
     [NEG_CLASS_T] =   FIRST { NEG_CLASS_T, 0 },
     [END_CLASS_T] =   FIRST { END_CLASS_T, 0 },
-    [ID_BRACE_T] =    FIRST { ID_BRACE_T, 0 },
+    [TAG_BRACE_T] =   FIRST { TAG_BRACE_T, 0 },
     [LBRACE_T] =      FIRST { LBRACE_T, 0 },
     [RBRACE_T] =      FIRST { RBRACE_T, 0 },
 
-    [REGEX_NT] =      FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
-    [EXPR_NT] =       FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
-    [ALT_NT] =        FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [REGEX_NT] =      FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
+    [EXPR_NT] =       FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
+    [ALT_NT] =        FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
     [ALTS_NT] =       FIRST { ALT_T, 0 },
-    [FACTOR_NT] =     FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
-    [FACTORS_NT] =    FIRST { LPAREN_T, ID_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [FACTOR_NT] =     FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [FACTORS_NT] =    FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
     [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
     [RANGES_NT] =     FIRST { RANGE_T, 0 },
     [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, 0 },
@@ -162,7 +162,7 @@ struct regex_token scan(struct regex_token token) {
             token.in_braces = false;
             ic++, ip++;
         } else if (*ip == '_' || isalpha(*ip)) {
-            type = ID_T;
+            type = TAG_T;
             ic++, ip++;
             while (*ip == '_' || isalnum(*ip))
                 ic++, ip++;
@@ -212,7 +212,7 @@ struct regex_token scan(struct regex_token token) {
                     ic++, ip++;
 
                     if (*ip == '_' || isalpha(*ip)) {
-                        type = ID_BRACE_T;
+                        type = TAG_BRACE_T;
                     }
                     break;
                 case '[':
@@ -289,32 +289,43 @@ void print_token_table(char *regex) {
     }
 }
 
-union regex_result result(struct parse_context *context) {
-    return (*context->get_result)(context->result_context);
+union regex_result get_result(struct parse_context *context) {
+    return (*context->pi.result)(context->result);
+}
+
+bool result_has_error(struct parse_context *context) {
+    return context->pi.has_error ? (*context->pi.has_error)(context->result) : false;
+}
+
+struct regex_error result_error(struct parse_context *context) {
+    return context->pi.error ? (*context->pi.error)(context->result) : nullperr();
 }
 
 bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
     pdebug("doing action: %s\n", str_for_sym(action));
-    bool success = (*context->actions[AI(action)])(val, context->result_context);
-    // TODO: copy error to parse context
-    // wait, does a parser depend on an NFA context? or does the NFA depend on the parser?
-    // should there really be three contexts?
+
+    if (!(*context->actions[AI(action)])(val, context->result)) {
+        context->has_error = result_has_error(context->result);
+        context->error = result_error(context->result);
+        return false;
+    }
+
+    return true;
 }
 
 struct parse_context parse_context(
-    void *result_context,
-    union regex_result (*get_result)(void *result_context),
-    bool (**actions)(union regex_result val, struct parse_context *context),
+    void *result,
+    struct parse_interface pi,
+    bool (**actions)(union regex_result val, void *result),
     bool use_nonrec
 ) {
-    assert(result_context != NULL);
+    assert(result != NULL);
     assert(actions != NULL);
-    assert(get_result != NULL);
 
     struct parse_context context = {
-        .result_context = result_context,
+        .result = result,
+        .pi = pi,
         .actions = actions,
-        .get_result = get_result,
         .has_error = false,
         .error = nullperr(),
         .use_nonrec = use_nonrec
@@ -376,9 +387,9 @@ union regex_result lookahead_val(struct parse_context *context) {
     return (union regex_result) { .tval = context->lookahead_val };
 }
 
-union regex_result id_val(char *idbuf, struct parse_context *context) {
-    token_lexeme(idbuf, context->token);
-    return (union regex_result) { .id = idbuf };
+union regex_result tag_val(char *tagbuf, struct parse_context *context) {
+    token_lexeme(tagbuf, context->token);
+    return (union regex_result) { .tag = tagbuf };
 }
 
 struct regex_error syntax_error(
@@ -399,8 +410,16 @@ struct regex_error oom_error() {
 }
 
 struct regex_error repeat_zero_error() {
-    return (struct regex_error) { .type = REPEAT_ZERO }
+    return (struct regex_error) { .type = REPEAT_ZERO };
 }
+
+struct regex_error missing_tag_error(char *tag) {
+    return (struct regex_error) {
+        .type = MISSING_TAG,
+        .tag = tag
+    };
+}
+
 
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context) {
     if (!context->has_error) {
@@ -421,6 +440,12 @@ bool set_oom_error(struct parse_context *context) {
 bool set_repeat_zero_error(struct parse_context *context) {
     context->has_error = true;
     context->error = repeat_zero_error();
+    return false;
+}
+
+bool set_missing_tag_error(char *tag, struct parse_context *context) {
+    context->has_error = true;
+    context->error = missing_tag_error(tag);
     return false;
 }
 
@@ -446,7 +471,8 @@ void print_regex_error(struct regex_error error) {
         case OUT_OF_MEMORY:
             fprintf(stderr, OOM_FMT_STRING);
             break;
-        case REGEX_NOT_DEFINED:
+        case MISSING_TAG:
+            fprintf(stderr, MISSING_TAG_FMT_STRING, error.tag);
             break;
         case REPEAT_ZERO:
             fprintf(stderr, REPEAT_ZERO_FMT_STRING);
@@ -474,7 +500,7 @@ char const *str_for_sym(enum regex_symbol type) {
         case SYMBOL_T:          return "a";
         case RANGE_T:           return "a-z";
         case NUM_T:             return "num";
-        case ID_T:              return "id";
+        case TAG_T:             return "tag";
         case ALT_T:             return "|";
         case STAR_T:            return "*";
         case PLUS_T:            return "+";
@@ -485,7 +511,7 @@ char const *str_for_sym(enum regex_symbol type) {
         case CLASS_T:           return "[";
         case NEG_CLASS_T:       return "[^";
         case END_CLASS_T:       return "]";
-        case ID_BRACE_T:        return "{id";
+        case TAG_BRACE_T:       return "{tag";
         case LBRACE_T:          return "{";
         case RBRACE_T:          return "}";
 
@@ -504,7 +530,7 @@ char const *str_for_sym(enum regex_symbol type) {
         case DO_ALT:            return "{alt}";
         case DO_CAT:            return "{cat}";
         case DO_SUB:            return "{sub}";
-        case DO_ID:             return "{id}";
+        case DO_TAG:            return "{tag}";
         case DO_CHAR_CLASS:     return "{char_class}";
         case DO_NEG_CLASS:      return "{neg_class}";
         case DO_DOTALL:         return "{dotall}";
@@ -533,7 +559,7 @@ char const *str_for_prod(enum gram_production p) {
         case CHAR_CLASS_RANGES_P:   return "CHAR_CLASS_RANGES_P";
         case RANGES_RANGE_P:        return "RANGES_RANGE_P";
         case FACTOR_SUBEXPR_P:      return "FACTOR_SUBEXPR_P";
-        case FACTOR_ID_P:           return "FACTOR_ID_P";
+        case FACTOR_TAG_P:          return "FACTOR_TAG_P";
         case FACTOR_CLASS_P:        return "FACTOR_CLASS_P";
         case FACTOR_NEG_CLASS_P:    return "FACTOR_NEG_CLASS_P";
         case FACTOR_DOTALL_P:       return "FACTOR_DOTALL_P";

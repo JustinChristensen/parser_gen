@@ -36,6 +36,6 @@ static struct regex_pattern const NULL_PATTERN = { 0, NULL, NULL };
 struct regex_loc regex_loc(int line, int col);
 void regex_print_loc(FILE *handle, struct regex_loc loc);
 void regex_print_range(FILE *handle, struct char_range r);
-bool is_null_pattern(struct regex_pattern pattern);
+bool is_null_pattern(struct regex_pattern const *pattern);
 
 #endif // REGEX_BASE_H_

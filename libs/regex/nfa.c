@@ -5,31 +5,42 @@
 #include <string.h>
 #include <base/list.h>
 #include <base/debug.h>
-#include <base/array.h>
+#include <base/string.h>
 #include "regex/nfa.h"
 #include "regex/run_parser.h"
 #include "regex/result_types.h"
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
 
-bool (*nfa_actions[])(union regex_result val, struct nfa_context *context) = {
-    [AI(DO_REGEX)] =        do_regex_nfa,
-    [AI(DO_EMPTY)] =        do_empty_nfa,
-    [AI(DO_ALT)] =          do_alt_nfa,
-    [AI(DO_CAT)] =          do_cat_nfa,
-    [AI(DO_SUB)] =          noop_nfa,
-    [AI(DO_ID)] =           do_id_nfa,
-    [AI(DO_CHAR_CLASS)] =   do_class_nfa,
-    [AI(DO_NEG_CLASS)] =    do_neg_class_nfa,
-    [AI(DO_DOTALL)] =       do_dotall_nfa,
-    [AI(DO_SYMBOL)] =       do_symbol_nfa,
-    [AI(DO_RANGES)] =       do_range_nfa,
-    [AI(DO_RANGE)] =        do_range_nfa,
-    [AI(DO_STAR)] =         do_star_nfa,
-    [AI(DO_PLUS)] =         do_plus_nfa,
-    [AI(DO_OPTIONAL)] =     do_optional_nfa,
-    [AI(DO_REPEAT_EXACT)] = do_repeat_exact_nfa
+bool (*nfa_actions[])(union regex_result val, void *context) = {
+    [AI(DO_REGEX)] =        ACTION noop_nfa,
+    [AI(DO_EMPTY)] =        ACTION do_empty_nfa,
+    [AI(DO_ALT)] =          ACTION do_alt_nfa,
+    [AI(DO_CAT)] =          ACTION do_cat_nfa,
+    [AI(DO_SUB)] =          ACTION noop_nfa,
+    [AI(DO_TAG)] =          ACTION do_tag_nfa,
+    [AI(DO_CHAR_CLASS)] =   ACTION do_class_nfa,
+    [AI(DO_NEG_CLASS)] =    ACTION do_neg_class_nfa,
+    [AI(DO_DOTALL)] =       ACTION do_dotall_nfa,
+    [AI(DO_SYMBOL)] =       ACTION do_symbol_nfa,
+    [AI(DO_RANGES)] =       ACTION do_range_nfa,
+    [AI(DO_RANGE)] =        ACTION do_range_nfa,
+    [AI(DO_STAR)] =         ACTION do_star_nfa,
+    [AI(DO_PLUS)] =         ACTION do_plus_nfa,
+    [AI(DO_OPTIONAL)] =     ACTION do_optional_nfa,
+    [AI(DO_REPEAT_EXACT)] = ACTION do_repeat_exact_nfa
 };
+
+struct parse_interface nfa_pinterface = {
+    .result = RESULTFN nfa_to_result,
+    .has_error = HASERRFN nfa_has_error,
+    .error = ERRFN nfa_error
+};
+
+static void nfa_oom(struct nfa_context *context) {
+    context->has_error = true;
+    context->error = oom_error();
+}
 
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
@@ -84,13 +95,16 @@ static void debug_nfa_states(struct list *cstates) {
     debug_("\n");
 }
 
-static void debug_state_table(struct nfa_state *start, struct nfa_state *end) {
+static void debug_state_table(struct nfa_state_pool *pool) {
     ndebug("nfa state table\n");
-    while (start != end) {
-        ndebug("%p: ", start);
-        debug_state(start);
-        debug_("\n");
-        start++;
+
+    for (; pool; pool = pool->next) {
+        for (int i = 0; i < pool->n; i++) {
+            struct nfa_state *state = &pool->states[i];
+            ndebug("%p: ", state);
+            debug_state(state);
+            debug_("\n");
+        }
     }
 }
 
@@ -121,26 +135,24 @@ static struct nfa_state_pool *next_state_pool(struct nfa_state_pool *prev) {
 struct nfa_context nfa_context(struct regex_pattern const *pat, bool use_nonrec) {
     struct nfa_context context = { .use_nonrec = use_nonrec };
 
-    if (context.state_pool = state_pool()) {
+    if ((context.state_pool = state_pool())) {
         context.state_pools = context.state_pool;
 
         if (pat) {
-            while (pat->pattern) {
+            while (!is_null_pattern(pat)) {
                 nfa_regex(pat->sym, pat->tag, pat->pattern, &context);
                 pat++;
             }
         }
-    } else {
-        context.has_error = true;
-        context.error = oom_error();
-    }
+    } else nfa_oom(&context);
 
     return context;
 }
 
-struct nfa_state accepting_state() {
+struct nfa_state accepting_state(int sym) {
     return (struct nfa_state) {
-        .type = ACCEPTING_STATE
+        .type = ACCEPTING_STATE,
+        .sym = sym
     };
 }
 
@@ -191,14 +203,11 @@ struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
     }
 
     if (pool) {
-        state.id = context->numstates++;
+        state.id = context->num_states++;
         pool->states[pool->n] = state;
         statep = &pool->states[pool->n];
         pool->n++;
-    } else {
-        context->has_error = true;
-        context->error = oom_error();
-    }
+    } else nfa_oom(context);
 
     return statep;
 }
@@ -218,7 +227,7 @@ void point(struct nfa machine, struct nfa_state *state) {
     if (machine.end1) *machine.end1 = *machine.end;
 }
 
-void smachine(struct nfa_context *context, struct nfa machine) {
+void smachine(struct nfa machine, struct nfa_context *context) {
     context->nfa = machine;
 }
 
@@ -262,8 +271,8 @@ struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa 
     struct nfa machine;
     machine.start = setst(branch_state(left.start, right.start), context);
     // TODO: we only need an epsilon state here if the machine has two end pointers
-    point(left, setst(context, epsilon_state(NULL)));
-    point(right, setst(context, epsilon_state(NULL)));
+    point(left, setst(epsilon_state(NULL), context));
+    point(right, setst(epsilon_state(NULL), context));
     dangle(&machine, &(*left.end)->next, &(*right.end)->next);
     return machine;
 }
@@ -296,32 +305,27 @@ struct nfa closure_machine(struct nfa_context *context, struct nfa inner) {
     return optional_machine(context, posclosure_machine(context, inner));
 }
 
-void nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
-    if (!context || !pattern) return;
-
+bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     if (!nfa_has_error(context)) {
-        struct nfa lmachine = gmachine(context);
-        struct parse_context pcontext = parse_context(context, GETVALFN nfa_to_result, nfa_actions, context->use_nonrec);
+        struct parse_context pcontext = parse_context(context, nfa_pinterface, nfa_actions, context->use_nonrec);
 
-        // overwrite the previous accepting state if we're
-        // chaining nfa_regex calls to create alt machines
-        if (lmachine.end) {
-            context->bufp--;
-            context->numstates--;
-        }
+        if (run_parser(pattern, &pcontext)) {
+            point(gmachine(context), setst(accepting_state(sym), context));
 
-        if (!run_parser(regex, &pcontext)) {
+            if (!tag) return true;
+
+            if ((tag = strdup(tag))) {
+                debug_state_table(context->state_pools);
+                debug_nfa(gmachine(context));
+                return tag_machine(tag, context);
+            } else nfa_oom(context);
+        } else {
             context->has_error = pcontext.has_error;
             context->error = pcontext.error;
-        } else {
-            if (lmachine.end) do_alt_nfa((union regex_result) lmachine, &pcontext);
-            point(gmachine(context), setst(accepting_state(), context));
-            debug_state_table(context->bufstart, context->bufp);
-            debug_nfa(gmachine(context));
         }
     }
 
-    return context;
+    return false;
 }
 
 bool nfa_has_error(struct nfa_context *context) {
@@ -332,7 +336,7 @@ struct regex_error nfa_error(struct nfa_context *context) {
     return context->error;
 }
 
-void free_nfa_states(struct nfa_state *states, int n) {
+static void free_nfa_states(struct nfa_state *states, int n) {
     if (!states) return;
 
     for (int i = 0; i < n; i++) {
@@ -349,18 +353,35 @@ void free_nfa_states(struct nfa_state *states, int n) {
     }
 }
 
-void free_nfa_context(struct nfa_context *context) {
-    if (!context) return;
+static void free_pools(struct nfa_context *context) {
+    struct nfa_state_pool *pool = NULL, *next = NULL;
 
-    struct nfa_state_pool *pool, *next;
-
-    for (pool = *context->state_pools; pool != NULL; pool = next) {
+    for (pool = context->state_pools; pool != NULL; pool = next) {
         next = pool->next;
         free_nfa_states(pool->states, pool->n);
         free(pool);
     }
 
     context->state_pools = context->state_pool = NULL;
+}
+
+static void free_tagged_nfas(struct nfa_context *context) {
+    struct tagged_nfa *tnfa = NULL, *next = NULL;
+
+    for (tnfa = context->tagged_nfas; tnfa != NULL; tnfa = next) {
+        next = tnfa->next;
+        free(tnfa->tag);
+        tnfa->tag = NULL;
+        free(tnfa);
+    }
+
+    context->tagged_nfas = NULL;
+}
+
+void free_nfa_context(struct nfa_context *context) {
+    if (!context) return;
+    free_pools(context);
+    free_tagged_nfas(context);
 }
 
 void eps_closure(struct list *nstates, struct nfa_state *state, bool *already_on) {
@@ -429,12 +450,37 @@ bool accepts(struct list *cstates, struct nfa_state *accept) {
     return false;
 }
 
+struct nfa_match nfa_match_state(char *input, struct nfa_context *context) {
+    return (struct nfa_match) {
+        .context = context,
+        .input = input,
+        .input_loc = regex_loc(0, 0)
+    };
+}
+
+struct regex_loc nfa_match_loc(struct nfa_match *match) {
+    return match->match_loc;
+}
+
+void nfa_match_lexeme(char *lexeme, struct nfa_match *match) {
+    strncpy(lexeme, match->match_start, match->input - match->match_start);
+}
+
 int nfa_match(struct nfa_match *match) {
+    assert(match != NULL);
+
+    struct nfa_context *context = match->context;
     struct nfa nfa = context->nfa;
-    size_t numstates = context->numstates;
-    bool *already_on = calloc(numstates, sizeof *already_on);
+    size_t num_states = context->num_states;
+    bool *already_on = calloc(num_states, sizeof *already_on);
     struct list *cstates = init_list();
     struct list *nstates = init_list();
+
+    char *input = match->input;
+    struct regex_loc input_loc = match->input_loc;
+
+    match->match_start = input;
+    match->match_loc = input_loc;
 
     eps_closure(cstates, nfa.start, already_on);
 
@@ -442,8 +488,15 @@ int nfa_match(struct nfa_match *match) {
     debug_nfa_states(cstates);
     char c;
     struct list *t;
-    while (!empty(cstates) && (c = *str++) != '\0') {
-        memset(already_on, false, numstates);
+    while (!empty(cstates) && (c = *input++) != '\0') {
+        if (c == '\n') {
+            input_loc.line++;
+            input_loc.col = 1;
+        } else {
+            input_loc.col++;
+        }
+
+        memset(already_on, false, num_states);
         move(nstates, cstates, c, already_on);
         t = cstates;
         cstates = nstates;
@@ -451,13 +504,17 @@ int nfa_match(struct nfa_match *match) {
         debug_nfa_states(cstates);
     }
 
-    bool result = accepts(cstates, *nfa.end);
+    match->input = input;
+    match->input_loc = input_loc;
+
+    struct nfa_state *accstate = *nfa.end;
+    bool accepted = accepts(cstates, accstate);
 
     free(already_on);
     free_list(nstates, NULL);
     free_list(cstates, NULL);
 
-    return result;
+    return accepted ? accstate->sym : REJECTED_SYM;
 }
 
 static void add_pointer(struct nfa *mach, struct nfa_state **end) {
@@ -494,8 +551,7 @@ static struct nfa_state *_clone_machine(
             memcpy(char_class, state->char_class, CLASS_SIZE);
             nextstate->char_class = char_class;
         } else {
-            context->has_error = true;
-            context->error = oom_error();
+            nfa_oom(context);
             return NULL;
         }
     }
@@ -536,11 +592,10 @@ static struct nfa_state *_clone_machine(
 
 bool clone_machine(struct nfa mach, struct nfa_context *context) {
     struct nfa newmach = { NULL, NULL, NULL };
-    struct nfa_state **visited = calloc(context->numstates, sizeof *visited);
+    struct nfa_state **visited = calloc(context->num_states, sizeof *visited);
 
     if (!visited) {
-        context->has_error = true;
-        context->error = oom_error();
+        nfa_oom(context);
         return false;
     }
 
@@ -548,49 +603,97 @@ bool clone_machine(struct nfa mach, struct nfa_context *context) {
     free(visited);
 
     if (newmach.start) {
-        smachine(context, newmach);
+        smachine(newmach, context);
         return true;
     }
 
     return false;
 }
 
-bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
+struct tagged_nfa *find_machine(char *tag, struct nfa_context *context) {
+    struct tagged_nfa *tnfa = context->tagged_nfas;
 
-bool do_regex_nfa(union regex_result _, struct nfa_context *context) {
+    for (; tnfa; tnfa = tnfa->next) {
+        if (streq(tag, tnfa->tag))
+            return tnfa;
+    }
+
+    return NULL;
+}
+
+bool tag_machine(char *tag, struct nfa_context *context) {
+    struct tagged_nfa *tnfa = context->tagged_nfas,
+                      *last = NULL;
+    bool found = false;
+
+    for (; tnfa; tnfa = tnfa->next) {
+        last = tnfa;
+
+        if (streq(tag, tnfa->tag)) {
+            found = true;
+            break;
+        }
+    }
+
+    if (found) {
+        tnfa->nfa = gmachine(context);
+        return true;
+    }
+
+    if ((tnfa = malloc(sizeof *tnfa)) == NULL) {
+        nfa_oom(context);
+        return false;
+    }
+
+    *tnfa = (struct tagged_nfa) {
+        .tag = tag,
+        .nfa = gmachine(context)
+    };
+
+    if (last) last->next = tnfa;
+    else      context->tagged_nfas = tnfa;
+
     return true;
 }
 
-bool do_id_nfa(union regex_result _, struct nfa_context *context) {
-    return true;
+bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
+
+bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
+    struct tagged_nfa *tnfa = find_machine(tag.tag, context);
+
+    if (tnfa) {
+        clone_machine(tnfa->nfa, context);
+        return true;
+    }
+
+    context->has_error = true;
+    context->error = missing_tag_error(tag.tag);
+
+    return false;
 }
 
 bool do_empty_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(context, empty_machine(rcontext));
+    smachine(empty_machine(context), context);
     return true;
 }
 
 bool do_alt_nfa(union regex_result nfa, struct nfa_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, alt_machine(rcontext, nfa.mach, gmachine(rcontext)));
+    smachine(alt_machine(context, nfa.mach, gmachine(context)), context);
     return true;
 }
 
 bool do_cat_nfa(union regex_result nfa, struct nfa_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, cat_machine(nfa.mach, gmachine(rcontext)));
+    smachine(cat_machine(nfa.mach, gmachine(context)), context);
     return true;
 }
 
 bool do_dotall_nfa(union regex_result _, struct nfa_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, dotall_machine(rcontext));
+    smachine(dotall_machine(context), context);
     return true;
 }
 
 bool do_symbol_nfa(union regex_result sym, struct nfa_context *context) {
-    struct nfa_context *rcontext = context->result_context;
-    smachine(rcontext, symbol_machine(rcontext, sym.tval.sym));
+    smachine(symbol_machine(context, sym.tval.sym), context);
     return true;
 }
 
@@ -602,10 +705,7 @@ static bool *get_classy(struct nfa_context *context) {
         // prioritizing time and implementation complexity over space
         // i.e. this could be a table of bitmaps to conserve bytes
         char_class = calloc(CLASS_SIZE, sizeof *char_class);
-        if (!char_class) {
-            context->has_error = true;
-            context->error = oom_error();
-        }
+        if (!char_class) nfa_oom(context);
     }
 
     context->current_class = char_class;
@@ -630,7 +730,7 @@ bool do_class_nfa(union regex_result _, struct nfa_context *context) {
     bool *char_class;
 
     if ((char_class = get_classy(context))) {
-        smachine(context, class_machine(context, char_class));
+        smachine(class_machine(context, char_class), context);
         context->current_class = NULL;
         return true;
     }
@@ -647,17 +747,17 @@ bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) {
 }
 
 bool do_star_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(context, closure_machine(context, gmachine(context)));
+    smachine(closure_machine(context, gmachine(context)), context);
     return true;
 }
 
 bool do_plus_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(context, posclosure_machine(context, gmachine(context)));
+    smachine(posclosure_machine(context, gmachine(context)), context);
     return true;
 }
 
 bool do_optional_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(context, optional_machine(context, gmachine(context)));
+    smachine(optional_machine(context, gmachine(context)), context);
     return true;
 }
 
@@ -665,27 +765,29 @@ bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context) {
     int n = num.tval.num;
 
     if (n > 0) {
-        struct nfa_context *rcontext = context->result_context;
-        struct nfa lhs, orig = gmachine(rcontext);
+        struct nfa lhs, orig = gmachine(context);
         bool success = true;
 
         ndebug("original machine\n");
         debug_nfa(orig);
-        debug_state_table(rcontext->bufstart, rcontext->bufp);
+        debug_state_table(context->state_pools);
 
         for (int i = 1; i < n && success; i++) {
-            lhs = gmachine(rcontext);
+            lhs = gmachine(context);
             clone_machine(orig, context);
             success = do_cat_nfa((union regex_result) { .mach = lhs }, context);
 
             ndebug("cloned machine\n");
-            debug_nfa(gmachine(rcontext));
-            debug_state_table(rcontext->bufstart, rcontext->bufp);
+            debug_nfa(gmachine(context));
+            debug_state_table(context->state_pools);
         }
 
         return success;
     }
 
-    return set_repeat_zero_error(context);
+    context->has_error = true;
+    context->error = repeat_zero_error();
+
+    return false;
 }
 

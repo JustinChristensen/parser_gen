@@ -5,23 +5,30 @@
 #include "regex/parser.h"
 #include "regex/result_types.h"
 
-bool (*expr_actions[])(union regex_result val, struct parse_context *context) = {
-    [AI(DO_REGEX)] =        noop_expr,
-    [AI(DO_EMPTY)] =        do_empty_expr,
-    [AI(DO_ALT)] =          do_alt_expr,
-    [AI(DO_CAT)] =          do_cat_expr,
-    [AI(DO_SUB)] =          do_sub_expr,
-    [AI(DO_ID)] =           do_id_expr,
-    [AI(DO_CHAR_CLASS)] =   do_char_class,
-    [AI(DO_NEG_CLASS)] =    do_neg_class,
-    [AI(DO_DOTALL)] =       do_dotall_expr,
-    [AI(DO_SYMBOL)] =       do_symbol_expr,
-    [AI(DO_RANGES)] =       do_range,
-    [AI(DO_RANGE)] =        do_range,
-    [AI(DO_STAR)] =         do_star_expr,
-    [AI(DO_PLUS)] =         do_plus_expr,
-    [AI(DO_OPTIONAL)] =     do_optional_expr,
-    [AI(DO_REPEAT_EXACT)] = do_repeat_exact_expr
+bool (*expr_actions[])(union regex_result val, void *context) = {
+    [AI(DO_REGEX)] =        ACTION noop_expr,
+    [AI(DO_EMPTY)] =        ACTION do_empty_expr,
+    [AI(DO_ALT)] =          ACTION do_alt_expr,
+    [AI(DO_CAT)] =          ACTION do_cat_expr,
+    [AI(DO_SUB)] =          ACTION do_sub_expr,
+    [AI(DO_TAG)] =          ACTION do_tag_expr,
+    [AI(DO_CHAR_CLASS)] =   ACTION do_char_class,
+    [AI(DO_NEG_CLASS)] =    ACTION do_neg_class,
+    [AI(DO_DOTALL)] =       ACTION do_dotall_expr,
+    [AI(DO_SYMBOL)] =       ACTION do_symbol_expr,
+    [AI(DO_RANGES)] =       ACTION do_range,
+    [AI(DO_RANGE)] =        ACTION do_range,
+    [AI(DO_STAR)] =         ACTION do_star_expr,
+    [AI(DO_PLUS)] =         ACTION do_plus_expr,
+    [AI(DO_OPTIONAL)] =     ACTION do_optional_expr,
+    [AI(DO_REPEAT_EXACT)] = ACTION do_repeat_exact_expr
+};
+
+// TODO: stop overusing these macros
+struct parse_interface expr_pinterface = {
+    .result = RESULTFN expr_to_result,
+    .has_error = HASERRFN NULL,
+    .error = ERRFN NULL
 };
 
 struct expr alt_expr(struct expr *lexpr, struct expr *rexpr) {
@@ -91,10 +98,10 @@ struct expr char_class_expr(struct expr *ranges) {
     };
 }
 
-struct expr id_expr(char *id) {
+struct expr tag_expr(char *tag) {
     return (struct expr) {
-        .type = ID_EXPR,
-        .id = id
+        .type = TAG_EXPR,
+        .tag = tag
     };
 }
 
@@ -144,9 +151,9 @@ void free_expr_context(struct expr_context *context) {
 
     while (expr != context->bufp) {
         switch (expr->type) {
-            case ID_EXPR:
-                free(expr->id);
-                expr->id = NULL;
+            case TAG_EXPR:
+                free(expr->tag);
+                expr->tag = NULL;
                 break;
             default:
                 break;
@@ -156,97 +163,86 @@ void free_expr_context(struct expr_context *context) {
     }
 }
 
-bool noop_expr(union regex_result _, struct parse_context *context) { return true; }
+bool noop_expr(union regex_result _, struct expr_context *context) { return true; }
 
-bool do_empty_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, empty_expr());
+bool do_empty_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, empty_expr());
     return true;
 }
 
-bool do_alt_expr(union regex_result expr, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, alt_expr(expr.expr, gexpr(rcontext)));
+bool do_alt_expr(union regex_result expr, struct expr_context *context) {
+    sexpr(context, alt_expr(expr.expr, gexpr(context)));
     return true;
 }
 
-bool do_cat_expr(union regex_result expr, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, cat_expr(expr.expr, gexpr(rcontext)));
+bool do_cat_expr(union regex_result expr, struct expr_context *context) {
+    sexpr(context, cat_expr(expr.expr, gexpr(context)));
     return true;
 }
 
-bool do_sub_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, sub_expr(gexpr(rcontext)));
+bool do_sub_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, sub_expr(gexpr(context)));
     return true;
 }
 
-bool do_id_expr(union regex_result id, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    char *dupid = strdup(id.id);
+bool do_tag_expr(union regex_result tag, struct expr_context *context) {
+    char *duptag = strdup(tag.tag);
 
-    if (dupid != NULL) {
-        sexpr(rcontext, id_expr(dupid));
+    if (duptag != NULL) {
+        sexpr(context, tag_expr(duptag));
         return true;
     }
 
-    return set_oom_error(context);
+    context->has_error = true;
+    context->error = oom_error();
+
+    return false;
 }
 
-bool do_char_class(union regex_result expr, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, char_class_expr(expr.expr));
+bool do_char_class(union regex_result expr, struct expr_context *context) {
+    sexpr(context, char_class_expr(expr.expr));
     return true;
 }
 
-bool do_neg_class(union regex_result expr, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    gexpr(rcontext)->type = NEG_CLASS_EXPR;
+bool do_neg_class(union regex_result expr, struct expr_context *context) {
+    gexpr(context)->type = NEG_CLASS_EXPR;
     return true;
 }
 
-bool do_dotall_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, dotall_expr());
+bool do_dotall_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, dotall_expr());
     return true;
 }
 
-bool do_symbol_expr(union regex_result sym, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, symbol_expr(sym.tval.sym));
+bool do_symbol_expr(union regex_result sym, struct expr_context *context) {
+    sexpr(context, symbol_expr(sym.tval.sym));
     return true;
 }
 
-bool do_star_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, star_expr(gexpr(rcontext)));
+bool do_star_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, star_expr(gexpr(context)));
     return true;
 }
 
-bool do_plus_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, plus_expr(gexpr(rcontext)));
+bool do_plus_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, plus_expr(gexpr(context)));
     return true;
 }
 
-bool do_optional_expr(union regex_result _, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, optional_expr(gexpr(rcontext)));
+bool do_optional_expr(union regex_result _, struct expr_context *context) {
+    sexpr(context, optional_expr(gexpr(context)));
     return true;
 }
 
-bool do_repeat_exact_expr(union regex_result num, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    sexpr(rcontext, repeat_exact_expr(num.tval.num, gexpr(rcontext)));
+bool do_repeat_exact_expr(union regex_result num, struct expr_context *context) {
+    sexpr(context, repeat_exact_expr(num.tval.num, gexpr(context)));
     return true;
 }
 
-bool do_range(union regex_result range, struct parse_context *context) {
-    struct expr_context *rcontext = context->result_context;
-    struct expr *prev_range = gexpr(rcontext);
-    sexpr(rcontext, range_expr(NULL, range.tval.range));
-    prev_range->expr = gexpr(rcontext);
+bool do_range(union regex_result range, struct expr_context *context) {
+    struct expr *prev_range = gexpr(context);
+    sexpr(context, range_expr(NULL, range.tval.range));
+    prev_range->expr = gexpr(context);
     return true;
 }
 

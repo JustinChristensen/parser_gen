@@ -26,7 +26,7 @@ bool parse_alt(struct parse_context *context) {
     bool success = do_action(DO_EMPTY, NULLRVAL, context);
 
     while (peek(FACTOR_NT, context) && success) {
-        union regex_result prev_factor = result(context);
+        union regex_result prev_factor = get_result(context);
 
         success =
             parse_factor(context) &&
@@ -40,7 +40,7 @@ bool parse_alts(struct parse_context *context) {
     bool success = true;
 
     while (peek(ALT_T, context) && success) {
-        union regex_result prev_alt = result(context);
+        union regex_result prev_alt = get_result(context);
 
         success =
             expect(ALT_T, context) &&
@@ -72,7 +72,7 @@ bool parse_char_class(struct parse_context *context) {
     if (peek(RANGE_T, context) &&
         expect(RANGE_T, context) &&
         do_action(DO_RANGES, head, context)) {
-        head = result(context);
+        head = get_result(context);
         success = parse_ranges(context);
     } else {
         head = NULLRVAL;
@@ -94,14 +94,14 @@ bool parse_factor(struct parse_context *context) {
             parse_expr(context) &&
             expect(RPAREN_T, context) &&
             do_action(DO_SUB, NULLRVAL, context);
-    } else if (peek(ID_BRACE_T, context)) {
-        success = expect(ID_BRACE_T, context);
-        char idbuf[BUFSIZ] = "";
-        union regex_result id = id_val(idbuf, context);
+    } else if (peek(TAG_BRACE_T, context)) {
+        success = expect(TAG_BRACE_T, context);
+        char tagbuf[BUFSIZ] = "";
+        union regex_result tag = tag_val(tagbuf, context);
         success = success &&
-            expect(ID_T, context) &&
+            expect(TAG_T, context) &&
             expect(RBRACE_T, context) &&
-            do_action(DO_ID, id, context);
+            do_action(DO_TAG, tag, context);
     } else if (peek(CLASS_T, context)) {
         success = expect(CLASS_T, context) && parse_char_class(context);
     } else if (peek(NEG_CLASS_T, context)) {

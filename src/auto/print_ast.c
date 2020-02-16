@@ -109,9 +109,9 @@ void print_expr(struct expr *expr) {
                     indent(indent_level);
                     printf("%c", expr->symbol);
                     break;
-                case ID_EXPR:
+                case TAG_EXPR:
                     indent(indent_level);
-                    printf("{%s}", expr->id);
+                    printf("{%s}", expr->tag);
                     break;
             }
 
@@ -166,8 +166,8 @@ void print_expr_table(struct expr *start, struct expr *end) {
                 regex_print_range(stdout, start->range);
                 printf(" %p", start->expr);
                 break;
-            case ID_EXPR:
-                printf("{%s}", start->id);
+            case TAG_EXPR:
+                printf("{%s}", start->tag);
                 break;
             case SYMBOL_EXPR:
                 printf("%c", start->symbol);

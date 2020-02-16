@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include <base/graphviz.h>
 #include <regex/nfa.h>
 #include "dot.h"
@@ -25,8 +26,8 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
         case DOTALL_EXPR:
             append_node(graph, parent, ".", NULL);
             break;
-        case ID_EXPR:
-            sprintf(label, "{%s}", expr->id);
+        case TAG_EXPR:
+            sprintf(label, "{%s}", expr->tag);
             append_node(graph, parent, label, NULL);
             break;
         case ALT_EXPR:
@@ -80,8 +81,10 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
     }
 }
 
-void nfa_to_graph(struct nfa_state *state) {
-    Agnode_t *nodes[STATE_MAX] = { NULL };
+void nfa_to_graph(struct nfa_state *state, int num_states) {
+    Agnode_t **nodes = calloc(num_states, sizeof *nodes);
+
+    assert(nodes != NULL);
 
     Agraph_t *graph = agopen("top", Agdirected, NULL);
 
@@ -95,6 +98,7 @@ void nfa_to_graph(struct nfa_state *state) {
         fprintf(stderr, "printing dot file failed\n");
     }
 
+    free(nodes);
     agclose(graph);
 }
 

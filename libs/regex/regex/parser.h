@@ -5,11 +5,16 @@
 #include "result_types.h"
 #include "base.h"
 
-#define GETVALFN (union regex_result (*) (void *))
+#define RESULTFN (union regex_result (*) (void *))
+#define HASERRFN (bool (*) (void *))
+#define ERRFN (struct regex_error (*) (void *))
+#define ACTION (bool (*)(union regex_result, void *))
+
 #define SYNERR_FMT_STRING "| Syntax Error\n|\n| Got: %s\n| Expected: "
 #define SYNERR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
-#define OOM_FMT_STRING "out of memory\n"
-#define REPEAT_ZERO_FMT_STRING "cannot repeat zero times\n"
+#define OOM_FMT_STRING "| OOM Error\n|\n"
+#define REPEAT_ZERO_FMT_STRING "| Repeat Zero Error\n|\n"
+#define MISSING_TAG_FMT_STRING "| Missing Tag Error\n|\n| Pattern %s not defined\n|\n"
 
 enum regex_symbol {
     ERROR,
@@ -19,7 +24,7 @@ enum regex_symbol {
     SYMBOL_T,
     RANGE_T,
     NUM_T,
-    ID_T,
+    TAG_T,
     ALT_T,
     STAR_T,
     PLUS_T,
@@ -30,7 +35,7 @@ enum regex_symbol {
     CLASS_T,
     NEG_CLASS_T,
     END_CLASS_T,
-    ID_BRACE_T,
+    TAG_BRACE_T,
     LBRACE_T,
     RBRACE_T,
 
@@ -51,7 +56,7 @@ enum regex_symbol {
     DO_ALT,
     DO_CAT,
     DO_SUB,
-    DO_ID,
+    DO_TAG,
     DO_CHAR_CLASS,
     DO_NEG_CLASS,
     DO_DOTALL,
@@ -110,8 +115,8 @@ enum gram_production {
 
     // factor = '(' expr ')' { sub } unops;
     FACTOR_SUBEXPR_P,
-    // factor = '{' id '}' { id } unops;
-    FACTOR_ID_P,
+    // factor = '{' tag '}' { tag } unops;
+    FACTOR_TAG_P,
     // factor = '[' char_class unops;
     FACTOR_CLASS_P,
     // factor = '[^' char_class { neg_char_class } unops;
@@ -149,8 +154,8 @@ struct regex_token {
 enum error_type {
     SYNTAX_ERROR,
     OUT_OF_MEMORY,
-    REGEX_NOT_DEFINED,
-    REPEAT_ZERO
+    REPEAT_ZERO,
+    MISSING_TAG
 };
 
 struct regex_error {
@@ -161,14 +166,20 @@ struct regex_error {
             enum regex_symbol actual;
             enum regex_symbol const *expected;
         };
-        char *id;
+        char *tag;
     };
 };
 
+struct parse_interface {
+    union regex_result (*result)(void *result);
+    bool (*has_error)(void *result);
+    struct regex_error (*error)(void *result);
+};
+
 struct parse_context {
-    void *result_context;
-    union regex_result (*get_result)(void *result_context);
-    bool (**actions)(union regex_result val, struct parse_context *pcontext);
+    void *result;
+    struct parse_interface pi;
+    bool (**actions)(union regex_result val, void *result);
     struct regex_token token;
     enum regex_symbol lookahead;
     int lookahead_col;
@@ -187,12 +198,14 @@ int token_col(struct regex_token token);
 void print_token(struct regex_token token);
 void print_token_table(char *regex);
 
-union regex_result result(struct parse_context *context);
+union regex_result get_result(struct parse_context *context);
+bool result_has_error(struct parse_context *context);
+struct regex_error result_error(struct parse_context *context);
 bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context);
 struct parse_context parse_context(
-    void *result_context,
-    union regex_result (*get_result)(void *result_context),
-    bool (**actions)(union regex_result val, struct parse_context *context),
+    void *result,
+    struct parse_interface pi,
+    bool (**actions)(union regex_result val, void *result),
     bool use_nonrec
 );
 void start_scanning(char *input, struct parse_context *context);
@@ -201,7 +214,7 @@ bool expect(enum regex_symbol expected, struct parse_context *context);
 int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
 union regex_result lookahead_val(struct parse_context *context);
-union regex_result id_val(char *id, struct parse_context *context);
+union regex_result tag_val(char *tag, struct parse_context *context);
 struct regex_error syntax_error(
     enum regex_symbol actual,
     int lexeme_col,
@@ -209,9 +222,11 @@ struct regex_error syntax_error(
 );
 struct regex_error oom_error();
 struct regex_error repeat_zero_error();
+struct regex_error missing_tag_error(char *tag);
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context);
 bool set_oom_error(struct parse_context *context);
 bool set_repeat_zero_error(struct parse_context *context);
+bool set_missing_tag_error(char *tag, struct parse_context *context);
 void print_regex_error(struct regex_error error);
 bool has_parse_error(struct parse_context *context);
 struct regex_error parse_error(struct parse_context *context);

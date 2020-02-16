@@ -19,7 +19,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [LPAREN_T] = REGEX_EXPR_P,
         [CLASS_T] = REGEX_EXPR_P,
         [NEG_CLASS_T] = REGEX_EXPR_P,
-        [ID_BRACE_T] = REGEX_EXPR_P
+        [TAG_BRACE_T] = REGEX_EXPR_P
     },
     [NTI(EXPR_NT)] = {
         [EOF_T] = EXPR_EMPTY_P,
@@ -30,7 +30,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [RPAREN_T] = EXPR_EMPTY_P,
         [CLASS_T] = EXPR_ALT_P,
         [NEG_CLASS_T] = EXPR_ALT_P,
-        [ID_BRACE_T] = EXPR_ALT_P
+        [TAG_BRACE_T] = EXPR_ALT_P
     },
     [NTI(ALT_NT)] = {
         [EOF_T] = ALT_EMPTY_P,
@@ -41,7 +41,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [RPAREN_T] = ALT_EMPTY_P,
         [CLASS_T] = ALT_FACTOR_P,
         [NEG_CLASS_T] = ALT_FACTOR_P,
-        [ID_BRACE_T] = ALT_FACTOR_P
+        [TAG_BRACE_T] = ALT_FACTOR_P
     },
     [NTI(ALTS_NT)] = {
         [EOF_T] = EMPTY_P,
@@ -54,7 +54,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [LPAREN_T] = FACTOR_SUBEXPR_P,
         [CLASS_T] = FACTOR_CLASS_P,
         [NEG_CLASS_T] = FACTOR_NEG_CLASS_P,
-        [ID_BRACE_T] = FACTOR_ID_P
+        [TAG_BRACE_T] = FACTOR_TAG_P
     },
     [NTI(FACTORS_NT)] = {
         [EOF_T] = EMPTY_P,
@@ -65,7 +65,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [RPAREN_T] = EMPTY_P,
         [CLASS_T] = FACTORS_FACTOR_P,
         [NEG_CLASS_T] = FACTORS_FACTOR_P,
-        [ID_BRACE_T] = FACTORS_FACTOR_P
+        [TAG_BRACE_T] = FACTORS_FACTOR_P
     },
     [NTI(CHAR_CLASS_NT)] = {
         [RANGE_T] = CHAR_CLASS_RANGES_P,
@@ -87,7 +87,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [RPAREN_T] = EMPTY_P,
         [CLASS_T] = EMPTY_P,
         [NEG_CLASS_T] = EMPTY_P,
-        [ID_BRACE_T] = EMPTY_P,
+        [TAG_BRACE_T] = EMPTY_P,
         [LBRACE_T] = UNOPS_REPEAT_EXACT_P
     }
 };
@@ -107,7 +107,7 @@ static enum regex_symbol *rule_table[] = {
     [CHAR_CLASS_RANGES_P] =    SYMS { DO_CHAR_CLASS, END_CLASS_T, RANGES_NT, DO_RANGES, RANGE_T, 0 },
     [RANGES_RANGE_P] =         SYMS { RANGES_NT, DO_RANGE, RANGE_T, 0 },
     [FACTOR_SUBEXPR_P] =       SYMS { UNOPS_NT, DO_SUB, RPAREN_T, EXPR_NT, LPAREN_T, 0 },
-    [FACTOR_ID_P] =            SYMS { UNOPS_NT, DO_ID, RBRACE_T, ID_T, ID_BRACE_T, 0 },
+    [FACTOR_TAG_P] =           SYMS { UNOPS_NT, DO_TAG, RBRACE_T, TAG_T, TAG_BRACE_T, 0 },
     [FACTOR_CLASS_P] =         SYMS { UNOPS_NT, CHAR_CLASS_NT, CLASS_T, 0 },
     [FACTOR_NEG_CLASS_P] =     SYMS { UNOPS_NT, DO_NEG_CLASS, CHAR_CLASS_NT, NEG_CLASS_T, 0 },
     [FACTOR_DOTALL_P] =        SYMS { UNOPS_NT, DO_DOTALL, DOTALL_T, 0 },
@@ -208,7 +208,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
 
             // push the last result onto the result stack
             if (ssym == DO_RANGES)
-                push_result(result(context), results);
+                push_result(get_result(context), results);
 
             apop(&ssym, stack);
         } else {
@@ -220,7 +220,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
             if (p) {
                 // the top of the tail loop
                 if (p == ALTS_ALT_P || p == FACTORS_FACTOR_P)
-                    push_result(result(context), results);
+                    push_result(get_result(context), results);
                 else if (p == CHAR_CLASS_RBRACKET_P)
                     push_result(NULLRVAL, results);
 

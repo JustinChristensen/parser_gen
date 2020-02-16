@@ -242,12 +242,19 @@ int main(int argc, char *argv[]) {
 
                 if (in) {
                     char buf[BUFSIZ];
+                    char matchbuf[BUFSIZ];
+
                     while (fgets(buf, BUFSIZ, in)) {
                         buf[strlen(buf) - 1] = '\0';
 
                         struct nfa_match match = nfa_match_state(buf, &ncontext);
-                        int sym = nfa_match(&match);
-                        printf("%s %s: %d\n", buf, sym ? "matches" : "does not match", sym);
+
+                        int sym;
+                        while ((sym = nfa_match(&match))) {
+                            printf("%s at ", matchbuf);
+                            regex_print_loc(stdout, nfa_match_loc(&match));
+                            printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
+                        }
                     }
 
                     fclose(in);

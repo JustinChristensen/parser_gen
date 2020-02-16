@@ -21,7 +21,6 @@
 #include "base.h"
 #include "parser.h"
 
-#define REJECTED_SYM 0
 #define STATE_POOL_SIZE 1000
 #define CLASS_SIZE (UCHAR_MAX + 1)
 

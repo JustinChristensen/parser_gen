@@ -475,9 +475,9 @@ int nfa_match(struct nfa_match *match) {
     bool *already_on = calloc(num_states, sizeof *already_on);
     struct list *cstates = init_list();
     struct list *nstates = init_list();
-
     char *input = match->input;
     struct regex_loc input_loc = match->input_loc;
+    int foundsym = 0;
 
     match->match_start = input;
     match->match_loc = input_loc;
@@ -508,13 +508,15 @@ int nfa_match(struct nfa_match *match) {
     match->input_loc = input_loc;
 
     struct nfa_state *accstate = *nfa.end;
-    bool accepted = accepts(cstates, accstate);
+
+    if (accepts(cstates, accstate))
+        foundsym = accstate->sym;
 
     free(already_on);
     free_list(nstates, NULL);
     free_list(cstates, NULL);
 
-    return accepted ? accstate->sym : REJECTED_SYM;
+    return foundsym;
 }
 
 static void add_pointer(struct nfa *mach, struct nfa_state **end) {
@@ -776,11 +778,11 @@ bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context) {
             lhs = gmachine(context);
             clone_machine(orig, context);
             success = do_cat_nfa((union regex_result) { .mach = lhs }, context);
-
-            ndebug("cloned machine\n");
-            debug_nfa(gmachine(context));
-            debug_state_table(context->state_pools);
         }
+
+        ndebug("cloned machine\n");
+        debug_nfa(gmachine(context));
+        debug_state_table(context->state_pools);
 
         return success;
     }

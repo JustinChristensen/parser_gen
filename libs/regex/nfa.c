@@ -144,7 +144,8 @@ struct nfa_context nfa_context(struct regex_pattern const *pat, bool use_nonrec)
                 pat++;
             }
         }
-    } else nfa_oom(&context);
+    } else
+        nfa_oom(&context);
 
     return context;
 }
@@ -207,7 +208,8 @@ struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
         pool->states[pool->n] = state;
         statep = &pool->states[pool->n];
         pool->n++;
-    } else nfa_oom(context);
+    } else
+        nfa_oom(context);
 
     return statep;
 }
@@ -217,14 +219,20 @@ void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1
     machine->end1 = end1;
 }
 
-// TODO: merge operation
-// - if the machine has two end pointers
-//      - creates an epsilon state and points the ends to it
-// - otherwise does nothing
-
 void point(struct nfa machine, struct nfa_state *state) {
     *machine.end = state;
     if (machine.end1) *machine.end1 = *machine.end;
+}
+
+struct nfa_state **merge(struct nfa machine, struct nfa_context *context) {
+    struct nfa_state **end = machine.end;
+
+    if (machine.end && machine.end1) {
+        point(machine, setst(epsilon_state(NULL), context));
+        end = &(*machine.end)->next;
+    }
+
+    return end;
 }
 
 void smachine(struct nfa machine, struct nfa_context *context) {
@@ -270,10 +278,8 @@ struct nfa symbol_machine(struct nfa_context *context, char sym) {
 struct nfa alt_machine(struct nfa_context *context, struct nfa left, struct nfa right) {
     struct nfa machine;
     machine.start = setst(branch_state(left.start, right.start), context);
-    // TODO: we only need an epsilon state here if the machine has two end pointers
-    point(left, setst(epsilon_state(NULL), context));
-    point(right, setst(epsilon_state(NULL), context));
-    dangle(&machine, &(*left.end)->next, &(*right.end)->next);
+    machine.end = merge(left, context);
+    machine.end1 = merge(right, context);
     return machine;
 }
 
@@ -295,9 +301,9 @@ struct nfa posclosure_machine(struct nfa_context *context, struct nfa inner) {
 
 struct nfa optional_machine(struct nfa_context *context, struct nfa inner) {
     struct nfa machine;
-    point(inner, setst(epsilon_state(NULL), context));
     machine.start = setst(branch_state(inner.start, NULL), context);
-    dangle(&machine, &(*inner.end)->next, &machine.start->right);
+    machine.end = merge(inner, context);
+    machine.end1 = &machine.start->right;
     return machine;
 }
 
@@ -318,7 +324,8 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
                 debug_state_table(context->state_pools);
                 debug_nfa(gmachine(context));
                 return tag_machine(tag, context);
-            } else nfa_oom(context);
+            } else
+                nfa_oom(context);
         } else {
             context->has_error = pcontext.has_error;
             context->error = pcontext.error;

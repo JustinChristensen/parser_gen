@@ -70,6 +70,7 @@ struct nfa_context nfa_context(struct regex_pattern const *patterns, bool use_no
 struct nfa_state *setst(struct nfa_state state, struct nfa_context *context);
 void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1);
 void point(struct nfa machine, struct nfa_state *state);
+struct nfa_state **merge(struct nfa machine, struct nfa_context *context);
 void smachine(struct nfa machine, struct nfa_context *context);
 struct nfa gmachine(struct nfa_context *context);
 

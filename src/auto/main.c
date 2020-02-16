@@ -249,12 +249,13 @@ int main(int argc, char *argv[]) {
 
                         struct nfa_match match = nfa_match_state(buf, &ncontext);
 
-                        int sym;
-                        while ((sym = nfa_match(&match))) {
-                            printf("%s at ", matchbuf);
-                            regex_print_loc(stdout, nfa_match_loc(&match));
-                            printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
-                        }
+                        // while ((sym = nfa_match(&match))) {
+                        int sym = nfa_match(&match);
+                        nfa_match_lexeme(matchbuf, &match);
+                        printf("%s at ", matchbuf);
+                        regex_print_loc(stdout, nfa_match_loc(&match));
+                        printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
+                        // }
                     }
 
                     fclose(in);

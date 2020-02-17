@@ -74,8 +74,8 @@ void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
             parent = append_node(graph, parent, label, NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case SYMBOL_EXPR:
-            sprintf(label, "%c", expr->symbol);
+        case CHAR_EXPR:
+            sprintf(label, "%c", expr->ch);
             parent = append_node(graph, parent, label, NULL);
             break;
     }
@@ -142,10 +142,10 @@ void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to,
                 agset(node, "fontcolor", "purple");
                 nfa_state_to_graph(graph, nodes, to->next, node, "[a-z]");
                 break;
-            case SYMBOL_STATE:
+            case CHAR_STATE:
                 agset(node, "color", "blue");
                 agset(node, "fontcolor", "blue");
-                label[0] = to->symbol;
+                label[0] = to->ch;
                 nfa_state_to_graph(graph, nodes, to->next, node, label);
                 break;
         }

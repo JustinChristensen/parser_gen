@@ -13,7 +13,7 @@
 static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     [NTI(REGEX_NT)] = {
         [EOF_T] = REGEX_EXPR_P,
-        [SYMBOL_T] = REGEX_EXPR_P,
+        [CHAR_T] = REGEX_EXPR_P,
         [ALT_T] = REGEX_EXPR_P,
         [DOTALL_T] = REGEX_EXPR_P,
         [LPAREN_T] = REGEX_EXPR_P,
@@ -23,7 +23,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     },
     [NTI(EXPR_NT)] = {
         [EOF_T] = EXPR_EMPTY_P,
-        [SYMBOL_T] = EXPR_ALT_P,
+        [CHAR_T] = EXPR_ALT_P,
         [ALT_T] = EXPR_ALT_P,
         [DOTALL_T] = EXPR_ALT_P,
         [LPAREN_T] = EXPR_ALT_P,
@@ -34,7 +34,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     },
     [NTI(ALT_NT)] = {
         [EOF_T] = ALT_EMPTY_P,
-        [SYMBOL_T] = ALT_FACTOR_P,
+        [CHAR_T] = ALT_FACTOR_P,
         [ALT_T] = ALT_EMPTY_P,
         [DOTALL_T] = ALT_FACTOR_P,
         [LPAREN_T] = ALT_FACTOR_P,
@@ -49,7 +49,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
         [RPAREN_T] = EMPTY_P
     },
     [NTI(FACTOR_NT)] = {
-        [SYMBOL_T] = FACTOR_SYMBOL_P,
+        [CHAR_T] = FACTOR_CHAR_P,
         [DOTALL_T] = FACTOR_DOTALL_P,
         [LPAREN_T] = FACTOR_SUBEXPR_P,
         [CLASS_T] = FACTOR_CLASS_P,
@@ -58,7 +58,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     },
     [NTI(FACTORS_NT)] = {
         [EOF_T] = EMPTY_P,
-        [SYMBOL_T] = FACTORS_FACTOR_P,
+        [CHAR_T] = FACTORS_FACTOR_P,
         [ALT_T] = EMPTY_P,
         [DOTALL_T] = FACTORS_FACTOR_P,
         [LPAREN_T] = FACTORS_FACTOR_P,
@@ -77,7 +77,7 @@ static enum gram_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     },
     [NTI(UNOPS_NT)] = {
         [EOF_T] = EMPTY_P,
-        [SYMBOL_T] = EMPTY_P,
+        [CHAR_T] = EMPTY_P,
         [ALT_T] = EMPTY_P,
         [STAR_T] = UNOPS_STAR_P,
         [PLUS_T] = UNOPS_PLUS_P,
@@ -111,7 +111,7 @@ static enum regex_symbol *rule_table[] = {
     [FACTOR_CLASS_P] =         SYMS { UNOPS_NT, CHAR_CLASS_NT, CLASS_T, 0 },
     [FACTOR_NEG_CLASS_P] =     SYMS { UNOPS_NT, DO_NEG_CLASS, CHAR_CLASS_NT, NEG_CLASS_T, 0 },
     [FACTOR_DOTALL_P] =        SYMS { UNOPS_NT, DO_DOTALL, DOTALL_T, 0 },
-    [FACTOR_SYMBOL_P] =        SYMS { UNOPS_NT, DO_SYMBOL, SYMBOL_T, 0 },
+    [FACTOR_CHAR_P] =          SYMS { UNOPS_NT, DO_CHAR, CHAR_T, 0 },
     [UNOPS_STAR_P] =           SYMS { UNOPS_NT, DO_STAR, STAR_T, 0 },
     [UNOPS_PLUS_P] =           SYMS { UNOPS_NT, DO_PLUS, PLUS_T, 0 },
     [UNOPS_OPTIONAL_P] =       SYMS { UNOPS_NT, DO_OPTIONAL, OPTIONAL_T, 0 },
@@ -177,7 +177,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
 
         if (is_terminal(ssym)) {
             if (peek(ssym, context)) {
-                if (ssym == SYMBOL_T || ssym == RANGE_T || ssym == NUM_T)
+                if (ssym == CHAR_T || ssym == RANGE_T || ssym == NUM_T)
                     push_result(lookahead_val(context), results);
 
                 expect(ssym, context);
@@ -193,7 +193,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
             switch (ssym) {
                 case DO_ALT:
                 case DO_CAT:
-                case DO_SYMBOL:
+                case DO_CHAR:
                 case DO_RANGES:
                 case DO_RANGE:
                 case DO_CHAR_CLASS:

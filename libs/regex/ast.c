@@ -15,7 +15,7 @@ bool (*expr_actions[])(union regex_result val, void *context) = {
     [AI(DO_CHAR_CLASS)] =   ACTION do_char_class,
     [AI(DO_NEG_CLASS)] =    ACTION do_neg_class,
     [AI(DO_DOTALL)] =       ACTION do_dotall_expr,
-    [AI(DO_SYMBOL)] =       ACTION do_symbol_expr,
+    [AI(DO_CHAR)] =         ACTION do_char_expr,
     [AI(DO_RANGES)] =       ACTION do_range,
     [AI(DO_RANGE)] =        ACTION do_range,
     [AI(DO_STAR)] =         ACTION do_star_expr,
@@ -105,10 +105,10 @@ struct expr tag_expr(char *tag) {
     };
 }
 
-struct expr symbol_expr(char symbol) {
+struct expr char_expr(char ch) {
     return (struct expr) {
-        .type = SYMBOL_EXPR,
-        .symbol = symbol
+        .type = CHAR_EXPR,
+        .ch = ch
     };
 }
 
@@ -214,8 +214,8 @@ bool do_dotall_expr(union regex_result _, struct expr_context *context) {
     return true;
 }
 
-bool do_symbol_expr(union regex_result sym, struct expr_context *context) {
-    sexpr(context, symbol_expr(sym.tval.sym));
+bool do_char_expr(union regex_result ch, struct expr_context *context) {
+    sexpr(context, char_expr(ch.tval.ch));
     return true;
 }
 

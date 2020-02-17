@@ -25,7 +25,7 @@ struct expr sub_expr(struct expr *expr);
 struct expr range_expr(struct expr *next, struct char_range range);
 struct expr char_class_expr(struct expr *ranges);
 struct expr tag_expr(char *tag);
-struct expr symbol_expr(char symbol);
+struct expr char_expr(char ch);
 struct expr dotall_expr();
 struct expr empty_expr();
 
@@ -47,7 +47,7 @@ bool do_range(union regex_result range, struct expr_context *context);
 bool do_char_class(union regex_result expr, struct expr_context *context);
 bool do_neg_class(union regex_result expr, struct expr_context *context);
 bool do_dotall_expr(union regex_result _, struct expr_context *context);
-bool do_symbol_expr(union regex_result sym, struct expr_context *context);
+bool do_char_expr(union regex_result ch, struct expr_context *context);
 bool do_star_expr(union regex_result _, struct expr_context *context);
 bool do_plus_expr(union regex_result _, struct expr_context *context);
 bool do_optional_expr(union regex_result _, struct expr_context *context);

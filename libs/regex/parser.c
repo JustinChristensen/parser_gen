@@ -15,7 +15,7 @@
 #define FIRST (enum regex_symbol[])
 static enum regex_symbol const * const first_sets[] = {
     [EOF_T] =         FIRST { EOF_T, 0 },
-    [SYMBOL_T] =      FIRST { SYMBOL_T, 0 },
+    [CHAR_T] =      FIRST { CHAR_T, 0 },
     [RANGE_T] =       FIRST { RANGE_T, 0 },
     [NUM_T] =         FIRST { NUM_T, 0 },
     [TAG_T] =         FIRST { TAG_T, 0 },
@@ -33,12 +33,12 @@ static enum regex_symbol const * const first_sets[] = {
     [LBRACE_T] =      FIRST { LBRACE_T, 0 },
     [RBRACE_T] =      FIRST { RBRACE_T, 0 },
 
-    [REGEX_NT] =      FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, EOF_T, 0 },
-    [EXPR_NT] =       FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, ALT_T, 0 },
-    [ALT_NT] =        FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [REGEX_NT] =      FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, CHAR_T, ALT_T, EOF_T, 0 },
+    [EXPR_NT] =       FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, CHAR_T, ALT_T, 0 },
+    [ALT_NT] =        FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, CHAR_T, 0 },
     [ALTS_NT] =       FIRST { ALT_T, 0 },
-    [FACTOR_NT] =     FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
-    [FACTORS_NT] =    FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, SYMBOL_T, 0 },
+    [FACTOR_NT] =     FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, CHAR_T, 0 },
+    [FACTORS_NT] =    FIRST { LPAREN_T, TAG_BRACE_T, CLASS_T, NEG_CLASS_T, DOTALL_T, CHAR_T, 0 },
     [CHAR_CLASS_NT] = FIRST { RANGE_T, END_CLASS_T, 0 },
     [RANGES_NT] =     FIRST { RANGE_T, 0 },
     [UNOPS_NT] =      FIRST { STAR_T, PLUS_T, OPTIONAL_T, LBRACE_T, 0 },
@@ -71,29 +71,29 @@ static struct regex_token scan_escape(struct regex_token token) {
     char *ip = token.input;
     int ic = token.input_col;
     enum regex_symbol type = ERROR;
-    char sym = '\0';
+    char ch = '\0';
 
     if (*ip == '\\') {
         ip++, ic++;
 
         switch (*ip) {
-            case 'f': sym = '\f'; break;
-            case 'n': sym = '\n'; break;
-            case 'r': sym = '\r'; break;
-            case 't': sym = '\t'; break;
-            case 'v': sym = '\v'; break;
+            case 'f': ch = '\f'; break;
+            case 'n': ch = '\n'; break;
+            case 'r': ch = '\r'; break;
+            case 't': ch = '\t'; break;
+            case 'v': ch = '\v'; break;
             default: break;
         }
     }
 
-    if (sym) {
-        type = SYMBOL_T;
-    } else if (is_symbol(*ip)) {
-        type = SYMBOL_T;
-        sym = *ip;
+    if (ch) {
+        type = CHAR_T;
+    } else {
+        type = CHAR_T;
+        ch = *ip;
     }
 
-    token.val.sym = sym;
+    token.val.ch = ch;
     token.type = type;
     token.input = ++ip;
     token.input_col = ++ic;
@@ -105,17 +105,17 @@ static struct regex_token scan_range(struct regex_token token) {
     token.type = ERROR;
     token = scan_escape(token);
 
-    if (token.type == SYMBOL_T) {
+    if (token.type == CHAR_T) {
         struct char_range range;
 
-        range.start = token.val.sym;
+        range.start = token.val.ch;
 
         if (*token.input == '-') {
             token.input++;
             token.input_col++;
 
             token = scan_escape(token);
-            range.end = token.val.sym;
+            range.end = token.val.ch;
         } else {
             range.end = range.start;
         }
@@ -148,7 +148,7 @@ struct regex_token scan(struct regex_token token) {
             type = END_CLASS_T;
             token.in_class = false;
             ic++, ip++;
-        } else if (*ip == '\\' || is_symbol(*ip)) {
+        } else if (*ip == '\\') {
             token = scan_range(token);
             ip = token.input;
             ic = token.input_col;
@@ -226,7 +226,7 @@ struct regex_token scan(struct regex_token token) {
                     }
                     break;
                 default:
-                    if (*ip == '\\' || is_symbol(*ip)) {
+                    if (*ip == '\\') {
                         token = scan_escape(token);
                         type = token.type, ip = token.input, ic = token.input_col;
                     }
@@ -261,8 +261,8 @@ void token_lexeme(char *lbuf, struct regex_token token) {
 }
 
 static void print_token_val(struct regex_token token) {
-    if (token.type == SYMBOL_T) {
-        printf("%d ", token.val.sym);
+    if (token.type == CHAR_T) {
+        printf("%d ", token.val.ch);
     } else if (token.type == NUM_T) {
         printf("%d ", token.val.num);
     } else if (token.type == RANGE_T) {
@@ -373,10 +373,6 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
         str_for_sym(expected), str_for_sym(context->lookahead));
 
     return false;
-}
-
-int is_symbol(int c) {
-    return isprint(c);
 }
 
 enum regex_symbol lookahead(struct parse_context *context) {
@@ -497,7 +493,7 @@ char const *str_for_sym(enum regex_symbol type) {
         case ERROR:             return "ERROR";
 
         case EOF_T:             return "eof";
-        case SYMBOL_T:          return "a";
+        case CHAR_T:            return "a";
         case RANGE_T:           return "a-z";
         case NUM_T:             return "num";
         case TAG_T:             return "tag";
@@ -534,7 +530,7 @@ char const *str_for_sym(enum regex_symbol type) {
         case DO_CHAR_CLASS:     return "{char_class}";
         case DO_NEG_CLASS:      return "{neg_class}";
         case DO_DOTALL:         return "{dotall}";
-        case DO_SYMBOL:         return "{symbol}";
+        case DO_CHAR:           return "{char}";
         case DO_RANGES:         return "{ranges}";
         case DO_RANGE:          return "{range}";
         case DO_STAR:           return "{star}";
@@ -563,7 +559,7 @@ char const *str_for_prod(enum gram_production p) {
         case FACTOR_CLASS_P:        return "FACTOR_CLASS_P";
         case FACTOR_NEG_CLASS_P:    return "FACTOR_NEG_CLASS_P";
         case FACTOR_DOTALL_P:       return "FACTOR_DOTALL_P";
-        case FACTOR_SYMBOL_P:       return "FACTOR_SYMBOL_P";
+        case FACTOR_CHAR_P:         return "FACTOR_CHAR_P";
         case UNOPS_STAR_P:          return "UNOPS_STAR_P";
         case UNOPS_PLUS_P:          return "UNOPS_PLUS_P";
         case UNOPS_OPTIONAL_P:      return "UNOPS_OPTIONAL_P";

@@ -21,7 +21,7 @@ enum regex_symbol {
 
     // terminals
     EOF_T,
-    SYMBOL_T,
+    CHAR_T,
     RANGE_T,
     NUM_T,
     TAG_T,
@@ -60,7 +60,7 @@ enum regex_symbol {
     DO_CHAR_CLASS,
     DO_NEG_CLASS,
     DO_DOTALL,
-    DO_SYMBOL,
+    DO_CHAR,
     DO_RANGES,
     DO_RANGE,
     DO_STAR,
@@ -123,8 +123,8 @@ enum gram_production {
     FACTOR_NEG_CLASS_P,
     // factor = '.' { dotall } unops;
     FACTOR_DOTALL_P,
-    // factor = a { sym } unops;;
-    FACTOR_SYMBOL_P,
+    // factor = a { char } unops;;
+    FACTOR_CHAR_P,
 
     // unops = '*' { star } unops;
     UNOPS_STAR_P,
@@ -211,7 +211,6 @@ struct parse_context parse_context(
 void start_scanning(char *input, struct parse_context *context);
 bool peek(enum regex_symbol expected, struct parse_context *context);
 bool expect(enum regex_symbol expected, struct parse_context *context);
-int is_symbol(int c);
 enum regex_symbol lookahead(struct parse_context *context);
 union regex_result lookahead_val(struct parse_context *context);
 union regex_result tag_val(char *tag, struct parse_context *context);

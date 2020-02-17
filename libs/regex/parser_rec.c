@@ -111,9 +111,9 @@ bool parse_factor(struct parse_context *context) {
             do_action(DO_NEG_CLASS, NULLRVAL, context);
     } else if (peek(DOTALL_T, context)) {
         success = expect(DOTALL_T, context) && do_action(DO_DOTALL, NULLRVAL, context);
-    } else if (peek(SYMBOL_T, context)) {
-        union regex_result sym = lookahead_val(context);
-        success = expect(SYMBOL_T, context) && do_action(DO_SYMBOL, sym, context);
+    } else if (peek(CHAR_T, context)) {
+        union regex_result ch = lookahead_val(context);
+        success = expect(CHAR_T, context) && do_action(DO_CHAR, ch, context);
     }
 
     return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context);

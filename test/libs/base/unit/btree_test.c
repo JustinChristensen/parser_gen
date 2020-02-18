@@ -8,7 +8,7 @@
 #include <base/string.h>
 #include <base/random.h>
 #include <base/ord.h>
-#include "test_base.h"
+#include "suites.h"
 
 struct bin *node = NULL;
 

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <check.h>
 #include <base/args.h>
-#include "test_base.h"
+#include "suites.h"
 #include "btree_dot.h"
 
 enum command_key {

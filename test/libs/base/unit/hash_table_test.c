@@ -9,7 +9,7 @@
 #include <base/hash_table.h>
 #include <base/random.h>
 #include <base/macros.h>
-#include "test_base.h"
+#include "suites.h"
 
 struct hash_table *table = NULL;
 

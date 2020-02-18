@@ -6,7 +6,7 @@
 #include <check.h>
 #include <base/array.h>
 #include <base/macros.h>
-#include "test_base.h"
+#include "suites.h"
 
 struct array *arr = NULL;
 

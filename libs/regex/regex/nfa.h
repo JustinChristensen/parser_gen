@@ -48,7 +48,6 @@ struct nfa_context {
     struct tagged_nfa *tagged_nfas;
     struct nfa nfa;
     bool *current_class;
-    bool use_nonrec;
     bool has_error;
     struct regex_error error;
 };
@@ -74,7 +73,7 @@ struct nfa_state class_state(bool *char_class);
 struct nfa_state char_state(char ch);
 
 // nfa context
-bool nfa_context(struct regex_pattern const *patterns, bool use_nonrec, struct nfa_context *context);
+bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns);
 struct nfa_state *setst(struct nfa_state state, struct nfa_context *context);
 void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1);
 struct nfa_state **point(struct nfa machine, struct nfa_state *state);

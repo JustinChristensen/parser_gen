@@ -133,9 +133,8 @@ static struct nfa nullmach() {
     return (struct nfa) { NULL, NULL, NULL };
 }
 
-bool nfa_context(struct regex_pattern const *pat, bool use_nonrec, struct nfa_context *context) {
+bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
     *context = (struct nfa_context) {
-        .use_nonrec = use_nonrec,
         .nfa = nullmach(),
         .error = nullperr()
     };
@@ -332,7 +331,7 @@ static bool runnable(struct nfa machine) {
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     if (nfa_has_error(context)) return false;
 
-    struct parse_context pcontext = parse_context(context, nfa_pinterface, nfa_actions, context->use_nonrec);
+    struct parse_context pcontext = parse_context(context, nfa_pinterface, nfa_actions);
     struct nfa lastmach = gmachine(context);
 
     if (run_parser(pattern, &pcontext)) {

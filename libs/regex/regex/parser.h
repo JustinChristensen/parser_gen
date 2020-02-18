@@ -184,7 +184,6 @@ struct parse_context {
     enum regex_symbol lookahead;
     int lookahead_col;
     union regex_token_val lookahead_val;
-    bool use_nonrec;
     bool has_error;
     struct regex_error error;
 };
@@ -205,8 +204,7 @@ bool do_action(enum regex_symbol action, union regex_result val, struct parse_co
 struct parse_context parse_context(
     void *result,
     struct parse_interface pi,
-    bool (**actions)(union regex_result val, void *result),
-    bool use_nonrec
+    bool (**actions)(union regex_result val, void *result)
 );
 void start_scanning(char *input, struct parse_context *context);
 bool peek(enum regex_symbol expected, struct parse_context *context);

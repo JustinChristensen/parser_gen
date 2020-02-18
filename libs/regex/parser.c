@@ -311,8 +311,7 @@ bool do_action(enum regex_symbol action, union regex_result val, struct parse_co
 struct parse_context parse_context(
     void *result,
     struct parse_interface pi,
-    bool (**actions)(union regex_result val, void *result),
-    bool use_nonrec
+    bool (**actions)(union regex_result val, void *result)
 ) {
     assert(result != NULL);
     assert(actions != NULL);
@@ -322,8 +321,7 @@ struct parse_context parse_context(
         .pi = pi,
         .actions = actions,
         .has_error = false,
-        .error = nullperr(),
-        .use_nonrec = use_nonrec
+        .error = nullperr()
     };
 
     return context;

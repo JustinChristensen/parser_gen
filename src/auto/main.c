@@ -20,8 +20,7 @@ enum command_key {
 
 enum arg_key {
     FORMAT,
-    REGEX,
-    NONREC
+    REGEX
 };
 
 enum output_fmt {
@@ -35,7 +34,6 @@ struct args {
     enum command_key cmd;
     enum output_fmt output;
     char *regex;
-    bool nonrec;
     int posc;
     char **pos;
 };
@@ -66,9 +64,6 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
     while ((key = readarg(context)) != END) {
         switch (key) {
-            case NONREC:
-                args->nonrec = true;
-                break;
             case FORMAT:
                 switch (cmd) {
                     case PRINT:
@@ -108,7 +103,6 @@ static void debug_args(struct args args) {
     adebug("cmd: %s\n", cmd_str(args.cmd));
     adebug("output: %s\n", output_str(args.output));
     if (args.regex) adebug("regex: %s\n", args.regex);
-    adebug("nonrec: %s\n", args.nonrec ? "true" : "false");
     if (args.posc > 0) {
         adebug("posc: %d\n", args.posc);
         adebug("pos: ");
@@ -125,7 +119,6 @@ int main(int argc, char *argv[]) {
         .cmd = AUTO,
         .output = OUTPUT_TRIAL,
         .regex = NULL,
-        .nonrec = false,
         .posc = 0,
         .pos = NULL
     };
@@ -133,7 +126,6 @@ int main(int argc, char *argv[]) {
     struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, table, or tree" };
     struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
-    struct arg parse_nonrec_arg = { NONREC, "nonrec", 0, no_argument, "Use the non-recursive parser instead" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         AUTO,
@@ -148,7 +140,6 @@ int main(int argc, char *argv[]) {
                 "print",
                 ARGS {
                     print_fmt_arg,
-                    parse_nonrec_arg,
                     help_and_version_args,
                     regex_arg,
                     END_ARGS
@@ -161,7 +152,6 @@ int main(int argc, char *argv[]) {
                 "nfa",
                 ARGS {
                     nfa_fmt_arg,
-                    parse_nonrec_arg,
                     help_and_version_args,
                     regex_arg,
                     END_ARGS
@@ -191,7 +181,7 @@ int main(int argc, char *argv[]) {
         struct expr exprbuf[EXPR_MAX];
         struct expr_context econtext = expr_context(exprbuf);
         char *regex = args.regex ? args.regex : "(a|b)*abbc?";
-        struct parse_context pcontext = parse_context(&econtext, expr_pinterface, expr_actions, args.nonrec);
+        struct parse_context pcontext = parse_context(&econtext, expr_pinterface, expr_actions);
 
         if (run_parser(regex, &pcontext)) {
             struct expr *expr = gexpr(&econtext);
@@ -214,7 +204,7 @@ int main(int argc, char *argv[]) {
     } else if (args.cmd == NFA) {
         struct nfa_context ncontext;
 
-        if (!nfa_context(NULL, args.nonrec, &ncontext)) {
+        if (!nfa_context(&ncontext, NULL)) {
             fprintf(stderr, "could not allocate an nfa context\n");
             return EXIT_FAILURE;
         }

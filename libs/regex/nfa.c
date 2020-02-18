@@ -506,7 +506,9 @@ struct regex_loc nfa_match_loc(struct nfa_match *match) {
 }
 
 void nfa_match_lexeme(char *lexeme, struct nfa_match *match) {
-    strncpy(lexeme, match->match_start, match->input - match->match_start);
+    size_t len = match->input - match->match_start;
+    strncpy(lexeme, match->match_start, len);
+    lexeme[len] = '\0';
 }
 
 void free_nfa_match(struct nfa_match *match) {
@@ -530,8 +532,6 @@ int nfa_match(struct nfa_match *match) {
     struct regex_loc input_loc = match->input_loc;
     struct nfa_state **cstates, **csp, **nstates, **nsp;
 
-    if (*input == '\0') return REJECTED;
-
     int retsym = REJECTED;
 
     match->match_start = input;
@@ -542,7 +542,12 @@ int nfa_match(struct nfa_match *match) {
 
     csp = eps_closure(&retsym, csp, already_on, mach.start);
 
-    ndebug("nfa simulation\n");
+    if (*input == '\0') return REJECTED;
+
+    retsym = REJECTED;
+
+    ndebug("simulation\n");
+    ndebug("remaining input: %s\n", input);
     debug_nfa_states(cstates, csp);
     struct nfa_state **t = NULL;
     char c;

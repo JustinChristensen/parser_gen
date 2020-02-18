@@ -166,6 +166,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
         *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
         *results = init_array(sizeof(union regex_result), PARSE_STACK_SIZE, 0, 0);
     enum regex_symbol ssym;
+    char tagbuf[BUFSIZ] = "";
 
     start_scanning(regex, context);
     push_sym(REGEX_NT, stack);
@@ -179,6 +180,9 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
             if (peek(ssym, context)) {
                 if (ssym == CHAR_T || ssym == RANGE_T || ssym == NUM_T)
                     push_result(lookahead_val(context), results);
+                else if (ssym == TAG_T) {
+                    push_result(tag_val(tagbuf, context), results);
+                }
 
                 expect(ssym, context);
                 apop(&ssym, stack);
@@ -197,6 +201,7 @@ bool parse_regex_nonrec(char *regex, struct parse_context *context) {
                 case DO_RANGES:
                 case DO_RANGE:
                 case DO_CHAR_CLASS:
+                case DO_TAG:
                 case DO_REPEAT_EXACT:
                     apop(&val, results);
                     break;

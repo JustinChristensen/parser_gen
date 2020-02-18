@@ -136,7 +136,8 @@ static struct nfa nullmach() {
 bool nfa_context(struct regex_pattern const *pat, bool use_nonrec, struct nfa_context *context) {
     *context = (struct nfa_context) {
         .use_nonrec = use_nonrec,
-        .nfa = nullmach()
+        .nfa = nullmach(),
+        .error = nullperr()
     };
 
     if ((context->state_pool = state_pool())) {
@@ -542,13 +543,12 @@ int nfa_match(struct nfa_match *match) {
 
     csp = eps_closure(&retsym, csp, already_on, mach.start);
 
-    if (*input == '\0') return REJECTED;
-
-    retsym = REJECTED;
-
     ndebug("simulation\n");
     ndebug("remaining input: %s\n", input);
     debug_nfa_states(cstates, csp);
+
+    if (*input == '\0') return retsym;
+
     struct nfa_state **t = NULL;
     char c;
     while ((csp != cstates) && (c = *input++) != '\0') {
@@ -732,7 +732,11 @@ bool tag_machine(char *tag, struct nfa_context *context) {
 bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
 
 bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
-    struct tagged_nfa *tnfa = find_machine(tag.tag, context);
+    static char permatag[BUFSIZ] = "";
+
+    strcpy(permatag, tag.tag);
+
+    struct tagged_nfa *tnfa = find_machine(permatag, context);
 
     if (tnfa) {
         clone_machine(tnfa->nfa, context);
@@ -740,7 +744,7 @@ bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
     }
 
     context->has_error = true;
-    context->error = missing_tag_error(tag.tag);
+    context->error = missing_tag_error(permatag);
 
     return false;
 }

@@ -250,7 +250,9 @@ int token_col(struct regex_token token) {
 }
 
 void token_lexeme(char *lbuf, struct regex_token token) {
-    strncpy(lbuf, token.lexeme, token.input - token.lexeme);
+    size_t lsize = token.input - token.lexeme;
+    strncpy(lbuf, token.lexeme, lsize);
+    lbuf[lsize] = '\0';
 }
 
 static void print_token_val(struct regex_token token) {
@@ -298,8 +300,8 @@ bool do_action(enum regex_symbol action, union regex_result val, struct parse_co
     pdebug("doing action: %s\n", str_for_sym(action));
 
     if (!(*context->actions[AI(action)])(val, context->result)) {
-        context->has_error = result_has_error(context->result);
-        context->error = result_error(context->result);
+        context->has_error = result_has_error(context);
+        context->error = result_error(context);
         return false;
     }
 

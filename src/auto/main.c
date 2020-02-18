@@ -223,18 +223,23 @@ int main(int argc, char *argv[]) {
         if (args.regex) {
             success = nfa_regex(35, NULL, args.regex, &ncontext);
         } else {
+#define EOEOF (1)
             success =
-                nfa_regex(1, "if", "if", &ncontext) &&
-                nfa_regex(2, "else", "else", &ncontext) &&
-                nfa_regex(3, "for", "for", &ncontext) &&
-                nfa_regex(4, "while", "while", &ncontext) &&
-                nfa_regex(5, "do", "do", &ncontext) &&
-                nfa_regex(6, NULL, "[ \n]", &ncontext);
-                nfa_regex(7, NULL, "a*", &ncontext);
+                nfa_regex(-1, "alpha", "[A-Za-z_]", &ncontext) &&
+                nfa_regex(-1, "alnum", "[0-9A-Za-z_]", &ncontext) &&
+                nfa_regex(EOEOF, NULL, "", &ncontext) &&
+                nfa_regex(2, "if", "if", &ncontext) &&
+                nfa_regex(3, "else", "else", &ncontext) &&
+                nfa_regex(4, "for", "for", &ncontext) &&
+                nfa_regex(5, "while", "while", &ncontext) &&
+                nfa_regex(6, "do", "do", &ncontext) &&
+                nfa_regex(7, NULL, "[ \t\n]", &ncontext) &&
+                nfa_regex(8, NULL, "{alpha}{alnum}*", &ncontext);
         }
 
         if (!success) {
             print_regex_error(nfa_error(&ncontext));
+            free_nfa_context(&ncontext);
             return EXIT_FAILURE;
         }
 
@@ -266,6 +271,11 @@ int main(int argc, char *argv[]) {
                         int sym = 0;
 
                         while ((sym = nfa_match(&match))) {
+                            if (sym == EOEOF) {
+                                printf("eof reached\n");
+                                break;
+                            }
+
                             nfa_match_lexeme(matchbuf, &match);
                             printf("%s at ", matchbuf);
                             regex_print_loc(stdout, nfa_match_loc(&match));

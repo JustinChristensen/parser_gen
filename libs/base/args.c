@@ -194,6 +194,7 @@ void print_usage(FILE *handle, struct args_context *context) {
     fprintf(handle, " [options]\n\n");
     fprintf(handle, "%s\n\n", cmd->desc);
 
+    // subcommands
     if (sub) {
         fprintf(handle, "subcommands:\n");
 
@@ -205,30 +206,45 @@ void print_usage(FILE *handle, struct args_context *context) {
         fprintf(handle, "\n");
     }
 
-    fprintf(handle, "options:\n");
+    // arguments
     struct arg *arg = cmd->args;
-    while (arg->key != END) {
-        char flag[128] = "";
-        char *f = flag;
+    if (arg) {
+        fprintf(handle, "options:\n");
+        while (arg->key != END) {
+            char flag[128] = "";
+            char *f = flag;
 
-        if (arg->sname) {
-            *f++ = '-';
-            *f++ = arg->sname;
-            if (arg->lname) *f++ = ',';
+            if (arg->sname) {
+                *f++ = '-';
+                *f++ = arg->sname;
+                if (arg->lname) *f++ = ',';
+            }
+
+            if (arg->lname) {
+                *f++ = '-';
+                *f++ = '-';
+                strcpy(f, arg->lname);
+            }
+
+            fprintf(handle, ARG_HELP_FMT, flag, arg->desc);
+            fprintf(handle, "\n");
+            arg++;
         }
 
-        if (arg->lname) {
-            *f++ = '-';
-            *f++ = '-';
-            strcpy(f, arg->lname);
-        }
-
-        fprintf(handle, ARG_HELP_FMT, flag, arg->desc);
         fprintf(handle, "\n");
-        arg++;
     }
 
-    fprintf(handle, "\n");
+    struct env_var *var = cmd->vars;
+    if (var) {
+        fprintf(handle, "environment variables:\n");
+        while (var->name != NULL) {
+            fprintf(handle, VAR_HELP_FMT, var->name, var->desc);
+            fprintf(handle, "\n");
+            var++;
+        }
+
+        fprintf(handle, "\n");
+    }
 }
 
 void print_version(struct args_context *context) {

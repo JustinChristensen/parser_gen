@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
             END_ARGS
         },
         NULL,
+        NULL,
         "Generate a parser"
     });
 

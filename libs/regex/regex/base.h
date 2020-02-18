@@ -27,7 +27,9 @@ static struct regex_pattern const NULL_PATTERN = { 0, NULL, NULL };
 #define END_PATTERNS NULL_PATTERN
 
 #define RE_ALPHA(sym)        { sym, "alpha",        "[A-Za-z]"      }
+#define RE_ALPHA_(sym)       { sym, "alpha_",       "[A-Za-z_]"     }
 #define RE_ALNUM(sym)        { sym, "alnum",        "[0-9A-Za-z]"   }
+#define RE_ALNUM_(sym)       { sym, "alnum_",       "[0-9A-Za-z_]"   }
 #define RE_SPACE(sym)        { sym, "space",        "[\t\n\v\f\r ]" }
 #define RE_LINE_COMMENT(sym) { sym, "line_comment", "\/\/[^\n]\n"   }
 #define RE_REGEX(sym)        { sym, "regex",        "\/[^\/]\/"     }

@@ -127,12 +127,19 @@ int main(int argc, char *argv[]) {
     struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
 
+    struct env_var debug_var = { "DEBUG", "Print debug output" };
+    struct env_var nonrec_var = { "USE_NONREC", "Use the non-recursive parser" };
+
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         AUTO,
         NULL,
         ARGS {
             help_and_version_args,
             END_ARGS
+        },
+        ENV_VARS {
+            debug_var,
+            END_ENV_VARS
         },
         CMDS {
             {
@@ -143,6 +150,11 @@ int main(int argc, char *argv[]) {
                     help_and_version_args,
                     regex_arg,
                     END_ARGS
+                },
+                ENV_VARS {
+                    debug_var,
+                    nonrec_var,
+                    END_ENV_VARS
                 },
                 NULL,
                 "Print the syntax tree for each regular expression"
@@ -156,6 +168,11 @@ int main(int argc, char *argv[]) {
                     regex_arg,
                     END_ARGS
                 },
+                ENV_VARS {
+                    debug_var,
+                    nonrec_var,
+                    END_ENV_VARS
+                },
                 NULL,
                 "Construct and simulate an NFA"
             },
@@ -166,6 +183,10 @@ int main(int argc, char *argv[]) {
                     help_and_version_args,
                     regex_arg,
                     END_ARGS
+                },
+                ENV_VARS {
+                    debug_var,
+                    END_ENV_VARS
                 },
                 NULL,
                 "Run the scanner standalone"

@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
             END_ARGS
         },
         NULL,
+        NULL,
         "Run the test suite"
     });
 

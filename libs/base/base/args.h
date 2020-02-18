@@ -15,6 +15,10 @@
 #define ARG_HELP_FMT "  %-24s  %s"
 #endif
 
+#ifndef VAR_HELP_FMT
+#define VAR_HELP_FMT "  %-24s  %s"
+#endif
+
 #ifndef OPTIONS_SIZE
 #define OPTIONS_SIZE 128
 #endif
@@ -31,10 +35,16 @@ struct arg {
     char *desc;
 };
 
+struct env_var {
+    char *name;
+    char *desc;
+};
+
 struct cmd {
     int key;
     char *cmd;
     struct arg *args;
+    struct env_var *vars;
     struct cmd *subcmds;
     char *desc;
 };
@@ -76,12 +86,14 @@ enum {
 #define CMD &(struct cmd)
 #define CMDS (struct cmd[])
 #define ARGS (struct arg[])
+#define ENV_VARS (struct env_var[])
 
 struct arg help_arg = { HELP, "help", 0, no_argument, "Print help" };
 struct arg version_arg = { VERSION, "version", 0, no_argument, "Print version" };
 #define help_and_version_args help_arg, version_arg
 const struct arg END_ARGS = { END, NULL, 0, no_argument, NULL };
 const struct cmd END_CMDS = { END, NULL, 0, NULL, NULL };
+const struct env_var END_ENV_VARS = { NULL, NULL };
 
 void run_args(
     void *out_val,

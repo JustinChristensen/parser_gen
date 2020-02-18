@@ -38,6 +38,11 @@ int main(int argc, char *argv[])
             help_and_version_args,
             END_ARGS
         },
+        ENV_VARS {
+            { "MAX_INSERTS", "The max number of inserts to perform while running a randomized test" },
+            { "RUN_DIAGNOSTICS", "Print data structures and statistics while running tests" },
+            END_ENV_VARS
+        },
         CMDS {
              {
                 BTREE,
@@ -45,6 +50,12 @@ int main(int argc, char *argv[])
                 ARGS {
                     help_and_version_args,
                     END_ARGS
+                },
+                ENV_VARS {
+                    { "WITH_NILS", "Print the nil (black) nodes" },
+                    { "SIZE", "Generate a random tree with SIZE nodes in ascending order" },
+                    { "RANDOM", "Randomize the key order" },
+                    END_ENV_VARS
                 },
                 NULL,
                 "Print dot for a randomly generated red-black tree"

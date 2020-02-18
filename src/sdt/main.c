@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
             fmt_arg,
             END_ARGS
         },
+        NULL,
         CMDS {
             {
                 GENERATE,
@@ -103,6 +104,7 @@ int main(int argc, char *argv[]) {
                     fmt_arg,
                     END_ARGS
                 },
+                NULL,
                 NULL,
                 "Generate source"
             },

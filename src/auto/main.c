@@ -212,22 +212,35 @@ int main(int argc, char *argv[]) {
 
         free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
-        struct nfa_context ncontext = nfa_context(NULL, args.nonrec);
+        struct nfa_context ncontext;
 
-        if (args.regex) {
-            nfa_regex(35, NULL, args.regex, &ncontext);
-        } else {
-            nfa_regex(1, NULL, "if", &ncontext);
-            // nfa_regex(2, NULL, "else", &ncontext);
-            // nfa_regex(3, NULL, "for", &ncontext);
-            // nfa_regex(4, NULL, "while", &ncontext);
-            // nfa_regex(5, NULL, "do", &ncontext);
+        if (!nfa_context(NULL, args.nonrec, &ncontext)) {
+            fprintf(stderr, "could not allocate an nfa context\n");
+            return EXIT_FAILURE;
         }
 
-        struct nfa mach = gmachine(&ncontext);
+        bool success = true;
+        if (args.regex) {
+            success = nfa_regex(35, NULL, args.regex, &ncontext);
+        } else {
+            success =
+                nfa_regex(1, "if", "if", &ncontext) &&
+                nfa_regex(2, "else", "else", &ncontext) &&
+                nfa_regex(3, "for", "for", &ncontext) &&
+                nfa_regex(4, "while", "while", &ncontext) &&
+                nfa_regex(5, "do", "do", &ncontext) &&
+                nfa_regex(6, NULL, "[ \n]", &ncontext);
+                nfa_regex(7, NULL, "a*", &ncontext);
+        }
+
+        if (!success) {
+            print_regex_error(nfa_error(&ncontext));
+            return EXIT_FAILURE;
+        }
 
         if (!nfa_has_error(&ncontext)) {
             if (args.output == OUTPUT_DOT) {
+                struct nfa mach = gmachine(&ncontext);
                 nfa_to_graph(mach.start, ncontext.num_states);
             } else {
                 FILE *in = NULL;
@@ -241,21 +254,26 @@ int main(int argc, char *argv[]) {
                 }
 
                 if (in) {
-                    char buf[BUFSIZ];
-                    char matchbuf[BUFSIZ];
+                    char buf[BUFSIZ] = "";
+                    char matchbuf[BUFSIZ] = "";
 
                     while (fgets(buf, BUFSIZ, in)) {
                         buf[strlen(buf) - 1] = '\0';
 
-                        struct nfa_match match = nfa_match_state(buf, &ncontext);
+                        struct nfa_match match;
 
-                        // while ((sym = nfa_match(&match))) {
-                        int sym = nfa_match(&match);
-                        nfa_match_lexeme(matchbuf, &match);
-                        printf("%s at ", matchbuf);
-                        regex_print_loc(stdout, nfa_match_loc(&match));
-                        printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
-                        // }
+                        if (nfa_match_state(&match, buf, &ncontext)) {
+                            int sym = 0;
+
+                            while ((sym = nfa_match(&match))) {
+                                nfa_match_lexeme(matchbuf, &match);
+                                printf("%s at ", matchbuf);
+                                regex_print_loc(stdout, nfa_match_loc(&match));
+                                printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
+                            }
+
+                            free_nfa_match(&match);
+                        }
                     }
 
                     fclose(in);

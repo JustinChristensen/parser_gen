@@ -15,7 +15,7 @@
 #define FIRST (enum regex_symbol[])
 static enum regex_symbol const * const first_sets[] = {
     [EOF_T] =         FIRST { EOF_T, 0 },
-    [CHAR_T] =      FIRST { CHAR_T, 0 },
+    [CHAR_T] =        FIRST { CHAR_T, 0 },
     [RANGE_T] =       FIRST { RANGE_T, 0 },
     [NUM_T] =         FIRST { NUM_T, 0 },
     [TAG_T] =         FIRST { TAG_T, 0 },
@@ -86,17 +86,14 @@ static struct regex_token scan_escape(struct regex_token token) {
         }
     }
 
-    if (ch) {
-        type = CHAR_T;
-    } else {
-        type = CHAR_T;
-        ch = *ip;
-    }
+    type = CHAR_T;
+    if (!ch) ch = *ip;
+    ip++, ic++;
 
     token.val.ch = ch;
     token.type = type;
-    token.input = ++ip;
-    token.input_col = ++ic;
+    token.input = ip;
+    token.input_col = ic;
 
     return token;
 }
@@ -148,13 +145,11 @@ struct regex_token scan(struct regex_token token) {
             type = END_CLASS_T;
             token.in_class = false;
             ic++, ip++;
-        } else if (*ip == '\\') {
+        } else {
             token = scan_range(token);
             ip = token.input;
             ic = token.input_col;
             type = token.type;
-        } else {
-            ic++, ip++;
         }
     } else if (token.in_braces) {
         if (*ip == '}') {
@@ -226,10 +221,8 @@ struct regex_token scan(struct regex_token token) {
                     }
                     break;
                 default:
-                    if (*ip == '\\') {
-                        token = scan_escape(token);
-                        type = token.type, ip = token.input, ic = token.input_col;
-                    }
+                    token = scan_escape(token);
+                    type = token.type, ip = token.input, ic = token.input_col;
                     break;
             }
         }

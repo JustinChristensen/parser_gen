@@ -105,9 +105,9 @@ void print_expr(struct expr *expr) {
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
-                case SYMBOL_EXPR:
+                case CHAR_EXPR:
                     indent(indent_level);
-                    printf("%c", expr->symbol);
+                    printf("%c", expr->ch);
                     break;
                 case TAG_EXPR:
                     indent(indent_level);
@@ -169,8 +169,8 @@ void print_expr_table(struct expr *start, struct expr *end) {
             case TAG_EXPR:
                 printf("{%s}", start->tag);
                 break;
-            case SYMBOL_EXPR:
-                printf("%c", start->symbol);
+            case CHAR_EXPR:
+                printf("%c", start->ch);
                 break;
         }
 

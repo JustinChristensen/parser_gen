@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
-#include <base/list.h>
 #include <base/debug.h>
 #include <base/string.h>
 #include "regex/nfa.h"
@@ -54,7 +53,7 @@ static void debug_state(struct nfa_state *state) {
     debug_("(%d, ", state->id);
     switch (state->type) {
         case ACCEPTING_STATE:
-            debug_("accept");
+            debug_("accept, %d", state->sym);
             break;
         case EPSILON_STATE:
             debug_("eps, %p", state->next);
@@ -72,23 +71,18 @@ static void debug_state(struct nfa_state *state) {
         case CHAR_STATE:
             debug_("char, %p, %c", state->next, state->ch);
             break;
-        case SYMBOL_STATE:
-            debug_("symbol, %p, %d", state->next, state->sym);
-            break;
     }
     debug_(")");
 }
 
-static void debug_nfa_states(struct list *cstates) {
-    struct node *node;
-
-    if (!empty(cstates)) {
+static void debug_nfa_states(struct nfa_state **states, struct nfa_state **sp) {
+    if (sp != states) {
+        struct nfa_state *state = *--sp;
         ndebug("{");
-        node = head(cstates);
-        debug_state(value(node));
-        for (node = node->next; node; node = node->next) {
+        debug_state(state);
+        while (sp != states && (state = *--sp)) {
             debug_(", ");
-            debug_state(value(node));
+            debug_state(state);
         }
         debug_("}");
     } else {
@@ -135,33 +129,36 @@ static struct nfa_state_pool *next_state_pool(struct nfa_state_pool *prev) {
     return prev->next;
 }
 
-struct nfa_context nfa_context(struct regex_pattern const *pat, bool use_nonrec) {
-    struct nfa_context context = { .use_nonrec = use_nonrec };
+static struct nfa nullmach() {
+    return (struct nfa) { NULL, NULL, NULL };
+}
 
-    if ((context.state_pool = state_pool())) {
-        context.state_pools = context.state_pool;
+bool nfa_context(struct regex_pattern const *pat, bool use_nonrec, struct nfa_context *context) {
+    *context = (struct nfa_context) {
+        .use_nonrec = use_nonrec,
+        .nfa = nullmach()
+    };
 
+    if ((context->state_pool = state_pool())) {
+        context->state_pools = context->state_pool;
+
+        bool success = true;
         if (pat) {
-            while (!is_null_pattern(pat)) {
-                nfa_regex(pat->sym, pat->tag, pat->pattern, &context);
+            while (!is_null_pattern(pat) && success) {
+                success = nfa_regex(pat->sym, pat->tag, pat->pattern, context);
                 pat++;
             }
         }
-    } else
-        nfa_oom(&context);
 
-    return context;
+        return success;
+    }
+
+    return false;
 }
 
-struct nfa_state accepting_state() {
+struct nfa_state accepting_state(int sym) {
     return (struct nfa_state) {
-        .type = ACCEPTING_STATE
-    };
-}
-
-struct nfa_state symbol_state(int sym) {
-    return (struct nfa_state) {
-        .type = SYMBOL_STATE,
+        .type = ACCEPTING_STATE,
         .sym = sym
     };
 }
@@ -256,11 +253,6 @@ union regex_result nfa_to_result(struct nfa_context *context) {
     return (union regex_result) { .mach = gmachine(context) };
 }
 
-struct nfa symbol_machine(int sym, struct nfa machine, struct nfa_context *context) {
-    machine.end = point(machine, setst(symbol_state(sym), context));
-    return machine;
-}
-
 struct nfa empty_machine(struct nfa_context *context) {
     struct nfa machine;
     machine.start = setst(epsilon_state(NULL), context);
@@ -325,38 +317,37 @@ struct nfa closure_machine(struct nfa inner, struct nfa_context *context) {
     return optional_machine(posclosure_machine(inner, context), context);
 }
 
+static void link_machines(struct nfa left, struct nfa right, struct nfa_context *context) {
+    struct nfa machine;
+    machine.start = setst(branch_state(left.start, right.start), context);
+    machine.end = machine.end1 = NULL;
+    smachine(machine, context);
+}
+
+static bool runnable(struct nfa machine) {
+    return machine.start != NULL;
+}
+
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     if (nfa_has_error(context)) return false;
 
     struct parse_context pcontext = parse_context(context, nfa_pinterface, nfa_actions, context->use_nonrec);
     struct nfa lastmach = gmachine(context);
-    struct nfa_state *accstate = context->accstate;
 
     if (run_parser(pattern, &pcontext)) {
-        if (tag) {
-            if ((tag = strdup(tag))) {
-                debug_state_table(context->state_pools);
-                debug_nfa(gmachine(context));
-                if (!tag_machine(tag, context)) return false;
-            } else {
-                nfa_oom(context);
-                return false;
-            }
-        }
+        struct nfa nextmach = gmachine(context);
+
+        if (tag && !tag_machine(tag, context)) return false;
 
         if (sym != TAG_ONLY) {
-            do_symbol_nfa(sym, context);
-
-            if (accstate) {
-                do_alt_nfa((union regex_result) { .mach = lastmach }, context);
-            } else {
-                context->accstate = setst(accepting_state(), context);
-            }
-
-            point(gmachine(context), context->accstate);
+            point(nextmach, setst(accepting_state(sym), context));
+            if (runnable(lastmach))
+                link_machines(lastmach, nextmach, context);
         } else {
             smachine(lastmach, context);
         }
+
+        debug_state_table(context->state_pools);
     } else {
         context->has_error = pcontext.has_error;
         context->error = pcontext.error;
@@ -422,30 +413,35 @@ void free_nfa_context(struct nfa_context *context) {
     free_tagged_nfas(context);
 }
 
-void eps_closure(int *foundsym, struct list *nstates, struct nfa_state *state, bool *already_on) {
-    if (already_on[state->id]) return;
+struct nfa_state **eps_closure(
+    int *foundsym,
+    struct nfa_state **nsp,
+    bool *already_on,
+    struct nfa_state *state
+) {
+    if (already_on[state->id]) return nsp;
 
-    push(nstates, state);
+    *nsp++ = state;
     already_on[state->id] = true;
 
     switch (state->type) {
         case EPSILON_STATE:
-            eps_closure(nstates, state->next, already_on);
-            break;
-        case SYMBOL_STATE:
-            *foundsym = state->sym;
-            eps_closure(nstates, state->next, already_on);
+            nsp = eps_closure(foundsym, nsp, already_on, state->next);
             break;
         case BRANCH_STATE:
-            eps_closure(nstates, state->left, already_on);
-            eps_closure(nstates, state->right, already_on);
+            nsp = eps_closure(foundsym, nsp, already_on, state->left);
+            nsp = eps_closure(foundsym, nsp, already_on, state->right);
             break;
         case ACCEPTING_STATE:
+            if (!*foundsym) *foundsym = state->sym;
+            break;
         case DOTALL_STATE:
         case CLASS_STATE:
         case CHAR_STATE:
             break;
     }
+
+    return nsp;
 }
 
 // Char -> State -> Bool
@@ -463,41 +459,46 @@ static bool matches_state(unsigned char c, struct nfa_state *state) {
     }
 }
 
-void move(int *foundsym, struct list *nstates, struct list *cstates, char c, bool *already_on) {
-    struct node *node;
-    struct nfa_state *state;
-    while ((node = pop(cstates)) && (state = value(node))) {
-        if (matches_state(c, state)) {
-            eps_closure(foundsym, nstates, state->next, already_on);
-        }
+struct nfa_state **move(
+    int *foundsym,
+    struct nfa_state **nsp,
+    struct nfa_state **cstates,
+    struct nfa_state **csp,
+    bool *already_on,
+    char c
+) {
+    struct nfa_state *state = NULL;
 
-        free_node(node, NULL);
+    while (csp != cstates && (state = *--csp)) {
+        if (matches_state(c, state)) {
+            nsp = eps_closure(foundsym, nsp, already_on, state->next);
+        }
     }
+
+    return nsp;
 }
 
-bool accepts(struct list *cstates, struct nfa_state *accept) {
-    struct node *node, *next;
-    struct nfa_state *state;
+bool nfa_match_state(struct nfa_match *match, char *input, struct nfa_context *context) {
+    int num_states = context->num_states;
+    bool *already_on = calloc(num_states, sizeof *already_on);
+    struct nfa_state **cstates = calloc(num_states, sizeof *cstates),
+                     **nstates = calloc(num_states, sizeof *nstates);
 
-    for (node = head(cstates); node; node = next) {
-        state = value(node);
+    if (already_on && cstates && nstates) {
+        *match = (struct nfa_match) {
+            .mach = gmachine(context),
+            .num_states = num_states,
+            .already_on = already_on,
+            .currstates = cstates,
+            .nextstates = nstates,
+            .input = input,
+            .input_loc = regex_loc(1, 1)
+        };
 
-        if (state == accept) {
-            return true;
-        }
-
-        next = node->next;
+        return true;
     }
 
     return false;
-}
-
-struct nfa_match nfa_match_state(char *input, struct nfa_context *context) {
-    return (struct nfa_match) {
-        .context = context,
-        .input = input,
-        .input_loc = regex_loc(0, 0)
-    };
 }
 
 struct regex_loc nfa_match_loc(struct nfa_match *match) {
@@ -508,34 +509,46 @@ void nfa_match_lexeme(char *lexeme, struct nfa_match *match) {
     strncpy(lexeme, match->match_start, match->input - match->match_start);
 }
 
+void free_nfa_match(struct nfa_match *match) {
+    free(match->currstates);
+    free(match->nextstates);
+    match->currstates = match->nextstates = NULL;
+    free(match->already_on);
+    match->already_on = NULL;
+}
+
 int nfa_match(struct nfa_match *match) {
     assert(match != NULL);
+    struct nfa mach = match->mach;
 
-    struct nfa_context *context = match->context;
-    struct nfa nfa = context->nfa;
-    struct nfa_state *accstate = context->accstate;
-    int foundsym = 0;
+    if (!runnable(mach)) return REJECTED;
 
-    // bail early if there's no accepting state
-    if (!accstate) return foundsym;
-
-    size_t num_states = context->num_states;
-    bool *already_on = calloc(num_states, sizeof *already_on);
-    struct list *cstates = init_list();
-    struct list *nstates = init_list();
+    // bail early if the machine isn't runnable
+    size_t num_states = match->num_states;
+    bool *already_on = match->already_on;
     char *input = match->input;
     struct regex_loc input_loc = match->input_loc;
+    struct nfa_state **cstates, **csp, **nstates, **nsp;
+
+    if (*input == '\0') return REJECTED;
+
+    int retsym = REJECTED;
 
     match->match_start = input;
     match->match_loc = input_loc;
 
-    eps_closure(cstates, nfa.start, already_on);
+    cstates = csp = match->currstates;
+    nstates = nsp = match->nextstates;
+
+    csp = eps_closure(&retsym, csp, already_on, mach.start);
 
     ndebug("nfa simulation\n");
-    debug_nfa_states(cstates);
+    debug_nfa_states(cstates, csp);
+    struct nfa_state **t = NULL;
     char c;
-    struct list *t;
-    while (!empty(cstates) && (c = *input++) != '\0') {
+    while ((csp != cstates) && (c = *input++) != '\0') {
+        memset(already_on, false, num_states);
+
         if (c == '\n') {
             input_loc.line++;
             input_loc.col = 1;
@@ -543,25 +556,30 @@ int nfa_match(struct nfa_match *match) {
             input_loc.col++;
         }
 
-        memset(already_on, false, num_states);
-        move(nstates, cstates, c, already_on);
+        int foundsym = REJECTED;
+
+        // compute the set of next states from the current states
+        nsp = move(&foundsym, nsp, cstates, csp, already_on, c);
+
+        // make the next states the current states
+        csp = nsp;
         t = cstates;
         cstates = nstates;
         nstates = t;
-        debug_nfa_states(cstates);
+        nsp = nstates;
+
+        debug_nfa_states(cstates, csp);
+
+        if (foundsym) {
+            retsym = foundsym;
+            match->input = input;
+            match->input_loc = input_loc;
+        }
     }
 
-    match->input = input;
-    match->input_loc = input_loc;
+    memset(already_on, false, num_states);
 
-    if (accepts(cstates, accstate))
-        foundsym = accstate->sym;
-
-    free(already_on);
-    free_list(nstates, NULL);
-    free_list(cstates, NULL);
-
-    return foundsym;
+    return retsym;
 }
 
 static void add_pointer(struct nfa *mach, struct nfa_state **end) {
@@ -687,7 +705,10 @@ bool tag_machine(char *tag, struct nfa_context *context) {
         return true;
     }
 
-    if ((tnfa = malloc(sizeof *tnfa)) == NULL) {
+    tnfa = malloc(sizeof *tnfa);
+    tag = strdup(tag);
+
+    if (!tnfa || !tag) {
         nfa_oom(context);
         return false;
     }
@@ -700,11 +721,6 @@ bool tag_machine(char *tag, struct nfa_context *context) {
     if (last) last->next = tnfa;
     else      context->tagged_nfas = tnfa;
 
-    return true;
-}
-
-bool do_symbol_nfa(int sym, struct nfa_context *context) {
-    smachine(symbol_machine(sym, gmachine(context), context), context);
     return true;
 }
 

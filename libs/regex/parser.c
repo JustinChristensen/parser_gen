@@ -409,6 +409,12 @@ struct regex_error missing_tag_error(char *tag) {
     };
 }
 
+struct regex_error tag_exists_error(char *tag) {
+    return (struct regex_error) {
+        .type = TAG_EXISTS,
+        .tag = tag
+    };
+}
 
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context) {
     if (!context->has_error) {
@@ -417,24 +423,6 @@ bool set_syntax_error(enum regex_symbol expected, struct parse_context *context)
         context->error = syntax_error(context->lookahead, context->lookahead_col, expected);
     }
 
-    return false;
-}
-
-bool set_oom_error(struct parse_context *context) {
-    context->has_error = true;
-    context->error = oom_error();
-    return false;
-}
-
-bool set_repeat_zero_error(struct parse_context *context) {
-    context->has_error = true;
-    context->error = repeat_zero_error();
-    return false;
-}
-
-bool set_missing_tag_error(char *tag, struct parse_context *context) {
-    context->has_error = true;
-    context->error = missing_tag_error(tag);
     return false;
 }
 
@@ -462,6 +450,9 @@ void print_regex_error(struct regex_error error) {
             break;
         case MISSING_TAG:
             fprintf(stderr, MISSING_TAG_FMT_STRING, error.tag);
+            break;
+        case TAG_EXISTS:
+            fprintf(stderr, TAG_EXISTS_FMT_STRING, error.tag);
             break;
         case REPEAT_ZERO:
             fprintf(stderr, REPEAT_ZERO_FMT_STRING);

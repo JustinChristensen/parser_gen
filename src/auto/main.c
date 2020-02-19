@@ -133,61 +133,27 @@ int main(int argc, char *argv[]) {
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         AUTO,
         NULL,
-        ARGS {
-            help_and_version_args,
-            END_ARGS
-        },
-        ENV_VARS {
-            debug_var,
-            END_ENV_VARS
-        },
+        ARGS { help_and_version_args, END_ARGS },
+        ENV_VARS { debug_var, END_ENV_VARS },
         CMDS {
             {
-                PRINT,
-                "print",
-                ARGS {
-                    print_fmt_arg,
-                    help_and_version_args,
-                    regex_arg,
-                    END_ARGS
-                },
-                ENV_VARS {
-                    debug_var,
-                    nonrec_var,
-                    END_ENV_VARS
-                },
+                PRINT, "print",
+                ARGS { print_fmt_arg, help_and_version_args, regex_arg, END_ARGS },
+                ENV_VARS { debug_var, nonrec_var, END_ENV_VARS },
                 NULL,
                 "Print the syntax tree for each regular expression"
             },
             {
-                NFA,
-                "nfa",
-                ARGS {
-                    nfa_fmt_arg,
-                    help_and_version_args,
-                    regex_arg,
-                    END_ARGS
-                },
-                ENV_VARS {
-                    debug_var,
-                    nonrec_var,
-                    END_ENV_VARS
-                },
+                NFA, "nfa",
+                ARGS { nfa_fmt_arg, help_and_version_args, regex_arg, END_ARGS },
+                ENV_VARS { debug_var, nonrec_var, END_ENV_VARS },
                 NULL,
                 "Construct and simulate an NFA"
             },
             {
-                SCAN_ONLY,
-                "scan",
-                ARGS {
-                    help_and_version_args,
-                    regex_arg,
-                    END_ARGS
-                },
-                ENV_VARS {
-                    debug_var,
-                    END_ENV_VARS
-                },
+                SCAN_ONLY, "scan",
+                ARGS { help_and_version_args, regex_arg, END_ARGS },
+                ENV_VARS { debug_var, END_ENV_VARS },
                 NULL,
                 "Run the scanner standalone"
             },
@@ -236,8 +202,8 @@ int main(int argc, char *argv[]) {
         } else {
 #define EOEOF (1)
             success =
-                nfa_regex(-1, "alpha", "[A-Za-z_]", &ncontext) &&
-                nfa_regex(-1, "alnum", "[0-9A-Za-z_]", &ncontext) &&
+                nfa_regex(TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
+                nfa_regex(TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
                 nfa_regex(EOEOF, NULL, "", &ncontext) &&
                 nfa_regex(2, "if", "if", &ncontext) &&
                 nfa_regex(3, "else", "else", &ncontext) &&
@@ -281,9 +247,9 @@ int main(int argc, char *argv[]) {
                     if (nfa_match_state(&match, buf, &ncontext)) {
                         int sym = 0;
 
-                        while ((sym = nfa_match(&match))) {
-                            if (sym == EOEOF) {
-                                printf("eof reached\n");
+                        while ((sym = nfa_match(&match)) != EOEOF) {
+                            if (sym == REJECTED) {
+                                printf("rejected input\n");
                                 break;
                             }
 

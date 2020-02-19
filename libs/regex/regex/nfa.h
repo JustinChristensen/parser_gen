@@ -25,8 +25,8 @@
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
 enum {
-    TAG_ONLY = -1,
-    REJECTED = 0
+    TAG_ONLY = -2,
+    REJECTED = -1
 };
 
 struct nfa_state_pool {
@@ -136,6 +136,12 @@ bool do_star_nfa(union regex_result _, struct nfa_context *context);
 bool do_plus_nfa(union regex_result _, struct nfa_context *context);
 bool do_optional_nfa(union regex_result _, struct nfa_context *context);
 bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context);
+
+// errors
+bool set_oom_error(struct nfa_context *context);
+bool set_missing_tag_error(char *tag, struct nfa_context *context);
+bool set_tag_exists_error(char *tag, struct nfa_context *context);
+bool set_repeat_zero_error(struct nfa_context *context);
 
 // parse action table
 extern bool (*nfa_actions[NUM_ACTIONS])(union regex_result val, void *context);

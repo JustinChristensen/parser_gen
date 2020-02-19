@@ -4,7 +4,7 @@ include $(TOPDIR)/make/common_vars.mk
 GDB := gdb
 VALGRIND := valgrind
 PROG := test_regex
-LIBS += -lcheck -lm
+LIBS += -lcheck -lm -lregex
 
 include $(TOPDIR)/make/common_targets.mk
 

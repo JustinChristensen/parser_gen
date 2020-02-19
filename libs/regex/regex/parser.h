@@ -14,7 +14,8 @@
 #define SYNERR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
 #define OOM_FMT_STRING "| OOM Error\n|\n"
 #define REPEAT_ZERO_FMT_STRING "| Repeat Zero Error\n|\n"
-#define MISSING_TAG_FMT_STRING "| Missing Tag Error\n|\n| Pattern %s not defined\n|\n"
+#define MISSING_TAG_FMT_STRING "| Tag Exists Error\n|\n| Pattern %s already defined\n|\n"
+#define TAG_EXISTS_FMT_STRING "| Missing Tag Error\n|\n| Pattern %s not defined\n|\n"
 
 enum regex_symbol {
     ERROR,
@@ -155,6 +156,7 @@ enum error_type {
     SYNTAX_ERROR,
     OUT_OF_MEMORY,
     REPEAT_ZERO,
+    TAG_EXISTS,
     MISSING_TAG
 };
 
@@ -219,11 +221,9 @@ struct regex_error syntax_error(
 );
 struct regex_error oom_error();
 struct regex_error repeat_zero_error();
+struct regex_error tag_exists_error(char *tag);
 struct regex_error missing_tag_error(char *tag);
 bool set_syntax_error(enum regex_symbol expected, struct parse_context *context);
-bool set_oom_error(struct parse_context *context);
-bool set_repeat_zero_error(struct parse_context *context);
-bool set_missing_tag_error(char *tag, struct parse_context *context);
 void print_regex_error(struct regex_error error);
 bool has_parse_error(struct parse_context *context);
 struct regex_error parse_error(struct parse_context *context);

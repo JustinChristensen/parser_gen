@@ -29,14 +29,18 @@ int main(int argc, char *argv[])
         .pos = NULL,
     };
 
+
+    struct env_var ck_verbosity_var = { "CK_VERBOSITY", "\
+Check output verbosity: silent, minimal, normal, or verbose. \
+Other Check variables are listed here: \
+https://libcheck.github.io/check/doc/check_html/check_7.html#Environment-Variable-Reference" };
+    struct env_var nfa_debug_var = { "DEBUG", "Print debug output for the regex library" };
+
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         ALL,
         NULL,
-        ARGS {
-            help_and_version_args,
-            END_ARGS
-        },
-        NULL,
+        ARGS { help_and_version_args, END_ARGS },
+        ENV_VARS { ck_verbosity_var, nfa_debug_var, END_ENV_VARS },
         NULL,
         "Run the test suite"
     });

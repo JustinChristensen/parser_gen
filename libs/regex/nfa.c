@@ -36,11 +36,6 @@ struct parse_interface nfa_pinterface = {
     .error = ERRFN nfa_error
 };
 
-static void nfa_oom(struct nfa_context *context) {
-    context->has_error = true;
-    context->error = oom_error();
-}
-
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
     debug_("[");
@@ -133,11 +128,16 @@ static struct nfa nullmach() {
     return (struct nfa) { NULL, NULL, NULL };
 }
 
-bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
+static void reset_context(struct nfa_context *context) {
     *context = (struct nfa_context) {
         .nfa = nullmach(),
+        .has_error = false,
         .error = nullperr()
     };
+}
+
+bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
+    reset_context(context);
 
     if ((context->state_pool = state_pool())) {
         context->state_pools = context->state_pool;
@@ -153,7 +153,7 @@ bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
         return success;
     }
 
-    return false;
+    return set_oom_error(context);
 }
 
 struct nfa_state accepting_state(int sym) {
@@ -215,7 +215,7 @@ struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
         statep = &pool->states[pool->n];
         pool->n++;
     } else
-        nfa_oom(context);
+        set_oom_error(context);
 
     return statep;
 }
@@ -411,6 +411,7 @@ void free_nfa_context(struct nfa_context *context) {
     if (!context) return;
     free_pools(context);
     free_tagged_nfas(context);
+    reset_context(context);
 }
 
 struct nfa_state **eps_closure(
@@ -620,7 +621,7 @@ static struct nfa_state *_clone_machine(
             memcpy(char_class, state->char_class, CLASS_SIZE);
             nextstate->char_class = char_class;
         } else {
-            nfa_oom(context);
+            set_oom_error(context);
             return NULL;
         }
     }
@@ -664,8 +665,7 @@ bool clone_machine(struct nfa mach, struct nfa_context *context) {
     struct nfa_state **visited = calloc(context->num_states, sizeof *visited);
 
     if (!visited) {
-        nfa_oom(context);
-        return false;
+        return set_oom_error(context);
     }
 
     newmach.start = _clone_machine(visited, &newmach, mach.start, &mach, context);
@@ -693,28 +693,20 @@ struct tagged_nfa *find_machine(char *tag, struct nfa_context *context) {
 bool tag_machine(char *tag, struct nfa_context *context) {
     struct tagged_nfa *tnfa = context->tagged_nfas,
                       *last = NULL;
-    bool found = false;
 
     for (; tnfa; tnfa = tnfa->next) {
         last = tnfa;
 
         if (streq(tag, tnfa->tag)) {
-            found = true;
-            break;
+            return set_tag_exists_error(tag, context);
         }
-    }
-
-    if (found) {
-        tnfa->nfa = gmachine(context);
-        return true;
     }
 
     tnfa = malloc(sizeof *tnfa);
     tag = strdup(tag);
 
     if (!tnfa || !tag) {
-        nfa_oom(context);
-        return false;
+        return set_oom_error(context);
     }
 
     *tnfa = (struct tagged_nfa) {
@@ -731,21 +723,14 @@ bool tag_machine(char *tag, struct nfa_context *context) {
 bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
 
 bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
-    static char permatag[BUFSIZ] = "";
-
-    strcpy(permatag, tag.tag);
-
-    struct tagged_nfa *tnfa = find_machine(permatag, context);
+    struct tagged_nfa *tnfa = find_machine(tag.tag, context);
 
     if (tnfa) {
         clone_machine(tnfa->nfa, context);
         return true;
     }
 
-    context->has_error = true;
-    context->error = missing_tag_error(permatag);
-
-    return false;
+    return set_missing_tag_error(tag.tag, context);
 }
 
 bool do_empty_nfa(union regex_result _, struct nfa_context *context) {
@@ -781,7 +766,7 @@ static bool *get_classy(struct nfa_context *context) {
         // prioritizing time and implementation complexity over space
         // i.e. this could be a table of bitmaps to conserve bytes
         char_class = calloc(CLASS_SIZE, sizeof *char_class);
-        if (!char_class) nfa_oom(context);
+        if (!char_class) set_oom_error(context);
     }
 
     context->current_class = char_class;
@@ -861,9 +846,49 @@ bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context) {
         return success;
     }
 
-    context->has_error = true;
-    context->error = repeat_zero_error();
+    return set_repeat_zero_error(context);
+}
+
+bool set_oom_error(struct nfa_context *context) {
+    if (!context->has_error) {
+        context->has_error = true;
+        context->error = oom_error();
+    }
 
     return false;
 }
+
+bool set_missing_tag_error(char *tag, struct nfa_context *context) {
+    static char permatag[BUFSIZ] = "";
+    if (!context->has_error) {
+        strcpy(permatag, tag);
+        context->has_error = true;
+        context->error = missing_tag_error(permatag);
+    }
+
+    return false;
+}
+
+bool set_tag_exists_error(char *tag, struct nfa_context *context) {
+    static char permatag[BUFSIZ] = "";
+
+    if (!context->has_error) {
+        strcpy(permatag, tag);
+        context->has_error = true;
+        context->error = tag_exists_error(permatag);
+    }
+
+    return false;
+}
+
+bool set_repeat_zero_error(struct nfa_context *context) {
+    if (!context->has_error) {
+        context->has_error = true;
+        context->error = repeat_zero_error();
+    }
+
+    return false;
+}
+
+
 

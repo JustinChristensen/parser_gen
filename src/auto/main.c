@@ -190,38 +190,28 @@ int main(int argc, char *argv[]) {
         free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
         struct nfa_context ncontext;
-        nfa_context(&ncontext, PATTERNS {
-            RE_EOF(0),
-            { 1, NULL, "var" },
-            { 2, NULL, "[a-z]+" },
-            { 3, NULL, "[0-9]+" },
-            { 4, NULL, "=" },
-            { 5, NULL, ";" },
-            { 6, NULL, " *" },
-            END_PATTERNS
-        });
 
-        // if (!nfa_context(&ncontext, NULL)) {
-        //     fprintf(stderr, "could not allocate an nfa context\n");
-        //     return EXIT_FAILURE;
-        // }
+        if (!nfa_context(&ncontext, NULL)) {
+            fprintf(stderr, "could not allocate an nfa context\n");
+            return EXIT_FAILURE;
+        }
 
         bool success = true;
         if (args.regex) {
-            // success = nfa_regex(35, NULL, args.regex, &ncontext);
+            success = nfa_regex(35, NULL, args.regex, &ncontext);
         } else {
 #define EOEOF (1)
-           // success =
-           //     nfa_regex(TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
-           //     nfa_regex(TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
-           //     nfa_regex(EOEOF, NULL, "", &ncontext) &&
-           //     nfa_regex(2, "if", "if", &ncontext) &&
-           //     nfa_regex(3, "else", "else", &ncontext) &&
-           //     nfa_regex(4, "for", "for", &ncontext) &&
-           //     nfa_regex(5, "while", "while", &ncontext) &&
-           //     nfa_regex(6, "do", "do", &ncontext) &&
-           //     nfa_regex(7, NULL, "[ \t\n]", &ncontext) &&
-           //     nfa_regex(8, NULL, "{alpha}{alnum}*", &ncontext);
+            success =
+                nfa_regex(TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
+                nfa_regex(TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
+                nfa_regex(EOEOF, NULL, "", &ncontext) &&
+                nfa_regex(2, "if", "if", &ncontext) &&
+                nfa_regex(3, "else", "else", &ncontext) &&
+                nfa_regex(4, "for", "for", &ncontext) &&
+                nfa_regex(5, "while", "while", &ncontext) &&
+                nfa_regex(6, "do", "do", &ncontext) &&
+                nfa_regex(7, NULL, "[ \t\n]", &ncontext) &&
+                nfa_regex(8, NULL, "{alpha}{alnum}*", &ncontext);
         }
 
         if (!success) {

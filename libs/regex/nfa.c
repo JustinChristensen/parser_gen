@@ -70,14 +70,15 @@ static void debug_state(struct nfa_state *state) {
     debug_(")");
 }
 
-static void debug_nfa_states(struct nfa_state **states, struct nfa_state **sp) {
-    if (sp != states) {
-        struct nfa_state *state = *--sp;
+static void debug_nfa_states(struct nfa_state **start, struct nfa_state **end) {
+    if (start != end) {
+        struct nfa_state *state = *start++;
         ndebug("{");
         debug_state(state);
-        while (sp != states && (state = *--sp)) {
+        while (start != end && (state = *start)) {
             debug_(", ");
             debug_state(state);
+            start++;
         }
         debug_("}");
     } else {
@@ -88,7 +89,7 @@ static void debug_nfa_states(struct nfa_state **states, struct nfa_state **sp) {
 }
 
 static void debug_state_table(struct nfa_state_pool *pool) {
-    ndebug("nfa state table\n");
+    ndebug("state table\n");
 
     for (; pool; pool = pool->next) {
         for (int i = 0; i < pool->n; i++) {
@@ -97,6 +98,14 @@ static void debug_state_table(struct nfa_state_pool *pool) {
             debug_state(state);
             debug_("\n");
         }
+    }
+}
+
+static void debug_tagged_nfas(struct tagged_nfa *tnfa) {
+    ndebug("tagged nfas\n");
+
+    for (; tnfa; tnfa = tnfa->next) {
+        ndebug("%s: %p\n", tnfa->tag, tnfa->nfa.start);
     }
 }
 
@@ -348,6 +357,7 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
         }
 
         debug_state_table(context->state_pools);
+        debug_tagged_nfas(context->tagged_nfas);
     } else {
         context->has_error = pcontext.has_error;
         context->error = pcontext.error;
@@ -416,25 +426,25 @@ void free_nfa_context(struct nfa_context *context) {
 
 struct nfa_state **eps_closure(
     int *foundsym,
-    struct nfa_state **nsp,
+    struct nfa_state **cend,
     bool *already_on,
     struct nfa_state *state
 ) {
-    if (already_on[state->id]) return nsp;
+    if (already_on[state->id]) return cend;
 
-    *nsp++ = state;
+    *cend++ = state;
     already_on[state->id] = true;
 
     switch (state->type) {
         case EPSILON_STATE:
-            nsp = eps_closure(foundsym, nsp, already_on, state->next);
+            cend = eps_closure(foundsym, cend, already_on, state->next);
             break;
         case BRANCH_STATE:
-            nsp = eps_closure(foundsym, nsp, already_on, state->left);
-            nsp = eps_closure(foundsym, nsp, already_on, state->right);
+            cend = eps_closure(foundsym, cend, already_on, state->left);
+            cend = eps_closure(foundsym, cend, already_on, state->right);
             break;
         case ACCEPTING_STATE:
-            if (!*foundsym) *foundsym = state->sym;
+            if (*foundsym == REJECTED) *foundsym = state->sym;
             break;
         case DOTALL_STATE:
         case CLASS_STATE:
@@ -442,7 +452,7 @@ struct nfa_state **eps_closure(
             break;
     }
 
-    return nsp;
+    return cend;
 }
 
 // Char -> State -> Bool
@@ -462,24 +472,32 @@ static bool matches_state(unsigned char c, struct nfa_state *state) {
 
 struct nfa_state **move(
     int *foundsym,
-    struct nfa_state **nsp,
-    struct nfa_state **cstates,
-    struct nfa_state **csp,
+    struct nfa_state **nend,
+    struct nfa_state **cstart,
+    struct nfa_state **cend,
     bool *already_on,
     char c
 ) {
     struct nfa_state *state = NULL;
 
-    while (csp != cstates && (state = *--csp)) {
+    while (cstart != cend && (state = *cstart)) {
         if (matches_state(c, state)) {
-            nsp = eps_closure(foundsym, nsp, already_on, state->next);
+            nend = eps_closure(foundsym, nend, already_on, state->next);
         }
+
+        cstart++;
     }
 
-    return nsp;
+    return nend;
 }
 
-bool nfa_match_state(struct nfa_match *match, char *input, struct nfa_context *context) {
+static void reset_match(struct nfa_match *match) {
+    match->eof_seen = false;
+    match->match_start = match->input = match->orig_input;
+    match->match_loc = match->input_loc = regex_loc(1, 1);
+}
+
+bool nfa_match_state(char *input, struct nfa_match *match, struct nfa_context *context) {
     int num_states = context->num_states;
     bool *already_on = calloc(num_states, sizeof *already_on);
     struct nfa_state **cstates = calloc(num_states, sizeof *cstates),
@@ -492,9 +510,10 @@ bool nfa_match_state(struct nfa_match *match, char *input, struct nfa_context *c
             .already_on = already_on,
             .currstates = cstates,
             .nextstates = nstates,
-            .input = input,
-            .input_loc = regex_loc(1, 1)
+            .orig_input = input
         };
+
+        reset_match(match);
 
         return true;
     }
@@ -518,6 +537,11 @@ void free_nfa_match(struct nfa_match *match) {
     match->currstates = match->nextstates = NULL;
     free(match->already_on);
     match->already_on = NULL;
+
+    *match = (struct nfa_match) {
+        .mach = nullmach(),
+        .input_loc = regex_loc(1, 1)
+    };
 }
 
 int nfa_match(struct nfa_match *match) {
@@ -525,33 +549,34 @@ int nfa_match(struct nfa_match *match) {
     struct nfa mach = match->mach;
 
     if (!runnable(mach)) return REJECTED;
+    if (match->eof_seen) reset_match(match);
 
     // bail early if the machine isn't runnable
     size_t num_states = match->num_states;
     bool *already_on = match->already_on;
     char *input = match->input;
     struct regex_loc input_loc = match->input_loc;
-    struct nfa_state **cstates, **csp, **nstates, **nsp;
 
     int retsym = REJECTED;
+
+    struct nfa_state **cstart, **cend, **nstart, **nend;
+    cstart = cend = match->currstates;
+    nstart = nend = match->nextstates;
 
     match->match_start = input;
     match->match_loc = input_loc;
 
-    cstates = csp = match->currstates;
-    nstates = nsp = match->nextstates;
-
-    csp = eps_closure(&retsym, csp, already_on, mach.start);
+    cend = eps_closure(&retsym, cend, already_on, mach.start);
 
     ndebug("simulation\n");
     ndebug("remaining input: %s\n", input);
-    debug_nfa_states(cstates, csp);
+    debug_nfa_states(cstart, cend);
 
-    if (*input == '\0') return retsym;
+    if (*input == '\0') match->eof_seen = true;
 
     struct nfa_state **t = NULL;
     char c;
-    while ((csp != cstates) && (c = *input++) != '\0') {
+    while ((cstart != cend) && (c = *input++) != '\0') {
         memset(already_on, false, num_states);
 
         if (c == '\n') {
@@ -564,18 +589,18 @@ int nfa_match(struct nfa_match *match) {
         int foundsym = REJECTED;
 
         // compute the set of next states from the current states
-        nsp = move(&foundsym, nsp, cstates, csp, already_on, c);
+        nend = move(&foundsym, nend, cstart, cend, already_on, c);
 
         // make the next states the current states
-        csp = nsp;
-        t = cstates;
-        cstates = nstates;
-        nstates = t;
-        nsp = nstates;
+        cend = nend;
+        t = cstart;
+        cstart = nstart;
+        nstart = t;
+        nend = nstart;
 
-        debug_nfa_states(cstates, csp);
+        debug_nfa_states(cstart, cend);
 
-        if (foundsym) {
+        if (foundsym != REJECTED) {
             retsym = foundsym;
             match->input = input;
             match->input_loc = input_loc;
@@ -851,6 +876,7 @@ bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *context) {
 
 bool set_oom_error(struct nfa_context *context) {
     if (!context->has_error) {
+        ndebug("oom error\n");
         context->has_error = true;
         context->error = oom_error();
     }
@@ -861,6 +887,7 @@ bool set_oom_error(struct nfa_context *context) {
 bool set_missing_tag_error(char *tag, struct nfa_context *context) {
     static char permatag[BUFSIZ] = "";
     if (!context->has_error) {
+        ndebug("missing tag error\n");
         strcpy(permatag, tag);
         context->has_error = true;
         context->error = missing_tag_error(permatag);
@@ -873,6 +900,7 @@ bool set_tag_exists_error(char *tag, struct nfa_context *context) {
     static char permatag[BUFSIZ] = "";
 
     if (!context->has_error) {
+        ndebug("tag exists error\n");
         strcpy(permatag, tag);
         context->has_error = true;
         context->error = tag_exists_error(permatag);
@@ -883,6 +911,7 @@ bool set_tag_exists_error(char *tag, struct nfa_context *context) {
 
 bool set_repeat_zero_error(struct nfa_context *context) {
     if (!context->has_error) {
+        ndebug("repeat zero error\n");
         context->has_error = true;
         context->error = repeat_zero_error();
     }

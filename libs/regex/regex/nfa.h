@@ -58,6 +58,8 @@ struct nfa_match {
     bool *already_on;
     struct nfa_state **currstates;
     struct nfa_state **nextstates;
+    char *orig_input;
+    bool eof_seen;
     char *input;
     struct regex_loc input_loc;
     char *match_start;
@@ -97,20 +99,20 @@ struct regex_error nfa_error(struct nfa_context *context);
 void free_nfa_context(struct nfa_context *context);
 struct nfa_state **eps_closure(
     int *foundsym,
-    struct nfa_state **nsp,
+    struct nfa_state **cend,
     bool *already_on,
     struct nfa_state *state
 );
 struct nfa_state **move(
     int *foundsym,
-    struct nfa_state **nsp,
-    struct nfa_state **cstates,
-    struct nfa_state **csp,
+    struct nfa_state **nend,
+    struct nfa_state **cstart,
+    struct nfa_state **cend,
     bool *already_on,
     char c
 );
 
-bool nfa_match_state(struct nfa_match *match, char *input, struct nfa_context *context);
+bool nfa_match_state(char *input, struct nfa_match *match, struct nfa_context *context);
 int nfa_match(struct nfa_match *match);
 struct regex_loc nfa_match_loc(struct nfa_match *match);
 void nfa_match_lexeme(char *lexeme, struct nfa_match *match);

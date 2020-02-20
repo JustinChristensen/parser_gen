@@ -8,9 +8,10 @@
 bool parse_regex(char *regex, struct parse_context *context) {
     start_scanning(regex, context);
 
-    return parse_expr(context) &&
+    return (parse_expr(context) &&
         expect(EOF_T, context) &&
-        do_action(DO_REGEX, NULLRVAL, context);
+        do_action(DO_REGEX, NULLRVAL, context)) ||
+        set_syntax_error(REGEX_NT, context);
 }
 
 bool parse_expr(struct parse_context *context) {

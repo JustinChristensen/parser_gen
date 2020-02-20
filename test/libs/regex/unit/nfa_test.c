@@ -20,8 +20,8 @@ static void print_if_error() {
 }
 
 START_TEST(test_init_with_empty_patterns) {
-    bool success = nfa_context(&context, PATTERNS {
-        END_PATTERNS
+    bool success = nfa_context(&context, RE_PATTERNS {
+        RE_END_PATTERNS
     });
 
     print_if_error();
@@ -31,9 +31,9 @@ START_TEST(test_init_with_empty_patterns) {
 END_TEST
 
 START_TEST(test_init_with_invalid_patterns) {
-    ck_assert_msg(nfa_context(&context, PATTERNS {
+    ck_assert_msg(nfa_context(&context, RE_PATTERNS {
         { 0, NULL, "{5}" },
-        END_PATTERNS
+        RE_END_PATTERNS
     }) == false, "init with invalid patterns succeeded");
 
     ck_assert(nfa_error(&context).type == SYNTAX_ERROR);
@@ -41,10 +41,10 @@ START_TEST(test_init_with_invalid_patterns) {
 END_TEST
 
 START_TEST(test_init_with_duplicate_tags) {
-    ck_assert_msg(nfa_context(&context, PATTERNS {
+    ck_assert_msg(nfa_context(&context, RE_PATTERNS {
         { 0, "abc", "" },
         { 1, "abc", "" },
-        END_PATTERNS
+        RE_END_PATTERNS
     }) == false, "init with duplicate tags succeeded");
 
     ck_assert(nfa_error(&context).type == TAG_EXISTS);
@@ -52,15 +52,15 @@ START_TEST(test_init_with_duplicate_tags) {
 END_TEST
 
 START_TEST(test_init_with_patterns) {
-    bool success = nfa_context(&context, PATTERNS {
-        RE_ALNUM_(TAG_ONLY), RE_EOF(0),
-        { 1, "abc", "a|b|c" },
-        { 2, "a!", "a[?!]" },
-        { 3, NULL, "{alnum_}{5}" },
-        { 4, "e's", "([0-7]|u)|e+" },
-        { 5, "aa",  ".." },
-        { 6, "n followed by optional binary operator",  "[0-9]+[\t ]*(\\+|-|\\*|/)" },
-        END_PATTERNS
+    bool success = nfa_context(&context, RE_PATTERNS {
+        RE_ALNUM_(RE_TAG_ONLY),
+        { 0, "abc", "a|b|c" },
+        { 1, "a!", "a[?!]" },
+        { 2, NULL, "{alnum_}{5}" },
+        { 3, "e's", "([0-7]|u)|e+" },
+        { 4, "aa",  ".." },
+        { 5, "n followed by optional binary operator",  "[0-9]+[\t ]*(\\+|-|\\*|/)" },
+        RE_END_PATTERNS
     });
 
     print_if_error();
@@ -70,20 +70,19 @@ START_TEST(test_init_with_patterns) {
 END_TEST
 
 START_TEST(test_scanner_is_reentrant) {
-    ck_assert(nfa_context(&context, PATTERNS {
-        RE_EOF(0),
-        { 1, NULL, "var" },
-        { 2, NULL, "[a-z]+" },
-        { 3, NULL, "[0-9]+" },
-        { 4, NULL, "=" },
-        { 5, NULL, ";" },
-        { 6, NULL, " *" },
-        END_PATTERNS
+    ck_assert(nfa_context(&context, RE_PATTERNS {
+        { 0, NULL, "var" },
+        { 1, NULL, "[a-z]+" },
+        { 2, NULL, "[0-9]+" },
+        { 3, NULL, "=" },
+        { 4, NULL, ";" },
+        { 5, NULL, " *" },
+        RE_END_PATTERNS
     }));
 
     char *input = "var foo = 33;";
-    int const ENDT = -3;
-    int tokens[] = { 1, 6, 2, 6, 4, 6, 3, 5, 0, ENDT };
+    int const ENDT = -10;
+    int tokens[] = { 0, 5, 1, 5, 3, 5, 2, 4, RE_EOF, ENDT };
 
     struct nfa_match match;
     ck_assert(nfa_match_state(input, &match, &context));
@@ -100,7 +99,6 @@ START_TEST(test_scanner_is_reentrant) {
 END_TEST
 
 enum {
-    _EOF = 0,
     _RESERVED = 1,
     _IDENT = 2,
     _NUM = 3,
@@ -117,9 +115,8 @@ START_TEST(test_scans_simple_expression) {
     ck_assert(nfa_context(&context, NULL));
 
     bool success =
-        nfa_regex(_EOF, NULL, "", &context) &&
-        nfa_regex(TAG_ONLY, "alpha_", "[a-zA-Z_]", &context) &&
-        nfa_regex(TAG_ONLY, "alnum_", "[0-9a-zA-Z_]", &context) &&
+        nfa_regex(RE_TAG_ONLY, "alpha_", "[a-zA-Z_]", &context) &&
+        nfa_regex(RE_TAG_ONLY, "alnum_", "[0-9a-zA-Z_]", &context) &&
         nfa_regex(_RESERVED, NULL, "RESERVED", &context) &&
         nfa_regex(_IDENT, NULL, "{alpha_}{alnum_}*", &context) &&
         nfa_regex(_NUM, NULL, "[0-9]+", &context) &&
@@ -135,12 +132,12 @@ START_TEST(test_scans_simple_expression) {
 
     char *expr = "(foo + 33)   * 3691 \t - (bar_ - BAZ/RESERVED)";
 
-    int const ENDT = -3;
+    int const ENDT = -10;
     int tokens[] = {
         _LPAREN, _IDENT, _WHITESPACE, _ADD, _WHITESPACE, _NUM, _RPAREN,
         _WHITESPACE, _MULT, _WHITESPACE, _NUM, _WHITESPACE, _SUB, _WHITESPACE,
         _LPAREN, _IDENT, _WHITESPACE, _SUB, _WHITESPACE, _IDENT, _DIV, _RESERVED, _RPAREN,
-        _EOF, ENDT
+        RE_EOF, ENDT
     };
 
     struct nfa_match match;

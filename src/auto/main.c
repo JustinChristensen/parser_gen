@@ -15,7 +15,8 @@ enum command_key {
     AUTO,
     PRINT,
     NFA,
-    SCAN_ONLY
+    SCAN_ONLY,
+    C_FILE
 };
 
 enum arg_key {
@@ -44,6 +45,7 @@ static char *cmd_str(enum command_key key) {
         case PRINT:     return "PRINT";
         case NFA:       return "NFA";
         case SCAN_ONLY: return "SCAN_ONLY";
+        case C_FILE:    return "C_FILE";
     }
 
     return "";
@@ -79,6 +81,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                         }
                         break;
                     case NFA:
+                    case C_FILE:
                         if (strcmp("dot", argval()) == 0) {
                             args->output = OUTPUT_DOT;
                         } else {
@@ -113,6 +116,128 @@ static void debug_args(struct args args) {
     }
 }
 
+enum cfile_symbol {
+    C_INCLUDE,
+    C_DEFINE,
+    C_LINE_COMMENT,
+    C_IF,
+    C_ELSE,
+    C_SWITCH,
+    C_CASE,
+    C_BREAK,
+    C_CONTINUE,
+    C_WHILE,
+    C_DO,
+    C_RETURN,
+    C_INT,
+    C_CHAR,
+    C_BOOL,
+    C_ENUM,
+    C_STRUCT,
+    C_UNION,
+    C_LPAREN,
+    C_RPAREN,
+    C_LBRACKET,
+    C_RBRACKET,
+    C_SEMI,
+    C_COMMA,
+    C_LBRACE,
+    C_RBRACE,
+    C_STAR,
+    C_AMP,
+    C_QUESTION,
+    C_COLON,
+    C_DOT,
+    C_ARROW,
+    C_PLUS,
+    C_MINUS,
+    C_SLASH,
+    C_AND,
+    C_OR,
+    C_LT,
+    C_LTEQ,
+    C_GT,
+    C_GTEQ,
+    C_EQ,
+    C_NEQ,
+    C_ASSIGN,
+    C_NEGATE,
+    C_INCREMENT,
+    C_DECREMENT,
+    C_CHAR_LIT,
+    C_STRING_LIT,
+    C_INT_LIT,
+    C_IDENTIFIER,
+    C_WS
+};
+
+static int const NUM_CSYMS = C_WS + 1;
+
+static char *str_for_csym(enum cfile_symbol sym) {
+    switch (sym) {
+        case C_INCLUDE:      return "#include";
+        case C_DEFINE:       return "#define";
+        case C_LINE_COMMENT: return "//...";
+        case C_IF:           return "if";
+        case C_ELSE:         return "else";
+        case C_SWITCH:       return "switch";
+        case C_CASE:         return "case";
+        case C_BREAK:        return "break";
+        case C_CONTINUE:     return "continue";
+        case C_WHILE:        return "while";
+        case C_DO:           return "do";
+        case C_RETURN:       return "return";
+        case C_INT:          return "int";
+        case C_CHAR:         return "char";
+        case C_BOOL:         return "bool";
+        case C_ENUM:         return "enum";
+        case C_STRUCT:       return "struct";
+        case C_UNION:        return "union";
+        case C_LPAREN:       return "(";
+        case C_RPAREN:       return ")";
+        case C_LBRACKET:     return "[";
+        case C_RBRACKET:     return "]";
+        case C_SEMI:         return ";";
+        case C_COMMA:        return ",";
+        case C_LBRACE:       return "{";
+        case C_RBRACE:       return "}";
+        case C_STAR:         return "*";
+        case C_AMP:          return "&";
+        case C_QUESTION:     return "?";
+        case C_COLON:        return ":";
+        case C_DOT:          return ".";
+        case C_ARROW:        return "->";
+        case C_PLUS:         return "+";
+        case C_MINUS:        return "-";
+        case C_SLASH:        return "/";
+        case C_AND:          return "&&";
+        case C_OR:           return "||";
+        case C_LT:           return "<";
+        case C_LTEQ:         return "<=";
+        case C_GT:           return ">";
+        case C_GTEQ:         return ">=";
+        case C_EQ:           return "==";
+        case C_NEQ:          return "!=";
+        case C_ASSIGN:       return "=";
+        case C_NEGATE:       return "!";
+        case C_INCREMENT:    return "++";
+        case C_DECREMENT:    return "--";
+        case C_CHAR_LIT:     return "'a'";
+        case C_STRING_LIT:   return "\"abc\"";
+        case C_INT_LIT:      return "9000";
+        case C_IDENTIFIER:   return "identifier";
+        case C_WS:           return "whitespace";
+    }
+};
+
+static void print_sym_counts(int *symcount) {
+    printf("symbol count:\n");
+
+    for (int i = 0; i < NUM_CSYMS; i++) {
+        printf("%14s\t%d\n", str_for_csym(i), symcount[i]);
+    }
+}
+
 #define BUFFER_SIZE 4096
 int main(int argc, char *argv[]) {
     struct args args = {
@@ -124,7 +249,7 @@ int main(int argc, char *argv[]) {
     };
 
     struct arg print_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot, table, or tree" };
-    struct arg nfa_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot" };
+    struct arg dot_fmt_arg = { FORMAT, "format", 'f', required_argument, "Output format: dot" };
     struct arg regex_arg = { REGEX, NULL, 'r', required_argument, "Regular expression" };
 
     struct env_var debug_var = { "DEBUG", "Print debug output" };
@@ -145,7 +270,7 @@ int main(int argc, char *argv[]) {
             },
             {
                 NFA, "nfa",
-                ARGS { nfa_fmt_arg, help_and_version_args, regex_arg, END_ARGS },
+                ARGS { dot_fmt_arg, help_and_version_args, regex_arg, END_ARGS },
                 ENV_VARS { debug_var, nonrec_var, END_ENV_VARS },
                 NULL,
                 "Construct and simulate an NFA"
@@ -156,6 +281,13 @@ int main(int argc, char *argv[]) {
                 ENV_VARS { debug_var, END_ENV_VARS },
                 NULL,
                 "Run the scanner standalone"
+            },
+            {
+                C_FILE, "cfile",
+                ARGS { dot_fmt_arg, help_and_version_args, END_ARGS },
+                ENV_VARS { debug_var, END_ENV_VARS },
+                NULL,
+                "Scan a C file"
             },
             END_CMDS
         },
@@ -190,28 +322,26 @@ int main(int argc, char *argv[]) {
         free_expr_context(&econtext);
     } else if (args.cmd == NFA) {
         struct nfa_context ncontext;
+        bool success;
 
         if (!nfa_context(&ncontext, NULL)) {
             fprintf(stderr, "could not allocate an nfa context\n");
             return EXIT_FAILURE;
         }
 
-        bool success = true;
         if (args.regex) {
             success = nfa_regex(35, NULL, args.regex, &ncontext);
         } else {
-#define EOEOF (1)
             success =
-                nfa_regex(TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
-                nfa_regex(TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
-                nfa_regex(EOEOF, NULL, "", &ncontext) &&
-                nfa_regex(2, "if", "if", &ncontext) &&
-                nfa_regex(3, "else", "else", &ncontext) &&
-                nfa_regex(4, "for", "for", &ncontext) &&
-                nfa_regex(5, "while", "while", &ncontext) &&
-                nfa_regex(6, "do", "do", &ncontext) &&
-                nfa_regex(7, NULL, "[ \t\n]", &ncontext) &&
-                nfa_regex(8, NULL, "{alpha}{alnum}*", &ncontext);
+                nfa_regex(RE_TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
+                nfa_regex(RE_TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
+                nfa_regex(0, "if", "if", &ncontext) &&
+                nfa_regex(1, "else", "else", &ncontext) &&
+                nfa_regex(2, "for", "for", &ncontext) &&
+                nfa_regex(3, "while", "while", &ncontext) &&
+                nfa_regex(4, "do", "do", &ncontext) &&
+                nfa_regex(5, NULL, "[ \t\n]", &ncontext) &&
+                nfa_regex(6, NULL, "{alpha}{alnum}*", &ncontext);
         }
 
         if (!success) {
@@ -247,8 +377,8 @@ int main(int argc, char *argv[]) {
                     if (nfa_match_state(buf, &match, &ncontext)) {
                         int sym = 0;
 
-                        while ((sym = nfa_match(&match)) != EOEOF) {
-                            if (sym == REJECTED) {
+                        while ((sym = nfa_match(&match)) != RE_EOF) {
+                            if (sym == RE_REJECTED) {
                                 printf("rejected input\n");
                                 break;
                             }
@@ -276,6 +406,149 @@ int main(int argc, char *argv[]) {
         free_nfa_context(&ncontext);
     } else if (args.cmd == SCAN_ONLY && args.regex) {
         print_token_table(args.regex);
+    } else if (args.cmd == C_FILE) {
+        struct nfa_context context;
+
+        if (!nfa_context(&context, RE_PATTERNS {
+            RE_ALPHA_(RE_TAG_ONLY), RE_ALNUM_(RE_TAG_ONLY),
+            { C_INCLUDE, NULL, "#include *(\"[^\"]*\"|<[^>]*>)\n" },
+            { C_DEFINE, NULL, "#define *[^\n]*\n" },
+            RE_LINE_COMMENT(C_LINE_COMMENT),
+            { C_IF, NULL, "if" },
+            { C_ELSE, NULL, "else" },
+            { C_SWITCH, NULL, "switch" },
+            { C_CASE, NULL, "case" },
+            { C_BREAK, NULL, "break" },
+            { C_CONTINUE, NULL, "continue" },
+            { C_WHILE, NULL, "while" },
+            { C_DO, NULL, "do" },
+            { C_RETURN, NULL, "return" },
+            { C_INT, NULL, "int" },
+            { C_CHAR, NULL, "char" },
+            { C_BOOL, NULL, "bool" },
+            { C_ENUM, NULL, "enum" },
+            { C_STRUCT, NULL, "struct" },
+            { C_UNION, NULL, "union" },
+            { C_LPAREN, NULL, "\\(" },
+            { C_RPAREN, NULL, "\\)" },
+            { C_LBRACKET, NULL, "\\[" },
+            { C_RBRACKET, NULL, "\\]" },
+            { C_SEMI, NULL, ";" },
+            { C_COMMA, NULL, "," },
+            { C_LBRACE, NULL, "\\{" },
+            { C_RBRACE, NULL, "\\}" },
+            { C_STAR, NULL, "\\*" },
+            { C_AMP, NULL, "&" },
+            { C_QUESTION, NULL, "\\?" },
+            { C_COLON, NULL, ":" },
+            { C_DOT, NULL, "\\." },
+            { C_ARROW, NULL, "->" },
+            { C_PLUS, NULL, "\\+" },
+            { C_MINUS, NULL, "\\-" },
+            { C_SLASH, NULL, "/" },
+            { C_AND, NULL, "&&" },
+            { C_OR, NULL, "\\|\\|" },
+            { C_LT, NULL, "<" },
+            { C_LTEQ, NULL, "<=" },
+            { C_GT, NULL, ">" },
+            { C_GTEQ, NULL, ">=" },
+            { C_EQ, NULL, "==" },
+            { C_NEQ, NULL, "!=" },
+            { C_ASSIGN, NULL, "=" },
+            { C_NEGATE, NULL, "!" },
+            { C_INCREMENT, NULL, "\\+\\+" },
+            { C_DECREMENT, NULL, "--" },
+            { C_CHAR_LIT, NULL, "'(\\\\.|[^'\\\\])*'" },
+            { C_STRING_LIT, NULL, "\"(\\\\.|[^\"\\\\])*\"" },
+            { C_INT_LIT, NULL, "[0-9]+" },
+            { C_IDENTIFIER, NULL, "{alpha_}{alnum_}*" },
+            { C_WS, NULL, "[ \t\n]+" },
+            RE_END_PATTERNS
+        })) {
+            fprintf(stderr, "could not initialize context\n");
+            print_regex_error(nfa_error(&context));
+            return EXIT_FAILURE;
+        }
+
+        if (args.output == OUTPUT_DOT) {
+            nfa_to_graph(gmachine(&context).start, context.num_states);
+        } else {
+            if (args.posc == 0) {
+                fprintf(stderr, "no input files\n");
+                free_nfa_context(&context);
+                return EXIT_FAILURE;
+            }
+
+            bool result = EXIT_SUCCESS;
+            struct nfa_match match;
+            char **files = args.pos;
+            FILE *fi;
+            static int const bufsize = BUFSIZ * 32;
+            char input[bufsize] = "";
+
+            for (int i = 0; i < args.posc; i++) {
+                int nread = 0;
+
+                if (!(fi = fopen(files[i], "r"))) {
+                    fprintf(stderr, "failed to open file %s\n", files[i]);
+                    result = EXIT_FAILURE;
+                    break;
+                }
+
+                if (!(nread = fread(input, sizeof *input, bufsize, fi))) {
+                    fprintf(stderr, "reading file %s failed\n", files[i]);
+                    fclose(fi);
+                    result = EXIT_FAILURE;
+                    break;
+                }
+
+                input[nread] = '\0';
+
+                if (!nfa_match_state(input, &match, &context)) {
+                    fprintf(stderr, "could not initialize scanner\n");
+                    fclose(fi);
+                    result = EXIT_FAILURE;
+                    break;
+                }
+
+                printf("filename: %s, size: %d\n", files[i], nread);
+                printf("%-3s\t%-4s\t%-3s\t%s\n", "sym", "line", "col", "lexeme");
+
+                int sym;
+                struct regex_loc loc;
+                char lexeme[BUFSIZ] = "";
+                int nrejected = 0;
+
+                int symcount[NUM_CSYMS] = { 0 };
+
+                while ((sym = nfa_match(&match)) != RE_EOF) {
+                    symcount[sym]++;
+                    if (sym == C_WS) continue;
+                    if (sym == RE_REJECTED) nrejected++;
+
+                    nfa_match_lexeme(lexeme, &match);
+                    loc = nfa_match_loc(&match);
+                    printf("%3d\t%4d\t%3d\t%s\n", sym, loc.line, loc.col, lexeme);
+                }
+
+                if (nrejected) {
+                    printf("\n# rejected: %d\n", nrejected);
+                    result = EXIT_FAILURE;
+                    fclose(fi);
+                    break;
+                }
+
+                print_sym_counts(symcount);
+
+                fclose(fi);
+            }
+
+            free_nfa_match(&match);
+
+            return result;
+        }
+
+        free_nfa_context(&context);
     }
 
     return EXIT_SUCCESS;

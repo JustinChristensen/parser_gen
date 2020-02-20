@@ -348,7 +348,7 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
 
         if (tag && !tag_machine(tag, context)) return false;
 
-        if (sym != TAG_ONLY) {
+        if (sym != RE_TAG_ONLY) {
             point(nextmach, setst(accepting_state(sym), context));
             if (runnable(lastmach))
                 link_machines(lastmach, nextmach, context);
@@ -444,7 +444,7 @@ struct nfa_state **eps_closure(
             cend = eps_closure(foundsym, cend, already_on, state->right);
             break;
         case ACCEPTING_STATE:
-            if (*foundsym == REJECTED) *foundsym = state->sym;
+            if (foundsym && *foundsym == RE_REJECTED) *foundsym = state->sym;
             break;
         case DOTALL_STATE:
         case CLASS_STATE:
@@ -492,16 +492,25 @@ struct nfa_state **move(
 }
 
 static void reset_match(struct nfa_match *match) {
-    match->eof_seen = false;
     match->match_start = match->input = match->orig_input;
     match->match_loc = match->input_loc = regex_loc(1, 1);
 }
 
+static void reset_already_on(struct nfa_match *match) {
+    memset(match->already_on, false, match->num_states);
+}
+
 bool nfa_match_state(char *input, struct nfa_match *match, struct nfa_context *context) {
     int num_states = context->num_states;
-    bool *already_on = calloc(num_states, sizeof *already_on);
-    struct nfa_state **cstates = calloc(num_states, sizeof *cstates),
-                     **nstates = calloc(num_states, sizeof *nstates);
+    bool *already_on = match->already_on;
+    struct nfa_state **cstates = match->currstates,
+                     **nstates = match->nextstates;
+
+    if (already_on) reset_already_on(match);
+    else            already_on = calloc(num_states, sizeof *already_on);
+
+    if (!cstates) cstates = calloc(num_states, sizeof *cstates);
+    if (!nstates) nstates = calloc(num_states, sizeof *nstates);
 
     if (already_on && cstates && nstates) {
         *match = (struct nfa_match) {
@@ -532,11 +541,9 @@ void nfa_match_lexeme(char *lexeme, struct nfa_match *match) {
 }
 
 void free_nfa_match(struct nfa_match *match) {
-    free(match->currstates);
-    free(match->nextstates);
-    match->currstates = match->nextstates = NULL;
-    free(match->already_on);
-    match->already_on = NULL;
+    if (match->currstates) free(match->currstates);
+    if (match->nextstates) free(match->nextstates);
+    if (match->already_on) free(match->already_on);
 
     *match = (struct nfa_match) {
         .mach = nullmach(),
@@ -547,48 +554,38 @@ void free_nfa_match(struct nfa_match *match) {
 int nfa_match(struct nfa_match *match) {
     assert(match != NULL);
     struct nfa mach = match->mach;
+    assert(runnable(mach));
 
-    if (!runnable(mach)) return REJECTED;
-    if (match->eof_seen) reset_match(match);
-
-    // bail early if the machine isn't runnable
-    size_t num_states = match->num_states;
-    bool *already_on = match->already_on;
     char *input = match->input;
     struct regex_loc input_loc = match->input_loc;
 
-    int retsym = REJECTED;
-
-    struct nfa_state **cstart, **cend, **nstart, **nend;
-    cstart = cend = match->currstates;
-    nstart = nend = match->nextstates;
+    if (*input == '\0') {
+        reset_match(match);
+        return RE_EOF;
+    }
 
     match->match_start = input;
     match->match_loc = input_loc;
 
-    cend = eps_closure(&retsym, cend, already_on, mach.start);
+    bool *already_on = match->already_on;
+    struct nfa_state **cstart, **cend, **nstart, **nend;
+    cstart = cend = match->currstates;
+    nstart = nend = match->nextstates;
+
+    cend = eps_closure(NULL, cend, already_on, mach.start);
 
     ndebug("simulation\n");
     ndebug("remaining input: %s\n", input);
     debug_nfa_states(cstart, cend);
 
-    if (*input == '\0') match->eof_seen = true;
-
     struct nfa_state **t = NULL;
     char c;
+    int retsym = RE_REJECTED;
     while ((cstart != cend) && (c = *input++) != '\0') {
-        memset(already_on, false, num_states);
-
-        if (c == '\n') {
-            input_loc.line++;
-            input_loc.col = 1;
-        } else {
-            input_loc.col++;
-        }
-
-        int foundsym = REJECTED;
+        reset_already_on(match);
 
         // compute the set of next states from the current states
+        int foundsym = RE_REJECTED;
         nend = move(&foundsym, nend, cstart, cend, already_on, c);
 
         // make the next states the current states
@@ -598,16 +595,25 @@ int nfa_match(struct nfa_match *match) {
         nstart = t;
         nend = nstart;
 
-        debug_nfa_states(cstart, cend);
+        input_loc = bump_loc(c, input_loc);
 
-        if (foundsym != REJECTED) {
+        // commit our findings
+        if (foundsym != RE_REJECTED) {
             retsym = foundsym;
             match->input = input;
             match->input_loc = input_loc;
         }
+
+        ndebug("c = %c\n", c);
+        debug_nfa_states(cstart, cend);
     }
 
-    memset(already_on, false, num_states);
+    if (retsym == RE_REJECTED) {
+        match->input++;
+        match->input_loc = bump_loc(*match->input, match->input_loc);
+    }
+
+    reset_already_on(match);
 
     return retsym;
 }

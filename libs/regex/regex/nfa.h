@@ -24,11 +24,6 @@
 #define STATE_POOL_SIZE 1000
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
-enum {
-    TAG_ONLY = -2,
-    REJECTED = -1
-};
-
 struct nfa_state_pool {
     struct nfa_state states[STATE_POOL_SIZE];
     int n;
@@ -59,7 +54,6 @@ struct nfa_match {
     struct nfa_state **currstates;
     struct nfa_state **nextstates;
     char *orig_input;
-    bool eof_seen;
     char *input;
     struct regex_loc input_loc;
     char *match_start;

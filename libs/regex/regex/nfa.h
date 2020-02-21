@@ -48,16 +48,16 @@ struct nfa_context {
 };
 
 struct nfa_match {
-    struct nfa mach;
-    int num_states;
-    bool *already_on;
-    struct nfa_state **currstates;
-    struct nfa_state **nextstates;
     char *orig_input;
     char *input;
     struct regex_loc input_loc;
     char *match_start;
     struct regex_loc match_loc;
+    struct nfa mach;
+    int num_states;
+    bool *already_on;
+    struct nfa_state **currstates;
+    struct nfa_state **nextstates;
 };
 
 // nfa state constructors

@@ -557,7 +557,7 @@ int nfa_match(struct nfa_match *match) {
     assert(runnable(mach));
 
     char *input = match->input;
-    struct regex_loc input_loc = match->input_loc;
+    struct regex_loc loc = match->input_loc;
 
     if (*input == '\0') {
         reset_match(match);
@@ -565,7 +565,7 @@ int nfa_match(struct nfa_match *match) {
     }
 
     match->match_start = input;
-    match->match_loc = input_loc;
+    match->match_loc = loc;
 
     bool *already_on = match->already_on;
     struct nfa_state **cstart, **cend, **nstart, **nend;
@@ -578,10 +578,14 @@ int nfa_match(struct nfa_match *match) {
     ndebug("remaining input: %s\n", input);
     debug_nfa_states(cstart, cend);
 
+    // always consume at least one character
+    char c = *input++;
+    match->input = input;
+    loc = match->input_loc = bump_loc(c, loc);
+
     struct nfa_state **t = NULL;
-    char c;
     int retsym = RE_REJECTED;
-    while ((cstart != cend) && (c = *input++) != '\0') {
+    while ((cstart != cend) && c != '\0') {
         reset_already_on(match);
 
         // compute the set of next states from the current states
@@ -595,22 +599,19 @@ int nfa_match(struct nfa_match *match) {
         nstart = t;
         nend = nstart;
 
-        input_loc = bump_loc(c, input_loc);
-
         // commit our findings
         if (foundsym != RE_REJECTED) {
             retsym = foundsym;
             match->input = input;
-            match->input_loc = input_loc;
+            match->input_loc = loc;
         }
+
+        // bump
+        c = *input++;
+        loc = bump_loc(c, loc);
 
         ndebug("c = %c\n", c);
         debug_nfa_states(cstart, cend);
-    }
-
-    if (retsym == RE_REJECTED) {
-        match->input++;
-        match->input_loc = bump_loc(*match->input, match->input_loc);
     }
 
     reset_already_on(match);

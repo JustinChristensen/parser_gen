@@ -119,6 +119,7 @@ static void debug_args(struct args args) {
 enum cfile_symbol {
     C_INCLUDE,
     C_DEFINE,
+    C_UNDEF,
     C_LINE_COMMENT,
     C_IF,
     C_ELSE,
@@ -180,6 +181,7 @@ static char *str_for_csym(enum cfile_symbol sym) {
     switch (sym) {
         case C_INCLUDE:      return "#include";
         case C_DEFINE:       return "#define";
+        case C_UNDEF:        return "#undef";
         case C_LINE_COMMENT: return "//...";
         case C_IF:           return "if";
         case C_ELSE:         return "else";
@@ -419,6 +421,7 @@ int main(int argc, char *argv[]) {
             RE_ALPHA_(RE_TAG_ONLY), RE_ALNUM_(RE_TAG_ONLY),
             { C_INCLUDE, NULL, "#include *(\"[^\"]*\"|<[^>]*>)\n" },
             { C_DEFINE, NULL, "#define *[^\n]*\n" },
+            { C_UNDEF, NULL, "#undef *[^\n]*\n" },
             RE_LINE_COMMENT(C_LINE_COMMENT),
             { C_IF, NULL, "if" },
             { C_ELSE, NULL, "else" },
@@ -489,7 +492,7 @@ int main(int argc, char *argv[]) {
             }
 
             bool result = EXIT_SUCCESS;
-            struct nfa_match match;
+            struct nfa_match match = {0};
             char **files = args.pos;
             FILE *fi;
             static int const bufsize = BUFSIZ * 32;

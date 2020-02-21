@@ -167,6 +167,9 @@ enum cfile_symbol {
     C_CHAR_LIT,
     C_STRING_LIT,
     C_INT_LIT,
+    C_NULL_LIT,
+    C_BOOL_LIT,
+    C_CONSTANT,
     C_IDENTIFIER,
     C_WS
 };
@@ -225,16 +228,19 @@ static char *str_for_csym(enum cfile_symbol sym) {
         case C_CHAR_LIT:     return "'a'";
         case C_STRING_LIT:   return "\"abc\"";
         case C_INT_LIT:      return "9000";
+        case C_BOOL_LIT:     return "true";
+        case C_NULL_LIT:     return "NULL";
+        case C_CONSTANT:     return "CONSTANT";
         case C_IDENTIFIER:   return "identifier";
         case C_WS:           return "whitespace";
     }
 };
 
 static void print_sym_counts(int *symcount) {
-    printf("symbol count:\n");
+    printf("%3s\t%14s\t%s\n", "sym", "", "count");
 
     for (int i = 0; i < NUM_CSYMS; i++) {
-        printf("%14s\t%d\n", str_for_csym(i), symcount[i]);
+        printf("%3d\t%14s\t%d\n", i, str_for_csym(i), symcount[i]);
     }
 }
 
@@ -461,6 +467,9 @@ int main(int argc, char *argv[]) {
             { C_CHAR_LIT, NULL, "'(\\\\.|[^'\\\\])*'" },
             { C_STRING_LIT, NULL, "\"(\\\\.|[^\"\\\\])*\"" },
             { C_INT_LIT, NULL, "[0-9]+" },
+            { C_BOOL_LIT, NULL, "(true|false)" },
+            { C_NULL_LIT, NULL, "NULL" },
+            { C_CONSTANT, NULL, "[A-Z_]+" },
             { C_IDENTIFIER, NULL, "{alpha_}{alnum_}*" },
             { C_WS, NULL, "[ \t\n]+" },
             RE_END_PATTERNS

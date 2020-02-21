@@ -38,7 +38,7 @@ enum {
 #define RE_ALNUM_(sym)       { sym, "alnum_",       "[0-9A-Za-z_]"  }
 #define RE_SPACE(sym)        { sym, "space",        "[\t\n\v\f\r ]" }
 #define RE_LINE_COMMENT(sym) { sym, "line_comment", "//[^\n]*\n"    }
-#define RE_REGEX(sym)        { sym, "regex",        "/[^/]/"        }
+#define RE_REGEX(sym)        { sym, "regex",        "/[^/\n]/"        }
 
 struct regex_loc bump_loc(char c, struct regex_loc loc);
 struct regex_loc regex_loc(int line, int col);

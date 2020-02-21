@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <regex/dfa.h>
+#include <regex/nfa.h>
 
 /*
 alpha         /[A-Za-z_]/
@@ -12,7 +12,7 @@ alnum         /{alpha}|[0-9]/
 id            /{alpha}{alnum}* /
 char          /'{alnum}+'/
 string        /"{alnum}+"/
-symbol        /({identifier}|{literal})/
+symbol        /({identifier}|{char}|{string})/
 regex         /\/{non-nl}\//
 comment       /\/\/.*{nl}/
 
@@ -38,8 +38,6 @@ enum gram_symbol {
     NIL,
 
     // terminals
-    EOF_T,
-    ID_T,
     REGEX_T,
     SECTION_T,
     ASSIGN_T,
@@ -49,6 +47,8 @@ enum gram_symbol {
     STRING_T,
     EMPTY_T,
     COMMENT_T,
+    ID_T,
+    WHITESPACE_T,
 
     // non-terminals
     PARSER_SPEC_NT,
@@ -121,10 +121,10 @@ union gram_result {
 static const union gram_result NULL_RESULT = { NULL };
 
 struct gram_parse_context {
-    void *result_context;
-    void (**actions)(union gram_result result, void *result_context);
+    void *result;
+    void (**actions)(union gram_result val, void *result);
     union gram_result (*result)(void *result_context);
-    struct dfa_context scanner;
+    struct nfa_context scanner;
     struct dfa_match match_state;
     struct gram_token token;
     bool has_error;
@@ -135,10 +135,11 @@ struct gram_scan_context scan(struct gram_scan_context context);
 struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme);
 void free_token(struct gram_token *token);
 struct gram_token token(struct gram_parse_context context);
-struct gram_parse_context gram_parse_context(
-    void *result_context,
-    void (**actions)(union gram_result result, void *result_context),
-    union gram_result (*result)(void *result_context)
+bool gram_parse_context(
+    struct gram_parse_context *context,
+    void *result,
+    void (**actions)(union gram_result val, void *result),
+    union gram_result (*result)(void *result)
 );
 struct gram_parse_error gram_parse_error();
 void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context);

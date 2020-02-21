@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "gram/parser.h"
-#include "regex/dfa.h"
+#include "regex/nfa.h"
 
 #define FIRST (enum gram_symbol[])
 static enum gram_symbol *first_sets[] {
@@ -60,29 +60,38 @@ struct gram_token token(struct gram_parse_context *context) {
     return context->token;
 }
 
-struct gram_parse_context gram_parse_context(
-    void *result_context,
-    void (**actions)(union gram_result result, void *result_context),
-    union gram_result (*get_result)(void *result_context)
+bool gram_parse_context(
+    struct gram_parse_context *context,
+    void *result,
+    void (**actions)(union gram_result val, void *result),
+    union gram_result (*get_result)(void *result),
 ) {
-    static struct dfa_context scanner = dfa_context(PATTERNS {
-        RE_ALPHA(-1), RE_ALNUM(-1), RE_SPACE(-1), RE_EOF(EOF_T),
-        RE_REGEX(REGEX_T), RE_LINE_COMMENT(COMMENT_T),
-        { ID_T,        "id",        "{alpha}{alnum}*" },
-        { SECTION_T,   "section",   "---"             },
-        { ASSIGN_T,    "assign",    "="               },
-        { ALT_T,       "alt",       "\|"              },
-        { SEMICOLON_T, "semicolon", ";"               },
-        { EMPTY_T,     "empty",     "\$empty"         },
-        END_PATTERNS
-    });
+    struct nfa_context scanner;
 
-    return (struct gram_parse_context) {
-        .result_context = result_context,
+    if (!nfa_context(&scanner, RE_PATTERNS {
+        RE_ALPHA_(RE_TAG_ONLY), RE_ALNUM_(RE_TAG_ONLY),
+        RE_LINE_COMMENT(COMMENT_T),
+        RE_REGEX(REGEX_T),
+        { SECTION_T, NULL, "---" },
+        { ASSIGN_T, NULL, "=" },
+        { ALT_T, NULL, "|" },
+        { SEMICOLON_T, NULL, ";" },
+        { EMPTY_T, NULL, "$empty" },
+        { CHAR_T, NULL, "'(\\\\.|[^'\\\\])*'" },
+        { STRING_T, NULL, "\"(\\\\.|[^\"\\\\])*\"" },
+        { ID_T, NULL, "{alpha_}{alnum_}*" }
+        RE_SPACE(WHITESPACE_T),
+        RE_END_PATTERNS
+    })) return false;
+
+    *context = (struct gram_parse_context) {
+        .result = result,
         .actions = actions,
         .get_result = get_result,
         .scanner = scanner
     };
+
+    return true;
 }
 
 static enum gram_symbol *first_set(enum gram_symbol sym) {

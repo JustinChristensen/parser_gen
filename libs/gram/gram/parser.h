@@ -10,10 +10,8 @@
 alpha         /[A-Za-z_]/
 alnum         /{alpha}|[0-9]/
 id            /{alpha}{alnum}* /
-char          /'{alnum}+'/
-string        /"{alnum}+"/
-symbol        /({identifier}|{char}|{string})/
-regex         /\/{non-nl}\//
+symbol        /{identifier}|{char}|{string}/
+regex         //{non-nl}//
 comment       /\/\/.*{nl}/
 
 parser_spec       = pattern_defs_head grammar eof;
@@ -35,78 +33,78 @@ rhs               = id { id_rhs(lexeme) }
 */
 
 enum gram_symbol {
-    NIL,
+    GM_ERROR,
 
     // terminals
-    REGEX_T,
-    SECTION_T,
-    ASSIGN_T,
-    ALT_T,
-    SEMICOLON_T,
-    CHAR_T,
-    STRING_T,
-    EMPTY_T,
-    COMMENT_T,
-    ID_T,
-    WHITESPACE_T,
+    GM_REGEX_T,
+    GM_SECTION_T,
+    GM_ASSIGN_T,
+    GM_ALT_T,
+    GM_SEMICOLON_T,
+    GM_CHAR_T,
+    GM_STRING_T,
+    GM_EMPTY_T,
+    GM_COMMENT_T,
+    GM_ID_T,
+    GM_WHITESPACE_T,
 
     // non-terminals
-    PARSER_SPEC_NT,
-    PATTERN_DEFS_HEAD_NT,
-    PATTERN_DEFS_NT,
-    PATTERN_DEF_NT,
-    GRAMMAR_NT,
-    RULES_HEAD_NT,
-    RULES_NT,
-    RULE_NT,
-    ALTS_HEAD_NT,
-    ALTS_NT,
-    ALT_NT,
-    RHSES_NT,
-    RHS_NT,
+    GM_PARSER_SPEC_NT,
+    GM_PATTERN_DEFS_HEAD_NT,
+    GM_PATTERN_DEFS_NT,
+    GM_PATTERN_DEF_NT,
+    GM_GRAMMAR_NT,
+    GM_RULES_HEAD_NT,
+    GM_RULES_NT,
+    GM_RULE_NT,
+    GM_ALTS_HEAD_NT,
+    GM_ALTS_NT,
+    GM_ALT_NT,
+    GM_RHSES_NT,
+    GM_RHS_NT,
 
     // actions
-    DO_PARSER_SPEC,
-    DO_PATTERN_DEF,
-    DO_APPEND_PATTERN_DEF,
-    DO_PATTERN_DEFS_HEAD,
-    DO_RULE,
-    DO_APPEND_RULE,
-    DO_RULES_HEAD,
-    DO_ALT,
-    DO_APPEND_ALT,
-    DO_ALTS_HEAD,
-    DO_ID_RHS,
-    DO_LIT_RHS,
-    DO_EMPTY_RHS,
-    DO_APPEND_RHS,
-    DO_RHSES_HEAD
+    GM_DO_PARSER_SPEC,
+    GM_DO_PATTERN_DEF,
+    GM_DO_APPEND_PATTERN_DEF,
+    GM_DO_PATTERN_DEFS_HEAD,
+    GM_DO_RULE,
+    GM_DO_APPEND_RULE,
+    GM_DO_RULES_HEAD,
+    GM_DO_ALT,
+    GM_DO_APPEND_ALT,
+    GM_DO_ALTS_HEAD,
+    GM_DO_ID_RHS,
+    GM_DO_LIT_RHS,
+    GM_DO_EMPTY_RHS,
+    GM_DO_APPEND_RHS,
+    GM_DO_RHSES_HEAD
 };
 
-#define NUM_TERMINALS (COMMENT_T + 1)
-#define NUM_NONTERMINALS (RHS_NT + 1 - NUM_TERMINALS)
-#define AI(sym) (sym - NUM_NONTERMINALS)
+#define GM_NUM_TERMINALS (GM_WHITESPACE_T + 1)
+#define GM_NUM_SYMBOLS (GM_RHS_NT + 1)
+#define GM_NUM_NONTERMINALS (GM_NUM_SYMBOLS - GM_NUM_TERMINALS)
+#define GM_NUM_ACTIONS ((GM_DO_RHSES_HEAD + 1) - GM_NUM_NONTERMINALS)
+#define GM_AI(sym) (sym - GM_NUM_NONTERMINALS)
 
-struct gram_token {
-    enum gram_symbol type;
-    struct dfa_loc loc;
-    char *lexeme;
+enum gram_error_type {
+    GM_SYNTAX_ERROR
 };
 
-struct gram_scan_context {
-    struct dfa_context *re_context;
-    struct gram_token token;
+struct gram_error {
+    enum gram_error_type type;
+    union {
+        struct {
+            enum gram_symbol actual;
+            struct regex_loc loc;
+            enum gram_symbol *expected;
+        };
+    };
 };
 
-struct gram_parse_error {
-    struct dfa_loc loc;
-    enum gram_symbol actual;
-    enum gram_symbol *expected;
-};
-
-#define GRAM_PARSE_ERROR_FMT_START "| Parse Error\n|\n| Got: %s\n| Expected: "
-#define GRAM_PARSE_ERROR_FMT_LOC "\n|\n| At: "
-#define GRAM_PARSE_ERROR_FMT_END "\n|\n"
+#define GM_SYNTAX_ERROR_FMT_START "| Syntax Error\n|\n| Got: %s\n| Expected: "
+#define GM_SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
+#define GM_SYNTAX_ERROR_FMT_END "\n|\n"
 
 union gram_result {
     void *ast;
@@ -118,55 +116,34 @@ union gram_result {
     } pdef;
 };
 
-static const union gram_result NULL_RESULT = { NULL };
+static const union gram_result GM_NULL_RESULT = { NULL };
 
 struct gram_parse_context {
     void *result;
-    void (**actions)(union gram_result val, void *result);
-    union gram_result (*result)(void *result_context);
+    bool (**actions)(union gram_result val, void *result);
+    union gram_result (*get_result)(void *result);
     struct nfa_context scanner;
-    struct dfa_match match_state;
-    struct gram_token token;
+    struct nfa_match match;
+    enum gram_symbol sym;
     bool has_error;
-    struct gram_parse_error error;
+    struct gram_error error;
 };
 
-struct gram_scan_context scan(struct gram_scan_context context);
-struct gram_token gram_token(enum gram_symbol type, struct dfa_loc loc, char *lexeme);
-void free_token(struct gram_token *token);
-struct gram_token token(struct gram_parse_context context);
-bool gram_parse_context(
+bool gm_parse_context(
     struct gram_parse_context *context,
     void *result,
     void (**actions)(union gram_result val, void *result),
-    union gram_result (*result)(void *result)
+    union gram_result (*get_result)(void *result)
 );
-struct gram_parse_error gram_parse_error();
-void set_parse_error(enum gram_symbol expected, struct gram_parse_context *context);
-bool has_parse_error(struct gram_parse_context *context);
-void print_parse_error(struct gram_parse_error *error);
-enum gram_symbol lookahead(struct gram_parse_context *context);
-struct gram_loc location(struct gram_parse_context *context);
-char *lexeme(struct gram_parse_context *context);
-char *lexeme_for(enum gram_symbol sym);
-bool peek(enum gram_symbol expected, struct gram_parse_context *context);
-bool expect(enum gram_symbol expected, struct gram_parse_context *context);
-void do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context);
-union gram_result result(struct gram_parse_context *context);
-void start_scanning(char *input, struct gram_parse_context *context);
-bool parse_parser_spec(char *input, struct gram_parse_context *context);
-bool parse_pattern_defs_head(struct gram_parse_context *context);
-bool parse_pattern_defs(struct gram_parse_context *context);
-bool parse_pattern_def(struct gram_parse_context *context);
-bool parse_grammar(struct gram_parse_context *context);
-bool parse_rules_head(struct gram_parse_context *context);
-bool parse_rules(struct gram_parse_context *context);
-bool parse_rule(struct gram_parse_context *context);
-bool parse_alts_head(struct gram_parse_context *context);
-bool parse_alts(struct gram_parse_context *context);
-bool parse_alt(struct gram_parse_context *context);
-bool parse_rhses(struct gram_parse_context *context);
-bool parse_rhs(struct gram_parse_context *context);
-void generate_lr_parser(FILE *handle, struct gram_parse_context *context);
+bool gm_parse_has_error(struct gram_parse_context *context);
+struct gram_error gm_parse_error(struct gram_parse_context *context);
+struct gram_error gm_syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected);
+void gm_print_error(struct gram_error error);
+bool gm_start_scanning(char *input, struct gram_parse_context *context);
+enum gram_symbol gm_scan(struct gram_parse_context *context);
+enum gram_symbol gm_lookahead(struct gram_parse_context *context);
+struct regex_loc gm_location(struct gram_parse_context *context);
+char *gm_lexeme(struct gram_parse_context *context);
+bool gm_parse_parser_spec(char *input, struct gram_parse_context *context);
 
 #endif // GRAM_PARSER_H_

@@ -66,20 +66,20 @@ void free_rule(struct rule *rule);
 void free_alt(struct alt *alt);
 void free_rhs(struct rhs *rhs);
 
-void do_parser_spec(union gram_result result, struct gram_ast_context *context);
-void do_pattern_def(union gram_result result, struct gram_ast_context *context);
-void do_append_pattern_def(union gram_result result, struct gram_ast_context *context);
-void do_rule(union gram_result result, struct gram_ast_context *context);
-void do_append_rule(union gram_result result, struct gram_ast_context *context);
-void do_alt(union gram_result result, struct gram_ast_context *context);
-void do_append_alt(union gram_result result, struct gram_ast_context *context);
-void do_id_rhs(union gram_result result, struct gram_ast_context *context);
-void do_lit_rhs(union gram_result result, struct gram_ast_context *context);
-void do_empty_rhs(union gram_result result, struct gram_ast_context *context);
-void do_append_rhs(union gram_result result, struct gram_ast_context *context);
-void do_head(union gram_result result, struct gram_ast_context *context);
+bool do_parser_spec(union gram_result result, struct gram_ast_context *context);
+bool do_pattern_def(union gram_result result, struct gram_ast_context *context);
+bool do_append_pattern_def(union gram_result result, struct gram_ast_context *context);
+bool do_rule(union gram_result result, struct gram_ast_context *context);
+bool do_append_rule(union gram_result result, struct gram_ast_context *context);
+bool do_alt(union gram_result result, struct gram_ast_context *context);
+bool do_append_alt(union gram_result result, struct gram_ast_context *context);
+bool do_id_rhs(union gram_result result, struct gram_ast_context *context);
+bool do_lit_rhs(union gram_result result, struct gram_ast_context *context);
+bool do_empty_rhs(union gram_result result, struct gram_ast_context *context);
+bool do_append_rhs(union gram_result result, struct gram_ast_context *context);
+bool do_head(union gram_result result, struct gram_ast_context *context);
 
-void (**gram_ast_actions)(union gram_result result, void *context);
+extern bool (*gram_ast_actions[GM_NUM_ACTIONS])(union gram_result result, void *context);
 
 #endif // GRAM_AST_H_
 

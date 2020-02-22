@@ -3,29 +3,29 @@
 #include "gram/parser.h"
 #include "gram/ast.h"
 
-#define ACTION (void (*)(union gram_result, void *))
-void (*gram_ast_actions[])(union gram_result result, void *context) = {
-    [AI(DO_PARSER_SPEC)] = ACTION do_parser_spec,
+#define GMACTION (bool (*)(union gram_result, void *))
+bool (*gram_ast_actions[GM_NUM_ACTIONS])(union gram_result result, void *context) = {
+    [GM_AI(GM_DO_PARSER_SPEC)] =        GMACTION do_parser_spec,
 
-    [AI(DO_PATTERN_DEF)] = ACTION do_pattern_def,
-    [AI(DO_APPEND_PATTERN_DEF)] = ACTION do_append,
-    [AI(DO_PATTERN_DEFS_HEAD)] = ACTION do_head,
+    [GM_AI(GM_DO_PATTERN_DEF)] =        GMACTION do_pattern_def,
+    [GM_AI(GM_DO_APPEND_PATTERN_DEF)] = GMACTION do_append,
+    [GM_AI(GM_DO_PATTERN_DEFS_HEAD)] =  GMACTION do_head,
 
-    [AI(DO_RULE)] = ACTION do_rule,
-    [AI(DO_APPEND_RULE)] = ACTION do_append,
-    [AI(DO_RULES_HEAD)] = ACTION do_head,
+    [GM_AI(GM_DO_RULE)] =               GMACTION do_rule,
+    [GM_AI(GM_DO_APPEND_RULE)] =        GMACTION do_append,
+    [GM_AI(GM_DO_RULES_HEAD)] =         GMACTION do_head,
 
-    [AI(DO_ALT)] = ACTION do_alt,
-    [AI(DO_APPEND_ALT)] = ACTION do_append,
-    [AI(DO_ALTS_HEAD)] = ACTION do_head,
+    [GM_AI(GM_DO_ALT)] =                GMACTION do_alt,
+    [GM_AI(GM_DO_APPEND_ALT)] =         GMACTION do_append,
+    [GM_AI(GM_DO_ALTS_HEAD)] =          GMACTION do_head,
 
-    [AI(DO_ID_RHS)] = ACTION do_id_rhs,
-    [AI(DO_LIT_RHS)] = ACTION do_lit_rhs,
-    [AI(DO_EMPTY_RHS)] = ACTION do_empty_rhs,
-    [AI(DO_APPEND_RHS)] = ACTION do_append,
-    [AI(DO_RHSES_HEAD)] = ACTION do_head
+    [GM_AI(GM_DO_ID_RHS)] =             GMACTION do_id_rhs,
+    [GM_AI(GM_DO_LIT_RHS)] =            GMACTION do_lit_rhs,
+    [GM_AI(GM_DO_EMPTY_RHS)] =          GMACTION do_empty_rhs,
+    [GM_AI(GM_DO_APPEND_RHS)] =         GMACTION do_append,
+    [GM_AI(GM_DO_RHSES_HEAD)] =         GMACTION do_head
 };
-#undef ACTION
+#undef GMACTION
 
 static void *gast(struct gram_ast_context *context) { return context->ast; }
 static void sast(void *ast, struct gram_ast_context *context)  { context->ast = ast;  }
@@ -141,39 +141,48 @@ void free_rhs(struct rhs *rhs) {
         next = rhs->next, free(rhs);
 }
 
-void do_parser_spec(union gram_result result, struct gram_ast_context *context) {
+bool do_parser_spec(union gram_result result, struct gram_ast_context *context) {
     sast(init_parser_spec(result.ast, gast(context)), context);
+    return true;
 }
 
-void do_pattern_def(union gram_result result, struct gram_ast_context *context) {
+bool do_pattern_def(union gram_result result, struct gram_ast_context *context) {
     sast(init_pattern_def(result.pdef.id, result.pdef.regex, NULL), context);
+    return true;
 }
 
-void do_rule(union gram_result result, struct gram_ast_context *context) {
+bool do_rule(union gram_result result, struct gram_ast_context *context) {
     sast(init_rule(result.id, gast(context), NULL), context);
+    return true;
 }
 
-void do_alt(union gram_result _, struct gram_ast_context *context) {
+bool do_alt(union gram_result _, struct gram_ast_context *context) {
     sast(init_alt(gast(context), NULL), context);
+    return true;
 }
 
-void do_id_rhs(union gram_result result, struct gram_ast_context *context) {
+bool do_id_rhs(union gram_result result, struct gram_ast_context *context) {
     sast(init_id_rhs(result.id, NULL), context);
+    return true;
 }
 
-void do_lit_rhs(union gram_result result, struct gram_ast_context *context) {
+bool do_lit_rhs(union gram_result result, struct gram_ast_context *context) {
     sast(init_lit_rhs(result.lit, NULL), context);
+    return true;
 }
 
-void do_empty_rhs(union gram_result _, struct gram_ast_context *context) {
+bool do_empty_rhs(union gram_result _, struct gram_ast_context *context) {
     sast(init_empty_rhs(), context);
+    return true;
 }
 
-void do_head(union gram_result result, struct gram_ast_context *context) {
+bool do_head(union gram_result result, struct gram_ast_context *context) {
     sast(result.ast, context);
+    return true;
 }
 
-void do_append(union gram_result result, struct gram_ast_context *context) {
+bool do_append(union gram_result result, struct gram_ast_context *context) {
     result.ast->next = gast(context);
+    return true;
 }
 

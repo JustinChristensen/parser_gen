@@ -40,10 +40,9 @@ enum {
 #define RE_LINE_COMMENT(sym) { sym, "line_comment", "//[^\n]*\n"    }
 #define RE_REGEX(sym)        { sym, "regex",        "/[^/\n]/"        }
 
-struct regex_loc bump_loc(char c, struct regex_loc loc);
-struct regex_loc regex_loc(int line, int col);
-void regex_print_loc(FILE *handle, struct regex_loc loc);
-void regex_print_range(FILE *handle, struct char_range r);
-bool is_null_pattern(struct regex_pattern const *pattern);
+struct regex_loc re_regex_loc(int line, int col);
+struct regex_loc re_bump_loc(char c, struct regex_loc loc);
+void re_print_loc(FILE *handle, struct regex_loc loc);
+void re_print_range(FILE *handle, struct char_range r);
 
 #endif // REGEX_BASE_H_

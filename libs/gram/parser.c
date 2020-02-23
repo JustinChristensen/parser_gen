@@ -5,7 +5,7 @@
 #include "regex/nfa.h"
 
 #define FIRST (enum gram_symbol[])
-static enum gram_symbol *first_sets[] {
+static enum gram_symbol *first_sets[] = {
     [GM_REGEX_T]           = FIRST { GM_REGEX_T, 0 },
     [GM_SECTION_T]         = FIRST { GM_SECTION_T, 0 },
     [GM_ASSIGN_T]          = FIRST { GM_ASSIGN_T, 0 },
@@ -18,19 +18,19 @@ static enum gram_symbol *first_sets[] {
     [GM_ID_T]              = FIRST { GM_ID_T, 0 }
     [GM_WHITESPACE_T]      = FIRST { GM_WHITESPACE_T, 0 }
 
-    [PARSER_SPEC_NT]       = FIRST { GM_ID_T, GM_SECTION_T, RE_EOF,  0 },
-    [PATTERN_DEFS_HEAD_NT] = FIRST { GM_ID_T, GM_SECTION_T, RE_EOF, 0 },
-    [PATTERN_DEFS_NT]      = FIRST { GM_ID_T, GM_SECTION_T, RE_EOF, 0 },
-    [PATTERN_DEF_NT]       = FIRST { GM_ID_T, 0 },
-    [GRAMMAR_NT]           = FIRST { GM_SECTION_T, RE_EOF, 0 },
-    [RULES_HEAD_NT]        = FIRST { GM_ID_T, RE_EOF, 0  },
-    [RULES_NT]             = FIRST { GM_ID_T, RE_EOF, 0  },
-    [RULE_NT]              = FIRST { GM_ID_T, 0 },
-    [ALTS_HEAD_NT]         = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0  },
-    [ALTS_NT]              = FIRST { GM_ALT_T, GM_SEMICOLON_T, 0  },
-    [ALT_NT]               = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0 },
-    [RHSES_NT]             = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_ALT_T, GM_SEMICOLON_T, 0 },
-    [RHS_NT]               = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0 }
+    [GM_PARSER_SPEC_NT]       = FIRST { GM_ID_T, GM_SECTION_T, RX_EOF,  0 },
+    [GM_PATTERN_DEFS_HEAD_NT] = FIRST { GM_ID_T, GM_SECTION_T, RX_EOF, 0 },
+    [GM_PATTERN_DEFS_NT]      = FIRST { GM_ID_T, GM_SECTION_T, RX_EOF, 0 },
+    [GM_PATTERN_DEF_NT]       = FIRST { GM_ID_T, 0 },
+    [GM_GRAMMAR_NT]           = FIRST { GM_SECTION_T, RX_EOF, 0 },
+    [GM_RULES_HEAD_NT]        = FIRST { GM_ID_T, RX_EOF, 0  },
+    [GM_RULES_NT]             = FIRST { GM_ID_T, RX_EOF, 0  },
+    [GM_RULE_NT]              = FIRST { GM_ID_T, 0 },
+    [GM_ALTS_HEAD_NT]         = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0  },
+    [GM_ALTS_NT]              = FIRST { GM_ALT_T, GM_SEMICOLON_T, 0  },
+    [GM_ALT_NT]               = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0 },
+    [GM_RHSES_NT]             = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_ALT_T, GM_SEMICOLON_T, 0 },
+    [GM_RHS_NT]               = FIRST { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0 }
 };
 #undef FIRST
 
@@ -110,10 +110,10 @@ bool gm_parse_context(
 ) {
     struct nfa_context scanner;
 
-    if (!re_nfa_context(&scanner, RE_PATTERNS {
-        RE_ALPHA_(RE_TAG_ONLY), RE_ALNUM_(RE_TAG_ONLY),
-        RE_LINE_COMMENT(COMMENT_T),
-        RE_REGEX(REGEX_T),
+    if (!re_nfa_context(&scanner, RX_PATTERNS {
+        RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
+        RX_LINE_COMMENT(COMMENT_T),
+        RX_REGEX(REGEX_T),
         { SECTION_T, NULL, "\n---\n" },
         { ASSIGN_T, NULL, "=" },
         { ALT_T, NULL, "|" },
@@ -122,8 +122,8 @@ bool gm_parse_context(
         { CHAR_T, NULL, "'(\\\\.|[^'\\\\])*'" },
         { STRING_T, NULL, "\"(\\\\.|[^\"\\\\])*\"" },
         { ID_T, NULL, "{alpha_}{alnum_}*" }
-        RE_SPACE(WHITESPACE_T),
-        RE_END_PATTERNS
+        RX_SPACE(WHITESPACE_T),
+        RX_END_PATTERNS
     })) return false;
 
     *context = (struct gram_parse_context) {
@@ -210,7 +210,7 @@ bool gm_parse_parser_spec(char *input, struct gram_parse_context *context) {
         union gram_result pdefs = result(context);
 
         if (parse_grammar(context) &&
-            expect(RE_EOF, context) &&
+            expect(RX_EOF, context) &&
             do_action(GM_DO_PARSER_SPEC, pdefs, context)) return true;
     }
 

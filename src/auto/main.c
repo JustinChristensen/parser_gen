@@ -293,7 +293,7 @@ int main(int argc, char *argv[]) {
             {
                 C_FILE, "cfile",
                 ARGS { dot_fmt_arg, help_and_version_args, END_ARGS },
-                ENV_VARS { debug_var, END_ENV_VARS },
+                ENV_VARS { debug_var, nonrec_var, END_ENV_VARS },
                 NULL,
                 "Scan a C file"
             },
@@ -479,11 +479,13 @@ int main(int argc, char *argv[]) {
         })) {
             fprintf(stderr, "could not initialize context\n");
             print_regex_error(stderr, nfa_error(&context));
+            free_nfa_context(&context);
             return EXIT_FAILURE;
         }
 
         if (args.output == OUTPUT_DOT) {
             nfa_to_graph(nfa_gmachine(&context).start, context.num_states);
+            free_nfa_context(&context);
         } else {
             if (args.posc == 0) {
                 fprintf(stderr, "no input files\n");
@@ -556,11 +558,10 @@ int main(int argc, char *argv[]) {
             }
 
             free_nfa_match(&match);
+            free_nfa_context(&context);
 
             return result;
         }
-
-        free_nfa_context(&context);
     }
 
     return EXIT_SUCCESS;

@@ -379,10 +379,12 @@ static bool tag_machine(char *tag, struct nfa_context *context) {
         }
     }
 
-    tnfa = malloc(sizeof *tnfa);
-    tag = strdup(tag);
+    if ((tnfa = malloc(sizeof *tnfa)) == NULL) {
+        return set_oom_error(context);
+    }
 
-    if (!tnfa || !tag) {
+    if ((tag = strdup(tag)) == NULL) {
+        free(tnfa);
         return set_oom_error(context);
     }
 
@@ -867,7 +869,7 @@ int nfa_match(struct nfa_match *match) {
     cend = eps_closure(NULL, cend, already_on, mach.start);
 
     ndebug("simulation\n");
-    ndebug("remaining input: %s\n", input);
+    // ndebug("remaining input: %s\n", input);
     debug_nfa_states(cstart, cend);
 
     // always consume at least one character

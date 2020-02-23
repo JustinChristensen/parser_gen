@@ -5,9 +5,9 @@
 #include <ctype.h>
 #include <assert.h>
 #include <base/debug.h>
-#include "regex/base.h"
-#include "regex/parser.h"
-#include "regex/result_types.h"
+#include <regex/base.h>
+#include <regex/result_types.h>
+#include "parser.h"
 
 #define sdebug(...) debug_ns_("scanner", __VA_ARGS__)
 #define pdebug(...) debug_ns_("parser", __VA_ARGS__)
@@ -49,9 +49,9 @@ static enum regex_symbol const * const first_set(enum regex_symbol sym) {
     return first_sets[sym];
 }
 
-struct regex_token regex_token(char *input) {
-    return scan((struct regex_token) {
-        .input = input,
+struct regex_token regex_token(char *pattern) {
+    return regex_scan((struct regex_token) {
+        .input = pattern,
         .input_col = 1,
         .in_class = false,
         .in_braces = false
@@ -128,7 +128,7 @@ static struct regex_token scan_range(struct regex_token token) {
     return token;
 }
 
-struct regex_token scan(struct regex_token token) {
+struct regex_token regex_scan(struct regex_token token) {
     char *ip = token.input;
     int ic = token.input_col;
     enum regex_symbol type = ERROR;
@@ -237,11 +237,11 @@ struct regex_token scan(struct regex_token token) {
     return token;
 }
 
-enum regex_symbol token_type(struct regex_token token) {
+enum regex_symbol regex_token_type(struct regex_token token) {
     return token.type;
 }
 
-union regex_token_val token_val(struct regex_token token) {
+union regex_token_val regex_token_val(struct regex_token token) {
     return token.val;
 }
 
@@ -249,10 +249,10 @@ int token_col(struct regex_token token) {
     return token.lexeme_col;
 }
 
-void token_lexeme(char *lbuf, struct regex_token token) {
+void token_lexeme(char *lexeme, struct regex_token token) {
     size_t lsize = token.input - token.lexeme;
-    strncpy(lbuf, token.lexeme, lsize);
-    lbuf[lsize] = '\0';
+    strncpy(lexeme, token.lexeme, lsize);
+    lexeme[lsize] = '\0';
 }
 
 static void print_token_val(struct regex_token token) {
@@ -265,7 +265,7 @@ static void print_token_val(struct regex_token token) {
     }
 }
 
-void print_token(struct regex_token token) {
+void print_regex_token(struct regex_token token) {
     char lexeme[BUFSIZ] = "";
     token_lexeme(lexeme, token);
     printf("%3d %-17s %-20s ", token_col(token), str_for_sym(token.type), lexeme);
@@ -273,7 +273,7 @@ void print_token(struct regex_token token) {
     printf("\n");
 }
 
-void print_token_table(char *regex) {
+void print_regex_token_table(char *regex) {
     struct regex_token token = regex_token(regex);
 
     printf("%-3s %-17s %-20s %-s\n", "col", "symbol", "lexeme", "value");
@@ -284,22 +284,22 @@ void print_token_table(char *regex) {
     }
 }
 
-union regex_result get_result(struct parse_context *context) {
+union regex_result get_result(struct regex_parse_context *context) {
     return (*context->pi.result)(context->result);
 }
 
-bool result_has_error(struct parse_context *context) {
+bool result_has_error(struct regex_parse_context *context) {
     return context->pi.has_error ? (*context->pi.has_error)(context->result) : false;
 }
 
-struct regex_error result_error(struct parse_context *context) {
-    return context->pi.error ? (*context->pi.error)(context->result) : nullperr();
+struct regex_error result_error(struct regex_parse_context *context) {
+    return context->pi.error ? (*context->pi.error)(context->result) : nullerror();
 }
 
-bool do_action(enum regex_symbol action, union regex_result val, struct parse_context *context) {
+bool do_action(enum regex_symbol action, union regex_result val, struct regex_parse_context *context) {
     pdebug("doing action: %s\n", str_for_sym(action));
 
-    if (!(*context->actions[AI(action)])(val, context->result)) {
+    if (!(*context->pi.actions[AI(action)])(val, context->result)) {
         context->has_error = result_has_error(context);
         context->error = result_error(context);
         return false;
@@ -308,35 +308,40 @@ bool do_action(enum regex_symbol action, union regex_result val, struct parse_co
     return true;
 }
 
-struct parse_context parse_context(
+struct regex_parse_context regex_parse_context(
     void *result,
-    struct parse_interface pi,
-    bool (**actions)(union regex_result val, void *result)
+    struct regex_parse_interface pi,
 ) {
     assert(result != NULL);
-    assert(actions != NULL);
 
-    struct parse_context context = {
+    struct regex_parse_context context = {
         .result = result,
         .pi = pi,
-        .actions = actions,
         .has_error = false,
-        .error = nullperr()
+        .error = nullerror()
     };
 
     return context;
 }
 
-void start_scanning(char *input, struct parse_context *context) {
+bool parse_regex(char *pattern, struct regex_parse_context *context) {
+    if (getenv("USE_NONREC")) {
+        return parse_regex_nonrec(pattern, context);
+    } else {
+        return parse_regex_rec(pattern, context);
+    }
+}
+
+void start_scanning(char *input, struct regex_parse_context *context) {
     struct regex_token token = regex_token(input);
     context->token = token;
-    context->lookahead = token_type(token);
-    context->lookahead_col = token_col(token);
-    context->lookahead_val = token_val(token);
+    context->lookahead = regex_token_type(token);
+    context->lookahead_col = regex_token_col(token);
+    context->lookahead_val = regex_token_val(token);
     context->has_error = false;
 }
 
-bool peek(enum regex_symbol expected, struct parse_context *context) {
+bool peek(enum regex_symbol expected, struct regex_parse_context *context) {
     enum regex_symbol const *s = first_set(expected);
 
     while (*s) {
@@ -347,17 +352,17 @@ bool peek(enum regex_symbol expected, struct parse_context *context) {
     return false;
 }
 
-bool expect(enum regex_symbol expected, struct parse_context *context) {
+bool expect(enum regex_symbol expected, struct regex_parse_context *context) {
     if (peek(expected, context)) {
         pdebug("success, expected \"%s\", actual \"%s\"\n",
             str_for_sym(expected), str_for_sym(context->lookahead));
 
-        struct regex_token token = scan(context->token);
+        struct regex_token token = regex_scan(context->token);
 
         context->token = token;
-        context->lookahead = token_type(token);
-        context->lookahead_col = token_col(token);
-        context->lookahead_val = token_val(token);
+        context->lookahead = regex_token_type(token);
+        context->lookahead_col = regex_token_col(token);
+        context->lookahead_val = regex_token_val(token);
 
         return true;
     }
@@ -368,16 +373,16 @@ bool expect(enum regex_symbol expected, struct parse_context *context) {
     return false;
 }
 
-enum regex_symbol lookahead(struct parse_context *context) {
+enum regex_symbol lookahead(struct regex_parse_context *context) {
     return context->lookahead;
 }
 
-union regex_result lookahead_val(struct parse_context *context) {
+union regex_result lookahead_val(struct regex_parse_context *context) {
     return (union regex_result) { .tval = context->lookahead_val };
 }
 
-union regex_result tag_val(char *tagbuf, struct parse_context *context) {
-    token_lexeme(tagbuf, context->token);
+union regex_result tag_val(char *tagbuf, struct regex_parse_context *context) {
+    regex_token_lexeme(tagbuf, context->token);
     return (union regex_result) { .tag = tagbuf };
 }
 
@@ -416,7 +421,7 @@ struct regex_error tag_exists_error(char *tag) {
     };
 }
 
-bool set_syntax_error(enum regex_symbol expected, struct parse_context *context) {
+bool set_syntax_error(enum regex_symbol expected, struct regex_parse_context *context) {
     if (!context->has_error) {
         pdebug("parse error %s\n", str_for_sym(expected));
         context->has_error = true;
@@ -440,35 +445,35 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
 
 void print_regex_error(struct regex_error error) {
     switch (error.type) {
-        case SYNTAX_ERROR:
+        case RX_SYNTAX_ERROR:
             fprintf(stderr, SYNERR_FMT_STRING, str_for_sym(error.actual));
             print_symbol_list(stderr, error.expected);
             fprintf(stderr, SYNERR_FMT_STRING_END, error.lexeme_col);
             break;
-        case OUT_OF_MEMORY:
+        case RX_OUT_OF_MEMORY:
             fprintf(stderr, OOM_FMT_STRING);
             break;
-        case MISSING_TAG:
+        case RX_MISSING_TAG:
             fprintf(stderr, MISSING_TAG_FMT_STRING, error.tag);
             break;
-        case TAG_EXISTS:
+        case RX_TAG_EXISTS:
             fprintf(stderr, TAG_EXISTS_FMT_STRING, error.tag);
             break;
-        case REPEAT_ZERO:
+        case RX_REPEAT_ZERO:
             fprintf(stderr, REPEAT_ZERO_FMT_STRING);
             break;
     }
 }
 
-bool has_parse_error(struct parse_context *context) {
+bool has_parse_error(struct regex_parse_context *context) {
     return context->has_error;
 }
 
-struct regex_error nullperr() {
-    return (struct regex_error) { 0, { } };
+struct regex_error nullerror() {
+    return (struct regex_error) { 0 };
 }
 
-struct regex_error parse_error(struct parse_context *context) {
+struct regex_error regex_parse_error(struct regex_parse_context *context) {
     return context->error;
 }
 
@@ -521,33 +526,6 @@ char const *str_for_sym(enum regex_symbol type) {
         case DO_PLUS:           return "{plus}";
         case DO_OPTIONAL:       return "{optional}";
         case DO_REPEAT_EXACT:   return "{repeat_exact}";
-    }
-}
-
-char const *str_for_prod(enum gram_production p) {
-    switch (p) {
-        case ERROR_P:               return "ERROR_P";
-        case EMPTY_P:               return "EMPTY_P";
-        case REGEX_EXPR_P:          return "REGEX_EXPR_P";
-        case EXPR_EMPTY_P:          return "EXPR_EMPTY_P";
-        case EXPR_ALT_P:            return "EXPR_ALT_P";
-        case ALT_FACTOR_P:          return "ALT_FACTOR_P";
-        case ALT_EMPTY_P:           return "ALT_EMPTY_P";
-        case ALTS_ALT_P:            return "ALTS_ALT_P";
-        case FACTORS_FACTOR_P:      return "FACTORS_FACTOR_P";
-        case CHAR_CLASS_RBRACKET_P: return "CHAR_CLASS_RBRACKET_P";
-        case CHAR_CLASS_RANGES_P:   return "CHAR_CLASS_RANGES_P";
-        case RANGES_RANGE_P:        return "RANGES_RANGE_P";
-        case FACTOR_SUBEXPR_P:      return "FACTOR_SUBEXPR_P";
-        case FACTOR_TAG_P:          return "FACTOR_TAG_P";
-        case FACTOR_CLASS_P:        return "FACTOR_CLASS_P";
-        case FACTOR_NEG_CLASS_P:    return "FACTOR_NEG_CLASS_P";
-        case FACTOR_DOTALL_P:       return "FACTOR_DOTALL_P";
-        case FACTOR_CHAR_P:         return "FACTOR_CHAR_P";
-        case UNOPS_STAR_P:          return "UNOPS_STAR_P";
-        case UNOPS_PLUS_P:          return "UNOPS_PLUS_P";
-        case UNOPS_OPTIONAL_P:      return "UNOPS_OPTIONAL_P";
-        case UNOPS_REPEAT_EXACT_P:  return "UNOPS_REPEAT_EXACT_P";
     }
 }
 

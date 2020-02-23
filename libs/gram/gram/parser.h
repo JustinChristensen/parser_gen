@@ -135,8 +135,8 @@ bool gm_parse_context(
     void (**actions)(union gram_result val, void *result),
     union gram_result (*get_result)(void *result)
 );
-bool gm_parse_has_error(struct gram_parse_context *context);
-struct gram_error gm_parse_error(struct gram_parse_context *context);
+bool gm_parser_has_error(struct gram_parse_context *context);
+struct gram_error gm_parser_error(struct gram_parse_context *context);
 struct gram_error gm_syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected);
 void gm_print_error(struct gram_error error);
 bool gm_start_scanning(char *input, struct gram_parse_context *context);

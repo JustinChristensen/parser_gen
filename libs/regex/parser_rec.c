@@ -5,8 +5,16 @@
 #include "regex/parser_rec.h"
 #include "regex/result_types.h"
 
-bool parse_regex(char *regex, struct parse_context *context) {
-    start_scanning(regex, context);
+static bool parse_expr(struct parse_context *context);
+static bool parse_alt(struct parse_context *context);
+static bool parse_alts(struct parse_context *context);
+static bool parse_ranges(struct parse_context *context);
+static bool parse_char_class(struct parse_context *context);
+static bool parse_factor(struct parse_context *context);
+static bool parse_unops(struct parse_context *context);
+
+bool parse_regex_rec(char *pattern, struct parse_context *context) {
+    start_scanning(pattern, context);
 
     return (parse_expr(context) &&
         expect(EOF_T, context) &&
@@ -14,7 +22,7 @@ bool parse_regex(char *regex, struct parse_context *context) {
         set_syntax_error(REGEX_NT, context);
 }
 
-bool parse_expr(struct parse_context *context) {
+static bool parse_expr(struct parse_context *context) {
     if (peek(EOF_T, context) || peek(RPAREN_T, context))
         return do_action(DO_EMPTY, NULLRVAL, context);
     else if (parse_alt(context) && parse_alts(context))
@@ -23,7 +31,7 @@ bool parse_expr(struct parse_context *context) {
     return set_syntax_error(EXPR_NT, context);
 }
 
-bool parse_alt(struct parse_context *context) {
+static bool parse_alt(struct parse_context *context) {
     bool success = do_action(DO_EMPTY, NULLRVAL, context);
 
     while (peek(FACTOR_NT, context) && success) {
@@ -37,7 +45,7 @@ bool parse_alt(struct parse_context *context) {
     return success || set_syntax_error(ALT_NT, context);
 }
 
-bool parse_alts(struct parse_context *context) {
+static bool parse_alts(struct parse_context *context) {
     bool success = true;
 
     while (peek(ALT_T, context) && success) {
@@ -52,7 +60,7 @@ bool parse_alts(struct parse_context *context) {
     return success || set_syntax_error(ALTS_NT, context);
 }
 
-bool parse_ranges(struct parse_context *context) {
+static bool parse_ranges(struct parse_context *context) {
     bool success = true;
 
     while (peek(RANGE_T, context) && success) {
@@ -66,7 +74,7 @@ bool parse_ranges(struct parse_context *context) {
     return success || set_syntax_error(RANGES_NT, context);
 }
 
-bool parse_char_class(struct parse_context *context) {
+static bool parse_char_class(struct parse_context *context) {
     bool success = true;
     union regex_result head = lookahead_val(context);
 
@@ -86,7 +94,7 @@ bool parse_char_class(struct parse_context *context) {
     return success || set_syntax_error(CHAR_CLASS_NT, context);
 }
 
-bool parse_factor(struct parse_context *context) {
+static bool parse_factor(struct parse_context *context) {
     bool success = false;
 
     if (peek(LPAREN_T, context)) {
@@ -120,7 +128,7 @@ bool parse_factor(struct parse_context *context) {
     return success ? parse_unops(context) : set_syntax_error(FACTOR_NT, context);
 }
 
-bool parse_unops(struct parse_context *context) {
+static bool parse_unops(struct parse_context *context) {
     bool success = true;
 
     while (success) {
@@ -142,3 +150,4 @@ bool parse_unops(struct parse_context *context) {
 
     return success || set_syntax_error(UNOPS_NT, context);
 }
+

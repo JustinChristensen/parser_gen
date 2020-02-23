@@ -136,11 +136,11 @@ bool gm_parse_context(
     return true;
 }
 
-bool gm_parse_has_error(struct gram_parse_context *context) {
+bool gm_parser_has_error(struct gram_parse_context *context) {
     return context->has_error;
 }
 
-struct gram_error gm_parse_error(struct gram_parse_context *context) {
+struct gram_error gm_parser_error(struct gram_parse_context *context) {
     return context->error;
 }
 

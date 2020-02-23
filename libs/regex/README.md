@@ -14,12 +14,18 @@ TODO improvements:
         - the start states of the following machine, should the context-independent machine accept the input
         - the number of times to repeat (in the case of quantification)
     2. Machine prefix sharing. That is, re-using states when building a branched machine for patterns like
+```
         (then|there|think), t -> h -> e -> n  -> accept
                                       |    |
                                       |    r -> e -> accept
                                       |
                                       i -> n -> k -> accept
+```
 4. For multiple patterns, identify which pattern is causing the error for the syntax error
 5. Make the overall API more "monadic"
 
+Notes:
+
+The NFA context can be considered "online" in the sense that calling nfa_match_state copies the current machine
+to the nfa match state, and nodes reachable from the start state of that machine should be immutable until freed
     

@@ -1,8 +1,7 @@
 TARGETS := all clean
 SUBDIRS := \
 libs \
-src/auto \
-src/sdt \
+src \
 test
 
 include make/subdirs.mk

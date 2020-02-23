@@ -1,14 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <assert.h>
 #include <string.h>
 #include <base/debug.h>
 #include <base/string.h>
+#include "regex/base.h"
 #include "regex/nfa.h"
-#include "regex/result_types.h"
+#include "parser.h"
 
 #define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
+#define CLASS_SIZE (UCHAR_MAX + 1)
 
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
@@ -96,7 +99,7 @@ static bool set_oom_error(struct nfa_context *context) {
     if (!context->has_error) {
         ndebug("oom error\n");
         context->has_error = true;
-        context->error = oom_error();
+        context->error = regex_oom_error();
     }
 
     return false;
@@ -108,7 +111,7 @@ static bool set_missing_tag_error(char *tag, struct nfa_context *context) {
         ndebug("missing tag error\n");
         strcpy(permatag, tag);
         context->has_error = true;
-        context->error = missing_tag_error(permatag);
+        context->error = regex_missing_tag_error(permatag);
     }
 
     return false;
@@ -121,7 +124,7 @@ static bool set_tag_exists_error(char *tag, struct nfa_context *context) {
         ndebug("tag exists error\n");
         strcpy(permatag, tag);
         context->has_error = true;
-        context->error = tag_exists_error(permatag);
+        context->error = regex_tag_exists_error(permatag);
     }
 
     return false;
@@ -131,7 +134,7 @@ static bool set_repeat_zero_error(struct nfa_context *context) {
     if (!context->has_error) {
         ndebug("repeat zero error\n");
         context->has_error = true;
-        context->error = repeat_zero_error();
+        context->error = regex_repeat_zero_error();
     }
 
     return false;
@@ -166,6 +169,99 @@ static bool *get_classy(struct nfa_context *context) {
     context->current_class = char_class;
 
     return char_class;
+}
+
+static struct nfa_state accepting_state(int sym) {
+    return (struct nfa_state) {
+        .type = RX_ACCEPTING_STATE,
+        .sym = sym
+    };
+}
+
+static struct nfa_state epsilon_state(struct nfa_state *next) {
+    return (struct nfa_state) {
+        .type = RX_EPSILON_STATE,
+        .next = next
+    };
+}
+
+static struct nfa_state dotall_state(struct nfa_state *next) {
+    return (struct nfa_state) {
+        .type = RX_DOTALL_STATE,
+        .next = next
+    };
+}
+
+static struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right) {
+    return (struct nfa_state) {
+        .type = RX_BRANCH_STATE,
+        .left = left,
+        .right = right
+    };
+}
+
+static struct nfa_state class_state(bool *char_class) {
+    return (struct nfa_state) {
+        .type = RX_CLASS_STATE,
+        .char_class = char_class,
+        .next = NULL
+    };
+}
+
+static struct nfa_state char_state(char ch) {
+    return (struct nfa_state) {
+        .type = RX_CHAR_STATE,
+        .ch = ch,
+        .next = NULL
+    };
+}
+
+static struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
+    struct nfa_state_pool *pool = context->state_pool;
+    struct nfa_state *statep = NULL;
+
+    if (pool->n == RX_STATE_POOL_SIZE) {
+        pool = context->state_pool = next_state_pool(context->state_pool);
+    }
+
+    if (pool) {
+        state.id = context->num_states++;
+        pool->states[pool->n] = state;
+        statep = &pool->states[pool->n];
+        pool->n++;
+    } else
+        set_oom_error(context);
+
+    return statep;
+}
+
+static void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1) {
+    machine->end = end;
+    machine->end1 = end1;
+}
+
+static struct nfa_state **point(struct nfa machine, struct nfa_state *state) {
+    *machine.end = state;
+    if (machine.end1) *machine.end1 = *machine.end;
+    return &(*machine.end)->next;
+}
+
+static struct nfa_state **merge(struct nfa machine, struct nfa_context *context) {
+    struct nfa_state **end = machine.end;
+
+    if (machine.end && machine.end1) {
+        end = point(machine, setst(epsilon_state(NULL), context));
+    }
+
+    return end;
+}
+
+static void smachine(struct nfa machine, struct nfa_context *context) {
+    context->nfa = machine;
+}
+
+struct nfa nfa_gmachine(struct nfa_context *context) {
+    return context->nfa;
 }
 
 static void add_pointer(struct nfa *mach, struct nfa_state **end) {
@@ -292,7 +388,7 @@ static bool tag_machine(char *tag, struct nfa_context *context) {
 
     *tnfa = (struct tagged_nfa) {
         .tag = tag,
-        .nfa = gmachine(context)
+        .nfa = nfa_gmachine(context)
     };
 
     if (last) last->next = tnfa;
@@ -301,101 +397,8 @@ static bool tag_machine(char *tag, struct nfa_context *context) {
     return true;
 }
 
-static struct nfa_state accepting_state(int sym) {
-    return (struct nfa_state) {
-        .type = RX_ACCEPTING_STATE,
-        .sym = sym
-    };
-}
-
-static struct nfa_state epsilon_state(struct nfa_state *next) {
-    return (struct nfa_state) {
-        .type = RX_EPSILON_STATE,
-        .next = next
-    };
-}
-
-static struct nfa_state dotall_state(struct nfa_state *next) {
-    return (struct nfa_state) {
-        .type = RX_DOTALL_STATE,
-        .next = next
-    };
-}
-
-static struct nfa_state branch_state(struct nfa_state *left, struct nfa_state *right) {
-    return (struct nfa_state) {
-        .type = RX_BRANCH_STATE,
-        .left = left,
-        .right = right
-    };
-}
-
-static struct nfa_state class_state(bool *char_class) {
-    return (struct nfa_state) {
-        .type = RX_CLASS_STATE,
-        .char_class = char_class,
-        .next = NULL
-    };
-}
-
-static struct nfa_state char_state(char ch) {
-    return (struct nfa_state) {
-        .type = RX_CHAR_STATE,
-        .ch = ch,
-        .next = NULL
-    };
-}
-
-static struct nfa_state *setst(struct nfa_state state, struct nfa_context *context) {
-    struct nfa_state_pool *pool = context->state_pool;
-    struct nfa_state *statep = NULL;
-
-    if (pool->n == STATE_POOL_SIZE) {
-        pool = context->state_pool = next_state_pool(context->state_pool);
-    }
-
-    if (pool) {
-        state.id = context->num_states++;
-        pool->states[pool->n] = state;
-        statep = &pool->states[pool->n];
-        pool->n++;
-    } else
-        set_oom_error(context);
-
-    return statep;
-}
-
-static void dangle(struct nfa *machine, struct nfa_state **end, struct nfa_state **end1) {
-    machine->end = end;
-    machine->end1 = end1;
-}
-
-static struct nfa_state **point(struct nfa machine, struct nfa_state *state) {
-    *machine.end = state;
-    if (machine.end1) *machine.end1 = *machine.end;
-    return &(*machine.end)->next;
-}
-
-static struct nfa_state **merge(struct nfa machine, struct nfa_context *context) {
-    struct nfa_state **end = machine.end;
-
-    if (machine.end && machine.end1) {
-        end = point(machine, setst(epsilon_state(NULL), context));
-    }
-
-    return end;
-}
-
-static void smachine(struct nfa machine, struct nfa_context *context) {
-    context->nfa = machine;
-}
-
-static struct nfa gmachine(struct nfa_context *context) {
-    return context->nfa;
-}
-
 static union regex_result nfa_to_result(struct nfa_context *context) {
-    return (union regex_result) { .mach = gmachine(context) };
+    return (union regex_result) { .mach = nfa_gmachine(context) };
 }
 
 static struct nfa empty_machine(struct nfa_context *context) {
@@ -492,12 +495,12 @@ static bool do_empty_nfa(union regex_result _, struct nfa_context *context) {
 }
 
 static bool do_alt_nfa(union regex_result lhs, struct nfa_context *context) {
-    smachine(alt_machine(lhs.mach, gmachine(context), context), context);
+    smachine(alt_machine(lhs.mach, nfa_gmachine(context), context), context);
     return true;
 }
 
 static bool do_cat_nfa(union regex_result lhs, struct nfa_context *context) {
-    smachine(cat_machine(lhs.mach, gmachine(context)), context);
+    smachine(cat_machine(lhs.mach, nfa_gmachine(context)), context);
     return true;
 }
 
@@ -515,7 +518,7 @@ static bool do_range_nfa(union regex_result range, struct nfa_context *context) 
     bool *char_class;
 
     if ((char_class = get_classy(context))) {
-        struct char_range r = range.tval.range;
+        struct regex_char_range r = range.tval.range;
         for (unsigned char s = r.start, e = r.end; s <= e; s++)
             char_class[s] = true;
         return true;
@@ -537,7 +540,7 @@ static bool do_class_nfa(union regex_result _, struct nfa_context *context) {
 }
 
 static bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) {
-    bool *char_class = gmachine(context).start->char_class;
+    bool *char_class = nfa_gmachine(context).start->char_class;
     if (char_class) {
         for (int i = 0; i < CLASS_SIZE; i++) char_class[i] = !char_class[i];
     }
@@ -545,17 +548,17 @@ static bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) 
 }
 
 static bool do_star_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(closure_machine(gmachine(context), context), context);
+    smachine(closure_machine(nfa_gmachine(context), context), context);
     return true;
 }
 
 static bool do_plus_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(posclosure_machine(gmachine(context), context), context);
+    smachine(posclosure_machine(nfa_gmachine(context), context), context);
     return true;
 }
 
 static bool do_optional_nfa(union regex_result _, struct nfa_context *context) {
-    smachine(optional_machine(gmachine(context), context), context);
+    smachine(optional_machine(nfa_gmachine(context), context), context);
     return true;
 }
 
@@ -563,7 +566,7 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
     int n = num.tval.num;
 
     if (n > 0) {
-        struct nfa lhs, orig = gmachine(context);
+        struct nfa lhs, orig = nfa_gmachine(context);
         bool success = true;
 
         ndebug("original machine\n");
@@ -571,13 +574,13 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
         debug_state_table(context->state_pools);
 
         for (int i = 1; i < n && success; i++) {
-            lhs = gmachine(context);
+            lhs = nfa_gmachine(context);
             clone_machine(orig, context);
             success = do_cat_nfa((union regex_result) { .mach = lhs }, context);
         }
 
         ndebug("cloned machine\n");
-        debug_nfa(gmachine(context));
+        debug_nfa(nfa_gmachine(context));
         debug_state_table(context->state_pools);
 
         return success;
@@ -594,27 +597,31 @@ static void reset_context(struct nfa_context *context) {
     *context = (struct nfa_context) {
         .nfa = nullmach(),
         .has_error = false,
-        .error = nullperr()
+        .error = regex_nullerror()
     };
 }
 
+static bool is_null_pattern(struct regex_pattern const *pattern) {
+    return pattern->pattern == NULL;
+}
+
 static bool (*const nfa_actions[])(union regex_result val, struct nfa_context *context) = {
-    [AI(DO_REGEX)] =        noop_nfa,
-    [AI(DO_EMPTY)] =        do_empty_nfa,
-    [AI(DO_ALT)] =          do_alt_nfa,
-    [AI(DO_CAT)] =          do_cat_nfa,
-    [AI(DO_SUB)] =          noop_nfa,
-    [AI(DO_TAG)] =          do_tag_nfa,
-    [AI(DO_CHAR_CLASS)] =   do_class_nfa,
-    [AI(DO_NEG_CLASS)] =    do_neg_class_nfa,
-    [AI(DO_DOTALL)] =       do_dotall_nfa,
-    [AI(DO_CHAR)] =         do_char_nfa,
-    [AI(DO_RANGES)] =       do_range_nfa,
-    [AI(DO_RANGE)] =        do_range_nfa,
-    [AI(DO_STAR)] =         do_star_nfa,
-    [AI(DO_PLUS)] =         do_plus_nfa,
-    [AI(DO_OPTIONAL)] =     do_optional_nfa,
-    [AI(DO_REPEAT_EXACT)] = do_repeat_exact_nfa
+    [AI(RX_DO_REGEX)] =        noop_nfa,
+    [AI(RX_DO_EMPTY)] =        do_empty_nfa,
+    [AI(RX_DO_ALT)] =          do_alt_nfa,
+    [AI(RX_DO_CAT)] =          do_cat_nfa,
+    [AI(RX_DO_SUB)] =          noop_nfa,
+    [AI(RX_DO_TAG)] =          do_tag_nfa,
+    [AI(RX_DO_CHAR_CLASS)] =   do_class_nfa,
+    [AI(RX_DO_NEG_CLASS)] =    do_neg_class_nfa,
+    [AI(RX_DO_DOTALL)] =       do_dotall_nfa,
+    [AI(RX_DO_CHAR)] =         do_char_nfa,
+    [AI(RX_DO_RANGES)] =       do_range_nfa,
+    [AI(RX_DO_RANGE)] =        do_range_nfa,
+    [AI(RX_DO_STAR)] =         do_star_nfa,
+    [AI(RX_DO_PLUS)] =         do_plus_nfa,
+    [AI(RX_DO_OPTIONAL)] =     do_optional_nfa,
+    [AI(RX_DO_REPEAT_EXACT)] = do_repeat_exact_nfa
 };
 
 struct regex_parse_interface const nfa_parse_iface = {
@@ -647,11 +654,11 @@ bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     if (nfa_has_error(context)) return false;
 
-    struct regex_parse_context pcontext = parse_context(context, nfa_pinterface, nfa_actions);
-    struct nfa lastmach = gmachine(context);
+    struct regex_parse_context pcontext = regex_parse_context(context, nfa_parse_iface);
+    struct nfa lastmach = nfa_gmachine(context);
 
-    if (run_parser(pattern, &pcontext)) {
-        struct nfa nextmach = gmachine(context);
+    if (parse_regex(pattern, &pcontext)) {
+        struct nfa nextmach = nfa_gmachine(context);
 
         if (tag && !tag_machine(tag, context)) return false;
 
@@ -820,7 +827,7 @@ bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *c
 
     if (already_on && cstates && nstates) {
         *match = (struct nfa_match) {
-            .mach = gmachine(context),
+            .mach = nfa_gmachine(context),
             .num_states = num_states,
             .already_on = already_on,
             .currstates = cstates,
@@ -866,7 +873,7 @@ int nfa_match(struct nfa_match *match) {
     // always consume at least one character
     char c = *input++;
     match->input = input;
-    loc = match->input_loc = bump_loc(c, loc);
+    loc = match->input_loc = bump_regex_loc(c, loc);
 
     struct nfa_state **t = NULL;
     int retsym = RX_REJECTED;
@@ -893,7 +900,7 @@ int nfa_match(struct nfa_match *match) {
 
         // bump
         c = *input++;
-        loc = bump_loc(c, loc);
+        loc = bump_regex_loc(c, loc);
 
         ndebug("c = %c\n", c);
         debug_nfa_states(cstart, cend);

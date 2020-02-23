@@ -3,11 +3,11 @@
 
 #include <stdbool.h>
 #include <regex/base.h>
-#include <regex/result_types.h>
-#include <regex/parser.h>
+
+#define RX_STATE_POOL_SIZE 1000
 
 struct nfa_state_pool {
-    struct nfa_state states[STATE_POOL_SIZE];
+    struct nfa_state states[RX_STATE_POOL_SIZE];
     int n;
     struct nfa_state_pool *next;
 };
@@ -45,18 +45,19 @@ struct nfa_match {
 // parser interface
 extern struct regex_parse_interface const nfa_parse_iface;
 
-// scanner construction
+// matcher construction
 bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns);
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context);
+struct nfa nfa_gmachine(struct nfa_context *context);
 bool nfa_has_error(struct nfa_context *context);
 struct regex_error nfa_error(struct nfa_context *context);
 void free_nfa_context(struct nfa_context *context);
 
-// scanning
+// matching
 bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *context);
 int nfa_match(struct nfa_match *match);
 struct regex_loc nfa_match_loc(struct nfa_match *match);
-void re_match_lexeme(char *lexeme, struct nfa_match *match);
+void nfa_match_lexeme(char *lexeme, struct nfa_match *match);
 void free_nfa_match(struct nfa_match *match);
 
 #endif // REGEX_NFA_H_

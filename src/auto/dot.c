@@ -7,74 +7,74 @@
 #include <regex/nfa.h>
 #include "dot.h"
 
-void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct expr *expr) {
+void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct regex_expr *expr) {
     expr_to_graph(graph, NULL, expr);
 }
 
-void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct expr *expr) {
+void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct regex_expr *expr) {
     if (!expr) return;
 
     char label[128] = "";
 
     switch (expr->type) {
-        case NULL_EXPR:
+        case RX_NULL_EXPR:
             fprintf(stderr, "null expression encountered\n");
             break;
-        case EMPTY_EXPR:
+        case RX_EMPTY_EXPR:
             append_node(graph, parent, "ε", NULL);
             break;
-        case DOTALL_EXPR:
+        case RX_DOTALL_EXPR:
             append_node(graph, parent, ".", NULL);
             break;
-        case TAG_EXPR:
+        case RX_TAG_EXPR:
             sprintf(label, "{%s}", expr->tag);
             append_node(graph, parent, label, NULL);
             break;
-        case ALT_EXPR:
+        case RX_ALT_EXPR:
             parent = append_node(graph, parent, "|", NULL);
             expr_to_graph(graph, parent, expr->lexpr);
             expr_to_graph(graph, parent, expr->rexpr);
             break;
-        case CAT_EXPR:
+        case RX_CAT_EXPR:
             parent = append_node(graph, parent, "+", NULL);
             expr_to_graph(graph, parent, expr->lexpr);
             expr_to_graph(graph, parent, expr->rexpr);
             break;
-        case STAR_EXPR:
+        case RX_STAR_EXPR:
             parent = append_node(graph, parent, "*", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case PLUS_EXPR:
+        case RX_PLUS_EXPR:
             parent = append_node(graph, parent, "+", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case OPTIONAL_EXPR:
+        case RX_OPTIONAL_EXPR:
             parent = append_node(graph, parent, "?", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case REPEAT_EXACT_EXPR:
+        case RX_REPEAT_EXACT_EXPR:
             sprintf(label, "{%d}", expr->num);
             parent = append_node(graph, parent, label, NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case SUB_EXPR:
+        case RX_SUB_EXPR:
             parent = append_node(graph, parent, "()", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case CHAR_CLASS_EXPR:
+        case RX_CHAR_CLASS_EXPR:
             parent = append_node(graph, parent, "[]", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case NEG_CLASS_EXPR:
+        case RX_NEG_CLASS_EXPR:
             parent = append_node(graph, parent, "[^]", NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case RANGE_EXPR:
+        case RX_RANGE_EXPR:
             sprintf(label, "%c-%c", expr->range.start, expr->range.end);
             parent = append_node(graph, parent, label, NULL);
             expr_to_graph(graph, parent, expr->expr);
             break;
-        case CHAR_EXPR:
+        case RX_CHAR_EXPR:
             sprintf(label, "%c", expr->ch);
             parent = append_node(graph, parent, label, NULL);
             break;
@@ -118,31 +118,31 @@ void nfa_state_to_graph(Agraph_t *graph, Agnode_t **nodes, struct nfa_state *to,
         agset(node, "label", namebuf);
 
         switch (to->type) {
-            case ACCEPTING_STATE:
+            case RX_ACCEPTING_STATE:
                 agset(node, "color", "red");
                 agset(node, "fontcolor", "red");
                 break;
-            case EPSILON_STATE:
+            case RX_EPSILON_STATE:
                 nfa_state_to_graph(graph, nodes, to->next, node, "ε");
                 break;
-            case BRANCH_STATE:
+            case RX_BRANCH_STATE:
                 agset(node, "color", "darkgreen");
                 agset(node, "fontcolor", "darkgreen");
                 nfa_state_to_graph(graph, nodes, to->left, node, "ε");
                 nfa_state_to_graph(graph, nodes, to->right, node, "ε");
                 break;
-            case DOTALL_STATE:
+            case RX_DOTALL_STATE:
                 agset(node, "color", "pink");
                 agset(node, "fontcolor", "pink");
                 label[0] = '.';
                 nfa_state_to_graph(graph, nodes, to->next, node, label);
                 break;
-            case CLASS_STATE:
+            case RX_CLASS_STATE:
                 agset(node, "color", "purple");
                 agset(node, "fontcolor", "purple");
                 nfa_state_to_graph(graph, nodes, to->next, node, "[a-z]");
                 break;
-            case CHAR_STATE:
+            case RX_CHAR_STATE:
                 agset(node, "color", "blue");
                 agset(node, "fontcolor", "blue");
                 label[0] = to->ch;

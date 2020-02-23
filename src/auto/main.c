@@ -7,7 +7,7 @@
 #include <base/graphviz.h>
 #include <regex/ast.h>
 #include <regex/nfa.h>
-#include <regex/run_parser.h>
+#include <regex/parser.h>
 #include "dot.h"
 #include "print_ast.h"
 
@@ -305,13 +305,13 @@ int main(int argc, char *argv[]) {
     debug_args(args);
 
     if (args.cmd == PRINT) {
-        struct expr exprbuf[EXPR_MAX];
-        struct expr_context econtext = expr_context(exprbuf);
+        struct regex_expr exprbuf[RX_EXPR_MAX];
+        struct regex_expr_context econtext = expr_context(exprbuf);
         char *regex = args.regex ? args.regex : "(a|b)*abbc?";
-        struct parse_context pcontext = parse_context(&econtext, expr_pinterface, expr_actions);
+        struct regex_parse_context pcontext = regex_parse_context(&econtext, expr_parse_iface);
 
-        if (run_parser(regex, &pcontext)) {
-            struct expr *expr = gexpr(&econtext);
+        if (parse_regex(regex, &pcontext)) {
+            struct regex_expr *expr = gexpr(&econtext);
 
             if (args.output == OUTPUT_DOT) {
                 print_dot(stdout, expr, NULL, TOGRAPHFN regex_to_graph);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[]) {
                 print_expr(expr);
             }
         } else {
-            print_regex_error(parse_error(&pcontext));
+            print_regex_error(stderr, regex_parse_error(&pcontext));
             return EXIT_FAILURE;
         }
 
@@ -341,8 +341,8 @@ int main(int argc, char *argv[]) {
             success = nfa_regex(35, NULL, args.regex, &ncontext);
         } else {
             success =
-                nfa_regex(RE_TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
-                nfa_regex(RE_TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
+                nfa_regex(RX_TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
+                nfa_regex(RX_TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
                 nfa_regex(0, "if", "if", &ncontext) &&
                 nfa_regex(1, "else", "else", &ncontext) &&
                 nfa_regex(2, "for", "for", &ncontext) &&
@@ -353,14 +353,14 @@ int main(int argc, char *argv[]) {
         }
 
         if (!success) {
-            print_regex_error(nfa_error(&ncontext));
+            print_regex_error(stderr, nfa_error(&ncontext));
             free_nfa_context(&ncontext);
             return EXIT_FAILURE;
         }
 
         if (!nfa_has_error(&ncontext)) {
             if (args.output == OUTPUT_DOT) {
-                struct nfa mach = gmachine(&ncontext);
+                struct nfa mach = nfa_gmachine(&ncontext);
                 nfa_to_graph(mach.start, ncontext.num_states);
             } else {
                 FILE *in = NULL;
@@ -382,18 +382,18 @@ int main(int argc, char *argv[]) {
 
                     struct nfa_match match;
 
-                    if (nfa_match_state(buf, &match, &ncontext)) {
+                    if (nfa_start_match(buf, &match, &ncontext)) {
                         int sym = 0;
 
-                        while ((sym = nfa_match(&match)) != RE_EOF) {
-                            if (sym == RE_REJECTED) {
+                        while ((sym = nfa_match(&match)) != RX_EOF) {
+                            if (sym == RX_REJECTED) {
                                 printf("rejected input\n");
                                 break;
                             }
 
                             nfa_match_lexeme(matchbuf, &match);
                             printf("%s at ", matchbuf);
-                            regex_print_loc(stdout, nfa_match_loc(&match));
+                            print_regex_loc(stdout, nfa_match_loc(&match));
                             printf(" %s, sym: %d\n", sym ? "matches" : "does not match", sym);
                         }
 
@@ -407,22 +407,22 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            print_regex_error(nfa_error(&ncontext));
+            print_regex_error(stderr, nfa_error(&ncontext));
             return EXIT_FAILURE;
         }
 
         free_nfa_context(&ncontext);
     } else if (args.cmd == SCAN_ONLY && args.regex) {
-        print_token_table(args.regex);
+        print_regex_token_table(args.regex);
     } else if (args.cmd == C_FILE) {
         struct nfa_context context;
 
-        if (!nfa_context(&context, RE_PATTERNS {
-            RE_ALPHA_(RE_TAG_ONLY), RE_ALNUM_(RE_TAG_ONLY),
+        if (!nfa_context(&context, RX_PATTERNS {
+            RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
             { C_INCLUDE, NULL, "#include *(\"[^\"]*\"|<[^>]*>)\n" },
             { C_DEFINE, NULL, "#define *[^\n]*\n" },
             { C_UNDEF, NULL, "#undef *[^\n]*\n" },
-            RE_LINE_COMMENT(C_LINE_COMMENT),
+            RX_LINE_COMMENT(C_LINE_COMMENT),
             { C_IF, NULL, "if" },
             { C_ELSE, NULL, "else" },
             { C_SWITCH, NULL, "switch" },
@@ -475,15 +475,15 @@ int main(int argc, char *argv[]) {
             { C_CONSTANT, NULL, "[A-Z_]+" },
             { C_IDENTIFIER, NULL, "{alpha_}{alnum_}*" },
             { C_WS, NULL, "[ \t\n]+" },
-            RE_END_PATTERNS
+            RX_END_PATTERNS
         })) {
             fprintf(stderr, "could not initialize context\n");
-            print_regex_error(nfa_error(&context));
+            print_regex_error(stderr, nfa_error(&context));
             return EXIT_FAILURE;
         }
 
         if (args.output == OUTPUT_DOT) {
-            nfa_to_graph(gmachine(&context).start, context.num_states);
+            nfa_to_graph(nfa_gmachine(&context).start, context.num_states);
         } else {
             if (args.posc == 0) {
                 fprintf(stderr, "no input files\n");
@@ -516,7 +516,7 @@ int main(int argc, char *argv[]) {
 
                 input[nread] = '\0';
 
-                if (!nfa_match_state(input, &match, &context)) {
+                if (!nfa_start_match(input, &match, &context)) {
                     fprintf(stderr, "could not initialize scanner\n");
                     fclose(fi);
                     result = EXIT_FAILURE;
@@ -533,10 +533,10 @@ int main(int argc, char *argv[]) {
 
                 int symcount[NUM_CSYMS] = { 0 };
 
-                while ((sym = nfa_match(&match)) != RE_EOF) {
+                while ((sym = nfa_match(&match)) != RX_EOF) {
                     symcount[sym]++;
                     if (sym == C_WS) continue;
-                    if (sym == RE_REJECTED) nrejected++;
+                    if (sym == RX_REJECTED) nrejected++;
 
                     nfa_match_lexeme(lexeme, &match);
                     loc = nfa_match_loc(&match);

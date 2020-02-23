@@ -15,13 +15,13 @@ static void teardown() {
 
 static void print_if_error() {
     if (nfa_has_error(&context)) {
-        print_regex_error(nfa_error(&context));
+        print_regex_error(stderr, nfa_error(&context));
     }
 }
 
 START_TEST(test_init_with_empty_patterns) {
-    bool success = nfa_context(&context, RE_PATTERNS {
-        RE_END_PATTERNS
+    bool success = nfa_context(&context, RX_PATTERNS {
+        RX_END_PATTERNS
     });
 
     print_if_error();
@@ -31,36 +31,36 @@ START_TEST(test_init_with_empty_patterns) {
 END_TEST
 
 START_TEST(test_init_with_invalid_patterns) {
-    ck_assert_msg(nfa_context(&context, RE_PATTERNS {
+    ck_assert_msg(nfa_context(&context, RX_PATTERNS {
         { 0, NULL, "{5}" },
-        RE_END_PATTERNS
+        RX_END_PATTERNS
     }) == false, "init with invalid patterns succeeded");
 
-    ck_assert(nfa_error(&context).type == SYNTAX_ERROR);
+    ck_assert(nfa_error(&context).type == RX_SYNTAX_ERROR);
 }
 END_TEST
 
 START_TEST(test_init_with_duplicate_tags) {
-    ck_assert_msg(nfa_context(&context, RE_PATTERNS {
+    ck_assert_msg(nfa_context(&context, RX_PATTERNS {
         { 0, "abc", "" },
         { 1, "abc", "" },
-        RE_END_PATTERNS
+        RX_END_PATTERNS
     }) == false, "init with duplicate tags succeeded");
 
-    ck_assert(nfa_error(&context).type == TAG_EXISTS);
+    ck_assert(nfa_error(&context).type == RX_TAG_EXISTS);
 }
 END_TEST
 
 START_TEST(test_init_with_patterns) {
-    bool success = nfa_context(&context, RE_PATTERNS {
-        RE_ALNUM_(RE_TAG_ONLY),
+    bool success = nfa_context(&context, RX_PATTERNS {
+        RX_ALNUM_(RX_TAG_ONLY),
         { 0, "abc", "a|b|c" },
         { 1, "a!", "a[?!]" },
         { 2, NULL, "{alnum_}{5}" },
         { 3, "e's", "([0-7]|u)|e+" },
         { 4, "aa",  ".." },
         { 5, "n followed by optional binary operator",  "[0-9]+[\t ]*(\\+|-|\\*|/)" },
-        RE_END_PATTERNS
+        RX_END_PATTERNS
     });
 
     print_if_error();
@@ -70,22 +70,22 @@ START_TEST(test_init_with_patterns) {
 END_TEST
 
 START_TEST(test_scanner_is_reentrant) {
-    ck_assert(nfa_context(&context, RE_PATTERNS {
+    ck_assert(nfa_context(&context, RX_PATTERNS {
         { 0, NULL, "var" },
         { 1, NULL, "[a-z]+" },
         { 2, NULL, "[0-9]+" },
         { 3, NULL, "=" },
         { 4, NULL, ";" },
         { 5, NULL, " *" },
-        RE_END_PATTERNS
+        RX_END_PATTERNS
     }));
 
     char *input = "var foo = 33;";
     int const ENDT = -10;
-    int tokens[] = { 0, 5, 1, 5, 3, 5, 2, 4, RE_EOF, ENDT };
+    int tokens[] = { 0, 5, 1, 5, 3, 5, 2, 4, RX_EOF, ENDT };
 
     struct nfa_match match = {0};
-    ck_assert(nfa_match_state(input, &match, &context));
+    ck_assert(nfa_start_match(input, &match, &context));
 
     for (int i = 0; i < 3; i++) {
         int expected = 0;
@@ -115,8 +115,8 @@ START_TEST(test_scans_simple_expression) {
     ck_assert(nfa_context(&context, NULL));
 
     bool success =
-        nfa_regex(RE_TAG_ONLY, "alpha_", "[a-zA-Z_]", &context) &&
-        nfa_regex(RE_TAG_ONLY, "alnum_", "[0-9a-zA-Z_]", &context) &&
+        nfa_regex(RX_TAG_ONLY, "alpha_", "[a-zA-Z_]", &context) &&
+        nfa_regex(RX_TAG_ONLY, "alnum_", "[0-9a-zA-Z_]", &context) &&
         nfa_regex(_RESERVED, NULL, "RESERVED", &context) &&
         nfa_regex(_IDENT, NULL, "{alpha_}{alnum_}*", &context) &&
         nfa_regex(_NUM, NULL, "[0-9]+", &context) &&
@@ -137,11 +137,11 @@ START_TEST(test_scans_simple_expression) {
         _LPAREN, _IDENT, _WHITESPACE, _ADD, _WHITESPACE, _NUM, _RPAREN,
         _WHITESPACE, _MULT, _WHITESPACE, _NUM, _WHITESPACE, _SUB, _WHITESPACE,
         _LPAREN, _IDENT, _WHITESPACE, _SUB, _WHITESPACE, _IDENT, _DIV, _RESERVED, _RPAREN,
-        RE_EOF, ENDT
+        RX_EOF, ENDT
     };
 
     struct nfa_match match = {0};
-    ck_assert_msg(nfa_match_state(expr, &match, &context), "init match state failed");
+    ck_assert_msg(nfa_start_match(expr, &match, &context), "init match state failed");
 
     int expected = 0;
     for (int j = 0; (expected = tokens[j]) != ENDT; j++) {

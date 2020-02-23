@@ -1,8 +1,9 @@
 #ifndef REGEX_AST_H_
 #define REGEX_AST_H_ 1
 
-#include <regex/result_types.h>
 #include <regex/parser.h>
+
+#define RX_EXPR_MAX 5000
 
 struct regex_expr_context {
     struct regex_expr *bufstart;

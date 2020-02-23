@@ -3,60 +3,6 @@
 
 #include <stdbool.h>
 #include <regex/base.h>
-#include <regex/result_types.h>
-
-enum regex_symbol {
-    RX_ERROR,
-
-    // terminals
-    RX_EOF_T,
-    RX_CHAR_T,
-    RX_RANGE_T,
-    RX_NUM_T,
-    RX_TAG_T,
-    RX_ALT_T,
-    RX_STAR_T,
-    RX_PLUS_T,
-    RX_OPTIONAL_T,
-    RX_DOTALL_T,
-    RX_LPAREN_T,
-    RX_RPAREN_T,
-    RX_CLASS_T,
-    RX_NEG_CLASS_T,
-    RX_END_CLASS_T,
-    RX_TAG_BRACE_T,
-    RX_LBRACE_T,
-    RX_RBRACE_T,
-
-    // non-terminals
-    RX_REGEX_NT,
-    RX_EXPR_NT,
-    RX_ALT_NT,
-    RX_ALTS_NT,
-    RX_FACTOR_NT,
-    RX_FACTORS_NT,
-    RX_CHAR_CLASS_NT,
-    RX_RANGES_NT,
-    RX_UNOPS_NT,
-
-    // actions
-    RX_DO_REGEX,
-    RX_DO_EMPTY,
-    RX_DO_ALT,
-    RX_DO_CAT,
-    RX_DO_SUB,
-    RX_DO_TAG,
-    RX_DO_CHAR_CLASS,
-    RX_DO_NEG_CLASS,
-    RX_DO_DOTALL,
-    RX_DO_CHAR,
-    RX_DO_RANGES,
-    RX_DO_RANGE,
-    RX_DO_STAR,
-    RX_DO_PLUS,
-    RX_DO_OPTIONAL,
-    RX_DO_REPEAT_EXACT
-};
 
 struct regex_token {
     char *input;
@@ -70,26 +16,6 @@ struct regex_token {
         char *lexeme;
         int lexeme_col;
         union regex_token_val val;
-    };
-};
-
-enum regex_error_type {
-    RX_SYNTAX_ERROR,
-    RX_OUT_OF_MEMORY,
-    RX_REPEAT_ZERO,
-    RX_TAG_EXISTS,
-    RX_MISSING_TAG
-};
-
-struct regex_error {
-    enum regex_error_type type;
-    union {
-        struct {
-            int lexeme_col;
-            enum regex_symbol actual;
-            enum regex_symbol const *expected;
-        };
-        char *tag;
     };
 };
 
@@ -122,12 +48,9 @@ void print_regex_token(struct regex_token token);
 void print_regex_token_table(char *pattern);
 
 // parsing
-struct regex_parse_context parse_context(void *result, struct regex_parse_interface pi);
-bool parse_regex_rec(char *pattern, struct regex_parse_context *context);
-bool parse_regex_nonrec(char *pattern, struct regex_parse_context *context);
+struct regex_parse_context regex_parse_context(void *result, struct regex_parse_interface pi);
 bool parse_regex(char *pattern, struct regex_parse_context *context);
 bool regex_has_parse_error(struct regex_parse_context *context);
 struct regex_error regex_parse_error(struct regex_parse_context *context);
-void print_regex_error(struct regex_error error);
 
 #endif // REGEX_PARSER_H_

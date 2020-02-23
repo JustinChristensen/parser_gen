@@ -1,17 +1,16 @@
+#ifndef REGEX_PARSER_NONREC_C_
+#define REGEX_PARSER_NONREC_C_ 1
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <base/array.h>
-#include <base/debug.h>
-#include "regex/result_types.h"
-#include "parser.h"
+#include "regex/base.h"
 
 #define PARSE_STACK_SIZE 7
 
-#define pdebug(...) debug_ns_("parser_nonrec", __VA_ARGS__);
-
-static enum regex_production {
+enum regex_production {
     ERROR_P,
 
     // $empty
@@ -68,7 +67,7 @@ static enum regex_production {
     UNOPS_REPEAT_EXACT_P
 };
 
-static enum regex_production parse_table[RE_NUM_NONTERMINALS][RE_NUM_TERMINALS] = {
+static enum regex_production parse_table[NUM_NONTERMINALS][NUM_TERMINALS] = {
     [NTI(RX_REGEX_NT)] = {
         [RX_EOF_T] = REGEX_EXPR_P,
         [RX_CHAR_T] = REGEX_EXPR_P,
@@ -182,19 +181,18 @@ static void debug_sym_stack(struct array *stack) {
     pdebug("symbol stack: ");
     for (int i = 0; i < asize(stack); i++) {
         at(&sym, i, stack);
-        debug_("%s ", str_for_sym(sym));
+        debug_("%s ", str_for_regex_sym(sym));
     }
 
     debug_("\n");
 }
 
-static int psize = 0;
-static void debug_result_stack(struct array *results) {
+static void debug_result_stack(struct array *results, int *psize) {
     int csize = asize(results);
 
-    if (csize != psize) {
+    if (csize != *psize) {
         pdebug("result stack size: %d\n", csize);
-        psize = csize;
+        *psize = csize;
     }
 }
 
@@ -209,14 +207,6 @@ static void push_production_symbols(enum regex_production production, struct arr
 
 static enum regex_production selectp(int nonterm, enum regex_symbol term) {
     return parse_table[nonterm][term];
-}
-
-static bool is_terminal(int sym) {
-    return sym < RX_REGEX_NT;
-}
-
-static bool is_action(int sym) {
-    return sym >= RX_DO_REGEX;
 }
 
 static char const *str_for_prod(enum regex_production p) {
@@ -246,15 +236,18 @@ static char const *str_for_prod(enum regex_production p) {
     }
 }
 
-bool parse_regex_nonrec(char *pattern, struct parse_context *context) {
+static bool is_terminal(int sym) { return sym < RX_REGEX_NT; }
+static bool is_action(int sym) { return sym >= RX_DO_REGEX; }
+static bool parse_regex_nonrec(char *pattern, struct regex_parse_context *context) {
     bool success = true;
     struct array
         *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
         *results = init_array(sizeof(union regex_result), PARSE_STACK_SIZE, 0, 0);
     enum regex_symbol ssym;
     char tagbuf[BUFSIZ] = "";
+    int prevres = 0;
 
-    start_scanning(regex, context);
+    start_scanning(pattern, context);
     push_sym(RX_REGEX_NT, stack);
 
     while (success && !aempty(stack)) {
@@ -306,7 +299,7 @@ bool parse_regex_nonrec(char *pattern, struct parse_context *context) {
             enum regex_symbol la = lookahead(context);
             enum regex_production p = selectp(NTI(ssym), la);
 
-            pdebug("parse_table[%s][%s] = %s\n", str_for_sym(ssym), str_for_sym(la), str_for_prod(p));
+            pdebug("parse_table[%s][%s] = %s\n", str_for_regex_sym(ssym), str_for_regex_sym(la), str_for_prod(p));
 
             if (p) {
                 // the top of the tail loop
@@ -322,7 +315,7 @@ bool parse_regex_nonrec(char *pattern, struct parse_context *context) {
             }
         }
 
-        debug_result_stack(results);
+        debug_result_stack(results, &prevres);
     };
 
     free_array(stack);
@@ -331,3 +324,4 @@ bool parse_regex_nonrec(char *pattern, struct parse_context *context) {
     return success;
 }
 
+#endif // REGEX_PARSER_NONREC_C_

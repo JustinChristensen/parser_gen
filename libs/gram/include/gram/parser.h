@@ -81,12 +81,6 @@ enum gram_symbol {
     GM_DO_RHSES_HEAD
 };
 
-#define GM_NUM_TERMINALS (GM_WHITESPACE_T + 1)
-#define GM_NUM_SYMBOLS (GM_RHS_NT + 1)
-#define GM_NUM_NONTERMINALS (GM_NUM_SYMBOLS - GM_NUM_TERMINALS)
-#define GM_NUM_ACTIONS ((GM_DO_RHSES_HEAD + 1) - GM_NUM_NONTERMINALS)
-#define GM_AI(sym) (sym - GM_NUM_NONTERMINALS)
-
 enum gram_error_type {
     GM_SYNTAX_ERROR
 };
@@ -102,10 +96,6 @@ struct gram_error {
     };
 };
 
-#define GM_SYNTAX_ERROR_FMT_START "| Syntax Error\n|\n| Got: %s\n| Expected: "
-#define GM_SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
-#define GM_SYNTAX_ERROR_FMT_END "\n|\n"
-
 union gram_result {
     void *ast;
     char *id;
@@ -116,12 +106,16 @@ union gram_result {
     } pdef;
 };
 
-static const union gram_result GM_NULL_RESULT = { NULL };
+struct gram_parse_interface {
+    union gram_result (*result)(void *result);
+    bool (*has_error)(void *result);
+    struct gram_error (*error)(void *result);
+    bool (*const *actions)(union gram_result val, void *result);
+};
 
 struct gram_parse_context {
     void *result;
-    bool (**actions)(union gram_result val, void *result);
-    union gram_result (*get_result)(void *result);
+    struct gram_parse_interface pi;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_symbol sym;
@@ -129,21 +123,20 @@ struct gram_parse_context {
     struct gram_error error;
 };
 
-bool gm_parse_context(
+bool gram_parse_context(
     struct gram_parse_context *context,
     void *result,
-    void (**actions)(union gram_result val, void *result),
-    union gram_result (*get_result)(void *result)
+    struct gram_parse_interface pi
 );
-bool gm_parser_has_error(struct gram_parse_context *context);
-struct gram_error gm_parser_error(struct gram_parse_context *context);
-struct gram_error gm_syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected);
-void gm_print_error(struct gram_error error);
-bool gm_start_scanning(char *input, struct gram_parse_context *context);
-enum gram_symbol gm_scan(struct gram_parse_context *context);
-enum gram_symbol gm_lookahead(struct gram_parse_context *context);
-struct regex_loc gm_location(struct gram_parse_context *context);
-char *gm_lexeme(struct gram_parse_context *context);
-bool gm_parse_parser_spec(char *input, struct gram_parse_context *context);
+bool gram_parse_has_error(struct gram_parse_context *context);
+struct gram_error gram_parser_error(struct gram_parse_context *context);
+struct gram_error gram_syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected);
+void gram_print_error(struct gram_error error);
+bool gram_start_scanning(char *input, struct gram_parse_context *context);
+enum gram_symbol gram_scan(struct gram_parse_context *context);
+enum gram_symbol gram_lookahead(struct gram_parse_context *context);
+struct regex_loc gram_location(struct gram_parse_context *context);
+char *gram_lexeme(struct gram_parse_context *context);
+bool gram_parse_parser_spec(char *spec, struct gram_parse_context *context);
 
 #endif // GRAM_PARSER_H_

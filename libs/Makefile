@@ -2,6 +2,7 @@ TOPDIR := ..
 TARGETS := all clean
 SUBDIRS := \
 base \
-regex
+regex \
+gram
 
 include $(TOPDIR)/make/subdirs.mk

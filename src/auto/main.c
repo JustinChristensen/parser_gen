@@ -101,18 +101,18 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     args->posc = argc(context);
 }
 
-#define adebug(...) debug_ns_("args", __VA_ARGS__)
+#define debug(...) debug_ns_("args", __VA_ARGS__)
 static void debug_args(struct args args) {
-    adebug("cmd: %s\n", cmd_str(args.cmd));
-    adebug("output: %s\n", output_str(args.output));
-    if (args.regex) adebug("regex: %s\n", args.regex);
+    debug("cmd: %s\n", cmd_str(args.cmd));
+    debug("output: %s\n", output_str(args.output));
+    if (args.regex) debug("regex: %s\n", args.regex);
     if (args.posc > 0) {
-        adebug("posc: %d\n", args.posc);
-        adebug("pos: ");
+        debug("posc: %d\n", args.posc);
+        debug("pos: ");
         for (int i = 0; i < args.posc; i++) {
-            debug_("%s ", args.pos[i]);
+            debug("%s ", args.pos[i]);
         }
-        debug_("\n");
+        debug("\n");
     }
 }
 
@@ -509,7 +509,8 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                if (!(nread = fread(input, sizeof *input, bufsize, fi))) {
+                nread = fread(input, sizeof *input, bufsize, fi);
+                if (ferror(fi)) {
                     fprintf(stderr, "reading file %s failed\n", files[i]);
                     fclose(fi);
                     result = EXIT_FAILURE;

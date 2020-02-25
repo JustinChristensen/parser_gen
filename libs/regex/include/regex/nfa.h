@@ -33,6 +33,7 @@ struct nfa_match {
     char *orig_input;
     char *input;
     struct regex_loc input_loc;
+    bool eof_seen;
     char *match_start;
     struct regex_loc match_loc;
     struct nfa mach;

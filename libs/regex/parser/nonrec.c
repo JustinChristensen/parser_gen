@@ -181,10 +181,10 @@ static void debug_sym_stack(struct array *stack) {
     pdebug("symbol stack: ");
     for (int i = 0; i < asize(stack); i++) {
         at(&sym, i, stack);
-        debug_("%s ", str_for_regex_sym(sym));
+        pdebug("%s ", str_for_regex_sym(sym));
     }
 
-    debug_("\n");
+    pdebug("\n");
 }
 
 static void debug_result_stack(struct array *results, int *psize) {

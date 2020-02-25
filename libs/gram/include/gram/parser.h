@@ -35,6 +35,7 @@ enum gram_symbol {
     GM_ERROR,
 
     // terminals
+    GM_EOF_T,
     GM_REGEX_T,
     GM_SECTION_T,
     GM_ASSIGN_T,
@@ -86,10 +87,11 @@ struct gram_parse_context {
 };
 
 bool gram_parse_context(struct gram_parse_context *context);
+void free_gram_parse_context(struct gram_parse_context *context);
 bool gram_parse_has_error(struct gram_parse_context *context);
 struct gram_error gram_parser_error(struct gram_parse_context *context);
 struct gram_error gram_syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected);
-void gram_print_error(FILE *handle, struct gram_error error);
+void print_gram_error(FILE *handle, struct gram_error error);
 bool gram_start_scanning(char *input, struct gram_parse_context *context);
 enum gram_symbol gram_scan(struct gram_parse_context *context);
 enum gram_symbol gram_lookahead(struct gram_parse_context *context);
@@ -97,5 +99,6 @@ struct regex_loc gram_location(struct gram_parse_context *context);
 bool gram_lexeme(char *lexeme, struct gram_parse_context *context);
 bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context);
 struct gram_parser_spec *get_gram_parser_spec(struct gram_parse_context *context);
+void print_gram_tokens(FILE *handle, char *spec);
 
 #endif // GRAM_PARSER_H_

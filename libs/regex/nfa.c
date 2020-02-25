@@ -10,94 +10,94 @@
 #include "regex/nfa.h"
 #include "parser.h"
 
-#define ndebug(...) debug_ns_("nfa", __VA_ARGS__);
+#define debug(...) debug_ns_("nfa", __VA_ARGS__);
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
-    debug_("[");
+    debug("[");
     for (int i = 0; i < CLASS_SIZE; i++)
-        debug_(char_class[i] ? "1" : "0");
-    debug_("]");
+        debug(char_class[i] ? "1" : "0");
+    debug("]");
 }
 
 static void debug_state(struct nfa_state *state) {
-    debug_("(%d, ", state->id);
+    debug("(%d, ", state->id);
     switch (state->type) {
         case RX_ACCEPTING_STATE:
-            debug_("accept, %d", state->sym);
+            debug("accept, %d", state->sym);
             break;
         case RX_EPSILON_STATE:
-            debug_("eps, %p", state->next);
+            debug("eps, %p", state->next);
             break;
         case RX_DOTALL_STATE:
-            debug_("dotall, %p", state->next);
+            debug("dotall, %p", state->next);
             break;
         case RX_BRANCH_STATE:
-            debug_("branch, %p, %p", state->left, state->right);
+            debug("branch, %p, %p", state->left, state->right);
             break;
         case RX_CLASS_STATE:
-            debug_("class, %p, ", state->next);
+            debug("class, %p, ", state->next);
             debug_class_state(state);
             break;
         case RX_CHAR_STATE:
-            debug_("char, %p, %c", state->next, state->ch);
+            debug("char, %p, %c", state->next, state->ch);
             break;
     }
-    debug_(")");
+    debug(")");
 }
 
 static void debug_nfa_states(struct nfa_state **start, struct nfa_state **end) {
     if (start != end) {
         struct nfa_state *state = *start++;
-        ndebug("{");
+        debug("{");
         debug_state(state);
         while (start != end && (state = *start)) {
-            debug_(", ");
+            debug(", ");
             debug_state(state);
             start++;
         }
-        debug_("}");
+        debug("}");
     } else {
-        ndebug("empty");
+        debug("empty");
     }
 
-    debug_("\n");
+    debug("\n");
 }
 
 static void debug_state_table(struct nfa_state_pool *pool) {
-    ndebug("state table\n");
+    debug("state table\n");
 
     for (; pool; pool = pool->next) {
         for (int i = 0; i < pool->n; i++) {
             struct nfa_state *state = &pool->states[i];
-            ndebug("%p: ", state);
+            debug("%p: ", state);
             debug_state(state);
-            debug_("\n");
+            debug("\n");
         }
     }
 }
 
 static void debug_tagged_nfas(struct tagged_nfa *tnfa) {
-    ndebug("tagged nfas\n");
+    debug("tagged nfas\n");
 
     for (; tnfa; tnfa = tnfa->next) {
-        ndebug("%s: %p\n", tnfa->tag, tnfa->nfa.start);
+        debug("%s: %p\n", tnfa->tag, tnfa->nfa.start);
     }
 }
 
 static void debug_nfa(struct nfa mach) {
     if (mach.start) {
-        ndebug("nfa { start: %p", mach.start);
-        if (mach.end) debug_(", end: %p -> %p", mach.end, *mach.end);
-        if (mach.end1) debug_(", end1: %p -> %p", mach.end1, *mach.end1);
-        debug_(" }\n");
+        debug("nfa { start: %p", mach.start);
+        if (mach.end) debug(", end: %p -> %p", mach.end, *mach.end);
+        if (mach.end1) debug(", end1: %p -> %p", mach.end1, *mach.end1);
+        debug(" }\n");
     }
 }
 
 static bool set_oom_error(struct nfa_context *context) {
     if (!context->has_error) {
-        ndebug("oom error\n");
+        debug("oom error\n");
         context->has_error = true;
         context->error = regex_oom_error();
     }
@@ -108,7 +108,7 @@ static bool set_oom_error(struct nfa_context *context) {
 static bool set_missing_tag_error(char *tag, struct nfa_context *context) {
     static char permatag[BUFSIZ] = "";
     if (!context->has_error) {
-        ndebug("missing tag error\n");
+        debug("missing tag error\n");
         strcpy(permatag, tag);
         context->has_error = true;
         context->error = regex_missing_tag_error(permatag);
@@ -121,7 +121,7 @@ static bool set_tag_exists_error(char *tag, struct nfa_context *context) {
     static char permatag[BUFSIZ] = "";
 
     if (!context->has_error) {
-        ndebug("tag exists error\n");
+        debug("tag exists error\n");
         strcpy(permatag, tag);
         context->has_error = true;
         context->error = regex_tag_exists_error(permatag);
@@ -132,7 +132,7 @@ static bool set_tag_exists_error(char *tag, struct nfa_context *context) {
 
 static bool set_repeat_zero_error(struct nfa_context *context) {
     if (!context->has_error) {
-        ndebug("repeat zero error\n");
+        debug("repeat zero error\n");
         context->has_error = true;
         context->error = regex_repeat_zero_error();
     }
@@ -571,7 +571,7 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
         struct nfa lhs, orig = nfa_gmachine(context);
         bool success = true;
 
-        ndebug("original machine\n");
+        debug("original machine\n");
         debug_nfa(orig);
         debug_state_table(context->state_pools);
 
@@ -581,7 +581,7 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
             success = do_cat_nfa((union regex_result) { .mach = lhs }, context);
         }
 
-        ndebug("cloned machine\n");
+        debug("cloned machine\n");
         debug_nfa(nfa_gmachine(context));
         debug_state_table(context->state_pools);
 
@@ -809,6 +809,7 @@ static struct nfa_state **move(
 static void reset_match(struct nfa_match *match) {
     match->match_start = match->input = match->orig_input;
     match->match_loc = match->input_loc = regex_loc(1, 1);
+    match->eof_seen = false;
 }
 
 static void reset_already_on(struct nfa_match *match) {
@@ -850,11 +851,13 @@ int nfa_match(struct nfa_match *match) {
     struct nfa mach = match->mach;
     assert(runnable(mach));
 
+    if (match->eof_seen) reset_match(match);
+
     char *input = match->input;
     struct regex_loc loc = match->input_loc;
 
     if (*input == '\0') {
-        reset_match(match);
+        match->eof_seen = true;
         return RX_EOF;
     }
 
@@ -868,8 +871,8 @@ int nfa_match(struct nfa_match *match) {
 
     cend = eps_closure(NULL, cend, already_on, mach.start);
 
-    ndebug("simulation\n");
-    // ndebug("remaining input: %s\n", input);
+    debug("simulation\n");
+    // debug("remaining input: %s\n", input);
     debug_nfa_states(cstart, cend);
 
     // always consume at least one character
@@ -904,7 +907,7 @@ int nfa_match(struct nfa_match *match) {
         c = *input++;
         loc = bump_regex_loc(c, loc);
 
-        ndebug("c = %c\n", c);
+        debug("c = %c\n", c);
         debug_nfa_states(cstart, cend);
     }
 

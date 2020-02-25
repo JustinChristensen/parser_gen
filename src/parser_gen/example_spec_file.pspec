@@ -1,0 +1,18 @@
+// foo bar baz
+foo /hello(world|earth)?\/\//
+bar /abc/
+---
+parser_spec       = pattern_defs grammar;
+pattern_defs      = pattern_def pattern_defs | $empty;
+pattern_def       = id regex;
+grammar           = "---" rules_head | $empty;
+rules_head        = rule rules | $empty;
+rules             = rule rules | $empty;
+rule              = id '=' alt alts ';';
+alts              = '|' alt alts | $empty;
+alt               = rhs rhses;
+rhses             = rhs rhses | $empty;
+rhs               = id
+                  | char
+                  | string
+                  | "$empty";

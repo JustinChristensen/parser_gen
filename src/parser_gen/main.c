@@ -82,16 +82,15 @@ int main(int argc, char *argv[]) {
 
             struct gram_parse_context context = { 0 };
 
-            if (!gram_parse_context(&context))
-                return EXIT_FAILURE;
-
-            if (parse_gram_parser_spec(contents, &context)) {
+            if (gram_parse_context(&context) &&
+                parse_gram_parser_spec(contents, &context)) {
                 echo_gram_parser_spec(stdout, get_gram_parser_spec(&context));
+                free_gram_parse_context(&context);
             } else {
                 print_gram_error(stderr, gram_parser_error(&context));
+                free_gram_parse_context(&context);
+                return EXIT_FAILURE;
             }
-
-            free_gram_parse_context(&context);
         }
     } else if (args.cmd == SCAN) {
         char **files = args.pos;

@@ -63,6 +63,7 @@ enum gram_symbol {
 
 enum gram_error_type {
     GM_SYNTAX_ERROR,
+    GM_SCANNER_ERROR,
     GM_OOM_ERROR
 };
 
@@ -74,6 +75,7 @@ struct gram_error {
             struct regex_loc loc;
             enum gram_symbol *expected;
         };
+        struct regex_error scanerr;
     };
 };
 

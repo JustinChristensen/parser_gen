@@ -89,8 +89,12 @@ struct gram_rhs *init_id_gram_rhs(char *sym, struct gram_rhs *next) {
     return init_rhs(GM_ID_RHS, sym, next);
 }
 
-struct gram_rhs *init_lit_gram_rhs(char *sym, struct gram_rhs *next) {
-    return init_rhs(GM_LIT_RHS, sym, next);
+struct gram_rhs *init_char_gram_rhs(char *sym, struct gram_rhs *next) {
+    return init_rhs(GM_CHAR_RHS, sym, next);
+}
+
+struct gram_rhs *init_string_gram_rhs(char *sym, struct gram_rhs *next) {
+    return init_rhs(GM_STRING_RHS, sym, next);
 }
 
 struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next) {
@@ -139,7 +143,8 @@ void free_gram_rhs(struct gram_rhs *rhs) {
 
         switch (rhs->type) {
             case GM_ID_RHS:
-            case GM_LIT_RHS:
+            case GM_CHAR_RHS:
+            case GM_STRING_RHS:
                 free(rhs->sym);
                 break;
             case GM_EMPTY_RHS:

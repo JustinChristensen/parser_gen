@@ -71,18 +71,18 @@ END_TEST
 
 START_TEST(test_scanner_is_reentrant) {
     ck_assert(nfa_context(&context, RX_PATTERNS {
-        { 0, NULL, "var" },
-        { 1, NULL, "[a-z]+" },
-        { 2, NULL, "[0-9]+" },
-        { 3, NULL, "=" },
-        { 4, NULL, ";" },
-        { 5, NULL, " *" },
+        { 1, NULL, "var" },
+        { 2, NULL, "[a-z]+" },
+        { 3, NULL, "[0-9]+" },
+        { 4, NULL, "=" },
+        { 5, NULL, ";" },
+        { 6, NULL, " *" },
         RX_END_PATTERNS
     }));
 
     char *input = "var foo = 33;";
     int const ENDT = -10;
-    int tokens[] = { 0, 5, 1, 5, 3, 5, 2, 4, RX_EOF, ENDT };
+    int tokens[] = { 1, 6, 2, 6, 4, 6, 3, 5, RX_EOF, ENDT };
 
     struct nfa_match match = {0};
     ck_assert(nfa_start_match(input, &match, &context));

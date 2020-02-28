@@ -1,5 +1,4 @@
 Library for generating lexical analyzers
-
 TODO improvements:
 
 1. Construct a DFA, both from the initial NFA using the on-the-fly subset construction technique,
@@ -23,6 +22,7 @@ TODO improvements:
 ```
 4. For multiple patterns, identify which pattern is causing the error for the syntax error
 5. Make the overall API more "monadic"
+6. Make the resulting scanner handle escape sequences
 
 Notes:
 

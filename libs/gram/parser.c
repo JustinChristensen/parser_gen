@@ -78,31 +78,6 @@ static void print_symbol_list(FILE *handle, enum gram_symbol *sym) {
     }
 }
 
-static bool peek(enum gram_symbol expected, struct gram_parse_context *context) {
-    enum gram_symbol const *s = first_set(expected);
-
-    while (*s) {
-        if (gram_lookahead(context) == *s) return true;
-        else s++;
-    }
-
-    return false;
-}
-
-static bool expect(enum gram_symbol expected, struct gram_parse_context *context) {
-    if (peek(expected, context)) {
-        debug("success, expected \"%s\", actual \"%s\"\n",
-            str_for_sym(expected), str_for_sym(context->sym));
-        context->sym = gram_scan(context);
-        return true;
-    }
-
-    debug("failure, expected \"%s\", actual \"%s\"\n",
-        str_for_sym(expected), str_for_sym(context->sym));
-
-    return false;
-}
-
 static struct gram_error syntax_error(enum gram_symbol actual, struct regex_loc loc, enum gram_symbol expected) {
     return (struct gram_error) {
         .type = GM_SYNTAX_ERROR,
@@ -135,6 +110,44 @@ static bool set_oom_error(struct gram_parse_context *context) {
     return false;
 }
 
+static struct gram_error scanner_error(struct regex_error error) {
+    return (struct gram_error) { .type = GM_SCANNER_ERROR, .scanerr = error };
+}
+
+static bool set_scanner_error(struct regex_error error, struct gram_parse_context *context) {
+    if (!context->has_error) {
+        context->has_error = true;
+        context->error = scanner_error(error);
+    }
+
+    return false;
+}
+
+static bool peek(enum gram_symbol expected, struct gram_parse_context *context) {
+    enum gram_symbol const *s = first_set(expected);
+
+    while (*s) {
+        if (gram_lookahead(context) == *s) return true;
+        else s++;
+    }
+
+    return false;
+}
+
+static bool expect(enum gram_symbol expected, struct gram_parse_context *context) {
+    if (peek(expected, context)) {
+        debug("success, expected \"%s\", actual \"%s\"\n",
+            str_for_sym(expected), str_for_sym(context->sym));
+        context->sym = gram_scan(context);
+        return true;
+    }
+
+    debug("failure, expected \"%s\", actual \"%s\"\n",
+        str_for_sym(expected), str_for_sym(context->sym));
+
+    return set_syntax_error(expected, context);
+}
+
 bool gram_parse_context(struct gram_parse_context *context) {
     struct nfa_context scanner;
 
@@ -147,12 +160,13 @@ bool gram_parse_context(struct gram_parse_context *context) {
         { GM_ALT_T, NULL, "\\|" },
         { GM_SEMICOLON_T, NULL, ";" },
         { GM_EMPTY_T, NULL, "$empty" },
-        { GM_CHAR_T, NULL, "'(\\\\.|[^'\\\\])*'" }, // 7
-        { GM_STRING_T, NULL, "\"(\\\\.|[^\"\\\\])*\"" }, // 8
+        { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" }, // 7
+        { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" }, // 8
         { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
         RX_SPACE(GM_WHITESPACE_T),
         RX_END_PATTERNS
     })) {
+        set_scanner_error(nfa_error(&scanner), context);
         free_nfa_context(&scanner);
         return false;
     }
@@ -195,6 +209,9 @@ void print_gram_error(FILE *handle, struct gram_error error) {
             break;
         case GM_OOM_ERROR:
             fprintf(handle, OOM_ERROR_FMT);
+            break;
+        case GM_SCANNER_ERROR:
+            print_regex_error(stderr, error.scanerr);
             break;
     }
 }
@@ -241,6 +258,18 @@ static bool sast(void *ast, struct gram_parse_context *context) {
     return ast ? true : false;
 }
 
+static bool strip_quotes(char *lexeme) {
+    if (!lexeme || lexeme[0] == '\0' || lexeme[1] == '\0') return true;
+
+    int i = 0;
+    for (; lexeme[i + 2] != '\0'; i++) {
+        lexeme[i] = lexeme[i + 1];
+    }
+    lexeme[i] = '\0';
+
+    return true;
+}
+
 struct gram_parser_spec *get_gram_parser_spec(struct gram_parse_context *context) {
     return gast(context);
 }
@@ -266,7 +295,10 @@ bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context) {
         if (parse_grammar(context) &&
             expect(GM_EOF_T, context) &&
             tryinit(context, init_gram_parser_spec, pdefs, gast(context))) return true;
-        else if (pdefs) free_gram_pattern_def(pdefs);
+        else if (pdefs) {
+            free_gram_pattern_def(pdefs);
+            sast(NULL, context);
+        }
     }
 
     return set_syntax_error(GM_PARSER_SPEC_NT, context);
@@ -430,11 +462,13 @@ static bool parse_rhs(struct gram_parse_context *context) {
         expect(GM_ID_T, context)) return true;
     else if (peek(GM_CHAR_T, context) &&
         gram_lexeme(symbuf, context) &&
-        tryinit(context, init_lit_gram_rhs, symbuf, NULL) &&
+        strip_quotes(symbuf) &&
+        tryinit(context, init_char_gram_rhs, symbuf, NULL) &&
         expect(GM_CHAR_T, context)) return true;
     else if (peek(GM_STRING_T, context) &&
         gram_lexeme(symbuf, context) &&
-        tryinit(context, init_lit_gram_rhs, symbuf, NULL) &&
+        strip_quotes(symbuf) &&
+        tryinit(context, init_string_gram_rhs, symbuf, NULL) &&
         expect(GM_STRING_T, context)) return true;
     else if (peek(GM_EMPTY_T, context) &&
         tryinit(context, init_empty_gram_rhs, NULL) &&

@@ -117,6 +117,8 @@ static void debug_args(struct args args) {
 }
 
 enum cfile_symbol {
+    C_REJECTED,
+
     C_INCLUDE,
     C_DEFINE,
     C_UNDEF,
@@ -179,6 +181,7 @@ static int const NUM_CSYMS = C_WS + 1;
 
 static char *str_for_csym(enum cfile_symbol sym) {
     switch (sym) {
+        case C_REJECTED:     return "ERROR";
         case C_INCLUDE:      return "#include";
         case C_DEFINE:       return "#define";
         case C_UNDEF:        return "#undef";

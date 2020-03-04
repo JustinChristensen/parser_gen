@@ -1,6 +1,6 @@
-// foo bar baz
-foo /hello(world|earth)?///
-bar /abc/
+id  /{alpha_}{alnum_}*/
+regex /./
+
 ---
 parser_spec       = pattern_defs grammar;
 pattern_defs      = pattern_def pattern_defs | $empty;

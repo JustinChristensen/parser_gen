@@ -95,6 +95,10 @@ static void debug_nfa(struct nfa mach) {
     }
 }
 
+static void debug_pattern(int sym, char *pattern) {
+    debug("pattern /%s/, sym %d\n", pattern, sym);
+}
+
 static bool set_oom_error(struct nfa_context *context) {
     if (!context->has_error) {
         debug("oom error\n");
@@ -665,6 +669,7 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
         if (tag && !tag_machine(tag, context)) return false;
 
         if (sym != RX_TAG_ONLY) {
+            debug_pattern(sym, pattern);
             point(nextmach, setst(accepting_state(sym), context));
             if (runnable(lastmach))
                 link_machines(lastmach, nextmach, context);
@@ -907,7 +912,7 @@ int nfa_match(struct nfa_match *match) {
         c = *input++;
         loc = bump_regex_loc(c, loc);
 
-        debug("c = %c\n", c);
+        debug("c = '%c', ", c);
         debug_nfa_states(cstart, cend);
     }
 

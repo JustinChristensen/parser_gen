@@ -62,6 +62,22 @@ int main(int argc, char *argv[]) {
         CMDS {
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
+            // generate recursive LL parser
+            // generate configuration-driven parser:
+            //      generate LL parser
+            //          lookahead :: Terminal
+            //          input :: [Terminal]
+            //          select_production :: NonTerminal -> Terminal -> Production
+            //          rule_symbols :: Production -> [Symbol]
+            //          symbol_stack :: [Symbol]
+            //      generate canonical LR parser
+            //          lookahead :: Terminal
+            //          input :: [Terminal]
+            //          stack :: undefined
+            //          data Action = Shift | Reduce | Accept | Error
+            //          action :: State -> Terminal -> Action
+            //      generate simple LR parser       (SLR)
+            //      generate lookahead LR parser    (LALR)
             END_CMDS
         },
         "Generate a parser"
@@ -81,13 +97,16 @@ int main(int argc, char *argv[]) {
             printf("filename: %s, size: %d\n", files[i], nread);
 
             struct gram_parse_context context = { 0 };
+            struct gram_ast_context ast_context = { 0 };
 
-            if (gram_parse_context(&context) &&
+            if (gram_ast_context(&ast_context) && gram_parse_context(&context, &ast_context, &gram_ast_iface) &&
                 parse_gram_parser_spec(contents, &context)) {
-                echo_gram_parser_spec(stdout, get_gram_parser_spec(&context));
+                echo_gram_parser_spec(stdout, gram_parser_spec(&ast_context));
+                free_gram_ast_context(&ast_context);
                 free_gram_parse_context(&context);
             } else {
                 print_gram_error(stderr, gram_parser_error(&context));
+                free_gram_ast_context(&ast_context);
                 free_gram_parse_context(&context);
                 return EXIT_FAILURE;
             }

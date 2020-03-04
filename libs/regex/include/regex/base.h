@@ -173,9 +173,6 @@ union regex_result {
 
 static union regex_result const RX_NULL_RESULT = { 0 };
 
-
-
-
 struct regex_loc {
     int line;
     int col;
@@ -193,9 +190,9 @@ static struct regex_pattern const RX_NULL_PATTERN = { 0, NULL, NULL };
 #define RX_END_PATTERNS RX_NULL_PATTERN
 
 enum {
-    RX_TAG_ONLY = -2,
-    RX_EOF = -1,
-    RX_REJECTED = 0
+    RX_TAG_ONLY = -3,
+    RX_REJECTED = -2,
+    RX_EOF = -1
 };
 
 #define RX_ALPHA(sym)        { sym, "alpha",        "[A-Za-z]"              }
@@ -204,7 +201,7 @@ enum {
 #define RX_ALNUM_(sym)       { sym, "alnum_",       "[0-9A-Za-z_]"          }
 #define RX_SPACE(sym)        { sym, "space",        "[\t\n\v\f\r ]"         }
 #define RX_LINE_COMMENT(sym) { sym, "line_comment", "//[^\n]*\n"            }
-#define RX_REGEX(sym)        { sym, "regex",        "/[^\n]*/"              }
+#define RX_REGEX(sym)        { sym, "regex",        "/(\\\\.|[^\n/])*/"     }
 
 struct regex_error regex_syntax_error(enum regex_symbol const actual, int lexeme_col, enum regex_symbol const *expected);
 struct regex_error regex_oom_error();

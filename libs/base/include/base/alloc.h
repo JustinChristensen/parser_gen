@@ -2,12 +2,8 @@
 #define BASE_ALLOC_H_ 1
 
 #include <stdlib.h>
+#include "base/ptr.h"
 #include "base/array.h"
-
-union ptr {
-    void *p;
-    int i;
-};
 
 struct alloc {
     union ptr (*malloc)(size_t size, struct alloc *al);

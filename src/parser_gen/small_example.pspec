@@ -1,0 +1,18 @@
+id      /{alpha_}+/     // id = 0
+num     /[0-9]+/        // num = 1
+---
+
+expr = expr '*' factor    // p = 0 [ '*' = 3, expr = 10 ]
+     | factor;            // p = 1
+
+factor = id               // p = 2 [ factor = 11 ]
+       | num;             // p = 3
+
+// productions, ltr
+//
+// [0]  = { 10, 3, 11 }
+// [1] = { 11 }
+// [2] = { 0 }
+// [3] = { 1 }
+//
+//

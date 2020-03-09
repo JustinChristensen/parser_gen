@@ -637,24 +637,28 @@ struct regex_parse_interface const nfa_parse_iface = {
     .actions = ACTIONS nfa_actions
 };
 
-bool nfa_context(struct nfa_context *context, struct regex_pattern const *pat) {
+bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns) {
     reset_context(context);
 
     if ((context->state_pool = state_pool())) {
         context->state_pools = context->state_pool;
-
-        bool success = true;
-        if (pat) {
-            while (!is_null_pattern(pat) && success) {
-                success = nfa_regex(pat->sym, pat->tag, pat->pattern, context);
-                pat++;
-            }
-        }
-
-        return success;
+        return nfa_add_patterns(patterns, context);
     }
 
     return set_oom_error(context);
+}
+
+bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *context) {
+    if (!pat) return true;
+
+    bool success = true;
+
+    while (!is_null_pattern(pat) && success) {
+        success = nfa_regex(pat->sym, pat->tag, pat->pattern, context);
+        pat++;
+    }
+
+    return success;
 }
 
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
@@ -851,7 +855,7 @@ bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *c
     return false;
 }
 
-int nfa_match(struct nfa_match *match) {
+static int _nfa_match(struct nfa_match *match) {
     assert(match != NULL);
     struct nfa mach = match->mach;
     assert(runnable(mach));
@@ -919,6 +923,13 @@ int nfa_match(struct nfa_match *match) {
     reset_already_on(match);
 
     return retsym;
+}
+
+int nfa_match(struct nfa_match *match) {
+    int sym;
+    do sym = _nfa_match(match);
+    while (sym == RX_SKIP);
+    return sym;
 }
 
 struct regex_loc nfa_match_loc(struct nfa_match *match) {

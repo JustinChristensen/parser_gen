@@ -48,8 +48,8 @@ struct gram_ast_context {
     struct array *allocs;
 };
 
-bool gram_ast_context(struct gram_ast_context *result);
-void free_gram_ast_context(struct gram_ast_context *result);
+bool gram_ast_context(struct gram_ast_context *context);
+void free_gram_ast_context(struct gram_ast_context *context);
 struct gram_parser_spec *gram_parser_spec(struct gram_ast_context *context);
 
 extern struct gram_result_interface gram_ast_iface;

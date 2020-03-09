@@ -190,7 +190,8 @@ static struct regex_pattern const RX_NULL_PATTERN = { 0, NULL, NULL };
 #define RX_END_PATTERNS RX_NULL_PATTERN
 
 enum {
-    RX_TAG_ONLY = -3,
+    RX_TAG_ONLY = -4,
+    RX_SKIP = -3,
     RX_REJECTED = -2,
     RX_EOF = -1
 };

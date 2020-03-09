@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <base/debug.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
@@ -12,6 +13,8 @@
 #define FIRST (enum gram_symbol[])
 static enum gram_symbol *first_sets[] = {
     [GM_EOF_T]                = FIRST { GM_EOF_T, 0 },
+    [GM_TAG_ONLY_T]           = FIRST { GM_TAG_ONLY_T, 0 },
+    [GM_SKIP_T]               = FIRST { GM_SKIP_T, 0 },
     [GM_REGEX_T]              = FIRST { GM_REGEX_T, 0 },
     [GM_SECTION_T]            = FIRST { GM_SECTION_T, 0 },
     [GM_ASSIGN_T]             = FIRST { GM_ASSIGN_T, 0 },
@@ -20,9 +23,7 @@ static enum gram_symbol *first_sets[] = {
     [GM_CHAR_T]               = FIRST { GM_CHAR_T, 0 },
     [GM_STRING_T]             = FIRST { GM_STRING_T, 0 },
     [GM_EMPTY_T]              = FIRST { GM_EMPTY_T, 0 },
-    [GM_COMMENT_T]            = FIRST { GM_COMMENT_T, 0 },
     [GM_ID_T]                 = FIRST { GM_ID_T, 0 },
-    [GM_WHITESPACE_T]         = FIRST { GM_WHITESPACE_T, 0 },
 
     [GM_PARSER_SPEC_NT]       = FIRST { GM_ID_T, GM_SECTION_T, GM_EOF_T,  0 },
     [GM_PATTERN_DEFS_NT]      = FIRST { GM_ID_T, GM_SECTION_T, GM_EOF_T, 0 },
@@ -54,9 +55,7 @@ static char const *str_for_sym(enum gram_symbol sym) {
         case GM_CHAR_T:                return "'a'";
         case GM_STRING_T:              return "\"abc\"";
         case GM_EMPTY_T:               return "$empty";
-        case GM_COMMENT_T:             return "//...";
         case GM_ID_T:                  return "id";
-        case GM_WHITESPACE_T:          return " ";
 
         case GM_PARSER_SPEC_NT:        return "PARSER_SPEC";
         case GM_PATTERN_DEFS_NT:       return "PATTERN_DEFS";
@@ -166,8 +165,10 @@ bool gram_parse_context(struct gram_parse_context *context, void *result, struct
 
     if (!nfa_context(&scanner, RX_PATTERNS {
         RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
-        RX_LINE_COMMENT(GM_COMMENT_T),
+        RX_LINE_COMMENT(RX_SKIP),
         RX_REGEX(GM_REGEX_T),
+        { GM_TAG_ONLY_T, NULL, "@" },
+        { GM_SKIP_T, NULL, "-" },
         { GM_SECTION_T, NULL, "---\n" },
         { GM_ASSIGN_T, NULL, "=" },
         { GM_ALT_T, NULL, "\\|" },
@@ -176,7 +177,7 @@ bool gram_parse_context(struct gram_parse_context *context, void *result, struct
         { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" }, // 7
         { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" }, // 8
         { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
-        RX_SPACE(GM_WHITESPACE_T),
+        RX_SPACE(RX_SKIP),
         { GM_ERROR, NULL, "." },
         RX_END_PATTERNS
     })) {
@@ -245,8 +246,7 @@ bool gram_start_scanning(char *input, struct gram_parse_context *context) {
 
 enum gram_symbol gram_scan(struct gram_parse_context *context) {
     enum gram_symbol sym = gram_lookahead(context);
-    do sym = nfa_match(&context->match);
-    while (sym == GM_WHITESPACE_T || sym == GM_COMMENT_T);
+    sym = nfa_match(&context->match);
     return sym == RX_EOF ? GM_EOF_T : sym;
 }
 
@@ -279,8 +279,8 @@ static union gram_result id_result(char *id)
     { return (union gram_result) { .id = id }; }
 static union gram_result lit_result(char *lit)
     { return (union gram_result) { .lit = lit }; }
-static union gram_result pdef_result(char *id, char *regex)
-    { return (union gram_result) { .pdef = { id, regex } }; }
+static union gram_result pdef_result(char *id, char *regex, uint8_t flags)
+    { return (union gram_result) { .pdef = { id, regex, flags } }; }
 
 static bool parse_pattern_defs_head(struct gram_parse_context *context);
 static bool parse_pattern_defs(struct gram_parse_context *context);
@@ -335,20 +335,30 @@ static bool parse_pattern_defs(struct gram_parse_context *context) {
     return set_syntax_error(GM_PATTERN_DEFS_NT, context);
 }
 
+#define TAG_ONLY (1 << 0)
+#define SKIP (1 << 1)
 static bool parse_pattern_def(struct gram_parse_context *context) {
+    uint8_t flags = 0;
     char idbuf[BUFSIZ] = "";
+
+    if (peek(GM_TAG_ONLY_T, context))
+        expect(GM_TAG_ONLY_T, context), flags = TAG_ONLY;
+    else if (peek(GM_SKIP_T, context))
+        expect(GM_SKIP_T, context), flags = SKIP;
 
     if (gram_lexeme(idbuf, context) && expect(GM_ID_T, context)) {
         char patbuf[BUFSIZ] = "";
 
         if (gram_lexeme(patbuf, context) &&
             expect(GM_REGEX_T, context) &&
-            do_action(GM_DO_PATTERN_DEF, pdef_result(idbuf, patbuf), context))
+            do_action(GM_DO_PATTERN_DEF, pdef_result(idbuf, patbuf, flags), context))
             return true;
     }
 
     return set_syntax_error(GM_PATTERN_DEF_NT, context);
 }
+#undef TAG_ONLY
+#undef SKIP
 
 static bool parse_grammar(struct gram_parse_context *context) {
     if (peek(GM_EOF_T, context)) return true; // ε

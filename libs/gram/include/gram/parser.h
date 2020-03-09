@@ -4,21 +4,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <base/array.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
 
 /*
-alpha         /[A-Za-z_]/
-alnum         /{alpha}|[0-9]/
-id            /{alpha}{alnum}* /
-symbol        /{identifier}|{char}|{string}/
-regex         //{non-nl}//
-comment       /\/\/.*{nl}/
-
 parser_spec       = pattern_defs_head grammar eof;
 pattern_defs_head = pattern_def pattern_defs { pattern_defs_head } | $empty;
 pattern_defs      = pattern_def { += pattern_def } pattern_defs | $empty;
-pattern_def       = id regex { pattern_def };
+pdef_flags        = '@' | '-' | $empty;
+pattern_def       = '@' id regex { tag_only_pattern_def }
+                  | '-' id regex { skip_pattern_def }
+                  | pdef_flags id regex { pattern_def };
 grammar           = "---" rules_head | $empty;
 rules_head        = rule rules { rules_head } | $empty;
 rules             = rule { += rule } rules | $empty;
@@ -37,6 +35,8 @@ enum gram_symbol {
 
     // terminals
     GM_EOF_T,
+    GM_TAG_ONLY_T,
+    GM_SKIP_T,
     GM_REGEX_T,
     GM_SECTION_T,
     GM_ASSIGN_T,
@@ -104,6 +104,10 @@ union gram_result {
     struct {
         char *id;
         char *regex;
+        struct {
+            uint8_t tag_only : 1;
+            uint8_t skip : 1;
+        };
     } pdef;
 };
 

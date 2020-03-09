@@ -48,6 +48,7 @@ extern struct regex_parse_interface const nfa_parse_iface;
 
 // matcher construction
 bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns);
+bool nfa_add_patterns(struct regex_pattern const *patterns, struct nfa_context *context);
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context);
 struct nfa nfa_gmachine(struct nfa_context *context);
 bool nfa_has_error(struct nfa_context *context);

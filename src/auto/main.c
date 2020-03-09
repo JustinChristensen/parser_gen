@@ -117,7 +117,7 @@ static void debug_args(struct args args) {
 }
 
 enum cfile_symbol {
-    C_REJECTED,
+    C_ERROR,
 
     C_INCLUDE,
     C_DEFINE,
@@ -181,7 +181,7 @@ static int const NUM_CSYMS = C_WS + 1;
 
 static char *str_for_csym(enum cfile_symbol sym) {
     switch (sym) {
-        case C_REJECTED:     return "ERROR";
+        case C_ERROR:        return "ERROR";
         case C_INCLUDE:      return "#include";
         case C_DEFINE:       return "#define";
         case C_UNDEF:        return "#undef";
@@ -477,7 +477,7 @@ int main(int argc, char *argv[]) {
             { C_NULL_LIT, NULL, "NULL" },
             { C_CONSTANT, NULL, "[A-Z_]+" },
             { C_IDENTIFIER, NULL, "{alpha_}{alnum_}*" },
-            { C_WS, NULL, "[ \t\n]+" },
+            { RX_SKIP, NULL, "[ \t\n]+" },
             RX_END_PATTERNS
         })) {
             fprintf(stderr, "could not initialize context\n");
@@ -541,7 +541,6 @@ int main(int argc, char *argv[]) {
 
                 while ((sym = nfa_match(&match)) != RX_EOF) {
                     symcount[sym]++;
-                    if (sym == C_WS) continue;
                     if (sym == RX_REJECTED) nrejected++;
 
                     nfa_match_lexeme(lexeme, &match);

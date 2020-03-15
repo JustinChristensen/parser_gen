@@ -1,0 +1,71 @@
+DECLS  = ASSIGN DECLS
+       | $empty
+ASSIGN = id '=' EXPR
+EXPR   = EXPR '+' FACTOR
+       | FACTOR
+FACTOR = num
+       | id
+
+Flow:
+    PSpec -> Parser -> Inputs -> Parsers
+    Inputs -> Parsers
+
+Inputs:
+    AST (struct gram_parser_spec)
+    Patterns + Grammar (struct regex_pattern **, int *grammar[]);
+
+int *grammar[NUM_NTS] = {
+    [DECLS] = {
+        { ASSIGN, DECLS, 0 },
+        { 0 },
+        NULL
+    },
+    [ASSIGN] = {
+        { id, '=', EXPR, 0 },
+        NULL
+    },
+    [EXPR] = {
+        { EXPR, '+', FACTOR, 0 },
+        { FACTOR, 0 },
+        NULL
+    },
+    [FACTOR] = {
+        { num, 0 },
+        { id, 0 },
+        NULL
+    }
+};
+
+Parsers:
+    LL Parser
+    LR Parser
+
+LR Parser:
+    data State = State [Item]
+    states :: [State]
+    data Action = Shift StateNumber | Reduce Rule | Goto StateNumber | Accept | Error
+    -- the state number (index) x the input symbol = the action
+    parseTable :: StateNumber -> Symbol -> Action
+
+LL Parser:
+    -- current non-terminal x lookahead symbol = production rule
+    parseTable :: Symbol -> Symbol -> Rule
+    -- array of array's of grammar symbols in reverse order, indexed by production rule number
+    rules: [[Symbol]]
+
+
+Things I need:
+1. A data structure that supports constant time access (vector instead of linked list, for example),
+    to aid in the the construction of item sets
+2. The ability to determine whether or not a given symbol is a terminal or a non-terminal.
+3. If a symbol is a non-terminal, I need to know which rules (alts) can be derived from that symbol
+    when computing the CLOSURE of the item set, maybe assume it's a non-terminal if it hasn't already
+    been defined? Use a hash table?
+4. Every unique grammar symbol string needs a unique grammar symbol number
+5. I need the ability to efficiently determine LR0 state equality, i.e. do the core items of two states
+    match by value equality. Use a rb-tree?
+6. The LL, LR0, LALR contexts should all support initializer syntax, i.e.:
+    bool lr0_context(struct lr0_context *context, struct regex_pattern **patterns, int **grammar);
+
+
+

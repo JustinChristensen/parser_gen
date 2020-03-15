@@ -59,24 +59,7 @@ enum gram_symbol {
     GM_ALTS_NT,
     GM_ALT_NT,
     GM_RHSES_NT,
-    GM_RHS_NT,
-
-    // actions
-    GM_DO_PARSER_SPEC,
-    GM_DO_PATTERN_DEFS_HEAD,
-    GM_DO_APPEND_PATTERN_DEF,
-    GM_DO_PATTERN_DEF,
-    GM_DO_RULES_HEAD,
-    GM_DO_APPEND_RULE,
-    GM_DO_RULE,
-    GM_DO_ALTS_HEAD,
-    GM_DO_APPEND_ALT,
-    GM_DO_ALT,
-    GM_DO_APPEND_RHS,
-    GM_DO_ID_RHS,
-    GM_DO_CHAR_RHS,
-    GM_DO_STRING_RHS,
-    GM_DO_EMPTY_RHS
+    GM_RHS_NT
 };
 
 enum gram_error_type {
@@ -112,8 +95,7 @@ union gram_result {
 };
 
 struct gram_parse_context {
-    void *result;
-    struct gram_result_interface const *ri;
+    void *ast;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_symbol sym;
@@ -121,12 +103,7 @@ struct gram_parse_context {
     struct gram_error error;
 };
 
-struct gram_result_interface {
-    bool (*const *actions)(union gram_result val, struct gram_parse_context *context);
-    union gram_result (*result)(struct gram_parse_context *context);
-};
-
-bool gram_parse_context(struct gram_parse_context *context, void *result, struct gram_result_interface const *const ri);
+bool gram_parse_context(struct gram_parse_context *context);
 void free_gram_parse_context(struct gram_parse_context *context);
 bool gram_parse_has_error(struct gram_parse_context *context);
 struct gram_error gram_parser_error(struct gram_parse_context *context);

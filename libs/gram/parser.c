@@ -151,16 +151,17 @@ static bool expect(enum gram_symbol expected, struct gram_parse_context *context
     return set_syntax_error(expected, context);
 }
 
-static bool do_action(enum gram_symbol action, union gram_result val, struct gram_parse_context *context) {
-    debug("doing action: %s\n", str_for_sym(action));
-    return context->ri->actions[AI(action)](val, context);
+static void *gast(struct gram_parse_context *context) {
+    return context->ast;
 }
 
-static union gram_result result(struct gram_parse_context *context) {
-    return context->ri->result(context);
+static bool sast(void *ast, struct gram_parse_context *context) {
+    context->ast = ast;
+    return ast ? true : false;
 }
 
-bool gram_parse_context(struct gram_parse_context *context, void *result, struct gram_result_interface const *const ri) {
+#define ALLOCS_INITSIZE 11
+bool gram_parse_context(struct gram_parse_context *context) {
     struct nfa_context scanner = { 0 };
 
     if (!nfa_context(&scanner, RX_PATTERNS {
@@ -174,8 +175,8 @@ bool gram_parse_context(struct gram_parse_context *context, void *result, struct
         { GM_ALT_T, NULL, "\\|" },
         { GM_SEMICOLON_T, NULL, ";" },
         { GM_EMPTY_T, NULL, "$empty" },
-        { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" }, // 7
-        { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" }, // 8
+        { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" },
+        { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" },
         { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
         RX_SPACE(RX_SKIP),
         { GM_ERROR, NULL, "." },
@@ -186,11 +187,7 @@ bool gram_parse_context(struct gram_parse_context *context, void *result, struct
         return false;
     }
 
-    *context = (struct gram_parse_context) {
-        .result = result,
-        .ri = ri,
-        .scanner = scanner
-    };
+    *context = (struct gram_parse_context) { .scanner = scanner };
 
     return true;
 }

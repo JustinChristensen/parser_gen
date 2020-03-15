@@ -2,12 +2,10 @@
 #define GRAM_AST_H_ 1
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <base/array.h>
 #include "gram/parser.h"
 
 struct gram_parser_spec {
-    struct gram_pattern_def *pattern_defs;
+    struct gram_pattern_def *pdefs;
     struct gram_rule *rules;
 };
 
@@ -15,17 +13,20 @@ struct gram_pattern_def {
     char *id;
     char *regex;
     struct gram_pattern_def *next;
+    size_t n;
 };
 
 struct gram_rule {
     char *id;
     struct gram_alt *alts;
     struct gram_rule *next;
+    size_t n;
 };
 
 struct gram_alt {
     struct gram_rhs *rhses;
     struct gram_alt *next;
+    size_t n;
 };
 
 enum gram_rhs_type {
@@ -41,18 +42,23 @@ struct gram_rhs {
         char *sym;
     };
     struct gram_rhs *next;
+    size_t n;
 };
 
-struct gram_ast_context {
-    void *ast;
-    struct array *allocs;
-};
+struct gram_parser_spec *init_gram_parser_spec(struct gram_pattern_def *pdefs, struct gram_rule *rules);
+struct gram_pattern_def *init_gram_pattern_def(char *id, char *regex, struct gram_pattern_def *next);
+struct gram_rule *init_gram_rule(char *id, struct gram_alt *alts, struct gram_rule *next);
+struct gram_alt *init_gram_alt(struct gram_rhs *rhses, struct gram_alt *next);
+struct gram_rhs *init_id_gram_rhs(char *sym, struct gram_rhs *next);
+struct gram_rhs *init_char_gram_rhs(char *sym, struct gram_rhs *next);
+struct gram_rhs *init_string_gram_rhs(char *sym, struct gram_rhs *next);
+struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next);
 
-bool gram_ast_context(struct gram_ast_context *context);
-void free_gram_ast_context(struct gram_ast_context *context);
-struct gram_parser_spec *gram_parser_spec(struct gram_ast_context *context);
-
-extern struct gram_result_interface gram_ast_iface;
+void free_gram_parser_spec(struct gram_parser_spec *spec);
+void free_gram_pattern_def(struct gram_pattern_def *pdef);
+void free_gram_rule(struct gram_rule *rule);
+void free_gram_alt(struct gram_alt *alt);
+void free_gram_rhs(struct gram_rhs *rhs);
 
 #endif // GRAM_AST_H_
 

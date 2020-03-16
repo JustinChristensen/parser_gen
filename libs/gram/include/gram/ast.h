@@ -12,6 +12,10 @@ struct gram_parser_spec {
 struct gram_pattern_def {
     char *id;
     char *regex;
+    struct {
+        uint8_t tag_only : 1;
+        uint8_t skip : 1;
+    };
     struct gram_pattern_def *next;
     size_t n;
 };
@@ -46,7 +50,11 @@ struct gram_rhs {
 };
 
 struct gram_parser_spec *init_gram_parser_spec(struct gram_pattern_def *pdefs, struct gram_rule *rules);
-struct gram_pattern_def *init_gram_pattern_def(char *id, char *regex, struct gram_pattern_def *next);
+struct gram_pattern_def *init_gram_pattern_def(
+    char *id, char *regex,
+    bool tag_only, bool skip,
+    struct gram_pattern_def *next
+);
 struct gram_rule *init_gram_rule(char *id, struct gram_alt *alts, struct gram_rule *next);
 struct gram_alt *init_gram_alt(struct gram_rhs *rhses, struct gram_alt *next);
 struct gram_rhs *init_id_gram_rhs(char *sym, struct gram_rhs *next);

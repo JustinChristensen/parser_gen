@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <base/array.h>
 #include "gram/ast.h"
 #include "parser.h"
 
@@ -16,7 +15,11 @@ struct gram_parser_spec *init_gram_parser_spec(struct gram_pattern_def *pdefs, s
     return ps;
 }
 
-struct gram_pattern_def *init_gram_pattern_def(char *id, char *regex, struct gram_pattern_def *next) {
+struct gram_pattern_def *init_gram_pattern_def(
+    char *id, char *regex,
+    bool tag_only, bool skip,
+    struct gram_pattern_def *next
+) {
     struct gram_pattern_def *pdef = malloc(sizeof *pdef);
 
     if (!pdef) return NULL;
@@ -32,7 +35,12 @@ struct gram_pattern_def *init_gram_pattern_def(char *id, char *regex, struct gra
         return NULL;
     }
 
-    *pdef = (struct gram_pattern_def) { id, regex, next, N_(next) };
+    *pdef = (struct gram_pattern_def) {
+        id, regex,
+        .tag_only = tag_only,
+        .skip = skip,
+        next, N_(next)
+    };
 
     return pdef;
 }
@@ -94,6 +102,8 @@ struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next) {
 }
 
 void free_gram_parser_spec(struct gram_parser_spec *spec) {
+    if (!spec) return;
+
     free_gram_pattern_def(spec->pdefs);
     spec->pdefs = NULL;
     free_gram_rule(spec->rules);
@@ -101,6 +111,8 @@ void free_gram_parser_spec(struct gram_parser_spec *spec) {
 }
 
 void free_gram_pattern_def(struct gram_pattern_def *pdef) {
+    if (!pdef) return;
+
     for (struct gram_pattern_def *next; pdef; pdef = next) {
         next = pdef->next;
         free(pdef->id);
@@ -110,6 +122,8 @@ void free_gram_pattern_def(struct gram_pattern_def *pdef) {
 }
 
 void free_gram_rule(struct gram_rule *rule) {
+    if (!rule) return;
+
     for (struct gram_rule *next; rule; rule = next) {
         next = rule->next;
         free(rule->id);
@@ -119,6 +133,8 @@ void free_gram_rule(struct gram_rule *rule) {
 }
 
 void free_gram_alt(struct gram_alt *alt) {
+    if (!alt) return;
+
     for (struct gram_alt *next; alt; alt = next) {
         next = alt->next;
         free_gram_rhs(alt->rhses);
@@ -127,6 +143,8 @@ void free_gram_alt(struct gram_alt *alt) {
 }
 
 void free_gram_rhs(struct gram_rhs *rhs) {
+    if (!rhs) return;
+
     for (struct gram_rhs *next; rhs; rhs = next) {
         next = rhs->next;
         switch (rhs->type) {

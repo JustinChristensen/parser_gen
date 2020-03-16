@@ -10,18 +10,26 @@ enum command_key {
     PARSE
 };
 
-// enum arg_key {
-// };
+enum arg_key {
+    STATS
+};
 
 struct args {
     enum command_key cmd;
+    bool stats;
     int posc;
     char **pos;
 };
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
-    while ((key = readarg(context)) != END);
+    while ((key = readarg(context)) != END) {
+        switch (key) {
+            case STATS:
+                args->stats = true;
+                break;
+        }
+    }
     args->cmd = cmd;
     args->pos = argv(context);
     args->posc = argc(context);
@@ -51,8 +59,11 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 
 int main(int argc, char *argv[]) {
     struct args args = {
-        .cmd = GEN_PARSER
+        .cmd = GEN_PARSER,
+        .stats = false
     };
+
+    struct arg stats_arg = { STATS, "stats", 0, no_argument, "Print stats" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
@@ -61,7 +72,7 @@ int main(int argc, char *argv[]) {
         NULL,
         CMDS {
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
-            { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
+            { PARSE, "parse", ARGS { stats_arg, help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
             // generate recursive LL parser
             // generate configuration-driven parser:
             //      generate LL parser
@@ -97,16 +108,14 @@ int main(int argc, char *argv[]) {
             printf("filename: %s, size: %d\n", files[i], nread);
 
             struct gram_parse_context context = { 0 };
-            struct gram_ast_context ast_context = { 0 };
 
-            if (gram_ast_context(&ast_context) && gram_parse_context(&context, &ast_context, &gram_ast_iface) &&
-                parse_gram_parser_spec(contents, &context)) {
-                echo_gram_parser_spec(stdout, gram_parser_spec(&ast_context));
-                free_gram_ast_context(&ast_context);
+            if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
+                struct gram_parser_spec *pspec = gram_parser_spec(&context);
+                if (args.stats) echo_gram_pspec_stats(stderr, pspec);
+                echo_gram_pspec(stdout, pspec);
                 free_gram_parse_context(&context);
             } else {
                 print_gram_error(stderr, gram_parser_error(&context));
-                free_gram_ast_context(&ast_context);
                 free_gram_parse_context(&context);
                 return EXIT_FAILURE;
             }

@@ -2,8 +2,35 @@
 #include <stdlib.h>
 #include "gram/echo.h"
 
-void echo_gram_parser_spec(FILE *handle, struct gram_parser_spec *spec) {
-    echo_gram_pattern_def(handle, spec->pattern_defs);
+void echo_gram_pspec_stats(FILE *handle, struct gram_parser_spec *spec) {
+    if (spec->pdefs)
+        fprintf(handle, "num pattern defs: %ld\n", spec->pdefs->n);
+
+    if (spec->rules) {
+        struct gram_rule *rule = spec->rules;
+
+        fprintf(handle, "num rules: %ld\n", rule->n);
+
+        for (int rn = 1; rule; rule = rule->next) {
+            fprintf(handle, "rule #%-d:\n", rn);
+
+            struct gram_alt *alt = rule->alts;
+
+            fprintf(handle, "\tnum alts: %ld\n", alt->n);
+
+            for (int an = 1; alt; alt = alt->next) {
+                fprintf(handle, "\talt #%-d:\n", an);
+                fprintf(handle, "\t\tnum rhses: %ld\n", alt->rhses->n);
+                an++;
+            }
+
+            rn++;
+        }
+    }
+}
+
+void echo_gram_pspec(FILE *handle, struct gram_parser_spec *spec) {
+    echo_gram_pattern_def(handle, spec->pdefs);
     if (spec->rules) {
         fprintf(handle, "---\n");
         echo_gram_rule(handle, spec->rules);

@@ -45,9 +45,7 @@ enum gram_symbol {
     GM_CHAR_T,
     GM_STRING_T,
     GM_EMPTY_T,
-    GM_COMMENT_T,
     GM_ID_T,
-    GM_WHITESPACE_T,
 
     // non-terminals
     GM_PARSER_SPEC_NT,
@@ -80,20 +78,6 @@ struct gram_error {
     };
 };
 
-union gram_result {
-    void *ast;
-    char *id;
-    char *lit;
-    struct {
-        char *id;
-        char *regex;
-        struct {
-            uint8_t tag_only : 1;
-            uint8_t skip : 1;
-        };
-    } pdef;
-};
-
 struct gram_parse_context {
     void *ast;
     struct nfa_context scanner;
@@ -115,7 +99,7 @@ enum gram_symbol gram_lookahead(struct gram_parse_context *context);
 struct regex_loc gram_location(struct gram_parse_context *context);
 bool gram_lexeme(char *lexeme, struct gram_parse_context *context);
 bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context);
-struct gram_parser_spec *get_gram_parser_spec(struct gram_parse_context *context);
+struct gram_parser_spec *gram_parser_spec(struct gram_parse_context *context);
 void print_gram_tokens(FILE *handle, char *spec);
 
 #endif // GRAM_PARSER_H_

@@ -1,4 +1,4 @@
-id  /{alpha_}{alnum_}*/
+@id  /{alpha_}{alnum_}*/
 regex /./
 
 ---

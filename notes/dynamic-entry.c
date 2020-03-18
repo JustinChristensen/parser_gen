@@ -42,10 +42,10 @@ void print_coords_entry(struct hash_entry *entry) {
     printf("%s: (%lf, %lf) %s\n", entry->key, val->x, val->y, val->buf);
 }
 
-void print_coords_entry_0(struct hash_entry *entry) {
-    struct coords val = coords_entry_val(entry);
-    printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
-}
+// void print_coords_entry_0(struct hash_entry *entry) {
+//     struct coords val = coords_entry_val(entry);
+//     printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
+// }
 
 int main(int argc, char *argv[]) {
     printf("sizeof %ld\n", sizeof (struct hash_entry));

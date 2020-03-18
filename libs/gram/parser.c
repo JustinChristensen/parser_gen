@@ -44,7 +44,7 @@ static enum gram_symbol *first_set(enum gram_symbol sym) {
 
 static char const *str_for_sym(enum gram_symbol sym) {
     switch (sym) {
-        case GM_ERROR:                 return "ERROR";
+        case GM_ERROR:                 return "unrecognized token";
 
         case GM_EOF_T:                 return "eof";
         case GM_TAG_ONLY_T:            return "@";
@@ -274,7 +274,7 @@ static bool strip_quotes(char *lexeme) {
 }
 
 #define tryinit(context, fn, ...) (sast(fn(__VA_ARGS__), context) || set_oom_error(context))
-#define linknext(prev, node) (prev->next = (node), prev->n += (node)->n, true)
+#define addn(prev, next) ((prev)->n += (next)->n)
 
 static bool parse_pattern_defs_head(struct gram_parse_context *context);
 static bool parse_pattern_defs(struct gram_parse_context *context);
@@ -332,8 +332,13 @@ static bool parse_pattern_defs(struct gram_parse_context *context) {
     struct gram_pattern_def *prev_def = gast(context);
 
     if (parse_pattern_def(context)) {
-        linknext(prev_def, (struct gram_pattern_def *) gast(context));
-        if (parse_pattern_defs(context)) return true;
+        struct gram_pattern_def *def = gast(context);
+        prev_def->next = def;
+
+        if (parse_pattern_defs(context)) {
+            addn(prev_def, def);
+            return true;
+        }
     }
 
     return set_syntax_error(GM_PATTERN_DEFS_NT, context);
@@ -391,8 +396,13 @@ static bool parse_rules(struct gram_parse_context *context) {
     struct gram_rule *prev_rule = gast(context);
 
     if (parse_rule(context)) {
-        linknext(prev_rule, (struct gram_rule *) gast(context));
-        if (parse_rules(context)) return true;
+        struct gram_rule *rule = gast(context);
+        prev_rule->next = rule;
+
+        if (parse_rules(context)) {
+            addn(prev_rule, rule);
+            return true;
+        }
     }
 
     return set_syntax_error(GM_RULES_NT, context);
@@ -424,8 +434,13 @@ static bool parse_alts(struct gram_parse_context *context) {
     struct gram_alt *prev_alt = gast(context);
 
     if (expect(GM_ALT_T, context) && parse_alt(context)) {
-        linknext(prev_alt, (struct gram_alt *) gast(context));
-        if (parse_alts(context)) return true;
+        struct gram_alt *alt = gast(context);
+        prev_alt->next = alt;
+
+        if (parse_alts(context)) {
+            addn(prev_alt, alt);
+            return true;
+        }
     }
 
     return set_syntax_error(GM_ALTS_NT, context);
@@ -453,8 +468,13 @@ static bool parse_rhses(struct gram_parse_context *context) {
     struct gram_rhs *prev_rhs = gast(context);
 
     if (parse_rhs(context)) {
-        linknext(prev_rhs, (struct gram_rhs *) gast(context));
-        if (parse_rhses(context)) return true;
+        struct gram_rhs *rhs = gast(context);
+        prev_rhs->next = rhs;
+
+        if (parse_rhses(context)) {
+            addn(prev_rhs, rhs);
+            return true;
+        }
     }
 
     return set_syntax_error(GM_RHSES_NT, context);

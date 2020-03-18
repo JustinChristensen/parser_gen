@@ -30,13 +30,21 @@ char *entry_key(struct hash_entry *entry) {
 }
 
 void *entry_val(struct hash_entry *entry) {
-    printf("%p %p\n", entry, entry->val);
+    return entry->val;
+}
+
+struct coords coords_entry_val(struct hash_entry *entry) {
     return entry->val;
 }
 
 void print_coords_entry(struct hash_entry *entry) {
     struct coords *val = entry_val(entry);
     printf("%s: (%lf, %lf) %s\n", entry->key, val->x, val->y, val->buf);
+}
+
+void print_coords_entry_0(struct hash_entry *entry) {
+    struct coords val = coords_entry_val(entry);
+    printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
 }
 
 int main(int argc, char *argv[]) {

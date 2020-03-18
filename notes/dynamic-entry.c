@@ -33,9 +33,9 @@ void *entry_val(struct hash_entry *entry) {
     return entry->val;
 }
 
-struct coords coords_entry_val(struct hash_entry *entry) {
-    return entry->val;
-}
+// struct coords coords_entry_val(struct hash_entry *entry) {
+//     return entry->val;
+// }
 
 void print_coords_entry(struct hash_entry *entry) {
     struct coords *val = entry_val(entry);

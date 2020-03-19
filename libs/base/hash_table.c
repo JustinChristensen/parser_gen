@@ -197,8 +197,6 @@ bool htlookup(void *out, char const *key, struct hash_table const *table) {
     assert(table != NULL);
     assert(key != NULL);
 
-    if (!table) return NULL;
-
     struct hash_entry **bucket = find_bucket(key, table);
     struct hash_entry *found = NULL;
 
@@ -274,7 +272,7 @@ static bool htnextentry(struct hash_entry **out, struct table_iterator *it) {
 bool htnext(char **key, void *out, struct table_iterator *it) {
     assert(key || out);
     struct hash_table const *table = it->table;
-    struct hash_entry *entry;
+    struct hash_entry *entry = NULL;
 
     if (htnextentry(&entry, it)) {
         if (key) entry_key(key, entry);
@@ -289,7 +287,7 @@ char **htkeys(struct hash_table const *table) {
     char **keys = calloc(htentries(table), sizeof *keys);
 
     struct table_iterator it = table_iterator(table);
-    struct hash_entry *entry;
+    struct hash_entry *entry = NULL;
     char **k = keys;
     while (htnextentry(&entry, &it)) {
         entry_key(k, entry);
@@ -303,7 +301,7 @@ void *htvals(struct hash_table const *table) {
     void *vals = calloc(htentries(table), table->valsize);
 
     struct table_iterator it = table_iterator(table);
-    struct hash_entry *entry;
+    struct hash_entry *entry = NULL;
     void *v = vals;
     while (htnextentry(&entry, &it)) {
         entry_val(v, table->valsize, entry);
@@ -362,7 +360,7 @@ void print_hash_entries(void (*print_val) (void const *val), struct hash_table c
     if (!table || !print_val) return;
 
     struct table_iterator it = table_iterator(table);
-    struct hash_entry *entry;
+    struct hash_entry *entry = NULL;
 
     while (htnextentry(&entry, &it)) {
         print_hash_entry(print_val, entry);

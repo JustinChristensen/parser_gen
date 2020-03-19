@@ -5,6 +5,7 @@
 
 struct hash_entry {
     char *key;
+    size_t vsize;
     char val[];
 };
 
@@ -20,6 +21,7 @@ struct hash_entry *coords_entry(char *key, struct coords val) {
     assert(entry != NULL);
 
     entry->key = key;
+    entry->vsize = vsize;
     memcpy(entry->val, &val, vsize);
 
     return entry;
@@ -29,23 +31,15 @@ char *entry_key(struct hash_entry *entry) {
     return entry->key;
 }
 
-void *entry_val(struct hash_entry *entry) {
-    return entry->val;
+void entry_val(void *val, struct hash_entry *entry) {
+    memcpy(val, entry->val, entry->vsize);
 }
-
-// struct coords coords_entry_val(struct hash_entry *entry) {
-//     return entry->val;
-// }
 
 void print_coords_entry(struct hash_entry *entry) {
-    struct coords *val = entry_val(entry);
-    printf("%s: (%lf, %lf) %s\n", entry->key, val->x, val->y, val->buf);
+    struct coords val;
+    entry_val(&val, entry);
+    printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
 }
-
-// void print_coords_entry_0(struct hash_entry *entry) {
-//     struct coords val = coords_entry_val(entry);
-//     printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
-// }
 
 int main(int argc, char *argv[]) {
     printf("sizeof %ld\n", sizeof (struct hash_entry));

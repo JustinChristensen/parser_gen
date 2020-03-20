@@ -30,20 +30,24 @@ struct table_iterator {
     struct hash_entry *entry; // current entry
 };
 
-struct hash_table *init_hash_table(unsigned int *size, size_t valsize);
+struct hash_table *hash_table(size_t valsize);
 void free_hash_table(struct hash_table *table);
 struct hash_table *htclone(struct hash_table const *table);
 void htinsert(char const *key, void *val, struct hash_table *table);
-bool htlookup(void *out, char const *key, struct hash_table const *table);
+void htinsert_i(char const *key, int val, struct hash_table *table);
+void htinsert_s(char const *key, char *val, struct hash_table *table);
+void htinsert_p(char const *key, void *val, struct hash_table *table);
+void *htlookup(char const *key, struct hash_table const *table);
 bool htcontains(char const *key, struct hash_table const *table);
 bool htdelete(char const *key, struct hash_table *table);
 struct table_iterator table_iterator(struct hash_table const *table);
-bool htnext(char **key, void *out, struct table_iterator *it);
+void *htnext(char **key, struct table_iterator *it);
 char **htkeys(struct hash_table const *table);
 void *htvals(struct hash_table const *table);
-unsigned int htsize(struct hash_table const *table);
+void *htpairs(struct hash_table const *table);
 unsigned int htentries(struct hash_table const *table);
-unsigned int htused(struct hash_table const *table);
+void print_entry_int(void const *val);
+void print_entry_string(void const *val);
 void print_hash_table(void (*print_val) (void const *val), struct hash_table const *table);
 void print_hash_entries(void (*print_val) (void const *val), struct hash_table const *table);
 void print_table_stats(struct hash_table const *table);

@@ -35,10 +35,19 @@ void entry_val(void *val, struct hash_entry *entry) {
     memcpy(val, entry->val, entry->vsize);
 }
 
+void *entry_val_ptr(struct hash_entry *entry) {
+    return entry->val;
+}
+
 void print_coords_entry(struct hash_entry *entry) {
     struct coords val;
     entry_val(&val, entry);
-    printf("%s: (%lf, %lf) %s\n", entry->key, val.x, val.y, val.buf);
+    printf("%s: (%lf, %lf) %s\n", entry_key(entry), val.x, val.y, val.buf);
+}
+
+void print_coords_entry_ptr(struct hash_entry *entry) {
+    struct coords *val = entry_val_ptr(entry);;
+    printf("%s: (%lf, %lf) %s\n", entry_key(entry), val->x, val->y, val->buf);
 }
 
 int main(int argc, char *argv[]) {
@@ -49,7 +58,7 @@ int main(int argc, char *argv[]) {
         *y = coords_entry("bar", (struct coords) { 96.3, 2.0, "uber leet" });
 
     print_coords_entry(x);
-    print_coords_entry(y);
+    print_coords_entry_ptr(y);
 
     free(x);
     free(y);

@@ -335,9 +335,14 @@ void *htvals(struct hash_table const *table) {
     return vals;
 }
 
+struct pair { char *key; char val[]; };
+
+static size_t _pairsize(size_t valsize) {
+    return sizeof (struct pair) + valsize;
+}
+
 void *htpairs(struct hash_table const *table) {
-    struct pair { char *key; char val[]; };
-    size_t pairsize = sizeof (struct pair) + _valsize(table);
+    size_t pairsize = _pairsize(_valsize(table));
     struct pair *pairs = calloc(htentries(table), pairsize);
     void *pp = pairs;
 
@@ -351,6 +356,28 @@ void *htpairs(struct hash_table const *table) {
     }
 
     return pairs;
+}
+
+static int compair(void const *a, void const *b) {
+    struct pair const *x = a, *y = b;
+    return strcmp(x->key, y->key);
+}
+
+void *htsortedpairs(struct hash_table const *table) {
+    size_t pairsize = _pairsize(_valsize(table));
+    struct pair *pairs = htpairs(table);
+    qsort(pairs, htentries(table), pairsize, compair);
+    return pairs;
+}
+
+void htfrompairs(struct hash_table *table, unsigned int n, void *pairs) {
+    size_t pairsize = _pairsize(_valsize(table));
+
+    for (unsigned int i = 0; i < n; i++) {
+        struct pair *p = pairs;
+        htinsert(p->key, p->val, table);
+        pairs += pairsize;
+    }
 }
 
 unsigned int htentries(struct hash_table const *table) {

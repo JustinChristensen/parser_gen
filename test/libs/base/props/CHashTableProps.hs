@@ -11,14 +11,15 @@ import Test.QuickCheck.Monadic
 
 prop_insert_inserts :: [(BetterASCII, Int32)] -> Property
 prop_insert_inserts pairs = monadicIO $ do
-    es <- run $ toHashEntries pairs
-    array <- run $ newArray es
-    table <- run $ fromEntryList array (genericLength pairs)
-    allInserted <- run $ containsAll es table
+    ps <- run $ toHashPairs pairs
+    array <- run $ newArray ps
+    table <- run $ hashTable (fromIntegral $ sizeOf (undefined :: Int32))
+    run $ htFromPairs table (genericLength pairs) array
+    allInserted <- run $ containsAll ps table
     run $ whenVerbose $ printHashTable printEntryInt table
     run $ free array
     run $ freeHashTable table
-    run $ freeHashEntries es
+    run $ freeHashPairs ps
     assert allInserted
 
 return []

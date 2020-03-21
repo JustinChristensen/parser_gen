@@ -97,34 +97,29 @@ static void print_coords(void const *coords) {
     printf("%lf, %lf, %s", x->lat, x->lng, x->notes);
 }
 
-static int coords_pair_cmp(void const *a, void const *b) {
-    struct coords_pair const *x = a, *y = b;
-    return strcmp(x->key, y->key);
-}
-
 START_TEST(test_struct_insert) {
-    printf("SIZEOF :%ld\n", sizeof (double));
     table = hash_table(sizeof (struct coords));
 
-    struct coords x = { 95.0, 184.3, "x coords" },
-                  y = { 2.3, 45.641, "y coords" };
+    struct coords_pair pairs[] = {
+        { "ccc", { 95.0,   184.3,  "x coords" } },
+        { "aaa", { 2.3,    45.641, "y coords" } },
+        { "bbb", { 3.9393, 717.77, "z coords" } }
+    };
 
-    htinsert("foo", &x, table);
-    htinsert("bar", &y, table);
+    htfrompairs(table, SIZEOF(pairs), pairs);
 
     printf("struct insert:\n");
 
-    struct coords_pair *pairs = htpairs(table);
-    qsort(pairs, 2, sizeof (struct coords_pair), coords_pair_cmp);
-    ck_assert_str_eq(pairs[0].key, "bar");
-    ck_assert_str_eq(pairs[1].key, "foo");
-    free(pairs);
+    struct coords_pair *pairs2 = htsortedpairs(table);
+    ck_assert_str_eq(pairs2[0].key, "aaa");
+    ck_assert_str_eq(pairs2[1].key, "bbb");
+    ck_assert_str_eq(pairs2[2].key, "ccc");
+    free(pairs2);
 
-    ck_assert_int_eq(htentries(table), 2);
+    ck_assert_int_eq(htentries(table), 3);
     print_hash_table(print_coords, table);
 }
 END_TEST
-
 
 START_TEST(test_contains) {
     int_table();

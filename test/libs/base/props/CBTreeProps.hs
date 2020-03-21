@@ -3,7 +3,6 @@ module CBTreeProps (runTests) where
 
 import CBTree
 import Types
-import Control.Monad (unless)
 import Data.List (sort)
 import Foreign
 import Foreign.C.String

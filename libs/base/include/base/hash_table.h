@@ -45,6 +45,8 @@ void *htnext(char **key, struct table_iterator *it);
 char **htkeys(struct hash_table const *table);
 void *htvals(struct hash_table const *table);
 void *htpairs(struct hash_table const *table);
+void *htsortedpairs(struct hash_table const *table);
+void htfrompairs(struct hash_table *table, unsigned int n, void *pairs);
 unsigned int htentries(struct hash_table const *table);
 void print_entry_int(void const *val);
 void print_entry_string(void const *val);

@@ -47,7 +47,7 @@ void print_coords_entry(struct hash_entry *entry) {
 }
 
 void print_coords_entry_ptr(struct hash_entry *entry) {
-    struct coords *val = entry_val_ptr(entry);;
+    struct coords *val = entry_val_ptr(entry);
     printf("%s: (%lf, %lf) %s\n", entry_key(entry), val->x, val->y, val->buf);
 }
 

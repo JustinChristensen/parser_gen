@@ -36,7 +36,8 @@ void entry_val(void *val, struct hash_entry *entry) {
 }
 
 void *entry_val_ptr(struct hash_entry *entry) {
-    return entry->val;
+    printf("%p %p\n", entry->val, &entry->val);
+    return &entry->val;
 }
 
 void print_coords_entry(struct hash_entry *entry) {

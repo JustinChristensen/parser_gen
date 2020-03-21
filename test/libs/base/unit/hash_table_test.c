@@ -134,6 +134,15 @@ START_TEST(test_contains) {
 }
 END_TEST
 
+START_TEST(test_lookup) {
+    int_table();
+    htinsert_i("", 931, table);
+    int *x = htlookup("", table);
+    ck_assert_int_eq(*x, 931);
+    ck_assert(htlookup("foo", table) == NULL);
+}
+END_TEST
+
 START_TEST(test_random_inserts_and_deletes) {
     int_table();
     char *max_inserts = getenv("MAX_INSERTS");
@@ -196,6 +205,7 @@ Suite *hash_table_suite()
     tcase_add_test(tc_core, test_string_insert);
     tcase_add_test(tc_core, test_struct_insert);
     tcase_add_test(tc_core, test_contains);
+    tcase_add_test(tc_core, test_lookup);
     tcase_add_test(tc_random, test_random_inserts_and_deletes);
 
     suite_add_tcase(s, tc_core);

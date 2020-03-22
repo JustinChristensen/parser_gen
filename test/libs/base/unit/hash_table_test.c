@@ -6,12 +6,20 @@
 #include <math.h>
 #include <ctype.h>
 #include <check.h>
+#include <base/debug.h>
 #include <base/hash_table.h>
 #include <base/random.h>
 #include <base/macros.h>
 #include "suites.h"
 
+#define debug(...) debug_ns("hash_table", __VA_ARGS__);
+
 struct hash_table *table = NULL;
+
+static void debug_hash_table(void (*print_val)(FILE *handle, void const *val), struct hash_table *table) {
+    if (debug_is("hash_table"))
+        print_hash_table(stderr, print_val, table);
+}
 
 static void int_table() {
     table = hash_table(sizeof (int));
@@ -46,7 +54,7 @@ START_TEST(test_basic_insert) {
         ck_assert(htcontains(key, table));
     }
 
-    print_hash_table(print_entry_int, table);
+    debug_hash_table(print_entry_int, table);
 }
 END_TEST
 
@@ -58,14 +66,14 @@ START_TEST(test_keys) {
 
     char **keys = htkeys(table);
 
-    printf("htkeys:\n");
+    debug("htkeys:\n");
     unsigned int entries = htentries(table);
 
     for (int i = 0; i < entries; i++) {
-        printf("%s ", keys[i]);
+        debug("%s ", keys[i]);
         ck_assert(htdelete(keys[i], table));
     }
-    printf("\n");
+    debug("\n");
 
     free(keys);
 }
@@ -76,7 +84,7 @@ START_TEST(test_duplicate_insert) {
     htinsert_i("foobar", 301, table);
     htinsert_i("foobar", 300, table);
     ck_assert_int_eq(htentries(table), 1);
-    print_hash_table(print_entry_int, table);
+    debug_hash_table(print_entry_int, table);
 }
 END_TEST
 
@@ -85,16 +93,16 @@ START_TEST(test_string_insert) {
     htinsert_s("foo", "shaboozy", table);
     htinsert_s("bar", "kablaam", table);
     ck_assert_int_eq(htentries(table), 2);
-    print_hash_table(print_entry_string, table);
+    debug_hash_table(print_entry_string, table);
 }
 END_TEST
 
 struct coords { double lat; double lng; char notes[128]; };
 struct coords_pair { char *key; struct coords val; };
 
-static void print_coords(void const *coords) {
+static void print_coords(FILE *_, void const *coords) {
     struct coords const *x = coords;
-    printf("%lf, %lf, %s", x->lat, x->lng, x->notes);
+    debug("%lf, %lf, %s", x->lat, x->lng, x->notes);
 }
 
 START_TEST(test_struct_insert) {
@@ -108,7 +116,7 @@ START_TEST(test_struct_insert) {
 
     htfrompairs(table, SIZEOF(pairs), pairs);
 
-    printf("struct insert:\n");
+    debug("struct insert:\n");
 
     struct coords_pair *pairs2 = htsortedpairs(table);
     ck_assert_str_eq(pairs2[0].key, "aaa");
@@ -117,7 +125,7 @@ START_TEST(test_struct_insert) {
     free(pairs2);
 
     ck_assert_int_eq(htentries(table), 3);
-    print_hash_table(print_coords, table);
+    debug_hash_table(print_coords, table);
 }
 END_TEST
 
@@ -163,8 +171,8 @@ START_TEST(test_random_inserts_and_deletes) {
 
     free(key);
 
-    printf("random_inserts_and_deletes:\n");
-    print_hash_table(print_entry_int, table);
+    debug("random_inserts_and_deletes:\n");
+    debug_hash_table(print_entry_int, table);
 
     char **keys = htkeys(table);
     size_t entries = htentries(table);
@@ -179,8 +187,8 @@ START_TEST(test_random_inserts_and_deletes) {
 
     ck_assert_int_eq(htentries(table), entries - deleted);
 
-    printf("random_inserts_and_deletes:\n");
-    print_hash_table(print_entry_int, table);
+    debug("random_inserts_and_deletes:\n");
+    debug_hash_table(print_entry_int, table);
 }
 END_TEST
 

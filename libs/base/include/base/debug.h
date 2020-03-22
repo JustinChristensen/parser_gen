@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 
-void debug_ns_(char const *ns, char const *format, ...);
+bool debug_is(char const *ns);
+void debug_ns(char const *ns, char const *format, ...);
 
 #endif // BASE_DEBUG_H_

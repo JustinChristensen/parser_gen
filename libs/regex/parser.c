@@ -24,8 +24,8 @@ static bool set_syntax_error(enum regex_symbol expected, struct regex_parse_cont
 static bool parse_regex_rec(char *pattern, struct regex_parse_context *context);
 static bool parse_regex_nonrec(char *pattern, struct regex_parse_context *context);
 
-#define sdebug(...) debug_ns_("regex_scanner", __VA_ARGS__)
-#define pdebug(...) debug_ns_("regex_parser", __VA_ARGS__)
+#define sdebug(...) debug_ns("regex_scanner", __VA_ARGS__)
+#define pdebug(...) debug_ns("regex_parser", __VA_ARGS__)
 
 #define FIRST (enum regex_symbol[])
 static enum regex_symbol const * const first_sets[] = {

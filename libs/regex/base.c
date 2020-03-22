@@ -36,6 +36,13 @@ struct regex_error regex_tag_exists_error(char *tag) {
     };
 }
 
+struct regex_error regex_duplicate_pattern_error(char *pattern) {
+    return (struct regex_error) {
+        .type = RX_DUPLICATE_PATTERN,
+        .pattern = pattern
+    };
+}
+
 struct regex_error regex_nullerror() {
     return (struct regex_error) { 0 };
 }
@@ -119,31 +126,35 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
     }
 }
 
-#define SYNERR_FMT_STRING "| Syntax Error\n|\n| Got: %s\n| Expected: "
-#define SYNERR_FMT_STRING_END "\n|\n| At Column: %d\n|\n"
-#define OOM_FMT_STRING "| OOM Error\n|\n"
-#define REPEAT_ZERO_FMT_STRING "| Repeat Zero Error\n|\n"
-#define MISSING_TAG_FMT_STRING "| Tag Exists Error\n|\n| Pattern %s already defined\n|\n"
-#define TAG_EXISTS_FMT_STRING "| Missing Tag Error\n|\n| Pattern %s not defined\n|\n"
+#define SYNERR_FMT "| Syntax Error\n|\n| Got: %s\n| Expected: "
+#define SYNERR_FMT_END "\n|\n| At Column: %d\n|\n"
+#define OOM_FMT "| OOM Error\n|\n"
+#define REPEAT_ZERO_FMT "| Repeat Zero Error\n|\n"
+#define MISSING_TAG_FMT "| Tag Exists Error\n|\n| Pattern %s already tagged\n|\n"
+#define TAG_EXISTS_FMT "| Missing Tag Error\n|\n| Pattern %s not tagged\n|\n"
+#define DUPLICATE_PATTERN_FMT "| Duplicate Pattern Error\n|\n| Pattern %s duplicated\n|\n"
 
 void print_regex_error(FILE *handle, struct regex_error error) {
     switch (error.type) {
         case RX_SYNTAX_ERROR:
-            fprintf(handle, SYNERR_FMT_STRING, str_for_regex_sym(error.actual));
+            fprintf(handle, SYNERR_FMT, str_for_regex_sym(error.actual));
             print_symbol_list(handle, error.expected);
-            fprintf(handle, SYNERR_FMT_STRING_END, error.lexeme_col);
+            fprintf(handle, SYNERR_FMT_END, error.lexeme_col);
             break;
         case RX_OUT_OF_MEMORY:
-            fprintf(handle, OOM_FMT_STRING);
+            fprintf(handle, OOM_FMT);
             break;
         case RX_MISSING_TAG:
-            fprintf(handle, MISSING_TAG_FMT_STRING, error.tag);
+            fprintf(handle, MISSING_TAG_FMT, error.tag);
             break;
         case RX_TAG_EXISTS:
-            fprintf(handle, TAG_EXISTS_FMT_STRING, error.tag);
+            fprintf(handle, TAG_EXISTS_FMT, error.tag);
             break;
         case RX_REPEAT_ZERO:
-            fprintf(handle, REPEAT_ZERO_FMT_STRING);
+            fprintf(handle, REPEAT_ZERO_FMT);
+            break;
+        case RX_DUPLICATE_PATTERN:
+            fprintf(handle, DUPLICATE_PATTERN_FMT, error.pattern);
             break;
     }
 }

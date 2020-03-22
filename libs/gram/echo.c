@@ -73,13 +73,13 @@ void echo_gram_alt(FILE *handle, struct gram_alt *alt) {
 static void _echo_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
     switch (rhs->type) {
         case GM_ID_RHS:
-            fprintf(handle, ID_RHS_FMT, rhs->sym);
+            fprintf(handle, ID_RHS_FMT, rhs->str);
             break;
         case GM_CHAR_RHS:
-            fprintf(handle, CHAR_RHS_FMT, rhs->sym);
+            fprintf(handle, CHAR_RHS_FMT, rhs->str);
             break;
         case GM_STRING_RHS:
-            fprintf(handle, STRING_RHS_FMT, rhs->sym);
+            fprintf(handle, STRING_RHS_FMT, rhs->str);
             break;
         case GM_EMPTY_RHS:
             fprintf(handle, EMPTY_RHS_FMT);

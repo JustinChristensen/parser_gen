@@ -63,7 +63,8 @@ enum regex_error_type {
     RX_OUT_OF_MEMORY,
     RX_REPEAT_ZERO,
     RX_TAG_EXISTS,
-    RX_MISSING_TAG
+    RX_MISSING_TAG,
+    RX_DUPLICATE_PATTERN
 };
 
 struct regex_error {
@@ -75,6 +76,7 @@ struct regex_error {
             enum regex_symbol const *expected;
         };
         char *tag;
+        char *pattern;
     };
 };
 
@@ -209,6 +211,7 @@ struct regex_error regex_oom_error();
 struct regex_error regex_repeat_zero_error();
 struct regex_error regex_missing_tag_error(char *tag);
 struct regex_error regex_tag_exists_error(char *tag);
+struct regex_error regex_duplicate_pattern_error(char *pattern);
 struct regex_error regex_nullerror();
 struct regex_loc regex_loc(int line, int col);
 struct regex_loc bump_regex_loc(char c, struct regex_loc loc);

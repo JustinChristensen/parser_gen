@@ -42,7 +42,7 @@ END_TEST
 
 START_TEST(test_init_with_duplicate_tags) {
     ck_assert_msg(nfa_context(&context, RX_PATTERNS {
-        { 0, "abc", "" },
+        { 0, "abc", "a" },
         { 1, "abc", "" },
         RX_END_PATTERNS
     }) == false, "init with duplicate tags succeeded");

@@ -2,6 +2,7 @@
 #define BASE_HASH_TABLE_H_ 1
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 
 #define HT_GROWTH 1.618     // defined, but not used
@@ -48,10 +49,10 @@ void *htpairs(struct hash_table const *table);
 void *htsortedpairs(struct hash_table const *table);
 void htfrompairs(struct hash_table *table, unsigned int n, void *pairs);
 unsigned int htentries(struct hash_table const *table);
-void print_entry_int(void const *val);
-void print_entry_string(void const *val);
-void print_hash_table(void (*print_val) (void const *val), struct hash_table const *table);
-void print_hash_entries(void (*print_val) (void const *val), struct hash_table const *table);
-void print_table_stats(struct hash_table const *table);
+void print_entry_int(FILE *handle, void const *val);
+void print_entry_string(FILE *handle, void const *val);
+void print_hash_table(FILE *handle, void (*print_val) (FILE *handle, void const *val), struct hash_table const *table);
+void print_hash_entries(FILE *handle, void (*print_val) (FILE *handle, void const *val), struct hash_table const *table);
+void print_table_stats(FILE *handle, struct hash_table const *table);
 
 #endif // BASE_HASH_TABLE_H_

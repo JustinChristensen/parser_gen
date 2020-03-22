@@ -2,6 +2,7 @@
 #define REGEX_NFA_H_ 1
 
 #include <stdbool.h>
+#include <base/hash_table.h>
 #include <regex/base.h>
 
 #define RX_STATE_POOL_SIZE 1000
@@ -12,19 +13,16 @@ struct nfa_state_pool {
     struct nfa_state_pool *next;
 };
 
-struct tagged_nfa {
-    struct tagged_nfa *next;
-    char *tag;
-    struct nfa nfa;
-};
-
 struct nfa_context {
     struct nfa_state_pool *state_pools;
     struct nfa_state_pool *state_pool;
     int num_states;
-    struct tagged_nfa *tagged_nfas;
+
+    struct hash_table *defpats;
+    struct hash_table *tagged_nfas;
     struct nfa nfa;
     bool *current_class;
+
     bool has_error;
     struct regex_error error;
 };
@@ -34,9 +32,11 @@ struct nfa_match {
     char *input;
     struct regex_loc input_loc;
     bool eof_seen;
+
     char *match_start;
     struct regex_loc match_loc;
     struct nfa mach;
+
     int num_states;
     bool *already_on;
     struct nfa_state **currstates;

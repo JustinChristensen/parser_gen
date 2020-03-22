@@ -101,7 +101,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     args->posc = argc(context);
 }
 
-#define debug(...) debug_ns_("args", __VA_ARGS__)
+#define debug(...) debug_ns("args", __VA_ARGS__)
 static void debug_args(struct args args) {
     debug("cmd: %s\n", cmd_str(args.cmd));
     debug("output: %s\n", output_str(args.output));

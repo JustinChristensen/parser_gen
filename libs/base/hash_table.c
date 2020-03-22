@@ -38,7 +38,7 @@ static size_t _entrysize(struct hash_table const *table) {
 }
 
 static void setval(void *val, struct hash_entry *entry, struct hash_table const *table) {
-    memcpy(entry->val, val, _valsize(table));
+    if (val) memcpy(entry->val, val, _valsize(table));
 }
 
 static void update_entry(
@@ -182,7 +182,6 @@ static struct hash_table *_hash_table(size_t valsize, unsigned int *size) {
 }
 
 struct hash_table *hash_table(size_t valsize) {
-    assert(valsize > 0);
     return _hash_table(valsize, NULL);
 }
 
@@ -203,7 +202,6 @@ struct hash_table *htclone(struct hash_table const *table) {
 void htinsert(char const *key, void *val, struct hash_table *table) {
     assert(table != NULL);
     assert(key != NULL);
-    assert(val != NULL);
     check_load(table);
     key = strdup(key);
     assert(key != NULL);
@@ -384,62 +382,70 @@ unsigned int htentries(struct hash_table const *table) {
     return table->entries;
 }
 
-static void print_hash_entry(void (*print_val) (void const *val), struct hash_entry const *entry) {
+static void print_hash_entry(
+    FILE *handle, void (*print_val) (FILE *handle, void const *val),
+    struct hash_entry const *entry
+) {
     if (!print_val) return;
-    printf("(%s, ", entry->key);
-    (*print_val)(entry->val);
-    printf(")");
+    fprintf(handle, "(%s, ", entry->key);
+    (*print_val)(handle, entry->val);
+    fprintf(handle, ")");
 }
 
-void print_entry_int(void const *val) {
-    printf("%d", *((int *) val));
+void print_entry_int(FILE *handle, void const *val) {
+    fprintf(handle, "%d", *((int *) val));
 }
 
-void print_entry_string(void const *val) {
-    printf("%s", *((char **) val));
+void print_entry_string(FILE *handle, void const *val) {
+    fprintf(handle, "%s", *((char **) val));
 }
 
-void print_hash_table(void (*print_val) (void const *val), struct hash_table const *table) {
+void print_hash_table(
+    FILE *handle, void (*print_val) (FILE *handle, void const *val),
+    struct hash_table const *table
+) {
     if (!table || !print_val) return;
 
-    print_table_stats(table);
+    print_table_stats(handle, table);
 
     struct hash_entry **buckets = table->buckets;
 
     for (int i = 0; i < _size(table); i++) {
         struct hash_entry *entry = buckets[i];
 
-        printf("%d: ", i);
+        fprintf(handle, "%d: ", i);
 
         if (entry) {
             for (; entry; entry = entry->next) {
-                print_hash_entry(print_val, entry);
-                printf(" ");
+                print_hash_entry(handle, print_val, entry);
+                fprintf(handle, " ");
             }
-        } else {
-            printf("(empty)");
-        }
+        } else
+            fprintf(handle, "(empty)");
 
-        printf("\n");
+        fprintf(handle, "\n");
     }
 }
 
-void print_hash_entries(void (*print_val) (void const *val), struct hash_table const *table) {
+void print_hash_entries(
+    FILE *handle, void (*print_val) (FILE *handle, void const *val),
+    struct hash_table const *table
+) {
     if (!table || !print_val) return;
 
     struct table_iterator it = table_iterator(table);
     struct hash_entry *entry = NULL;
 
     while (htnextentry(&entry, &it)) {
-        print_hash_entry(print_val, entry);
-        printf("\n");
+        print_hash_entry(handle, print_val, entry);
+        fprintf(handle, "\n");
     }
 }
 
-void print_table_stats(struct hash_table const *table) {
+void print_table_stats(FILE *handle, struct hash_table const *table) {
     if (!table) return;
     unsigned int used = _used(table), size = _size(table);
-    printf("table: %p\nsize: %u\nentries: %u\nused buckets: %u\nload: %lf\nbucket load: %lf\n",
+    fprintf(handle, "table: %p\nsize: %u\nentries: %u\nused buckets: %u\nload: %lf\nbucket load: %lf\n",
         table, size, htentries(table), used, htload(table), used / (double) size);
 }
 

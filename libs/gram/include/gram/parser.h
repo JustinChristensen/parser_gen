@@ -80,9 +80,15 @@ struct gram_error {
 
 struct gram_parse_context {
     void *ast;
+    struct hash_table *symtab;
+    unsigned int terms;
+    unsigned int nonterms;
+    void *current_rule;
+
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_symbol sym;
+
     bool has_error;
     struct gram_error error;
 };

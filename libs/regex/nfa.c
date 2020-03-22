@@ -6,11 +6,12 @@
 #include <string.h>
 #include <base/debug.h>
 #include <base/string.h>
+#include <base/hash_table.h>
 #include "regex/base.h"
 #include "regex/nfa.h"
 #include "parser.h"
 
-#define debug(...) debug_ns_("nfa", __VA_ARGS__);
+#define debug(...) debug_ns("nfa", __VA_ARGS__);
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
 static void debug_class_state(struct nfa_state *state) {
@@ -78,21 +79,22 @@ static void debug_state_table(struct nfa_state_pool *pool) {
     }
 }
 
-static void debug_tagged_nfas(struct tagged_nfa *tnfa) {
-    debug("tagged nfas\n");
-
-    for (; tnfa; tnfa = tnfa->next) {
-        debug("%s: %p\n", tnfa->tag, tnfa->nfa.start);
-    }
-}
-
 static void debug_nfa(struct nfa mach) {
     if (mach.start) {
         debug("nfa { start: %p", mach.start);
         if (mach.end) debug(", end: %p -> %p", mach.end, *mach.end);
         if (mach.end1) debug(", end1: %p -> %p", mach.end1, *mach.end1);
-        debug(" }\n");
+        debug(" }");
     }
+}
+
+static void debug_nfa_p(FILE *_, void const *mach) {
+    debug_nfa(*((struct nfa *) mach));
+}
+
+static void debug_tagged_nfas(struct hash_table *tagged_nfas) {
+    debug("tagged nfas\n");
+    if (debug_is("nfa")) print_hash_entries(stderr, debug_nfa_p, tagged_nfas);
 }
 
 static void debug_pattern(int sym, char *pattern) {
@@ -129,6 +131,19 @@ static bool set_tag_exists_error(char *tag, struct nfa_context *context) {
         strcpy(permatag, tag);
         context->has_error = true;
         context->error = regex_tag_exists_error(permatag);
+    }
+
+    return false;
+}
+
+static bool set_duplicate_pattern_error(char *pattern, struct nfa_context *context) {
+    static char permapat[BUFSIZ] = "";
+
+    if (!context->has_error) {
+        debug("duplicate pattern error\n");
+        strcpy(permapat, pattern);
+        context->has_error = true;
+        context->error = regex_duplicate_pattern_error(permapat);
     }
 
     return false;
@@ -360,46 +375,15 @@ static bool clone_machine(struct nfa mach, struct nfa_context *context) {
     return false;
 }
 
-static struct tagged_nfa *find_machine(char *tag, struct nfa_context *context) {
-    struct tagged_nfa *tnfa = context->tagged_nfas;
-
-    for (; tnfa; tnfa = tnfa->next) {
-        if (streq(tag, tnfa->tag))
-            return tnfa;
-    }
-
-    return NULL;
+static struct nfa *find_machine(char *tag, struct nfa_context *context) {
+    return htlookup(tag, context->tagged_nfas);
 }
 
 static bool tag_machine(char *tag, struct nfa_context *context) {
-    struct tagged_nfa *tnfa = context->tagged_nfas,
-                      *last = NULL;
-
-    for (; tnfa; tnfa = tnfa->next) {
-        last = tnfa;
-
-        if (streq(tag, tnfa->tag)) {
-            return set_tag_exists_error(tag, context);
-        }
-    }
-
-    if ((tnfa = malloc(sizeof *tnfa)) == NULL) {
-        return set_oom_error(context);
-    }
-
-    if ((tag = strdup(tag)) == NULL) {
-        free(tnfa);
-        return set_oom_error(context);
-    }
-
-    *tnfa = (struct tagged_nfa) {
-        .tag = tag,
-        .nfa = nfa_gmachine(context)
-    };
-
-    if (last) last->next = tnfa;
-    else      context->tagged_nfas = tnfa;
-
+    if (htcontains(tag, context->tagged_nfas))
+        return set_tag_exists_error(tag, context);
+    struct nfa mach = nfa_gmachine(context);
+    htinsert(tag, &mach, context->tagged_nfas);
     return true;
 }
 
@@ -485,10 +469,10 @@ static bool runnable(struct nfa machine) {
 static bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
 
 static bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
-    struct tagged_nfa *tnfa = find_machine(tag.tag, context);
+    struct nfa *nfa = find_machine(tag.tag, context);
 
-    if (tnfa) {
-        clone_machine(tnfa->nfa, context);
+    if (nfa) {
+        clone_machine(*nfa, context);
         return true;
     }
 
@@ -638,14 +622,30 @@ struct regex_parse_interface const nfa_parse_iface = {
 };
 
 bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns) {
-    reset_context(context);
+    struct hash_table *defpats = hash_table(0);
+    if (!defpats)
+        return set_oom_error(context);
 
-    if ((context->state_pool = state_pool())) {
-        context->state_pools = context->state_pool;
-        return nfa_add_patterns(patterns, context);
+    struct hash_table *tagged_nfas = hash_table(sizeof (struct nfa));
+    if (!tagged_nfas) {
+        free_hash_table(defpats);
+        return set_oom_error(context);
     }
 
-    return set_oom_error(context);
+    struct nfa_state_pool *pool = state_pool();
+    if (!pool) {
+        free_hash_table(defpats);
+        free_hash_table(tagged_nfas);
+        return set_oom_error(context);
+    }
+
+    reset_context(context);
+
+    context->defpats = defpats;
+    context->tagged_nfas = tagged_nfas;
+    context->state_pools = context->state_pool = pool;
+
+    return nfa_add_patterns(patterns, context);
 }
 
 bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *context) {
@@ -663,6 +663,11 @@ bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *conte
 
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     if (nfa_has_error(context)) return false;
+
+    if (htcontains(pattern, context->defpats))
+        return set_duplicate_pattern_error(pattern, context);
+
+    htinsert(pattern, NULL, context->defpats);
 
     struct regex_parse_context pcontext = regex_parse_context(context, nfa_parse_iface);
     struct nfa lastmach = nfa_gmachine(context);
@@ -729,23 +734,11 @@ static void free_pools(struct nfa_context *context) {
     context->state_pools = context->state_pool = NULL;
 }
 
-static void free_tagged_nfas(struct nfa_context *context) {
-    struct tagged_nfa *tnfa = NULL, *next = NULL;
-
-    for (tnfa = context->tagged_nfas; tnfa != NULL; tnfa = next) {
-        next = tnfa->next;
-        free(tnfa->tag);
-        tnfa->tag = NULL;
-        free(tnfa);
-    }
-
-    context->tagged_nfas = NULL;
-}
-
 void free_nfa_context(struct nfa_context *context) {
     if (!context) return;
+    free_hash_table(context->defpats);
+    free_hash_table(context->tagged_nfas);
     free_pools(context);
-    free_tagged_nfas(context);
     reset_context(context);
 }
 

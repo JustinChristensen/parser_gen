@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "gram/ast.h"
-#include "parser.h"
+#include "gram/parser.h"
 
 #define N_(next) (1 + (next ? next->n : 0))
 
@@ -70,31 +70,31 @@ struct gram_alt *init_gram_alt(struct gram_rhs *rhses, struct gram_alt *next) {
     return alt;
 }
 
-static struct gram_rhs *init_rhs(enum gram_rhs_type type, char *sym, struct gram_rhs *next) {
+static struct gram_rhs *init_rhs(enum gram_rhs_type type, char *str, struct gram_rhs *next) {
     struct gram_rhs *rhs = malloc(sizeof *rhs);
 
     if (!rhs) return NULL;
 
-    if (sym && !(sym = strdup(sym))) {
+    if (str && !(str = strdup(str))) {
         free(rhs);
         return NULL;
     }
 
-    *rhs = (struct gram_rhs) { type, .sym = sym, next, N_(next) };
+    *rhs = (struct gram_rhs) { type, .str = str, next, N_(next) };
 
     return rhs;
 }
 
-struct gram_rhs *init_id_gram_rhs(char *sym, struct gram_rhs *next) {
-    return init_rhs(GM_ID_RHS, sym, next);
+struct gram_rhs *init_id_gram_rhs(char *str, struct gram_rhs *next) {
+    return init_rhs(GM_ID_RHS, str, next);
 }
 
-struct gram_rhs *init_char_gram_rhs(char *sym, struct gram_rhs *next) {
-    return init_rhs(GM_CHAR_RHS, sym, next);
+struct gram_rhs *init_char_gram_rhs(char *str, struct gram_rhs *next) {
+    return init_rhs(GM_CHAR_RHS, str, next);
 }
 
-struct gram_rhs *init_string_gram_rhs(char *sym, struct gram_rhs *next) {
-    return init_rhs(GM_STRING_RHS, sym, next);
+struct gram_rhs *init_string_gram_rhs(char *str, struct gram_rhs *next) {
+    return init_rhs(GM_STRING_RHS, str, next);
 }
 
 struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next) {
@@ -108,6 +108,8 @@ void free_gram_parser_spec(struct gram_parser_spec *spec) {
     spec->pdefs = NULL;
     free_gram_rule(spec->rules);
     spec->rules = NULL;
+
+    free(spec);
 }
 
 void free_gram_pattern_def(struct gram_pattern_def *pdef) {
@@ -151,7 +153,7 @@ void free_gram_rhs(struct gram_rhs *rhs) {
             case GM_ID_RHS:
             case GM_CHAR_RHS:
             case GM_STRING_RHS:
-                free(rhs->sym);
+                free(rhs->str);
                 break;
             case GM_EMPTY_RHS:
                 break;

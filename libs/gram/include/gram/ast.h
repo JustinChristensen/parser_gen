@@ -43,7 +43,7 @@ enum gram_rhs_type {
 struct gram_rhs {
     enum gram_rhs_type type;
     union {
-        char *sym;
+        struct { char *str; };
     };
     struct gram_rhs *next;
     size_t n;
@@ -57,9 +57,9 @@ struct gram_pattern_def *init_gram_pattern_def(
 );
 struct gram_rule *init_gram_rule(char *id, struct gram_alt *alts, struct gram_rule *next);
 struct gram_alt *init_gram_alt(struct gram_rhs *rhses, struct gram_alt *next);
-struct gram_rhs *init_id_gram_rhs(char *sym, struct gram_rhs *next);
-struct gram_rhs *init_char_gram_rhs(char *sym, struct gram_rhs *next);
-struct gram_rhs *init_string_gram_rhs(char *sym, struct gram_rhs *next);
+struct gram_rhs *init_id_gram_rhs(char *str, struct gram_rhs *next);
+struct gram_rhs *init_char_gram_rhs(char *str, struct gram_rhs *next);
+struct gram_rhs *init_string_gram_rhs(char *str, struct gram_rhs *next);
 struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next);
 
 void free_gram_parser_spec(struct gram_parser_spec *spec);

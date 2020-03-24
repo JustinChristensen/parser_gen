@@ -257,12 +257,12 @@ bool htdelete(char const *key, struct hash_table *table) {
     return false;
 }
 
-struct table_iterator table_iterator(struct hash_table const *table) {
+struct hash_iterator hash_iterator(struct hash_table const *table) {
     assert(table != NULL);
-    return (struct table_iterator) { table, 0, NULL };
+    return (struct hash_iterator) { table, 0, NULL };
 }
 
-static bool htnextentry(struct hash_entry **out, struct table_iterator *it) {
+static bool htnextentry(struct hash_entry **out, struct hash_iterator *it) {
     assert(out != NULL);
     assert(it != NULL);
     assert(it->table != NULL);
@@ -295,7 +295,7 @@ static bool htnextentry(struct hash_entry **out, struct table_iterator *it) {
     return false;
 }
 
-void *htnext(char **key, struct table_iterator *it) {
+void *htnext(char **key, struct hash_iterator *it) {
     struct hash_entry *entry = NULL;
     if (htnextentry(&entry, it)) {
         if (key) entry_key(key, entry);
@@ -309,7 +309,7 @@ char **htkeys(struct hash_table const *table) {
     char **keys = calloc(htentries(table), sizeof *keys),
          **k = keys;
 
-    struct table_iterator it = table_iterator(table);
+    struct hash_iterator it = hash_iterator(table);
     struct hash_entry *entry = NULL;
     while (htnextentry(&entry, &it)) {
         entry_key(k, entry);
@@ -323,7 +323,7 @@ void *htvals(struct hash_table const *table) {
     void *vals = calloc(htentries(table), _valsize(table)),
          *v = vals;
 
-    struct table_iterator it = table_iterator(table);
+    struct hash_iterator it = hash_iterator(table);
     struct hash_entry *entry = NULL;
     while (htnextentry(&entry, &it)) {
         entry_val(v, _valsize(table), entry);
@@ -344,7 +344,7 @@ void *htpairs(struct hash_table const *table) {
     struct pair *pairs = calloc(htentries(table), pairsize);
     void *pp = pairs;
 
-    struct table_iterator it = table_iterator(table);
+    struct hash_iterator it = hash_iterator(table);
     struct hash_entry *entry = NULL;
     while (htnextentry(&entry, &it)) {
         struct pair *p = pp;
@@ -433,7 +433,7 @@ void print_hash_entries(
 ) {
     if (!table || !print_val) return;
 
-    struct table_iterator it = table_iterator(table);
+    struct hash_iterator it = hash_iterator(table);
     struct hash_entry *entry = NULL;
 
     while (htnextentry(&entry, &it)) {

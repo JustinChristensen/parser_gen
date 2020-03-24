@@ -7,7 +7,8 @@
 enum command_key {
     GEN_PARSER,
     SCAN,
-    PARSE
+    PARSE,
+    PACK
 };
 
 enum arg_key {
@@ -73,29 +74,14 @@ int main(int argc, char *argv[]) {
         CMDS {
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             { PARSE, "parse", ARGS { stats_arg, help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
-            // generate recursive LL parser
-            // generate configuration-driven parser:
-            //      generate LL parser
-            //          lookahead :: Terminal
-            //          input :: [Terminal]
-            //          select_production :: NonTerminal -> Terminal -> Production
-            //          rule_symbols :: Production -> [Symbol]
-            //          symbol_stack :: [Symbol]
-            //      generate canonical LR parser
-            //          lookahead :: Terminal
-            //          input :: [Terminal]
-            //          stack :: undefined
-            //          data Action = Shift | Reduce | Accept | Error
-            //          action :: State -> Terminal -> Action
-            //      generate simple LR parser       (SLR)
-            //      generate lookahead LR parser    (LALR)
+            { PACK, "pack", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Pack grammar from spec files" },
             END_CMDS
         },
         "Generate a parser"
     });
 
     if (args.cmd == GEN_PARSER) {
-    } else if (args.cmd == PARSE) {
+    } else {
         char **files = args.pos;
         int const bufsize = BUFSIZ * 32;
         char contents[bufsize] = "";
@@ -107,31 +93,65 @@ int main(int argc, char *argv[]) {
 
             printf("filename: %s, size: %d\n", files[i], nread);
 
-            struct gram_parse_context context = { 0 };
+            if (args.cmd == SCAN) {
+                print_gram_tokens(stdout, contents);
+            } else if (args.cmd == PARSE) {
+                struct gram_parse_context context = { 0 };
 
-            if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
-                struct gram_parser_spec *pspec = gram_parser_spec(&context);
-                if (args.stats) echo_gram_pspec_stats(stderr, pspec);
-                echo_gram_pspec(stdout, pspec);
-                free_gram_parse_context(&context);
-            } else {
-                print_gram_error(stderr, gram_parser_error(&context));
-                free_gram_parse_context(&context);
-                return EXIT_FAILURE;
+                if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
+                    struct gram_parser_spec *pspec = gram_parser_spec(&context);
+                    if (args.stats) echo_gram_pspec_stats(stderr, pspec);
+                    echo_gram_pspec(stdout, pspec);
+                    free_gram_parse_context(&context);
+                } else {
+                    print_gram_parse_error(stderr, gram_parser_error(&context));
+                    free_gram_parse_context(&context);
+                    return EXIT_FAILURE;
+                }
+            } else if (args.cmd == PACK) {
+                struct gram_parse_context context = { 0 };
+
+                if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
+                    struct gram_symbol *symbols = gram_pack_symbols(&context),
+                                       *sym = symbols;
+
+                    // print packed symbols
+                    printf("symbols:\n");
+                    printf("  %4s  %s\n", "num", "type");
+                    printf("  %4d  ---\n", sym->num);
+                    sym++;
+                    while (sym->num) {
+                        char *type = sym->type == GM_TERM ? "term" : "nonterm";
+                        printf("  %4d  %s\n", sym->num, type);
+                        sym++;
+                    }
+                    free(symbols);
+
+                    // print packed rules
+                    unsigned int **rules = gram_pack_rules(&context),
+                                 **rule = rules;
+                    printf("rules:\n");
+                    int r = 0;
+                    while (*rule) {
+                        unsigned int *s = *rule;
+
+                        printf("  %4d: ", r);
+                        while (*s)
+                            printf("%d, ", *s), s++;
+                        printf("0\n");
+
+                        rule++;
+                        r++;
+                    }
+                    gram_free_rules(rules);
+
+                    free_gram_parse_context(&context);
+                } else {
+                    print_gram_parse_error(stderr, gram_parser_error(&context));
+                    free_gram_parse_context(&context);
+                    return EXIT_FAILURE;
+                }
             }
-        }
-    } else if (args.cmd == SCAN) {
-        char **files = args.pos;
-        int const bufsize = BUFSIZ * 32;
-        char contents[bufsize] = "";
-
-        for (int i = 0; i < args.posc; i++) {
-            int nread = 0;
-            if ((nread = slurp_file(bufsize, contents, files[i])) == -1)
-                return EXIT_FAILURE;
-
-            printf("filename: %s, size: %d\n", files[i], nread);
-            print_gram_tokens(stdout, contents);
         }
     }
 

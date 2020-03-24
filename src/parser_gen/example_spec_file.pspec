@@ -1,18 +1,23 @@
-@id  /{alpha_}{alnum_}*/
-regex /./
+-line_comment   /\/\/[^\n]*\n/
+-whitespace     /{space}+/
+id              /{alpha_}{alnum_}*/
+regex           /(\\.|[^\n\/])*/
+char            /'(\\.|[^'])'/
+string          /"(\\.|[^"])*"/
 
 ---
-parser_spec       = pattern_defs grammar;
-pattern_defs      = pattern_def pattern_defs | $empty;
-pattern_def       = id regex;
-grammar           = "---" rules_head | $empty;
-rules_head        = rule rules | $empty;
-rules             = rule rules | $empty;
-rule              = id '=' alt alts ';';
-alts              = '|' alt alts | $empty;
-alt               = rhs rhses;
-rhses             = rhs rhses | $empty;
-rhs               = id
-                  | char
-                  | string
-                  | "$empty";
+parser_spec  = pattern_defs grammar;
+pattern_defs = pattern_def pattern_defs | $empty;
+pattern_def  = pdef_mod id regex;
+pdef_mod        = '@' | '-';
+grammar      = "---\n" rules_head | $empty;
+rules_head   = rule rules | $empty;
+rules        = rule rules | $empty;
+rule         = id '=' alt alts ';';
+alts         = '|' alt alts | $empty;
+alt          = rhs rhses;
+rhses        = rhs rhses | $empty;
+rhs          = id
+             | char
+             | string
+             | "$empty";

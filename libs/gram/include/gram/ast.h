@@ -12,10 +12,8 @@ struct gram_parser_spec {
 struct gram_pattern_def {
     char *id;
     char *regex;
-    struct {
-        uint8_t tag_only : 1;
-        uint8_t skip : 1;
-    };
+    bool tag_only;
+    bool skip;
     struct gram_pattern_def *next;
     size_t n;
 };

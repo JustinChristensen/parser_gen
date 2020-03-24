@@ -11,7 +11,7 @@
 #include "regex/nfa.h"
 #include "parser.h"
 
-#define debug(...) debug_ns("nfa", __VA_ARGS__);
+#define debug(...) debug_ns("regex_nfa", __VA_ARGS__);
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
 static void debug_class_state(struct nfa_state *state) {
@@ -94,7 +94,7 @@ static void debug_nfa_p(FILE *_, void const *mach) {
 
 static void debug_tagged_nfas(struct hash_table *tagged_nfas) {
     debug("tagged nfas\n");
-    if (debug_is("nfa")) print_hash_entries(stderr, debug_nfa_p, tagged_nfas);
+    if (debug_is("regex_nfa")) print_hash_entries(stderr, debug_nfa_p, tagged_nfas);
 }
 
 static void debug_pattern(int sym, char *pattern) {
@@ -873,8 +873,7 @@ static int _nfa_match(struct nfa_match *match) {
 
     cend = eps_closure(NULL, cend, already_on, mach.start);
 
-    debug("simulation\n");
-    // debug("remaining input: %s\n", input);
+    debug("simulation, input: %s\n", input);
     debug_nfa_states(cstart, cend);
 
     // always consume at least one character

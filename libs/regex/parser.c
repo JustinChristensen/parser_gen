@@ -151,8 +151,6 @@ struct regex_token regex_scan(struct regex_token token) {
     token.lexeme = ip;
     token.lexeme_col = ic;
 
-    sdebug("remaining: \"%s\"\n", ip);
-
     if (*ip == '\0') {
         type = RX_EOF_T;
     } else if (token.in_class) {
@@ -247,7 +245,8 @@ struct regex_token regex_scan(struct regex_token token) {
     token.input_col = ic;
     token.type = type;
 
-    sdebug("token: %s\n", str_for_regex_sym(token.type));
+    sdebug("column: %d, token: %s, remaining input: %s\n",
+        token.lexeme_col, str_for_regex_sym(token.type), ip);
 
     return token;
 }

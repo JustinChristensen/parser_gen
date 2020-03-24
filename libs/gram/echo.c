@@ -39,8 +39,11 @@ void echo_gram_pspec(FILE *handle, struct gram_parser_spec *spec) {
 
 #define PATTERN_DEF_FMT "%s %s\n"
 void echo_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
-    for (; def; def = def->next)
+    for (; def; def = def->next) {
+        if (def->tag_only) fprintf(handle, "@");
+        if (def->skip) fprintf(handle, "-");
         fprintf(handle, PATTERN_DEF_FMT, def->id, def->regex);
+    }
 }
 
 #define RULE_FMT "%s = "
@@ -65,21 +68,15 @@ void echo_gram_alt(FILE *handle, struct gram_alt *alt) {
     }
 }
 
-#define ID_RHS_FMT "%s"
-#define CHAR_RHS_FMT "'%s'"
-#define STRING_RHS_FMT "\"%s\""
+#define RHS_FMT "%s"
 #define EMPTY_RHS_FMT "$empty"
 #define RHS_SEP_FMT " "
 static void _echo_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
     switch (rhs->type) {
         case GM_ID_RHS:
-            fprintf(handle, ID_RHS_FMT, rhs->str);
-            break;
         case GM_CHAR_RHS:
-            fprintf(handle, CHAR_RHS_FMT, rhs->str);
-            break;
         case GM_STRING_RHS:
-            fprintf(handle, STRING_RHS_FMT, rhs->str);
+            fprintf(handle, RHS_FMT, rhs->str);
             break;
         case GM_EMPTY_RHS:
             fprintf(handle, EMPTY_RHS_FMT);

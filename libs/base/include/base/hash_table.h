@@ -25,7 +25,7 @@ struct hash_table {
     unsigned int entries;
 };
 
-struct table_iterator {
+struct hash_iterator {
     struct hash_table const *table;
     int i; // current bucket
     struct hash_entry *entry; // current entry
@@ -41,8 +41,8 @@ void htinsert_p(char const *key, void *val, struct hash_table *table);
 void *htlookup(char const *key, struct hash_table const *table);
 bool htcontains(char const *key, struct hash_table const *table);
 bool htdelete(char const *key, struct hash_table *table);
-struct table_iterator table_iterator(struct hash_table const *table);
-void *htnext(char **key, struct table_iterator *it);
+struct hash_iterator hash_iterator(struct hash_table const *table);
+void *htnext(char **key, struct hash_iterator *it);
 char **htkeys(struct hash_table const *table);
 void *htvals(struct hash_table const *table);
 void *htpairs(struct hash_table const *table);

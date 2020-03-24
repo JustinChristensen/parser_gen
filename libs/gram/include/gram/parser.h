@@ -37,9 +37,9 @@ enum gram_symbol_type {
 
 struct gram_symbol {
     enum gram_symbol_type type;
-    unsigned int num;
+    int num;
     union {
-        unsigned int *rules;    // nonterm derives rules
+        int *rules;    // nonterm derives rules
     };
 };
 
@@ -91,6 +91,10 @@ struct gram_parse_error {
             struct regex_loc loc;
             enum gram_parser_symbol *expected;
         };
+        struct {
+            char *file;
+            int col;
+        };
         struct regex_error scanerr;
     };
 };
@@ -98,6 +102,7 @@ struct gram_parse_error {
 struct gram_parse_context {
     void *ast;
     struct hash_table *symtab;
+    unsigned int patterns;
     unsigned int terms;
     unsigned int nonterms;
     unsigned int rules;
@@ -126,9 +131,10 @@ bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context);
 struct gram_parser_spec *gram_parser_spec(struct gram_parse_context *context);
 bool gram_check(struct gram_parse_context *context);
 struct regex_pattern *gram_pack_patterns(struct gram_parse_context *context);
+void free_gram_patterns(struct regex_pattern *patterns);
 struct gram_symbol *gram_pack_symbols(struct gram_parse_context *context);
-unsigned int **gram_pack_rules(struct gram_parse_context *context);
-void gram_free_rules(unsigned int **rules);
+int **gram_pack_rules(struct gram_parse_context *context);
+void gram_free_rules(int **rules);
 void print_gram_tokens(FILE *handle, char *spec);
 
 #endif // GRAM_PARSER_H_

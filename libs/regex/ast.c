@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <base/string.h>
 #include "regex/ast.h"
 #include "parser.h"
 
@@ -130,7 +131,7 @@ static bool do_sub_expr(union regex_result _, struct regex_expr_context *context
 }
 
 static bool do_tag_expr(union regex_result tag, struct regex_expr_context *context) {
-    char *duptag = strdup(tag.tag);
+    char *duptag = safedup(tag.tag);
 
     if (duptag != NULL) {
         sexpr(context, tag_expr(duptag));

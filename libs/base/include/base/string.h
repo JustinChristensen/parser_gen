@@ -16,5 +16,7 @@ char *put(char *str, char *s);
 char *putln(char *str, char *s);
 void indent(int n);
 void printstr(char const *s);
+char *safedup(char const *s);
+void strip_quotes(char *s);
 
 #endif // BASE_STRING_H_

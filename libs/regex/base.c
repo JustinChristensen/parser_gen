@@ -62,6 +62,10 @@ struct regex_loc regex_loc(int line, int col) {
     return (struct regex_loc) { line, col };
 }
 
+struct regex_pattern regex_pattern(int sym, char *tag, char *pattern) {
+    return (struct regex_pattern) { sym, tag, pattern };
+}
+
 char const *str_for_regex_sym(enum regex_symbol type) {
     switch (type) {
         case RX_ERROR:             return "ERROR";

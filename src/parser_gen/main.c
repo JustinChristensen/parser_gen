@@ -112,10 +112,20 @@ int main(int argc, char *argv[]) {
                 struct gram_parse_context context = { 0 };
 
                 if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
-                    struct gram_symbol *symbols = gram_pack_symbols(&context),
-                                       *sym = symbols;
+                    // print packed patterns
+                    struct regex_pattern *patterns = gram_pack_patterns(&context),
+                                         *pat = patterns;
+                    printf("patterns:\n");
+                    printf("  %4s  %s\n", "num", "pattern");
+                    while (pat->sym) {
+                        printf("  %4d  %s\n", pat->sym, pat->pattern);
+                        pat++;
+                    }
+                    free_gram_patterns(patterns);
 
                     // print packed symbols
+                    struct gram_symbol *symbols = gram_pack_symbols(&context),
+                                       *sym = symbols;
                     printf("symbols:\n");
                     printf("  %4s  %s\n", "num", "type");
                     printf("  %4d  ---\n", sym->num);
@@ -128,12 +138,12 @@ int main(int argc, char *argv[]) {
                     free(symbols);
 
                     // print packed rules
-                    unsigned int **rules = gram_pack_rules(&context),
+                    int **rules = gram_pack_rules(&context),
                                  **rule = rules;
                     printf("rules:\n");
                     int r = 0;
                     while (*rule) {
-                        unsigned int *s = *rule;
+                        int *s = *rule;
 
                         printf("  %4d: ", r);
                         while (*s)

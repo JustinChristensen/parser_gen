@@ -58,14 +58,14 @@ bool lr0_context(
     struct hash_table *symtab = NULL;
     if ((symtab = init_hash_table(NULL)) == NULL) {
         free_nfa_context(&scanner);
-        return set_oom_error(context);
+        return set_oom_error(__FILE__, __LINE__, context);
     }
 
     struct array *strings = NULL;
     if ((strings = init_array(sizeof (char *), INIT_STRINGS, 0, 0)) == NULL) {
         free_nfa_context(&scanner);
         free_hash_table(symtab);
-        return set_oom_error(context);
+        return set_oom_error(__FILE__, __LINE__, context);
     }
 
     *context = (struct lr0_context) {

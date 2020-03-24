@@ -214,6 +214,7 @@ struct regex_error regex_tag_exists_error(char *tag);
 struct regex_error regex_duplicate_pattern_error(char *pattern);
 struct regex_error regex_nullerror();
 struct regex_loc regex_loc(int line, int col);
+struct regex_pattern regex_pattern(int sym, char *tag, char *pattern);
 struct regex_loc bump_regex_loc(char c, struct regex_loc loc);
 char const *str_for_regex_sym(enum regex_symbol type);
 void print_regex_error(FILE *handle, struct regex_error error);

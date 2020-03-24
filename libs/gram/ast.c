@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <base/string.h>
 #include "gram/ast.h"
 #include "gram/parser.h"
 
@@ -24,12 +25,12 @@ struct gram_pattern_def *init_gram_pattern_def(
 
     if (!pdef) return NULL;
 
-    if (id && !(id = strdup(id))) {
+    if (id && ((id = strdup(id)) == NULL)) {
         free(pdef);
         return NULL;
     }
 
-    if (regex && !(regex = strdup(regex))) {
+    if (regex && ((regex = strdup(regex)) == NULL)) {
         free(pdef);
         free(id);
         return NULL;
@@ -50,7 +51,7 @@ struct gram_rule *init_gram_rule(char *id, struct gram_alt *alts, struct gram_ru
 
     if (!rule) return NULL;
 
-    if (id && !(id = strdup(id))) {
+    if (id && ((id = strdup(id)) == NULL)) {
         free(rule);
         return NULL;
     }
@@ -75,7 +76,7 @@ static struct gram_rhs *init_rhs(enum gram_rhs_type type, char *str, struct gram
 
     if (!rhs) return NULL;
 
-    if (str && !(str = strdup(str))) {
+    if (str && ((str = strdup(str)) == NULL)) {
         free(rhs);
         return NULL;
     }

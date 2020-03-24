@@ -1,5 +1,6 @@
 -line_comment   /\/\/[^\n]*\n/
 -whitespace     /{space}+/
+@foo            /test/
 id              /{alpha_}{alnum_}*/
 regex           /(\\.|[^\n\/])*/
 char            /'(\\.|[^'])'/
@@ -9,7 +10,7 @@ string          /"(\\.|[^"])*"/
 parser_spec  = pattern_defs grammar;
 pattern_defs = pattern_def pattern_defs | $empty;
 pattern_def  = pdef_mod id regex;
-pdef_mod        = '@' | '-';
+pdef_mod     = '@' | '-';
 grammar      = "---\n" rules_head | $empty;
 rules_head   = rule rules | $empty;
 rules        = rule rules | $empty;

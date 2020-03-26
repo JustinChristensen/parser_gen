@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <base/args.h>
 #include <gram/echo.h>
+#include <gram/pack.h>
 #include <gram/parser.h>
 
 enum command_key {
@@ -112,49 +113,17 @@ int main(int argc, char *argv[]) {
                 struct gram_parse_context context = { 0 };
 
                 if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
-                    // print packed patterns
-                    struct regex_pattern *patterns = gram_pack_patterns(&context),
-                                         *pat = patterns;
-                    printf("patterns:\n");
-                    printf("  %4s  %s\n", "num", "pattern");
-                    while (pat->sym) {
-                        printf("  %4d  %s\n", pat->sym, pat->pattern);
-                        pat++;
+                    struct gram_parser_spec *spec = gram_parser_spec(&context);
+                    struct hash_table *symtab = gram_symtab(&context);
+                    struct gram_stats stats = gram_stats(&context);
+                    struct gram_packed_spec *pspec = gram_pack(spec, symtab, stats);
+                    if (!pspec) {
+                        fprintf(stderr, "packing failed\n");
+                        free_gram_parse_context(&context);
+                        return EXIT_FAILURE;
                     }
-                    free_gram_patterns(patterns);
-
-                    // print packed symbols
-                    struct gram_symbol *symbols = gram_pack_symbols(&context),
-                                       *sym = symbols;
-                    printf("symbols:\n");
-                    printf("  %4s  %s\n", "num", "type");
-                    printf("  %4d  ---\n", sym->num);
-                    sym++;
-                    while (sym->num) {
-                        char *type = sym->type == GM_TERM ? "term" : "nonterm";
-                        printf("  %4d  %s\n", sym->num, type);
-                        sym++;
-                    }
-                    free(symbols);
-
-                    // print packed rules
-                    int **rules = gram_pack_rules(&context),
-                                 **rule = rules;
-                    printf("rules:\n");
-                    int r = 0;
-                    while (*rule) {
-                        int *s = *rule;
-
-                        printf("  %4d: ", r);
-                        while (*s)
-                            printf("%d, ", *s), s++;
-                        printf("0\n");
-
-                        rule++;
-                        r++;
-                    }
-                    gram_free_rules(rules);
-
+                    print_gram_packed_spec(stdout, pspec);
+                    free_gram_packed_spec(pspec);
                     free_gram_parse_context(&context);
                 } else {
                     print_gram_parse_error(stderr, gram_parser_error(&context));

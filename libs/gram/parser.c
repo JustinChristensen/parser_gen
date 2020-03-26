@@ -152,7 +152,7 @@ static bool expect(enum gram_parser_symbol expected, struct gram_parse_context *
     return set_syntax_error(expected, context);
 }
 
-static void *gast(struct gram_parse_context *context) {
+static void *gast(struct gram_parse_context const *context) {
     return context->ast;
 }
 

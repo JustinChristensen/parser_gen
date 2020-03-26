@@ -29,6 +29,29 @@ rhs               = id { id_rhs(lexeme) }
                   | "$empty" { empty };
 */
 
+enum gram_symbol_type {
+    GM_TERM,
+    GM_NONTERM
+};
+
+struct gram_symbol {
+    enum gram_symbol_type type;
+    int num;
+    union {
+        struct {
+            int *rules;  // nonterm derives
+            int nrules;
+        };
+    };
+};
+
+struct gram_stats {
+    unsigned int patterns;
+    unsigned int terms;
+    unsigned int nonterms;
+    unsigned int rules;
+};
+
 enum gram_parser_symbol {
     GM_ERROR,
 
@@ -90,6 +113,7 @@ struct gram_parse_context {
     struct hash_table *symtab;
     struct gram_stats stats;
 
+    struct gram_symbol *current_rule;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_parser_symbol sym;

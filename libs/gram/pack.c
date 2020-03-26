@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <base/hash_table.h>
+#include <base/string.h>
 #include <regex/nfa.h>
 #include "gram/ast.h"
 #include "gram/pack.h"
@@ -55,7 +57,7 @@ static struct gram_packed_spec *gram_packed_spec(struct gram_stats stats) {
         return NULL;
     }
 
-    *spec = (struct gram_parsed_spec) {
+    *spec = (struct gram_packed_spec) {
         .patterns = patterns,
         .symbols = symbols,
         .rules = rules
@@ -64,7 +66,7 @@ static struct gram_packed_spec *gram_packed_spec(struct gram_stats stats) {
     return spec;
 }
 
-static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats) {
+static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats, int **rps) {
     struct gram_symbol *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
@@ -72,9 +74,10 @@ static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab,
         symbols[i] = *sym;
         symbols[i].num = i;
 
-        if (sym->type == GM_NONTERM) {
-            // allocate space for the symbol's derived rules, +1 for -1 end marker
-            int *rules = calloc(sym->nrules + 1, sizeof *rules);
+        if (sym->type == GM_NONTERM && sym->nrules) {
+            // allocate space for the symbol's derived rules
+            int *rules = calloc(sym->nrules, sizeof *rules);
+            rps[sym->num] = rules;
             symbols[i].rules = rules;
             // gram_pack frees resources
             if (!rules) return false;
@@ -102,10 +105,23 @@ struct gram_packed_spec *gram_pack(
     struct hash_table *symtab,
     struct gram_stats stats
 ) {
-    struct gram_parsed_spec *pspec = gram_parsed_spec(stats);
+    struct gram_packed_spec *pspec = gram_packed_spec(stats);
+
+    if (!pspec) return NULL;
+
+    // rules positions
+    // FIXME: because rules may not be contiguous in the spec file
+    // this tracks the current position in each derives list
+    // a few options:
+    // 1. preprocess the AST to merge all rules sharing the same lhs
+    //      a. or make the parser do this up front
+    // 2. store these pointers in the packed symbol list
+    int **rps = calloc(stats.nonterms, sizeof *rps);
+
+    if (!rps) goto oom;
 
     // pack the symbols
-    if (!pack_symbols(pspec->symbols, symtab, stats))
+    if (!pack_symbols(pspec->symbols, symtab, stats, rps))
         goto oom;
 
     // count the number of pattern terms to compute offsets
@@ -132,35 +148,28 @@ struct gram_packed_spec *gram_pack(
         pat++;
     }
 
+    // FIXME: reserve rule #0 to terminate the non-term derives set
+    // for ease of initialization-by-hand
+
     int rn = 0; // rule number, for nonterm rules in symbols
     int **r = pspec->rules;
     struct gram_rule *rule = spec->rules;
     for (; rule; rule = rule->next) {
         // for adding rules to the non-terminal's "derives" list (rules)
-        int const i = detnum(htlookup(rule->id, symtab), stats);
-        struct gram_symbol *ntsym = pspec->symbols[i];
-
-        // TODO:
-        // need to figure out how to maintain a pointer to the current derives
-        // address, when alts may be spread among multiple non-contiguous rules
-        // i.e.
-        //
-        // foo: bar | baz
-        // bar: a b c
-        // foo bing
-        //
-        // foo then needs to have 0, 1, and 3 in it's derives list
-        //
+        struct gram_symbol *ntsym = htlookup(rule->id, symtab);
+        int *rp = rps[ntsym->num];
 
         struct gram_alt *alt = rule->alts;
 
         if (!alt || is_empty_rhs(alt->rhses)) {
             if ((*r++ = calloc(1, sizeof *r)) == NULL)
                 goto oom;
+            *rp++ = rn;
             continue;
         }
 
         for (; alt; rn++, alt = alt->next) {
+            *rp++ = rn;
             struct gram_rhs *rhs = alt->rhses;
 
             if ((*r = calloc(rhs->n + 1, sizeof **r)) == NULL)
@@ -187,10 +196,60 @@ struct gram_packed_spec *gram_pack(
         }
     }
 
+    free(rps);
+
     return pspec;
 oom:
+    free(rps);
     free_gram_packed_spec(pspec);
     return NULL;
+}
+
+void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
+    // print packed patterns
+    struct regex_pattern *pat = spec->patterns;
+    fprintf(handle, "patterns:\n");
+    if (pat->sym) {
+        fprintf(handle, "  %4s  %s\n", "num", "pattern");
+        while (pat->sym) {
+            fprintf(handle, "  %4d  %s\n", pat->sym, pat->pattern);
+            pat++;
+        }
+    }
+
+    // print packed symbols
+    struct gram_symbol *sym = &spec->symbols[1];
+    fprintf(handle, "symbols:\n");
+    fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "derives");
+    fprintf(handle, "  %4d  ---\n", sym->num);
+    while (sym->num) {
+        char *type = sym->type == GM_TERM ? "term" : "nonterm";
+        fprintf(handle, "  %4d  %-7s", sym->num, type);
+        if (sym->rules) {
+            fprintf(handle, "  %d", sym->rules[0]);
+            for (int i = 1; i < sym->nrules; i++)
+                fprintf(handle, ", %d", sym->rules[i]);
+
+        }
+        fprintf(handle, "\n");
+        sym++;
+    }
+
+    // print packed rules
+    int **rule = spec->rules;
+    fprintf(handle, "rules:\n");
+    int r = 0;
+    while (*rule) {
+        int *s = *rule;
+
+        fprintf(handle, "  %4d: ", r);
+        while (*s)
+            fprintf(handle, "%d, ", *s), s++;
+        fprintf(handle, "0\n");
+
+        rule++;
+        r++;
+    }
 }
 
 static void free_patterns(struct regex_pattern *patterns) {
@@ -207,7 +266,7 @@ static void free_patterns(struct regex_pattern *patterns) {
 static void free_symbols(struct gram_symbol *symbols) {
     if (!symbols) return;
 
-    struct gram_symbol *sym = symbols[1];
+    struct gram_symbol *sym = &symbols[1];
     while (sym->num) {
         if (sym->rules) free(sym->rules);
         sym++;

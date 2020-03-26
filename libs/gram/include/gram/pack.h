@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <regex/nfa.h>
 #include "gram/ast.h"
+#include "gram/parser.h"
 
 struct gram_packed_spec {
     struct regex_pattern *patterns;
@@ -14,6 +15,7 @@ struct gram_packed_spec {
 };
 
 struct gram_packed_spec *gram_pack(struct gram_parser_spec *spec, struct hash_table *symtab, struct gram_stats stats);
+void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec);
 void free_gram_packed_spec(struct gram_packed_spec *spec);
 
 #endif // GRAM_PACK_H_

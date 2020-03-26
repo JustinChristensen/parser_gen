@@ -49,6 +49,7 @@ void *htpairs(struct hash_table const *table);
 void *htsortedpairs(struct hash_table const *table);
 void htfrompairs(struct hash_table *table, unsigned int n, void *pairs);
 unsigned int htentries(struct hash_table const *table);
+void htreset(struct hash_table *table);
 void print_entry_int(FILE *handle, void const *val);
 void print_entry_string(FILE *handle, void const *val);
 void print_hash_table(FILE *handle, void (*print_val) (FILE *handle, void const *val), struct hash_table const *table);

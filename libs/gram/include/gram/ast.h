@@ -4,6 +4,26 @@
 #include <stdlib.h>
 #include "gram/parser.h"
 
+enum gram_symbol_type {
+    GM_TERM,
+    GM_NONTERM
+};
+
+struct gram_symbol {
+    enum gram_symbol_type type;
+    int num;
+    union {
+        struct { int *rules; int nrules; };    // nonterm derives rules
+    };
+};
+
+struct gram_stats {
+    unsigned int patterns;
+    unsigned int terms;
+    unsigned int nonterms;
+    unsigned int rules;
+};
+
 struct gram_parser_spec {
     struct gram_pattern_def *pdefs;
     struct gram_rule *rules;

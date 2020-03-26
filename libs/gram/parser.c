@@ -284,19 +284,18 @@ static void debug_symbols(struct gram_parse_context *context) {
 }
 
 static struct gram_symbol term_symbol(struct gram_parse_context *context) {
-    // FIXME: bumping this here is lazy
-    context->patterns++;
+    context->stats.patterns++;
 
     return (struct gram_symbol) {
         .type = GM_TERM,
-        .num = context->terms++
+        .num = context->stats.terms++
     };
 }
 
 static struct gram_symbol nonterm_symbol(struct gram_parse_context *context) {
     return (struct gram_symbol) {
         .type = GM_NONTERM,
-        .num = context->nonterms++
+        .num = context->stats.nonterms++
     };
 }
 
@@ -317,17 +316,13 @@ static int insert_symbol(
     return new_entry.num;
 }
 
-// static void set_current_rule(char *id, struct gram_parse_context *context) {
-//     context->current_rule = htlookup(id, context->symtab);
-//     struct gram_symbol *rule_entry = context->current_rule;
-//     debug("set symbol for %s, %d\n", id, rule_entry->sym);
-// }
-//
-// static void mark_rule_nullable(struct gram_parse_context *context) {
-//     struct gram_symbol *rule_entry = context->current_rule;
-//     debug("marking symbol for %d nullable\n", rule_entry->sym);
-//     rule_entry->nullable = true;
-// }
+static void set_current_rule(char *id, struct gram_parse_context *context) {
+    context->current_rule = htlookup(id, context->symtab);
+}
+
+static void addalts(int nalts, struct gram_parse_context *context) {
+    context->current_rule->nrules += nalts;
+}
 
 #define tryinit(context, fn, ...) (sast(fn(__VA_ARGS__), context) || set_oom_error(__FILE__, __LINE__, context))
 #define addn(prev, next) ((prev)->n += (next)->n)
@@ -417,7 +412,7 @@ static bool parse_pattern_def(struct gram_parse_context *context) {
 
         if (gram_lexeme(patbuf, context) && expect(GM_REGEX_T, context)) {
             if (!tag_only && !skip) insert_symbol(idbuf, term_symbol, context);
-            else                    context->patterns++;
+            else                    context->stats.patterns++;
             return tryinit(context, init_gram_pattern_def, idbuf, patbuf, tag_only, skip, NULL);
         }
     }
@@ -474,14 +469,17 @@ static bool parse_rule(struct gram_parse_context *context) {
 
     if (gram_lexeme(idbuf, context) && expect(GM_ID_T, context)) {
         insert_symbol(idbuf, nonterm_symbol, context);
+        set_current_rule(idbuf, context);
 
         if (expect(GM_ASSIGN_T, context) && parse_alt(context)) {
             struct gram_alt *alts = gast(context);
 
             if (parse_alts(context) &&
                 expect(GM_SEMICOLON_T, context) &&
-                tryinit(context, init_gram_rule, idbuf, alts, NULL))
+                tryinit(context, init_gram_rule, idbuf, alts, NULL)) {
+                addalts(alts->n, context);
                 return true;
+            }
 
             if (alts) free_gram_alt(alts);
 
@@ -515,7 +513,7 @@ static bool parse_alt(struct gram_parse_context *context) {
         struct gram_rhs *rhses = gast(context);
 
         if (parse_rhses(context) && tryinit(context, init_gram_alt, rhses, NULL)) {
-            context->rules++;
+            context->stats.rules++;
             return true;
         }
 
@@ -571,168 +569,16 @@ static bool parse_rhs(struct gram_parse_context *context) {
     return set_syntax_error(GM_RHS_NT, context);
 }
 
-struct gram_parser_spec *gram_parser_spec(struct gram_parse_context *context) {
+struct gram_parser_spec *gram_parser_spec(struct gram_parse_context const *context) {
     return gast(context);
 }
 
-static int uniqnum(struct gram_symbol *sym, struct gram_parse_context *context) {
-    int i = sym->num + 1; // #0 reserved
-
-    if (sym->type == GM_NONTERM)
-        i += context->terms;
-
-    return i;
+struct hash_table *gram_symtab(struct gram_parse_context const *context) {
+    return context->symtab;
 }
 
-static bool allocate_pattern(struct regex_pattern *out, int sym, char *tag, char *pattern) {
-    if (tag && ((tag = strdup(tag)) == NULL)) return false;
-    if (pattern && ((pattern = strdup(pattern)) == NULL)) {
-        free(tag);
-        return false;
-    }
-
-    *out = regex_pattern(sym, tag, pattern);
-
-    return true;
-}
-
-struct regex_pattern *gram_pack_patterns(struct gram_parse_context *context) {
-    struct gram_parser_spec *spec = gram_parser_spec(context);
-    printf("FOO: %d\n", context->patterns);
-    struct regex_pattern *patterns = calloc(context->patterns + 1, sizeof *patterns);
-    if (!patterns) return NULL;
-
-    struct regex_pattern *pat = patterns;
-    struct gram_pattern_def *pdef = NULL;
-    for (pdef = spec->pdefs; pdef; pdef = pdef->next) {
-        int sym = 0;
-        if (pdef->tag_only) {
-            sym = RX_TAG_ONLY;
-        } else if (pdef->skip) {
-            sym = RX_SKIP;
-        } else {
-            sym = uniqnum(htlookup(pdef->id, context->symtab), context);
-        }
-
-        if (!allocate_pattern(pat, sym, pdef->id, pdef->regex)) {
-            free_gram_patterns(patterns);
-            return NULL;
-        }
-
-        pat++;
-    }
-
-    bool *added = calloc(context->terms, sizeof *added);
-    struct gram_rule *rule = spec->rules;
-    for (; rule; rule = rule->next) {
-        struct gram_alt *alt = rule->alts;
-
-        for (; alt; alt = alt->next) {
-            struct gram_rhs *rhs = alt->rhses;
-
-            for (; rhs; rhs = rhs->next) {
-                if (rhs->type == GM_CHAR_RHS || rhs->type == GM_STRING_RHS) {
-                    int sym = uniqnum(htlookup(rhs->str, context->symtab), context);
-
-                    if (added[sym]) continue;
-                    added[sym] = true;
-
-                    if (!allocate_pattern(pat, sym, NULL, rhs->str)) {
-                        free_gram_patterns(patterns);
-                        return NULL;
-                    }
-
-                    // FIXME: this wastes two bytes per string
-                    strip_quotes(pat->pattern);
-
-                    pat++;
-                }
-            }
-        }
-    }
-    free(added);
-
-    return patterns;
-}
-
-void free_gram_patterns(struct regex_pattern *patterns) {
-    struct regex_pattern *p = patterns;
-    while (p->sym) {
-        free(p->tag);
-        free(p->pattern);
-        p++;
-    }
-    free(patterns);
-}
-
-struct gram_symbol *gram_pack_symbols(struct gram_parse_context *context) {
-    struct gram_symbol *syms = calloc(htentries(context->symtab) + 2, sizeof (*syms));
-    if (!syms) return NULL;
-
-    struct gram_symbol *sym = NULL;
-    struct hash_iterator it = hash_iterator(context->symtab);
-    while ((sym = htnext(NULL, &it))) {
-        int i = uniqnum(sym, context);
-        syms[i] = *sym;
-        syms[i].num = i;
-    }
-
-    return syms;
-}
-
-static bool is_empty_rhs(struct gram_rhs *rhs) {
-    return rhs == NULL || (rhs->type == GM_EMPTY_RHS && rhs->next == NULL);
-}
-
-int **gram_pack_rules(struct gram_parse_context *context) {
-    unsigned int nrules = context->rules;
-    int **rules = calloc(nrules + 1, sizeof *rules);
-    if (!rules) return NULL;
-
-    struct gram_parser_spec *spec = gram_parser_spec(context);
-
-    int **r = rules;
-    struct gram_rule *rule = spec->rules;
-    for (; rule; rule = rule->next) {
-        struct gram_alt *alt = rule->alts;
-
-        if (alt) {
-            for (; alt; alt = alt->next) {
-                struct gram_rhs *rhs = alt->rhses;
-
-                if (!is_empty_rhs(rhs)) {
-                    if ((*r = calloc(rhs->n + 1, sizeof **r)) == NULL)
-                        goto oom;
-
-                    int *s = *r;
-                    for (; rhs; rhs = rhs->next) {
-                        if (rhs->type != GM_EMPTY_RHS)
-                            *s++ = uniqnum(htlookup(rhs->str, context->symtab), context);
-                    }
-                } else {
-                    if ((*r = calloc(1, sizeof *r)) == NULL)
-                        goto oom;
-                }
-
-                r++;
-            }
-        } else {
-            if ((*r = calloc(1, sizeof *r)) == NULL)
-                goto oom;
-        }
-    }
-
-    return rules;
-oom:
-    gram_free_rules(rules);
-    return NULL;
-}
-
-void gram_free_rules(int **rules) {
-    if (!rules) return;
-    int **r = rules;
-    while (*r) free(*r), r++;
-    free(rules);
+struct gram_stats gram_stats(struct gram_parse_context const *context) {
+    return context->stats;
 }
 
 void print_gram_tokens(FILE *handle, char *spec) {

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <base/array.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
@@ -29,19 +28,6 @@ rhs               = id { id_rhs(lexeme) }
                   | string { string_rhs(lexeme) }
                   | "$empty" { empty };
 */
-
-enum gram_symbol_type {
-    GM_TERM,
-    GM_NONTERM
-};
-
-struct gram_symbol {
-    enum gram_symbol_type type;
-    int num;
-    union {
-        int *rules;    // nonterm derives rules
-    };
-};
 
 enum gram_parser_symbol {
     GM_ERROR,
@@ -102,11 +88,7 @@ struct gram_parse_error {
 struct gram_parse_context {
     void *ast;
     struct hash_table *symtab;
-    unsigned int patterns;
-    unsigned int terms;
-    unsigned int nonterms;
-    unsigned int rules;
-    void *current_rule;
+    struct gram_stats stats;
 
     struct nfa_context scanner;
     struct nfa_match match;
@@ -128,13 +110,9 @@ enum gram_parser_symbol gram_lookahead(struct gram_parse_context *context);
 struct regex_loc gram_location(struct gram_parse_context *context);
 bool gram_lexeme(char *lexeme, struct gram_parse_context *context);
 bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context);
-struct gram_parser_spec *gram_parser_spec(struct gram_parse_context *context);
-bool gram_check(struct gram_parse_context *context);
-struct regex_pattern *gram_pack_patterns(struct gram_parse_context *context);
-void free_gram_patterns(struct regex_pattern *patterns);
-struct gram_symbol *gram_pack_symbols(struct gram_parse_context *context);
-int **gram_pack_rules(struct gram_parse_context *context);
-void gram_free_rules(int **rules);
+struct gram_parser_spec *gram_parser_spec(struct gram_parse_context const *context);
+struct hash_table *gram_symtab(struct gram_parse_context const *context);
+struct gram_stats gram_stats(struct gram_parse_context const *context);
 void print_gram_tokens(FILE *handle, char *spec);
 
 #endif // GRAM_PARSER_H_

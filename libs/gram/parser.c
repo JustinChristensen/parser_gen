@@ -421,6 +421,7 @@ static bool parse_pattern_def(struct gram_parse_context *context) {
 }
 
 static bool parse_grammar(struct gram_parse_context *context) {
+    sast(NULL, context);
     if (peek(GM_EOF_T, context)) return true; // ε
 
     if (expect(GM_SECTION_T, context) && parse_rules_head(context))

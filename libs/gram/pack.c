@@ -243,9 +243,14 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
         int *s = *rule;
 
         fprintf(handle, "  %4d: ", r);
-        while (*s)
-            fprintf(handle, "%d, ", *s), s++;
-        fprintf(handle, "0\n");
+
+        if (*s) {
+            fprintf(handle, "%d", *s++);
+            while (*s)
+                fprintf(handle, ", %d", *s), s++;
+        }
+
+        fprintf(handle, "\n");
 
         rule++;
         r++;

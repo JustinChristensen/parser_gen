@@ -216,11 +216,12 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
             pat++;
         }
     }
+    fprintf(handle, "\n");
 
     // print packed symbols
     struct gram_symbol *sym = &spec->symbols[1];
     fprintf(handle, "symbols:\n");
-    fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "derives");
+    fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "rules");
     fprintf(handle, "  %4d  ---\n", sym->num);
     while (sym->num) {
         char *type = sym->type == GM_TERM ? "term" : "nonterm";
@@ -234,18 +235,20 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
         fprintf(handle, "\n");
         sym++;
     }
+    fprintf(handle, "\n");
 
     // print packed rules
     int **rule = spec->rules;
     fprintf(handle, "rules:\n");
+    fprintf(handle, "  %4s  %s\n", "rule", "symbols");
     int r = 0;
     while (*rule) {
         int *s = *rule;
 
-        fprintf(handle, "  %4d: ", r);
+        fprintf(handle, "  %4d", r);
 
         if (*s) {
-            fprintf(handle, "%d", *s++);
+            fprintf(handle, "  %d", *s++);
             while (*s)
                 fprintf(handle, ", %d", *s), s++;
         }
@@ -255,6 +258,7 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
         rule++;
         r++;
     }
+    fprintf(handle, "\n");
 }
 
 static void free_patterns(struct regex_pattern *patterns) {

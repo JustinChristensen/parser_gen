@@ -14,6 +14,10 @@ struct gram_packed_spec {
     int **rules;
 };
 
+#define GM_START_PATTERN { 0 }
+#define GM_START_SYMBOL { 0 }
+#define GM_START_RULE NULL
+
 struct gram_packed_spec *gram_pack(struct gram_parser_spec *spec, struct hash_table *symtab, struct gram_stats stats);
 void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec);
 void free_gram_packed_spec(struct gram_packed_spec *spec);

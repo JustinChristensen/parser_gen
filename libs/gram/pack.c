@@ -44,8 +44,8 @@ static struct gram_packed_spec *gram_packed_spec(struct gram_stats stats) {
         return NULL;
     }
 
-    // terminated by NULL, indexed by rule number
-    int **rules = calloc(stats.rules + 1, sizeof *rules);
+    // terminated by NULL, indexed by rule number, and rule #0 reserved
+    int **rules = calloc(stats.rules + 2, sizeof *rules);
     if (!rules) {
         free(patterns), free(symbols);
         return NULL;
@@ -75,8 +75,8 @@ static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab,
         symbols[i].num = i;
 
         if (sym->type == GM_NONTERM && sym->nrules) {
-            // allocate space for the symbol's derived rules
-            int *rules = calloc(sym->nrules, sizeof *rules);
+            // allocate space for the symbol's derived rules +1 for 0 end marker
+            int *rules = calloc(sym->nrules + 1, sizeof *rules);
             rps[sym->num] = rules;
             symbols[i].rules = rules;
             // gram_pack frees resources
@@ -151,8 +151,8 @@ struct gram_packed_spec *gram_pack(
     // FIXME: reserve rule #0 to terminate the non-term derives set
     // for ease of initialization-by-hand
 
-    int rn = 0; // rule number, for nonterm rules in symbols
-    int **r = pspec->rules;
+    int rn = 1; // rule number, for nonterm rules in symbols (rule #0 reserved)
+    int **r = &pspec->rules[1];
     struct gram_rule *rule = spec->rules;
     for (; rule; rule = rule->next) {
         // for adding rules to the non-terminal's "derives" list (rules)
@@ -222,15 +222,15 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
     struct gram_symbol *sym = &spec->symbols[1];
     fprintf(handle, "symbols:\n");
     fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "rules");
-    fprintf(handle, "  %4d  ---\n", sym->num);
+    fprintf(handle, "  %4d  ---\n", 0);
     while (sym->num) {
         char *type = sym->type == GM_TERM ? "term" : "nonterm";
         fprintf(handle, "  %4d  %-7s", sym->num, type);
         if (sym->rules) {
-            fprintf(handle, "  %d", sym->rules[0]);
-            for (int i = 1; i < sym->nrules; i++)
-                fprintf(handle, ", %d", sym->rules[i]);
-
+            int *r = sym->rules;
+            fprintf(handle, "  %d", *r++);
+            while (*r)
+                fprintf(handle, ", %d", *r), r++;
         }
         fprintf(handle, "\n");
         sym++;
@@ -238,10 +238,11 @@ void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
     fprintf(handle, "\n");
 
     // print packed rules
-    int **rule = spec->rules;
+    int **rule = &spec->rules[1];
     fprintf(handle, "rules:\n");
     fprintf(handle, "  %4s  %s\n", "rule", "symbols");
-    int r = 0;
+    fprintf(handle, "  %4d  %s\n", 0, "---");
+    int r = 1;
     while (*rule) {
         int *s = *rule;
 
@@ -286,7 +287,7 @@ static void free_symbols(struct gram_symbol *symbols) {
 
 static void free_rules(int **rules) {
     if (!rules) return;
-    int **r = rules;
+    int **r = &rules[1];
     while (*r) free(*r), r++;
     free(rules);
 }

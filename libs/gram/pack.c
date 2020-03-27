@@ -1,11 +1,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+#include <base/debug.h>
 #include <base/hash_table.h>
 #include <base/string.h>
 #include <regex/nfa.h>
 #include "gram/ast.h"
 #include "gram/pack.h"
+
+#ifndef NDEBUG
+void assert_gram_packed_spec(struct gram_packed_spec const *spec) {
+    assert(spec != NULL);
+
+    assert(spec->symbols != NULL);
+    assert(spec->symbols[0].num == 0);
+    assert(spec->symbols[0].rules == NULL);
+
+    assert(spec->rules != NULL);
+    assert(spec->rules[0] == NULL);
+}
+#endif
 
 static int detnum(struct gram_symbol *sym, struct gram_stats stats) {
     int i = sym->num + 1; // #0 reserved
@@ -206,6 +221,8 @@ oom:
 }
 
 void print_gram_packed_spec(FILE *handle, struct gram_packed_spec *spec) {
+    invariants(assert_gram_packed_spec, spec);
+
     // print packed patterns
     struct regex_pattern *pat = spec->patterns;
     fprintf(handle, "patterns:\n");

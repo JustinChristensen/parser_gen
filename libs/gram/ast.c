@@ -1,20 +1,12 @@
+#ifndef GRAM_AST_C_
+#define GRAM_AST_C_ 1
+
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
-#include <base/string.h>
-#include "gram/ast.h"
-#include "gram/parser.h"
+#include "ast.h"
 
 #define N_(next) (1 + (next ? next->n : 0))
-
-struct gram_parser_spec *init_gram_parser_spec(struct gram_pattern_def *pdefs, struct gram_rule *rules) {
-    struct gram_parser_spec *ps = malloc(sizeof *ps);
-
-    if (!ps) return NULL;
-
-    *ps = (struct gram_parser_spec) { pdefs, rules };
-
-    return ps;
-}
 
 struct gram_pattern_def *init_gram_pattern_def(
     char *id, char *regex,
@@ -102,17 +94,6 @@ struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next) {
     return init_rhs(GM_EMPTY_RHS, NULL, next);
 }
 
-void free_gram_parser_spec(struct gram_parser_spec *spec) {
-    if (!spec) return;
-
-    free_gram_pattern_def(spec->pdefs);
-    spec->pdefs = NULL;
-    free_gram_rule(spec->rules);
-    spec->rules = NULL;
-
-    free(spec);
-}
-
 void free_gram_pattern_def(struct gram_pattern_def *pdef) {
     if (!pdef) return;
 
@@ -163,3 +144,4 @@ void free_gram_rhs(struct gram_rhs *rhs) {
     }
 }
 
+#endif // GRAM_AST_C_

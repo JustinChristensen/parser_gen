@@ -1,13 +1,5 @@
-#ifndef GRAM_AST_H_
-#define GRAM_AST_H_ 1
-
-#include <stdlib.h>
-#include "gram/parser.h"
-
-struct gram_parser_spec {
-    struct gram_pattern_def *pdefs;
-    struct gram_rule *rules;
-};
+#ifndef GRAM_AST_IH_
+#define GRAM_AST_IH_ 1
 
 struct gram_pattern_def {
     char *id;
@@ -47,7 +39,6 @@ struct gram_rhs {
     size_t n;
 };
 
-struct gram_parser_spec *init_gram_parser_spec(struct gram_pattern_def *pdefs, struct gram_rule *rules);
 struct gram_pattern_def *init_gram_pattern_def(
     char *id, char *regex,
     bool tag_only, bool skip,
@@ -66,6 +57,6 @@ void free_gram_rule(struct gram_rule *rule);
 void free_gram_alt(struct gram_alt *alt);
 void free_gram_rhs(struct gram_rhs *rhs);
 
-#endif // GRAM_AST_H_
+#endif // GRAM_AST_IH_
 
 

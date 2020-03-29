@@ -5,7 +5,11 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
-#ifdef NDEBUG
+#ifndef NDEBUG
+#define INVARIANTS 1
+#endif
+
+#ifdef INVARIANTS
 #define invariants(fn, ...) ((void) 0)
 #else
 #define invariants(fn, ...) fn(__VA_ARGS__)

@@ -7,6 +7,7 @@
 #include <base/array.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
+#include "gram/spec.h"
 
 /*
 parser_spec       = pattern_defs_head grammar eof;
@@ -28,29 +29,6 @@ rhs               = id { id_rhs(lexeme) }
                   | string { string_rhs(lexeme) }
                   | "$empty" { empty };
 */
-
-enum gram_symbol_type {
-    GM_TERM,
-    GM_NONTERM
-};
-
-struct gram_symbol {
-    enum gram_symbol_type type;
-    int num;
-    union {
-        struct {
-            int *rules;  // nonterm derives
-            int nrules;
-        };
-    };
-};
-
-struct gram_stats {
-    unsigned int patterns;
-    unsigned int terms;
-    unsigned int nonterms;
-    unsigned int rules;
-};
 
 enum gram_parser_symbol {
     GM_ERROR,
@@ -83,13 +61,9 @@ enum gram_parser_symbol {
 };
 
 enum gram_parse_error_type {
-    GM_SYNTAX_ERROR,
-    GM_OOM_ERROR,
-    GM_SCANNER_ERROR
-    // GM_PATTERN_DEFINED,
-    // GM_DUPLICATE_PATTERN,
-    // GM_NONTERM_DEFINED_AS_TERM,
-    // scanner oom, missing tag, tag exists, duplicate pattern
+    GM_PARSE_SYNTAX_ERROR,
+    GM_PARSE_OOM_ERROR,
+    GM_PARSE_SCANNER_ERROR
 };
 
 struct gram_parse_error {
@@ -100,43 +74,34 @@ struct gram_parse_error {
             struct regex_loc loc;
             enum gram_parser_symbol *expected;
         };
-        struct {
-            char *file;
-            int col;
-        };
+        struct { char *file; int col; };
         struct regex_error scanerr;
     };
 };
 
 struct gram_parse_context {
-    void *ast;
-    struct hash_table *symtab;
     struct gram_stats stats;
+    struct hash_table *symtab;
 
     struct gram_symbol *current_rule;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_parser_symbol sym;
-
-    bool has_error;
-    struct gram_parse_error error;
 };
 
-bool gram_parse_context(struct gram_parse_context *context);
-void free_gram_parse_context(struct gram_parse_context *context);
-bool gram_parse_has_error(struct gram_parse_context *context);
-struct gram_parse_error gram_parser_error(struct gram_parse_context *context);
-struct gram_parse_error gram_syntax_error(enum gram_parser_symbol actual, struct regex_loc loc, enum gram_parser_symbol expected);
-void print_gram_parse_error(FILE *handle, struct gram_parse_error error);
-bool gram_start_scanning(char *input, struct gram_parse_context *context);
+bool gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *context);
+bool gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_parse_context *context);
 enum gram_parser_symbol gram_scan(struct gram_parse_context *context);
 enum gram_parser_symbol gram_lookahead(struct gram_parse_context *context);
 struct regex_loc gram_location(struct gram_parse_context *context);
 bool gram_lexeme(char *lexeme, struct gram_parse_context *context);
-bool parse_gram_parser_spec(char *spec, struct gram_parse_context *context);
-struct gram_parser_spec *gram_parser_spec(struct gram_parse_context const *context);
+bool gram_parse(
+    struct gram_parse_error *error, struct gram_parser_spec *spec,
+    char *input, struct gram_parse_context *context
+);
 struct hash_table *gram_symtab(struct gram_parse_context const *context);
-struct gram_stats gram_stats(struct gram_parse_context const *context);
+void free_gram_parse_context(struct gram_parse_context *context);
+void print_gram_parse_error(FILE *handle, struct gram_parse_error error);
 void print_gram_tokens(FILE *handle, char *spec);
 
 #endif // GRAM_PARSER_H_

@@ -30,9 +30,9 @@ static enum gram_parser_symbol *first_sets[] = {
     [GM_EMPTY_T]              = FIRST { GM_EMPTY_T, 0 },
     [GM_ID_T]                 = FIRST { GM_ID_T, 0 },
 
-    [GM_PARSER_SPEC_NT]       = FIRST { GM_ID_T, GM_SECTION_T, GM_EOF_T,  0 },
-    [GM_PATTERN_DEFS_NT]      = FIRST { GM_ID_T, GM_SECTION_T, GM_EOF_T, 0 },
-    [GM_PATTERN_DEF_NT]       = FIRST { GM_ID_T, 0 },
+    [GM_PARSER_SPEC_NT]       = FIRST { GM_TAG_ONLY_T, GM_SKIP_T, GM_ID_T, GM_SECTION_T, GM_EOF_T,  0 },
+    [GM_PATTERN_DEFS_NT]      = FIRST { GM_TAG_ONLY_T, GM_SKIP_T, GM_ID_T, GM_SECTION_T, GM_EOF_T, 0 },
+    [GM_PATTERN_DEF_NT]       = FIRST { GM_TAG_ONLY_T, GM_SKIP_T, GM_ID_T, 0 },
     [GM_GRAMMAR_NT]           = FIRST { GM_SECTION_T, GM_EOF_T, 0 },
     [GM_RULES_NT]             = FIRST { GM_ID_T, GM_EOF_T, 0  },
     [GM_RULE_NT]              = FIRST { GM_ID_T, 0 },
@@ -159,14 +159,16 @@ gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *co
     if (!nfa_context(&scanner, RX_PATTERNS {
         RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
         RX_SPACE(RX_TAG_ONLY), RX_LINE_COMMENT(RX_SKIP),
-        RX_REGEX(GM_REGEX_T),
+        RX_REGEX(RX_TAG_ONLY),
         { GM_TAG_ONLY_T, NULL, "@" },
         { GM_SKIP_T, NULL, "-" },
+        { GM_REGEX_T, NULL, "{regex}\n" },
         { GM_SECTION_T, NULL, "---\n" },
         { GM_ASSIGN_T, NULL, "=" },
         { GM_ALT_T, NULL, "\\|" },
         { GM_SEMICOLON_T, NULL, ";" },
         { GM_EMPTY_T, NULL, "$empty" },
+        { GM_END_T, NULL, "$end" },
         { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" },
         { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" },
         { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
@@ -350,19 +352,24 @@ addalts(int nalts, struct gram_parse_context *context) {
     context->current_rule->nrules += nalts;
 }
 
-#define tryinit(context, fn, ...) (sast(fn(__VA_ARGS__), (context)) || oom_error((context)->error))
-#define addn(prev, next) ((prev)->n += (next)->n)
+static bool
+sast(void **result, void *p) {
+    if (!result) return true;
+    if (!p) return false;
+    *result = p;
+    return true;
+}
+
+#define tryinit(error, result, fn, ...) (sast((result), fn(__VA_ARGS__)) || oom_error((error)))
+#define link(head, rest) (head)->next = (rest)
+#define addn(head, rest) if ((rest)) (head)->n += (rest)->n
 
 static bool
-parse_pattern_defs_head(struct gram_parse_error *error, struct gram_pattern_def **defs, struct gram_parse_context *context);
+parse_pattern_defs(struct gram_parse_error *error, struct gram_pattern_def **pdefs, struct gram_parse_context *context);
 static bool
-parse_pattern_defs(struct gram_parse_error *error, struct gram_pattern_def **defs, struct gram_parse_context *context);
+parse_pattern_def(struct gram_parse_error *error, struct gram_pattern_def **pdef, struct gram_parse_context *context);
 static bool
-parse_pattern_def(struct gram_parse_error *error, struct gram_pattern_def **def, struct gram_parse_context *context);
-static bool
-parse_grammar(struct gram_parse_error *error, struct gram_rule **rule, struct gram_parse_context *context);
-static bool
-parse_rules_head(struct gram_parse_error *error, struct gram_rule **rules, struct gram_parse_context *context);
+parse_grammar(struct gram_parse_error *error, struct gram_rule **rules, struct gram_parse_context *context);
 static bool
 parse_rules(struct gram_parse_error *error, struct gram_rule **rules, struct gram_parse_context *context);
 static bool
@@ -386,75 +393,66 @@ gram_parse(
 
     if (!gram_start_scanning(error, input, context)) return false;
 
+    prod(spec, NULL);
+
+    // GM_TAG_ONLY_T, GM_SKIP_T, GM_ID_T, GM_SECTION_T, GM_EOF_T
     struct gram_pattern_def *pdefs = NULL;
-    if (parse_pattern_defs_head(error, &pdefs, context) && ) {
+    if (parse_pattern_defs(error, &pdefs, context)) {
         struct gram_rule *rules = NULL;
+        // GM_SECTION_T, GM_EOF_T
         if (parse_grammar(error, &rules, context) && expect(GM_EOF_T, context)) {
             prod(spec, gram_parsed_spec(pdefs, rules, context->stats));
             debug_symbols(context);
             return true;
         }
 
-        if (pdefs) free_gram_pattern_def(pdefs);
-        if (rules) free_rules(rules);
+        free_gram_pattern_def(pdefs);
+        free_rules(rules);
 
         return false;
     }
 
     // FIXME: syntax error handling
-    return syntax_error(GM_PARSER_SPEC_NT, context);
-}
-
-static bool
-parse_pattern_defs_head(
-    struct gram_parse_error *error, struct gram_pattern_def **defs,
-    struct gram_parse_context *context
-) {
-    if (peek(GM_SECTION_T, context) || peek(GM_EOF_T, context))
-        return true; // ε
-
-    if (parse_pattern_def(context)) {
-        struct gram_pattern_def *pdefs = gast(context);
-
-        if (parse_pattern_defs(context) && sast(pdefs, context))
-            return true;
-
-        if (pdefs) free_gram_pattern_def(pdefs);
-
-        return sast(NULL, context);
-    }
-
-    return syntax_error(GM_PATTERN_DEFS_NT, context);
+    // return syntax_error(GM_PARSER_SPEC_NT, context);
+    return false;
 }
 
 static bool
 parse_pattern_defs(
-    struct gram_parse_error *error, struct gram_pattern_def **defs,
+    struct gram_parse_error *error, struct gram_pattern_def **pdefs,
     struct gram_parse_context *context
 ) {
+    prod(pdefs, NULL);
+
     if (peek(GM_SECTION_T, context) || peek(GM_EOF_T, context))
         return true; // ε
 
-    struct gram_pattern_def *prev_def = gast(context);
-
-    if (parse_pattern_def(context)) {
-        struct gram_pattern_def *def = gast(context);
-        prev_def->next = def;
-
-        if (parse_pattern_defs(context)) {
-            addn(prev_def, def);
+    struct gram_pattern_def *head = NULL;
+    if (parse_pattern_def(error, &head, context)) {
+        struct gram_pattern_def *rest = NULL;
+        if (parse_pattern_defs(error, &rest, context)) {
+            link(head, rest);
+            addn(head, rest);
+            prod(pdefs, head);
             return true;
         }
+
+        free_gram_pattern_def(head);
+
+        return false;
     }
 
-    return syntax_error(GM_PATTERN_DEFS_NT, context);
+    // return syntax_error(GM_PATTERN_DEFS_NT, context);
+    return false;
 }
 
 static bool
 parse_pattern_def(
-    struct gram_parse_error *error, struct gram_pattern_def **def,
+    struct gram_parse_error *error, struct gram_pattern_def **pdef,
     struct gram_parse_context *context
 ) {
+    prod(pdef, NULL);
+
     bool tag_only = false;
     bool skip = false;
     char idbuf[BUFSIZ] = "";
@@ -470,46 +468,31 @@ parse_pattern_def(
         if (gram_lexeme(patbuf, context) && expect(GM_REGEX_T, context)) {
             if (!tag_only && !skip) insert_symbol(idbuf, term_symbol, context);
             else                    context->stats.patterns++;
-            return tryinit(context, init_gram_pattern_def, idbuf, patbuf, tag_only, skip, NULL);
+
+            return
+                tryinit(error, pdef,
+                init_gram_pattern_def, idbuf, patbuf, tag_only, skip, NULL);
         }
     }
 
-    return syntax_error(GM_PATTERN_DEF_NT, context);
+    // return syntax_error(GM_PATTERN_DEF_NT, context);
+    return false;
 }
 
 static bool
 parse_grammar(
-    struct gram_parse_error *error, struct gram_rule **rule,
-    struct gram_parse_context *context
-) {
-    sast(NULL, context);
-    if (peek(GM_EOF_T, context)) return true; // ε
-
-    if (expect(GM_SECTION_T, context) && parse_rules_head(context))
-        return true;
-
-    return syntax_error(GM_GRAMMAR_NT, context);
-}
-
-static bool
-parse_rules_head(
     struct gram_parse_error *error, struct gram_rule **rules,
     struct gram_parse_context *context
 ) {
+    prod(rule, NULL);
+
     if (peek(GM_EOF_T, context)) return true; // ε
 
-    if (parse_rule(context)) {
-        struct gram_rule *rules = gast(context);
+    if (expect(GM_SECTION_T, context) && parse_rules(error, rules, context))
+        return true;
 
-        if (parse_rules(context) && sast(rules, context))
-            return true;
-
-        if (rules) free_gram_rule(rules);
-
-        return sast(NULL, context);
-    }
-
-    return syntax_error(GM_RULES_NT, context);
+    // return syntax_error(GM_GRAMMAR_NT, context);
+    return false;
 }
 
 static bool
@@ -517,21 +500,27 @@ parse_rules(
     struct gram_parse_error *error, struct gram_rule **rules,
     struct gram_parse_context *context
 ) {
+    prod(rules, NULL);
+
     if (peek(GM_EOF_T, context)) return true; // ε
 
-    struct gram_rule *prev_rule = gast(context);
-
-    if (parse_rule(context)) {
-        struct gram_rule *rule = gast(context);
-        prev_rule->next = rule;
-
-        if (parse_rules(context)) {
-            addn(prev_rule, rule);
+    struct gram_rule *head = NULL;
+    if (parse_rule(error, &head, context)) {
+        struct gram_rule *rest = NULL;
+        if (parse_rules(error, &rest, context)) {
+            link(head, rest);
+            addn(head, rest);
+            prod(rules, head);
             return true;
         }
+
+        free_gram_rule(head);
+
+        return false;
     }
 
-    return syntax_error(GM_RULES_NT, context);
+    // return syntax_error(GM_RULES_NT, context);
+    return false;
 }
 
 static bool
@@ -539,29 +528,33 @@ parse_rule(
     struct gram_parse_error *error, struct gram_rule **rule,
     struct gram_parse_context *context
 ) {
+    prod(rule, NULL);
     char idbuf[BUFSIZ] = "";
 
     if (gram_lexeme(idbuf, context) && expect(GM_ID_T, context)) {
         insert_symbol(idbuf, nonterm_symbol, context);
         set_current_rule(idbuf, context);
 
-        if (expect(GM_ASSIGN_T, context) && parse_alt(context)) {
-            struct gram_alt *alts = gast(context);
-
-            if (parse_alts(context) &&
-                expect(GM_SEMICOLON_T, context) &&
-                tryinit(context, init_gram_rule, idbuf, alts, NULL)) {
+        struct gram_alt *alts = NULL;
+        if (expect(GM_ASSIGN_T, context) && parse_alt(error, &alts, context)) {
+            struct gram_alt *rest = NULL;
+            if (parse_alts(error, &rest, context)) {
+                link(alts, rest);
+                addn(alts, rest);
                 addalts(alts->n, context);
-                return true;
+
+                if (expect(GM_SEMICOLON_T, context) && tryinit(error, rule, init_gram_rule, idbuf, alts, NULL))
+                    return true;
             }
 
-            if (alts) free_gram_alt(alts);
+            free_gram_alt(alts);
 
-            return sast(NULL, context);
+            return false;
         }
     }
 
-    return syntax_error(GM_RULE_NT, context);
+    // return syntax_error(GM_RULE_NT, context);
+    return false;
 }
 
 static bool
@@ -569,21 +562,27 @@ parse_alts(
     struct gram_parse_error *error, struct gram_alt **alts,
     struct gram_parse_context *context
 ) {
+    prod(alts, NULL);
+
     if (peek(GM_SEMICOLON_T, context)) return true; // ε
 
-    struct gram_alt *prev_alt = gast(context);
-
-    if (expect(GM_ALT_T, context) && parse_alt(context)) {
-        struct gram_alt *alt = gast(context);
-        prev_alt->next = alt;
-
-        if (parse_alts(context)) {
-            addn(prev_alt, alt);
+    struct gram_alt *head = NULL;
+    if (expect(GM_ALT_T, context) && parse_alt(error, &head, context)) {
+        struct gram_alt *rest = NULL;
+        if (parse_alts(error, &rest, context)) {
+            link(head, rest);
+            addn(head, rest);
+            prod(alts, head);
             return true;
         }
+
+        free_gram_alt(head);
+
+        return false;
     }
 
-    return syntax_error(GM_ALTS_NT, context);
+    // return syntax_error(GM_ALTS_NT, context);
+    return false;
 }
 
 static bool
@@ -591,20 +590,27 @@ parse_alt(
     struct gram_parse_error *error, struct gram_alt **alt,
     struct gram_parse_context *context
 ) {
-    if (parse_rhs(context)) {
-        struct gram_rhs *rhses = gast(context);
+    prod(alt, NULL);
 
-        if (parse_rhses(context) && tryinit(context, init_gram_alt, rhses, NULL)) {
+    struct gram_rhs *rhses = NULL;
+    if (parse_rhs(error, &rhses, context)) {
+        struct gram_rhs *rest = NULL;
+        if (parse_rhses(error, &rest, context)) {
+            link(rhses, rest);
+            addn(rhses, rest);
             context->stats.rules++;
-            return true;
+
+            if (tryinit(error, alt, init_gram_alt, rhses, NULL))
+                return true;
         }
 
-        if (rhses) free_gram_rhs(rhses);
+        free_gram_rhs(rhses);
 
-        return sast(NULL, context);
+        return false;
     }
 
-    return syntax_error(GM_ALT_NT, context);
+    // return syntax_error(GM_ALT_NT, context);
+    return false;
 }
 
 static bool
@@ -612,22 +618,28 @@ parse_rhses(
     struct gram_parse_error *error, struct gram_rhs **rhses,
     struct gram_parse_context *context
 ) {
+    prod(rhses, NULL);
+
     if (peek(GM_ALT_T, context) || peek(GM_SEMICOLON_T, context))
         return true; // ε
 
-    struct gram_rhs *prev_rhs = gast(context);
-
-    if (parse_rhs(context)) {
-        struct gram_rhs *rhs = gast(context);
-        prev_rhs->next = rhs;
-
-        if (parse_rhses(context)) {
-            addn(prev_rhs, rhs);
+    struct gram_rhs *head = NULL;
+    if (parse_rhs(error, &head, context)) {
+        struct gram_rhs *rest = NULL;
+        if (parse_rhses(error, &rest, context)) {
+            link(head, rest);
+            addn(head, rest);
+            prod(rhses, head);
             return true;
         }
+
+        free_gram_rhs(head);
+
+        return false;
     }
 
-    return syntax_error(GM_RHSES_NT, context);
+    // return syntax_error(GM_RHSES_NT, context);
+    return false;
 }
 
 static bool
@@ -635,27 +647,30 @@ parse_rhs(
     struct gram_parse_error *error, struct gram_rhs **rhs,
     struct gram_parse_context *context
 ) {
+    prod(rhs, NULL);
+
     char symbuf[BUFSIZ] = "";
 
     if (peek(GM_ID_T, context) &&
         gram_lexeme(symbuf, context) &&
         expect(GM_ID_T, context)) {
         insert_symbol(symbuf, nonterm_symbol, context);
-        return tryinit(context, init_id_gram_rhs, symbuf, NULL);
+        return tryinit(error, rhs, init_id_gram_rhs, symbuf, NULL);
     } else if (peek(GM_CHAR_T, context) &&
         gram_lexeme(symbuf, context) &&
         expect(GM_CHAR_T, context)) {
         insert_symbol(symbuf, term_symbol, context);
-        return tryinit(context, init_char_gram_rhs, symbuf, NULL);
+        return tryinit(error, rhs, init_char_gram_rhs, symbuf, NULL);
     } else if (peek(GM_STRING_T, context) &&
         gram_lexeme(symbuf, context) &&
         expect(GM_STRING_T, context)) {
         insert_symbol(symbuf, term_symbol, context);
-        return tryinit(context, init_string_gram_rhs, symbuf, NULL);
+        return tryinit(error, rhs, init_string_gram_rhs, symbuf, NULL);
     } else if (peek(GM_EMPTY_T, context) && expect(GM_EMPTY_T, context)) {
-        return tryinit(context, init_empty_gram_rhs, NULL);
+        return tryinit(error, rhs, init_empty_gram_rhs, NULL);
     }
 
-    return syntax_error(GM_RHS_NT, context);
+    // return syntax_error(GM_RHS_NT, context);
+    return false;
 }
 

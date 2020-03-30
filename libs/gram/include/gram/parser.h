@@ -10,16 +10,12 @@
 #include "gram/spec.h"
 
 /*
-parser_spec       = pattern_defs_head grammar eof;
-pattern_defs_head = pattern_def pattern_defs { pattern_defs_head } | $empty;
-pattern_defs      = pattern_def { += pattern_def } pattern_defs | $empty;
+parser_spec       = pattern_defs grammar eof;
+pattern_defs      = pattern_def pattern_defs { += pattern_def } { pattern_defs_head } | $empty;
 pdef_flags        = '@' | '-' | $empty;
-pattern_def       = '@' id regex { tag_only_pattern_def }
-                  | '-' id regex { skip_pattern_def }
-                  | pdef_flags id regex { pattern_def };
-grammar           = "---" rules_head | $empty;
-rules_head        = rule rules { rules_head } | $empty;
-rules             = rule { += rule } rules | $empty;
+pattern_def       = pdef_flags id regex { pattern_def };
+grammar           = "---" rules | $empty;
+rules             = rule rules { += rule } { rules_head } | $empty;
 rule              = id '=' alt alts ';' { rule };
 alts              = '|' alt { += alt } alts | $empty;
 alt               = rhs rhses { alt };
@@ -45,6 +41,7 @@ enum gram_parser_symbol {
     GM_CHAR_T,
     GM_STRING_T,
     GM_EMPTY_T,
+    GM_END_T,
     GM_ID_T,
 
     // non-terminals

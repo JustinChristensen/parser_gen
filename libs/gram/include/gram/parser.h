@@ -16,10 +16,10 @@ pdef_flags        = '@' | '-' | $empty;
 pattern_def       = pdef_flags id regex { pattern_def };
 grammar           = "---" rules | $empty;
 rules             = rule rules { += rule } { rules_head } | $empty;
-rule              = id '=' alt alts ';' { rule };
-alts              = '|' alt { += alt } alts | $empty;
-alt               = rhs rhses { alt };
-rhses             = rhs { += rhs } rhses | $empty;
+rule              = id '=' alt alts { += alt } { rule  } ';';
+alts              = '|' alt alts { += alt } { alts_head } | $empty;
+alt               = rhs rhses { +=rhs } { alt };
+rhses             = rhs rhses { += rhs } { rhses_head } | $empty;
 rhs               = id { id_rhs(lexeme) }
                   | char { char_rhs(lexeme) }
                   | string { string_rhs(lexeme) }
@@ -58,9 +58,9 @@ enum gram_parser_symbol {
 };
 
 enum gram_parse_error_type {
-    GM_PARSE_SYNTAX_ERROR,
-    GM_PARSE_OOM_ERROR,
-    GM_PARSE_SCANNER_ERROR
+    GM_PARSER_SYNTAX_ERROR,
+    GM_PARSER_OOM_ERROR,
+    GM_PARSER_SCANNER_ERROR
 };
 
 struct gram_parse_error {
@@ -77,13 +77,14 @@ struct gram_parse_error {
 };
 
 struct gram_parse_context {
-    struct gram_stats stats;
     struct hash_table *symtab;
+    struct gram_stats stats;
 
     struct gram_symbol *current_rule;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_parser_symbol sym;
+    enum gram_parser_symbol *next_set;
 };
 
 bool gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *context);

@@ -30,13 +30,13 @@ void assert_gram_packed_spec(struct gram_parser_spec const *spec) {
 }
 #endif
 
-static bool _oom_error(struct gram_spec_error *error, char *file, int col, void *p, ...) {
+static bool _oom_error(struct gram_pack_error *error, char *file, int col, void *p, ...) {
     va_list args;
     va_start(args, p);
     vfreel(p, args);
     va_end(args);
 
-    *(error) = (struct gram_spec_error) { .type = GM_SPEC_OOM_ERROR, .file = file, .col = col };
+    *(error) = (struct gram_pack_error) { .type = GM_PACK_OOM_ERROR, .file = file, .col = col };
 
     return false;
 }
@@ -126,7 +126,7 @@ static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
 }
 
 bool gram_pack(
-    struct gram_spec_error *error,
+    struct gram_pack_error *error,
     struct gram_parser_spec *spec,
     struct hash_table *symtab
 ) {
@@ -143,7 +143,7 @@ bool gram_pack(
 
     // terminated by a null pattern
     struct regex_pattern *patterns = calloc(stats.patterns + 1, sizeof *patterns);
-    if (!patterns) return oom_error(error);
+    if (!patterns) return oom_error(error, NULL);
 
     // terminated by a null symbol, indexed by symbol number, and symbol #0 reserved
     struct gram_symbol *symbols = calloc(stats.terms + stats.nonterms + 2, sizeof (*symbols));
@@ -165,7 +165,7 @@ bool gram_pack(
     if (!rps) goto oom;
 
     // pack the symbols
-    if (!pack_symbols(pspec->symbols, symtab, stats, rps))
+    if (!pack_symbols(symbols, symtab, stats, rps))
         goto oom;
 
     // count the number of pattern terms to compute offsets
@@ -173,7 +173,7 @@ bool gram_pack(
     int pterms = 0;
 
     // pack the pattern definitions
-    struct regex_pattern *pat = pspec->patterns;
+    struct regex_pattern *pat = patterns;
     struct gram_pattern_def *pdef = NULL;
     for (pdef = spec->pdefs; pdef; pdef = pdef->next) {
         int sym = 0;
@@ -189,12 +189,15 @@ bool gram_pack(
         if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
             goto oom;
 
+        // FIXME: same as above
+        strip_quotes(pat->pattern);
+
         pat++;
     }
 
     int rn = 1; // rule number, for nonterm rules in symbols (rule #0 reserved)
-    int **r = &pspec->rules[1];
-    struct gram_rule *rule = spec->rules;
+    int **r = &rules[1];
+    struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         // for adding rules to the non-terminal's "derives" list (rules)
         struct gram_symbol *ntsym = htlookup(rule->id, symtab);
@@ -239,7 +242,8 @@ bool gram_pack(
 
     free(rps);
 
-    *spec = gram_packed_spec(patterns, symbols_rules, stats);
+    free_gram_parser_spec(spec);
+    *spec = gram_packed_spec(patterns, symbols, rules, stats);
 
     return true;
 oom:
@@ -330,10 +334,10 @@ static void _print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
 
 static void print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
     if (rhs) {
-        _echo_gram_rhs(handle, rhs);
+        _print_gram_rhs(handle, rhs);
         for (rhs = rhs->next; rhs; rhs = rhs->next) {
             fprintf(handle, RHS_SEP_FMT);
-            _echo_gram_rhs(handle, rhs);
+            _print_gram_rhs(handle, rhs);
         }
     }
 }
@@ -439,6 +443,19 @@ void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec) {
             break;
         case GM_PACKED_SPEC:
             print_packed_spec(handle, spec);
+            break;
+    }
+}
+
+#define OOM_ERROR_FMT_START "| Out of Memory Error\n|\n"
+#define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+void
+print_gram_pack_error(FILE *handle, struct gram_pack_error error) {
+    switch (error.type) {
+        case GM_PACK_OOM_ERROR:
+            fprintf(handle, OOM_ERROR_FMT_START);
+            if (debug_is("oom"))
+                fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
             break;
     }
 }

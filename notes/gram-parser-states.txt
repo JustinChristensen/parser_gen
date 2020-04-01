@@ -1,0 +1,298 @@
+each expect node maps 1-to-1 with a state
+
+i.e. expect(SECTION) akin to being in the state of expecting a SECTION
+
+States:
+1. pre-pattern defs, pre-grammar
+2. pre-grammar
+
+
+// 21 rules
+00. parser_spec  = pattern_defs grammar eof
+01. pattern_defs = pattern_def pattern_defs
+02. pattern_defs = 
+03. pdef_flags   = '@'
+04. pdef_flags   = '-'
+05. pdef_flags   = 
+06. pattern_def  = pdef_flags id regex
+07. grammar      = "---" rules
+08. grammar      = 
+09. rules        = rule rules
+10. rules        = 
+11. rule         = id '=' alt alts ';'
+12. alts         = '|' alt alts
+13. alts         = 
+14. alt          = rhs rhses
+15. rhses        = rhs rhses
+16. rhses        = 
+17. rhs          = id
+18. rhs          = char
+19. rhs          = string
+20. rhs          = "$empty"
+
+States:
+
+00. out: patten_defs, pattern_def, pdef_flags, '@', '-'
+
+    parser_spec  = * pattern_defs grammar eof
+    pattern_defs = * pattern_def pattern_defs
+    pattern_defs = *
+    pattern_def  = * pdef_flags id regex
+    pdef_flags   = * '@'
+    pdef_flags   = * '-'
+    pdef_flags   = *
+
+---
+
+01. in: pattern_defs, out: grammar(06), "---"(07)
+
+    parser_spec  = pattern_defs * grammar eof
+    grammar      = * "---" rules
+    grammar      = *
+
+02. in: pattern_def, out: pattern_defs(08), pattern_def(02)
+
+    pattern_defs = pattern_def * pattern_defs
+    pattern_defs = * pattern_def pattern_defs
+    pattern_defs = *
+
+03. in: pdef_flags, out: id(09)
+
+    pattern_def  = pdef_flags * id regex
+
+04. in: '@', out: 
+
+    pdef_flags   = '@' *
+
+05. in: '-', out: 
+
+    pdef_flags   = '-' *
+
+---
+
+06. in: grammar, out: eof(11)
+
+    parser_spec  = pattern_defs grammar * eof
+
+07. in: "---", out: rules(12), rule(13), id(14)
+
+    grammar      = "---" * rules
+    rules        = * rule rules
+    rules        = *
+    rule         = * id '=' alt alts ';'
+
+---
+
+08. in: pattern_defs, out: 
+
+    pattern_defs = pattern_def pattern_defs *
+
+---
+
+09. in: id, out: regex(10)
+
+    pattern_def  = pdef_flags id * regex
+
+---
+
+10. in: regex, out: 
+
+    pattern_def  = pdef_flags id regex *
+
+---
+
+11. in: eof, out: 
+
+    parser_spec  = pattern_defs grammar eof *
+
+---
+
+12. in: rules, out: 
+
+    grammar      = "---" rules *
+
+13. in: rule, out: rules(15), rule(13), id(14)
+
+    rules        = rule * rules
+    rules        = * rule rules
+    rules        = * 
+    rule         = * id '=' alt alts ';'
+
+14. in: id, out: '='(16)
+
+    rule         = id * '=' alt alts ';'
+
+---
+
+15. in: rules, out: 
+
+    rules        = rule rules *
+
+---
+
+16. in: '=', out: alt(17), rhs(18), id(19), char(20), string(21), "$empty"(22)
+
+    rule         = id '=' * alt alts ';'
+    alt          = * rhs rhses
+    rhs          = * id
+    rhs          = * char
+    rhs          = * string
+    rhs          = * "$empty"
+
+---
+
+17. in: alt, out: alts(23), '|'(24)
+
+    rule         = id '=' alt * alts ';'
+    alts         = * '|' alt alts
+    alts         = *
+
+18. in: rhs, out: rhses(25), rhs(26), id(19), char(20), string(21), "$empty"(22)
+
+    alt          = rhs * rhses
+    rhses        = * rhs rhses
+    rhses        = * 
+    rhs          = * id
+    rhs          = * char
+    rhs          = * string
+    rhs          = * "$empty"
+
+19. in: id, out: 
+
+    rhs          = id *
+
+20. in: char, out: 
+
+    rhs          = char *
+
+21. in: string, out: 
+
+    rhs          = string *
+
+22. in: "$empty", out: 
+
+    rhs          = "$empty" *
+
+---
+
+23. in: alts, out: ';'(28)
+
+    rule         = id '=' alt alts * ';'
+
+24. in: '|', out: alt, rhs(18), id(19), char(20), string(21), "$empty"(22)
+
+    alts         = '|' * alt alts
+    alt          = rhs rhses
+    rhses        = rhs rhses
+    rhses        = 
+    rhs          = id
+    rhs          = char
+    rhs          = string
+    rhs          = "$empty"
+
+--- 
+
+25. in: rhses, out: 
+
+    alt          = rhs rhses *
+
+26. in: rhs, out: rhses(27), rhs(26), id(19), char(20), string(21), "$empty"(22)
+
+    rhses        = rhs * rhses
+    rhses        = * rhs rhses
+    rhses        = * 
+    rhs          = * id
+    rhs          = * char
+    rhs          = * string
+    rhs          = * "$empty"
+
+---
+
+27. in: rhses, out: 
+
+    rhses        = rhs rhses *
+
+28. in: ';', out: 
+
+    rule         = id '=' alt alts ';' *
+
+29. in: alt, out: alts(30), '|'(24), rhs(26), id(19), char(20), string(21), "$empty"(22)
+
+    alts         = '|' alt * alts
+    alts         = * '|' alt alts
+    alts         = * 
+    alt          = * rhs rhses
+    rhses        = * rhs rhses
+    rhses        = * 
+    rhs          = * id
+    rhs          = * char
+    rhs          = * string
+    rhs          = * "$empty"
+
+30. in: alts, out: 
+
+    alts         = '|' alt alts *
+
+00. parser_spec  = pattern_defs grammar eof
+01. pattern_defs = pattern_def pattern_defs
+02. pattern_defs = 
+03. pdef_flags   = '@'
+04. pdef_flags   = '-'
+05. pdef_flags   = 
+06. pattern_def  = pdef_flags id regex
+07. grammar      = "---" rules
+08. grammar      = 
+09. rules        = rule rules
+10. rules        = 
+11. rule         = id '=' alt alts ';'
+12. alts         = '|' alt alts
+13. alts         = 
+14. alt          = rhs rhses
+15. rhses        = rhs rhses
+16. rhses        = 
+17. rhs          = id
+18. rhs          = char
+19. rhs          = string
+20. rhs          = "$empty"
+
+LL Parse Table
+[GM_PARSER_SPEC_NT]
+    GM_EOF_T =      00
+    GM_TAG_ONLY_T:  00
+    GM_SKIP_T:      00
+    GM_SECTION_T:   00
+    GM_ID_T:        00
+    ... GM_REGEX_T, GM_ASSIGN_T, GM_ALT_T, GM_SEMICOLON_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_END_T
+[GM_PATTERN_DEFS_NT]
+    GM_TAG_ONLY_T:  01
+    GM_SKIP_T:      01
+    GM_ID_T:        01
+    GM_EOF_T:       02
+    GM_SECTION_T:   02
+    ... GM_REGEX_T, GM_ASSIGN_T, GM_ALT_T, GM_SEMICOLON_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_END_T
+[GM_PATTERN_DEF_NT]
+    GM_TAG_ONLY_T   06
+    GM_SKIP_T       06
+    GM_ID_T         06
+    ... GM_EOF_T, GM_REGEX_T, GM_SECTION_T, GM_ASSIGN_T, GM_ALT_T, GM_SEMICOLON_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_END_T
+[GM_GRAMMAR_NT]
+[GM_RULES_NT]
+[GM_RULE_NT]
+[GM_ALTS_NT]
+[GM_ALT_NT]
+[GM_RHSES_NT]
+[GM_RHS_NT]
+
+initially, the parser expects either an EOF, SECTION, TAG_ONLY, SKIP, or ID
+then, we enter pattern_defs, where we still expect the above tokens, an attempt to narrow down
+if the token is either EOF or SECTION, pattern_defs succeeds,
+otherwise, we enter pattern_def, wh
+
+parser_spec -> pattern_defs -> pattern_def
+
+at this stage I'm still expecting one of the tokens EOF, SECTION, TAG_ONLY, SKIP, or ID 
+if I consume a TAG_ONLY or a SKIP, I'm in the state of expecting an ID,
+otherwise, I'm 
+
+
+

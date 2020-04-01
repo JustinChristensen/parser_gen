@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
-#include <gram/echo.h>
-#include <gram/pack.h>
+#include <gram/spec.h>
 #include <gram/parser.h>
 
 enum command_key {
@@ -12,9 +11,8 @@ enum command_key {
     PACK
 };
 
-enum arg_key {
-    STATS
-};
+// enum arg_key {
+// };
 
 struct args {
     enum command_key cmd;
@@ -25,13 +23,7 @@ struct args {
 
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
-    while ((key = readarg(context)) != END) {
-        switch (key) {
-            case STATS:
-                args->stats = true;
-                break;
-        }
-    }
+    while ((key = readarg(context)) != END);
     args->cmd = cmd;
     args->pos = argv(context);
     args->posc = argc(context);
@@ -61,11 +53,8 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 
 int main(int argc, char *argv[]) {
     struct args args = {
-        .cmd = GEN_PARSER,
-        .stats = false
+        .cmd = GEN_PARSER
     };
-
-    struct arg stats_arg = { STATS, "stats", 0, no_argument, "Print stats" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
@@ -74,7 +63,7 @@ int main(int argc, char *argv[]) {
         NULL,
         CMDS {
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
-            { PARSE, "parse", ARGS { stats_arg, help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
+            { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
             { PACK, "pack", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Pack grammar from spec files" },
             END_CMDS
         },
@@ -98,38 +87,47 @@ int main(int argc, char *argv[]) {
                 print_gram_tokens(stdout, contents);
             } else if (args.cmd == PARSE) {
                 struct gram_parse_context context = { 0 };
+                struct gram_parse_error error = { 0 };
 
-                if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
-                    struct gram_parser_spec *pspec = gram_parser_spec(&context);
-                    if (args.stats) echo_gram_pspec_stats(stderr, pspec);
-                    echo_gram_pspec(stdout, pspec);
-                    free_gram_parse_context(&context);
-                } else {
-                    print_gram_parse_error(stderr, gram_parser_error(&context));
-                    free_gram_parse_context(&context);
-                    return EXIT_FAILURE;
+                if (gram_parse_context(&error, &context)) {
+                    struct gram_parser_spec spec = { 0 };
+                    if (gram_parse(&error, &spec, contents, &context)) {
+                        print_gram_parser_spec(stdout, &spec);
+                        free_gram_parser_spec(&spec);
+                        free_gram_parse_context(&context);
+                        return EXIT_SUCCESS;
+                    }
                 }
+
+                print_gram_parse_error(stderr, error);
+                free_gram_parse_context(&context);
+                return EXIT_FAILURE;
             } else if (args.cmd == PACK) {
                 struct gram_parse_context context = { 0 };
+                struct gram_parse_error parserr = { 0 };
 
-                if (gram_parse_context(&context) && parse_gram_parser_spec(contents, &context)) {
-                    struct gram_parser_spec *spec = gram_parser_spec(&context);
-                    struct hash_table *symtab = gram_symtab(&context);
-                    struct gram_stats stats = gram_stats(&context);
-                    struct gram_packed_spec *pspec = gram_pack(spec, symtab, stats);
-                    if (!pspec) {
-                        fprintf(stderr, "packing failed\n");
+                if (gram_parse_context(&parserr, &context)) {
+                    struct gram_parser_spec spec = { 0 };
+                    if (gram_parse(&parserr, &spec, contents, &context)) {
+                        struct gram_pack_error packerr = { 0 };
+
+                        if (gram_pack(&packerr, &spec, gram_symtab(&context))) {
+                            print_gram_parser_spec(stdout, &spec);
+                            free_gram_parser_spec(&spec);
+                            free_gram_parse_context(&context);
+                            return EXIT_SUCCESS;
+                        }
+
+                        print_gram_pack_error(stderr, packerr);
+                        free_gram_parser_spec(&spec);
                         free_gram_parse_context(&context);
                         return EXIT_FAILURE;
                     }
-                    print_gram_packed_spec(stdout, pspec);
-                    free_gram_packed_spec(pspec);
-                    free_gram_parse_context(&context);
-                } else {
-                    print_gram_parse_error(stderr, gram_parser_error(&context));
-                    free_gram_parse_context(&context);
-                    return EXIT_FAILURE;
                 }
+
+                print_gram_parse_error(stderr, parserr);
+                free_gram_parse_context(&context);
+                return EXIT_FAILURE;
             }
         }
     }

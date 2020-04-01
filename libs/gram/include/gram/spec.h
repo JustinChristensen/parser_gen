@@ -2,8 +2,9 @@
 #define GRAM_SPEC_H_ 1
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
-
+#include <base/hash_table.h>
 #include "ast.h"
 
 enum gram_symbol_type {
@@ -51,12 +52,12 @@ struct gram_parser_spec {
     struct gram_stats stats;
 };
 
-enum gram_spec_error_type {
-    GM_SPEC_OOM_ERROR
+enum gram_pack_error_type {
+    GM_PACK_OOM_ERROR
 };
 
-struct gram_spec_error {
-    enum gram_spec_error_type type;
+struct gram_pack_error {
+    enum gram_pack_error_type type;
     union {
         struct { char *file; int col; };
     };
@@ -69,16 +70,23 @@ struct gram_spec_error {
 #define GM_END_RULE     NULL
 
 #ifdef INVARIANTS
-void assert_gram_parsed_spec(struct gram_packed_spec const *spec);
-void assert_gram_packed_spec(struct gram_packed_spec const *spec);
+void assert_gram_parsed_spec(struct gram_parser_spec const *spec);
+void assert_gram_packed_spec(struct gram_parser_spec const *spec);
 #endif
 
-struct gram_parser_spec gram_parsed_spec(struct gram_pattern_def *pdefs, struct gram_rule *rules);
-struct gram_parser_spec gram_packed_spec(struct regex_pattern *patterns, struct gram_symbol *symbols, int **rules);
-bool gram_check(struct gram_spec_error *error, struct gram_parser_spec *spec, struct hash_table *symtab);
-bool gram_pack(struct gram_spec_error *error, struct gram_parser_spec *spec, struct hash_table *symtab);
+struct gram_parser_spec gram_parsed_spec(
+    struct gram_pattern_def *pdefs, struct gram_rule *rules,
+    struct gram_stats stats
+);
+struct gram_parser_spec gram_packed_spec(
+    struct regex_pattern *patterns, struct gram_symbol *symbols, int **rules,
+    struct gram_stats stats
+);
+bool gram_check(struct gram_pack_error *error, struct gram_parser_spec *spec, struct hash_table *symtab);
+bool gram_pack(struct gram_pack_error *error, struct gram_parser_spec *spec, struct hash_table *symtab);
 void free_gram_parser_spec(struct gram_parser_spec *spec);
-void print_gram_parser_spec(FILE *handle, struct gram_packed_spec const *spec);
+void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec);
+void print_gram_pack_error(FILE *handle, struct gram_pack_error error);
 
 #endif // GRAM_SPEC_H_
 

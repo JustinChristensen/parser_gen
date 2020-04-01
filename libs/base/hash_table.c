@@ -77,6 +77,18 @@ static void free_hash_entry(struct hash_entry *entry) {
     free(entry);
 }
 
+static void free_buckets(struct hash_table *table) {
+    struct hash_entry **buckets = table->buckets;
+    for (int i = 0; i < _size(table); i++) {
+        for (struct hash_entry *entry = buckets[i], *next = NULL; entry; entry = next) {
+            next = entry->next;
+            free_hash_entry(entry);
+        }
+    }
+    free(buckets);
+    table->buckets = NULL;
+}
+
 static struct hash_entry **allocate_buckets(unsigned int size) {
     struct hash_entry **buckets = calloc(sizeof *buckets, size);
     assert(buckets != NULL);
@@ -162,13 +174,10 @@ static void check_load(struct hash_table *table) {
     else if (should_shrink(table))  rehash(table, table->size - 1);
 }
 
-static struct hash_table *_hash_table(size_t valsize, unsigned int *size) {
+static void init_hash_table(struct hash_table *table, size_t valsize, unsigned int *size) {
     size = size ? size : (unsigned int *) start_prime;
     struct hash_entry **buckets = allocate_buckets(*size);
     assert(buckets != NULL);
-
-    struct hash_table *table = malloc(sizeof *table);
-    assert(table != NULL);
 
     *table = (struct hash_table) {
         .valsize = valsize,
@@ -177,7 +186,12 @@ static struct hash_table *_hash_table(size_t valsize, unsigned int *size) {
         .used = 0,
         .entries = 0
     };
+}
 
+static struct hash_table *_hash_table(size_t valsize, unsigned int *size) {
+    struct hash_table *table = malloc(sizeof *table);
+    assert(table != NULL);
+    init_hash_table(table, valsize, size);
     return table;
 }
 
@@ -382,6 +396,11 @@ unsigned int htentries(struct hash_table const *table) {
     return table->entries;
 }
 
+void htclear(struct hash_table *table) {
+    free_buckets(table);
+    init_hash_table(table, table->valsize, NULL);
+}
+
 static void print_hash_entry(
     FILE *handle, void (*print_val) (FILE *handle, void const *val),
     struct hash_entry const *entry
@@ -451,17 +470,6 @@ void print_table_stats(FILE *handle, struct hash_table const *table) {
 
 void free_hash_table(struct hash_table *table) {
     if (!table) return;
-
-    struct hash_entry **buckets = table->buckets;
-
-    for (int i = 0; i < _size(table); i++) {
-        for (struct hash_entry *entry = buckets[i], *next = NULL; entry; entry = next) {
-            next = entry->next;
-            free_hash_entry(entry);
-        }
-    }
-
-    free(table->buckets);
-    table->buckets = NULL;
+    free_buckets(table);
     free(table);
 }

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include "ast.h"
+#include "gram/ast.h"
 
 #define N_(next) (1 + (next ? next->n : 0))
 

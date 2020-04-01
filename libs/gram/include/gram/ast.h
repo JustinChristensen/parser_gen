@@ -1,5 +1,7 @@
-#ifndef GRAM_AST_IH_
-#define GRAM_AST_IH_ 1
+#ifndef GRAM_AST_H_
+#define GRAM_AST_H_ 1
+
+#include <stdbool.h>
 
 struct gram_pattern_def {
     char *id;
@@ -51,12 +53,10 @@ struct gram_rhs *init_char_gram_rhs(char *str, struct gram_rhs *next);
 struct gram_rhs *init_string_gram_rhs(char *str, struct gram_rhs *next);
 struct gram_rhs *init_empty_gram_rhs(struct gram_rhs *next);
 
-void free_gram_parser_spec(struct gram_parser_spec *spec);
 void free_gram_pattern_def(struct gram_pattern_def *pdef);
 void free_gram_rule(struct gram_rule *rule);
 void free_gram_alt(struct gram_alt *alt);
 void free_gram_rhs(struct gram_rhs *rhs);
 
-#endif // GRAM_AST_IH_
-
+#endif // GRAM_AST_H_
 

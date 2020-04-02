@@ -9,7 +9,7 @@
 #include <base/hash_table.h>
 #include <base/string.h>
 #include <regex/nfa.h>
-#include "gram/spec.h"
+#include "gram/pack.h"
 
 #ifdef INVARIANTS
 void assert_gram_parsed_spec(struct gram_parser_spec const *spec) {
@@ -36,12 +36,94 @@ static bool _oom_error(struct gram_pack_error *error, char *file, int col, void 
     vfreel(p, args);
     va_end(args);
 
-    *(error) = (struct gram_pack_error) { .type = GM_PACK_OOM_ERROR, .file = file, .col = col };
+    *error = (struct gram_pack_error) {
+        GM_PACK_OOM_ERROR,
+        .file = file, .col = col
+    };
 
     return false;
 }
 
 #define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
+
+static bool pattern_defined_error(
+    struct gram_pack_error *error,
+    char *pattern, struct regex_loc loc, struct regex_loc prev_loc
+) {
+    *error = (struct gram_pack_error) {
+        GM_PACK_PATTERN_DEFINED_ERROR,
+        .id = pattern,
+        .loc = loc,
+        .prev_loc = prev_loc
+    };
+
+    return false;
+}
+
+static bool duplicate_pattern_error(
+    struct gram_pack_error *error,
+    char *pattern, struct regex_loc loc, struct regex_loc prev_loc
+) {
+    *error = (struct gram_pack_error) {
+        GM_PACK_DUPLICATE_PATTERN_ERROR,
+        .id = pattern,
+        .loc = loc,
+        .prev_loc = prev_loc
+    };
+
+    return false;
+}
+
+
+static bool nonterm_defined_as_term_error(
+    struct gram_pack_error *error,
+    char *nonterm, struct regex_loc loc, struct regex_loc term_loc
+) {
+    *error = (struct gram_pack_error) {
+        GM_PACK_NONTERM_DEFINED_AS_TERM_ERROR,
+        .id = nonterm,
+        .loc = loc,
+        .prev_loc = term_loc
+    };
+
+    return false;
+}
+
+static bool symbol_not_defined_error(
+    struct gram_pack_error *error,
+    char *nonterm, struct regex_loc loc
+) {
+    *error = (struct gram_pack_error) {
+        GM_PACK_SYMBOL_NOT_DEFINED_ERROR,
+        .id = nonterm,
+        .loc = loc
+    };
+
+    return false;
+}
+
+static bool symbol_not_derivable_error(
+    struct gram_pack_error *error,
+    char *symbol, struct regex_loc loc
+) {
+    *error = (struct gram_pack_error) {
+        GM_PACK_SYMBOL_NOT_DERIVABLE_ERROR,
+        .id = symbol,
+        .loc = loc
+    };
+
+    return false;
+}
+
+static bool missing_accepting_rule_error(struct gram_pack_error *error) {
+    *error = (struct gram_pack_error) { GM_PACK_MISSING_ACCEPTING_RULE };
+    return false;
+}
+
+static bool multiple_accepting_rules_error(struct gram_pack_error *error) {
+    *error = (struct gram_pack_error) { GM_PACK_MULTIPLE_ACCEPTING_RULES };
+    return false;
+}
 
 struct gram_parser_spec gram_parsed_spec(
     struct gram_pattern_def *pdefs,
@@ -73,6 +155,21 @@ static int detnum(struct gram_symbol *sym, struct gram_stats stats) {
         i += stats.terms;
 
     return i;
+}
+
+bool gram_check(struct gram_pack_error *error, struct gram_parser_spec *spec, struct hash_table *symtab) {
+
+    // struct gram_rule *rule = NULL;
+    // for (rule = spec->prules; rule; rule = rule->next) {
+    //     struct gram_alt *alt = NULL;
+    //     for (alt = rule->alts; alt; alt = alt->next) {
+    //         struct gram_rhs *rhs = NULL;
+    //         for (rhs = alt->rhses; rhs; rhs = rhs->next) {
+    //         }
+    //     }
+    // }
+
+    return true;
 }
 
 static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
@@ -456,6 +553,20 @@ print_gram_pack_error(FILE *handle, struct gram_pack_error error) {
             fprintf(handle, OOM_ERROR_FMT_START);
             if (debug_is("oom"))
                 fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
+            break;
+        case GM_PACK_PATTERN_DEFINED_ERROR:
+            break;
+        case GM_PACK_DUPLICATE_PATTERN_ERROR:
+            break;
+        case GM_PACK_NONTERM_DEFINED_AS_TERM_ERROR:
+            break;
+        case GM_PACK_SYMBOL_NOT_DEFINED_ERROR:
+            break;
+        case GM_PACK_SYMBOL_NOT_DERIVABLE_ERROR:
+            break;
+        case GM_PACK_MISSING_ACCEPTING_RULE:
+            break;
+        case GM_PACK_MULTIPLE_ACCEPTING_RULES:
             break;
     }
 }

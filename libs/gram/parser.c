@@ -10,7 +10,7 @@
 #include <base/string.h>
 #include <regex/base.h>
 #include <regex/nfa.h>
-#include "gram/spec.h"
+#include "gram/pack.h"
 #include "gram/parser.h"
 
 #define debug(...) debug_ns("gram_parser", __VA_ARGS__);

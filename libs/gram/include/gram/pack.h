@@ -19,6 +19,7 @@ struct gram_symbol {
         struct {
             int *rules;  // nonterm derives
             int nrules;
+            bool defined;
         };
     };
 };
@@ -53,13 +54,28 @@ struct gram_parser_spec {
 };
 
 enum gram_pack_error_type {
-    GM_PACK_OOM_ERROR
+    GM_PACK_OOM_ERROR,
+    GM_PACK_PATTERN_DEFINED_ERROR,
+    GM_PACK_DUPLICATE_PATTERN_ERROR,
+    GM_PACK_NONTERM_DEFINED_AS_TERM_ERROR,
+    GM_PACK_SYMBOL_NOT_DEFINED_ERROR,
+    GM_PACK_SYMBOL_NOT_DERIVABLE_ERROR,
+    GM_PACK_MISSING_ACCEPTING_RULE,
+    GM_PACK_MULTIPLE_ACCEPTING_RULES
 };
 
 struct gram_pack_error {
     enum gram_pack_error_type type;
     union {
+        // oom
         struct { char *file; int col; };
+        // pattern defined, duplicate pattern, nonterm defined as term
+        // nonterm not defined
+        struct {
+            char *id;
+            struct regex_loc loc;
+            struct regex_loc prev_loc;
+        };
     };
 };
 

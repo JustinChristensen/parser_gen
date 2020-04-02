@@ -6,7 +6,7 @@ LIBS += -lm -lregex
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): parser.c spec.c
+$(PROG): parser.c pack.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(PROG)" ~/lib/

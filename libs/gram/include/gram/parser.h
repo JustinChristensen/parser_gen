@@ -7,7 +7,7 @@
 #include <base/array.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
-#include "gram/spec.h"
+#include "gram/pack.h"
 
 /*
 parser_spec       = pattern_defs grammar eof;

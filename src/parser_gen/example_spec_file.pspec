@@ -4,15 +4,13 @@ id              /{alpha_}{alnum_}*/
 regex           /(\\.|[^\n\/])*/
 char            /'(\\.|[^'])'/
 string          /"(\\.|[^"])*"/
-foo          /"(\\.|[^"])*"/
 
 ---
-parser_spec  = pattern_defs grammar;
+parser_spec  = pattern_defs grammar $eof;
 pattern_defs = pattern_def pattern_defs | $empty;
 pattern_def  = pdef_mod id regex;
 pdef_mod     = '@' | '-';
-grammar      = "---\n" rules_head | $empty;
-rules_head   = rule rules | $empty;
+grammar      = "---\n" rules | $empty;
 rules        = rule rules | $empty;
 rule         = id '=' alt alts ';';
 alts         = '|' alt alts | $empty;
@@ -21,5 +19,5 @@ rhses        = rhs rhses | $empty;
 rhs          = id
              | char
              | string
-             | "$end"
+             | "$eof"
              | "$empty";

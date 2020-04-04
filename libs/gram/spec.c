@@ -24,25 +24,24 @@ void assert_gram_packed_spec(struct gram_parser_spec const *spec) {
 #endif
 
 struct gram_parser_spec gram_parsed_spec(
-    struct gram_pattern_def *pdefs,
-    struct gram_rule *rules,
-    struct gram_stats stats
+    struct gram_pattern_def *pdefs, struct gram_rule *rules,
+    int start_rule, struct gram_stats stats
 ) {
     return (struct gram_parser_spec) {
         GM_PARSED_SPEC,
         .pdefs = pdefs, .prules = rules,
-        .stats = stats
+        .start_rule = start_rule, .stats = stats
     };
 }
 
 struct gram_parser_spec gram_packed_spec(
     struct regex_pattern *patterns, struct gram_symbol *symbols,
-    int **rules, struct gram_stats stats
+    int **rules, int start_rule, struct gram_stats stats
 ) {
     return (struct gram_parser_spec) {
         GM_PACKED_SPEC,
         .patterns = patterns, .symbols = symbols, .rules = rules,
-        .stats = stats
+        .start_rule = start_rule, .stats = stats
     };
 }
 
@@ -131,8 +130,8 @@ struct gram_rhs *init_string_gram_rhs(struct regex_loc loc, char *str, struct gr
     return init_rhs(loc, GM_STRING_RHS, str, next);
 }
 
-struct gram_rhs *init_end_gram_rhs(struct regex_loc loc, struct gram_rhs *next) {
-    return init_rhs(loc, GM_END_RHS, NULL, next);
+struct gram_rhs *init_eof_gram_rhs(struct regex_loc loc, struct gram_rhs *next) {
+    return init_rhs(loc, GM_EOF_RHS, GM_EOF_TOKEN, next);
 }
 
 struct gram_rhs *init_empty_gram_rhs(struct regex_loc loc, struct gram_rhs *next) {
@@ -180,9 +179,9 @@ void free_gram_rhs(struct gram_rhs *rhs) {
             case GM_ID_RHS:
             case GM_CHAR_RHS:
             case GM_STRING_RHS:
+            case GM_EOF_RHS:
                 free(rhs->str);
                 break;
-            case GM_END_RHS:
             case GM_EMPTY_RHS:
                 break;
         }
@@ -258,7 +257,7 @@ static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
 
 #define RHS_FMT "%s"
 #define EMPTY_RHS_FMT "$empty"
-#define END_RHS_FMT "$end"
+#define EOF_RHS_FMT "$eof"
 #define RHS_SEP_FMT " "
 static void _print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
     switch (rhs->type) {
@@ -267,8 +266,8 @@ static void _print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
         case GM_STRING_RHS:
             fprintf(handle, RHS_FMT, rhs->str);
             break;
-        case GM_END_RHS:
-            fprintf(handle, END_RHS_FMT);
+        case GM_EOF_RHS:
+            fprintf(handle, EOF_RHS_FMT);
             break;
         case GM_EMPTY_RHS:
             fprintf(handle, EMPTY_RHS_FMT);
@@ -318,14 +317,21 @@ static void print_parsed_spec(FILE *handle, struct gram_parser_spec const *spec)
     }
 }
 
+#define PATTERNS_TITLE_FMT "patterns:\n"
+#define PATTERNS_HEADER_FMT "  %4s  %s\n"
+#define SYMBOLS_TITLE_FMT "symbols:\n"
+#define SYMBOLS_HEADER_FMT "  %4s  %-7s  %s\n"
+#define START_RULE_FMT "start rule: %d\n"
+#define RULES_TITLE_FMT "rules:\n"
+#define RULES_HEADER_FMT "  %4s  %s\n"
 static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec) {
     invariants(assert_gram_packed_spec, spec);
 
     // print packed patterns
     struct regex_pattern *pat = spec->patterns;
-    fprintf(handle, "patterns:\n");
+    fprintf(handle, PATTERNS_TITLE_FMT);
     if (pat->sym) {
-        fprintf(handle, "  %4s  %s\n", "num", "pattern");
+        fprintf(handle, PATTERNS_HEADER_FMT, "num", "pattern");
         while (pat->sym) {
             fprintf(handle, "  %4d  %s\n", pat->sym, pat->pattern);
             pat++;
@@ -335,11 +341,14 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
 
     // print packed symbols
     struct gram_symbol *sym = &spec->symbols[1];
-    fprintf(handle, "symbols:\n");
-    fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "rules");
+    fprintf(handle, SYMBOLS_TITLE_FMT);
+    fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "rules");
     fprintf(handle, "  %4d  ---\n", 0);
     while (sym->num) {
-        char *type = sym->type == GM_TERM ? "term" : "nonterm";
+        char *type = "nonterm";
+        if (sym->num == GM_EOF_NUM + 1) type = "eof";
+        else if (sym->type == GM_TERM)  type = "term";
+
         fprintf(handle, "  %4d  %-7s", sym->num, type);
         if (sym->rules) {
             int *r = sym->rules;
@@ -352,10 +361,12 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     }
     fprintf(handle, "\n");
 
+    fprintf(handle, START_RULE_FMT, spec->start_rule);
+
     // print packed rules
     int **rule = &spec->rules[1];
-    fprintf(handle, "rules:\n");
-    fprintf(handle, "  %4s  %s\n", "rule", "symbols");
+    fprintf(handle, RULES_TITLE_FMT);
+    fprintf(handle, RULES_HEADER_FMT, "rule", "symbols");
     fprintf(handle, "  %4d  %s\n", 0, "---");
     int r = 1;
     while (*rule) {

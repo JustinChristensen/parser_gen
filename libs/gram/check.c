@@ -25,28 +25,21 @@ static bool symbol_not_defined_error(
     return false;
 }
 
-// static bool symbol_not_derivable_error(
-//     struct gram_parse_error *error,
-//     char *symbol, struct regex_loc loc
-// ) {
-//     *error = (struct gram_parse_error) {
-//         GM_PARSER_SYMBOL_NOT_DERIVABLE_ERROR,
-//         .id = symbol,
-//         .loc = loc
-//     };
-//
-//     return false;
-// }
-//
-// static bool missing_accepting_rule_error(struct gram_parse_error *error) {
-//     *error = (struct gram_parse_error) { GM_PARSER_MISSING_ACCEPTING_RULE };
-//     return false;
-// }
-//
-// static bool multiple_accepting_rules_error(struct gram_parse_error *error) {
-//     *error = (struct gram_parse_error) { GM_PARSER_MULTIPLE_ACCEPTING_RULES };
-//     return false;
-// }
+static bool missing_start_rule_error(struct gram_parse_error *error) {
+    *error = (struct gram_parse_error) { GM_PARSER_MISSING_START_RULE_ERROR };
+    return false;
+}
+
+static bool entry_not_defined(struct gram_symbol_entry *entry) {
+    return entry->type == GM_SYMBOL_ENTRY && !entry->defined;
+}
+
+static bool is_eof_entry(struct gram_symbol_entry *entry) {
+    return
+        entry->type == GM_SYMBOL_ENTRY &&
+        entry->s.type == GM_TERM &&
+        entry->s.num == GM_EOF_NUM;
+}
 
 bool gram_check(struct gram_parse_error *error,
     struct gram_parser_spec *spec,
@@ -56,14 +49,22 @@ bool gram_check(struct gram_parse_error *error,
 
     struct hash_table *symtab = context->symtab;
 
+    bool eof_seen = false;
+
     struct hash_iterator it = hash_iterator(symtab);
     char *key = NULL;
     struct gram_symbol_entry *sym = NULL;
     while ((sym = htnext(&key, &it))) {
-        if (sym->type == GM_SYMBOL_ENTRY && !sym->defined)
+        if (entry_not_defined(sym))
             return symbol_not_defined_error(error, key, sym->first_loc);
+
+        if (is_eof_entry(sym)) eof_seen = true;
     }
 
+    if (!eof_seen)
+        return missing_start_rule_error(error);
+
+    // FIXME: check reachability of symbols from the start rule
     // struct gram_rule *rule = NULL;
     // for (rule = spec->prules; rule; rule = rule->next) {
     //     struct gram_alt *alt = NULL;

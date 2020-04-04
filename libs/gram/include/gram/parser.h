@@ -11,7 +11,8 @@
 
 enum gram_symbol_entry_type {
     GM_SYMBOL_ENTRY,
-    GM_PATTERN_ENTRY
+    GM_PATTERN_ENTRY,
+    GM_TAG_ENTRY
 };
 
 struct gram_symbol_entry {
@@ -60,9 +61,8 @@ enum gram_parse_error_type {
     GM_PARSER_DUPLICATE_PATTERN_ERROR,
     GM_PARSER_NONTERM_DEFINED_AS_TERM_ERROR,
     GM_PARSER_SYMBOL_NOT_DEFINED_ERROR,
-        GM_PARSER_SYMBOL_NOT_DERIVABLE_ERROR,
-        GM_PARSER_MISSING_ACCEPTING_RULE,
-        GM_PARSER_MULTIPLE_ACCEPTING_RULES,
+    GM_PARSER_MISSING_START_RULE_ERROR,
+    GM_PARSER_MULTIPLE_EOF_ERROR,
     GM_PARSER_SCANNER_ERROR
 };
 
@@ -87,6 +87,7 @@ struct gram_parse_error {
 
 struct gram_parse_context {
     struct hash_table *symtab;
+    int start_rule;
     struct gram_stats stats;
     struct nfa_context scanner;
     struct nfa_match match;

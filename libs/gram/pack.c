@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <base/debug.h>
 #include <base/hash_table.h>
 #include <base/string.h>
 #include <regex/base.h>
@@ -12,6 +13,8 @@
 #include "gram/pack.h"
 
 #include "oom.c"
+
+#define debug(...) debug_ns("gram_pack", __VA_ARGS__);
 
 static int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
     int i = sym->s.num + 1; // #0 reserved
@@ -23,6 +26,7 @@ static int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
 }
 
 static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
+    debug("packing pattern: %d, %s, %s\n", sym, tag, pattern);
     if (tag && ((tag = strdup(tag)) == NULL)) return false;
     if (pattern && ((pattern = strdup(pattern)) == NULL)) {
         free(tag);
@@ -42,7 +46,7 @@ static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab,
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
-        if (sym->type == GM_PATTERN_ENTRY) continue;
+        if (sym->type != GM_SYMBOL_ENTRY) continue;
 
         int i = detnum(sym, stats);
         symbols[i] = sym->s;
@@ -116,7 +120,7 @@ bool gram_pack(
 
     // count the number of pattern terms to compute offsets
     // when traversing the AST
-    int pterms = 0;
+    int pattern_terms = 0;
 
     // pack the pattern definitions
     struct regex_pattern *pat = patterns;
@@ -129,7 +133,7 @@ bool gram_pack(
             sym = RX_SKIP;
         } else {
             sym = detnum(htlookup(pdef->id, symtab), stats);
-            pterms++;
+            pattern_terms++;
         }
 
         if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
@@ -175,8 +179,8 @@ bool gram_pack(
 
                 // add pattern
                 if (rhs->type == GM_CHAR_RHS || rhs->type == GM_STRING_RHS) {
-                    // N pattern terminals + M grammar terminals + reserved terminal
-                    if (!pack_rhs_pattern(&pat[sym - pterms - 1], sym, rhs->str))
+                    // N pattern terminals + M grammar terminals + reserved terminals #0/1
+                    if (!pack_rhs_pattern(&pat[sym - pattern_terms - 2], sym, rhs->str))
                         goto oom;
                 }
             }
@@ -188,7 +192,7 @@ bool gram_pack(
     free(rps);
 
     free_gram_parser_spec(spec);
-    *spec = gram_packed_spec(patterns, symbols, rules, stats);
+    *spec = gram_packed_spec(patterns, symbols, rules, spec->start_rule + 1, stats);
 
     return true;
 oom:

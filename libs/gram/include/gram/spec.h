@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <regex/base.h>
 
+#define GM_EMPTY_TOKEN  "$empty"
+#define GM_EOF_TOKEN    "$eof"
+#define GM_EOF_NUM      0
+
 #define GM_END_PATTERN  { 0 }
 #define GM_START_SYMBOL { 0 }
 #define GM_END_SYMBOL   { 0 }
@@ -49,9 +53,9 @@ struct gram_parser_spec {
             struct regex_pattern *patterns;
             struct gram_symbol *symbols;
             int **rules;
-            int start_rule;
         };
     };
+    int start_rule;
     struct gram_stats stats;
 };
 
@@ -84,7 +88,7 @@ enum gram_rhs_type {
     GM_ID_RHS,
     GM_CHAR_RHS,
     GM_STRING_RHS,
-    GM_END_RHS,
+    GM_EOF_RHS,
     GM_EMPTY_RHS
 };
 
@@ -105,11 +109,11 @@ void assert_gram_packed_spec(struct gram_parser_spec const *spec);
 
 struct gram_parser_spec gram_parsed_spec(
     struct gram_pattern_def *pdefs, struct gram_rule *rules,
-    struct gram_stats stats
+    int start_rule, struct gram_stats stats
 );
 struct gram_parser_spec gram_packed_spec(
     struct regex_pattern *patterns, struct gram_symbol *symbols, int **rules,
-    struct gram_stats stats
+    int start_rule, struct gram_stats stats
 );
 struct gram_pattern_def *init_gram_pattern_def(
     struct regex_loc loc,
@@ -122,7 +126,7 @@ struct gram_alt *init_gram_alt(struct regex_loc loc, struct gram_rhs *rhses, str
 struct gram_rhs *init_id_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_char_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_string_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
-struct gram_rhs *init_end_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
+struct gram_rhs *init_eof_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
 struct gram_rhs *init_empty_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
 
 void free_gram_parser_spec(struct gram_parser_spec *spec);

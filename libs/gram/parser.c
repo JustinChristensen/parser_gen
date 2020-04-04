@@ -10,8 +10,12 @@
 #include <base/string.h>
 #include <regex/base.h>
 #include <regex/nfa.h>
+#include "gram/check.h"
 #include "gram/pack.h"
 #include "gram/parser.h"
+#include "gram/spec.h"
+
+#include "oom.c"
 
 #define debug(...) debug_ns("gram_parser", __VA_ARGS__);
 
@@ -100,6 +104,12 @@ print_symbol_list(FILE *handle, enum gram_parser_symbol *sym) {
     }
 }
 
+static char *permastr(char *str) {
+    static char buf[BUFSIZ];
+    strcpy(buf, str);
+    return buf;
+}
+
 static bool
 syntax_error(
     struct gram_parse_error *error,
@@ -120,25 +130,52 @@ syntax_error(
     return false;
 }
 
+static bool pattern_defined_error(
+    struct gram_parse_error *error,
+    char *tag, struct regex_loc loc, struct regex_loc prev_loc
+) {
+    *error = (struct gram_parse_error) {
+        GM_PARSER_PATTERN_DEFINED_ERROR,
+        .id = permastr(tag),
+        .loc = loc,
+        .prev_loc = prev_loc
+    };
+
+    return false;
+}
+
+static bool duplicate_pattern_error(
+    struct gram_parse_error *error,
+    char *pattern, struct regex_loc loc
+) {
+    *error = (struct gram_parse_error) {
+        GM_PARSER_DUPLICATE_PATTERN_ERROR,
+        .id = pattern,
+        .loc = loc
+    };
+
+    return false;
+}
+
+static bool nonterm_defined_as_term_error(
+    struct gram_parse_error *error,
+    char *id, struct regex_loc loc, struct regex_loc term_loc
+) {
+    *error = (struct gram_parse_error) {
+        GM_PARSER_NONTERM_DEFINED_AS_TERM_ERROR,
+        .id = permastr(id),
+        .loc = loc,
+        .prev_loc = term_loc
+    };
+
+    return false;
+}
+
 static bool
 scanner_error(struct gram_parse_error *error, struct regex_error scanerr) {
     prod(error, ((struct gram_parse_error) { .type = GM_PARSER_SCANNER_ERROR, .scanerr = scanerr }));
     return false;
 }
-
-static bool
-_oom_error(struct gram_parse_error *error, char *file, int col, void *p, ...) {
-    va_list args;
-    va_start(args, p);
-    vfreel(p, args);
-    va_end(args);
-
-    prod(error, ((struct gram_parse_error) { .type = GM_PARSER_OOM_ERROR, .file = file, .col = col }));
-
-    return false;
-}
-
-#define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
 
 static bool
 peek(enum gram_parser_symbol expected, struct gram_parse_context *context) {
@@ -199,7 +236,7 @@ gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *co
         return false;
     }
 
-    struct hash_table *symtab = hash_table(sizeof (struct gram_symbol));
+    struct hash_table *symtab = hash_table(sizeof (struct gram_symbol_entry));
     if (!symtab) {
         free_nfa_context(&scanner);
         return oom_error(error, NULL);
@@ -220,9 +257,18 @@ free_gram_parse_context(struct gram_parse_context *context) {
 
 #define SYNTAX_ERROR_FMT_START "| Syntax Error\n|\n| Got: %s\n| Expected: "
 #define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
-#define SYNTAX_ERROR_FMT_END "\n|\n"
 #define OOM_ERROR_FMT_START "| Out of Memory Error\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+#define PATTERN_DEFINED_FMT_START "| Pattern Defined Error\n|\n| Pattern %s at "
+#define PATTERN_DEFINED_FMT_PREV "\n| was previously defined at "
+#define NONTERM_TERM_FMT_START "| Non-Terminal Error\n|\n| Non-terminal %s at "
+#define NONTERM_TERM_FMT_PREV "\n| was previously defined as a terminal at "
+#define ERROR_FMT_END "\n|\n"
+#define SYMBOL_NOT_DEFINED_FMT_START "| Symbol Not Defined Error\n|\n| Symbol %s at "
+#define SYMBOL_NOT_DEFINED_FMT_END " has not been defined\n|\n"
+#define DUPLICATE_PATTERN_FMT_START "| Duplicate Pattern Error\n|\n| Pattern %s at "
+#define DUPLICATE_PATTERN_FMT_END " is a duplicate\n|\n"
+
 void
 print_gram_parse_error(FILE *handle, struct gram_parse_error error) {
     switch (error.type) {
@@ -231,12 +277,42 @@ print_gram_parse_error(FILE *handle, struct gram_parse_error error) {
             print_symbol_list(handle, error.expected);
             fprintf(handle, SYNTAX_ERROR_FMT_LOC);
             print_regex_loc(handle, error.loc);
-            fprintf(handle, SYNTAX_ERROR_FMT_END);
+            fprintf(handle, ERROR_FMT_END);
             break;
         case GM_PARSER_OOM_ERROR:
             fprintf(handle, OOM_ERROR_FMT_START);
             if (debug_is("oom"))
                 fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
+            break;
+        case GM_PARSER_PATTERN_DEFINED_ERROR:
+            fprintf(handle, PATTERN_DEFINED_FMT_START, error.id);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, PATTERN_DEFINED_FMT_PREV);
+            print_regex_loc(handle, error.prev_loc);
+            fprintf(handle, ERROR_FMT_END);
+            break;
+        case GM_PARSER_DUPLICATE_PATTERN_ERROR:
+            fprintf(handle, DUPLICATE_PATTERN_FMT_START, error.id);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, DUPLICATE_PATTERN_FMT_END);
+            break;
+        case GM_PARSER_NONTERM_DEFINED_AS_TERM_ERROR:
+            fprintf(handle, NONTERM_TERM_FMT_START, error.id);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, NONTERM_TERM_FMT_PREV);
+            print_regex_loc(handle, error.prev_loc);
+            fprintf(handle, ERROR_FMT_END);
+            break;
+        case GM_PARSER_SYMBOL_NOT_DEFINED_ERROR:
+            fprintf(handle, SYMBOL_NOT_DEFINED_FMT_START, error.id);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, SYMBOL_NOT_DEFINED_FMT_END);
+            break;
+        case GM_PARSER_SYMBOL_NOT_DERIVABLE_ERROR:
+            break;
+        case GM_PARSER_MISSING_ACCEPTING_RULE:
+            break;
+        case GM_PARSER_MULTIPLE_ACCEPTING_RULES:
             break;
         case GM_PARSER_SCANNER_ERROR:
             print_regex_error(stderr, error.scanerr);
@@ -252,7 +328,6 @@ gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_par
         htclear(context->symtab);
         context->stats = (struct gram_stats) { 0 };
 
-        context->current_rule = NULL;
         context->match = match;
         context->sym = gram_scan(context);
         next_set(NULL_NS, context);
@@ -285,11 +360,6 @@ gram_lexeme(char *lexeme, struct gram_parse_context *context) {
     return true;
 }
 
-struct hash_table *
-gram_symtab(struct gram_parse_context const *context) {
-    return context->symtab;
-}
-
 void
 print_gram_tokens(FILE *handle, char *spec) {
     struct gram_parse_context context = { 0 };
@@ -315,9 +385,14 @@ print_gram_tokens(FILE *handle, char *spec) {
 
 static void
 debug_symbol_entry(FILE *handle, void const *entry) {
-    struct gram_symbol const *e = entry;
-    char *type = e->type == GM_TERM ? "TERM" : "NONTERM";
-    fprintf(handle, "%d, %s", e->num, type);
+    struct gram_symbol_entry const *e = entry;
+
+    if (e->type == GM_PATTERN_ENTRY) {
+        fprintf(handle, "PATTERN");
+    } else {
+        char *type = e->s.type == GM_TERM ? "TERM" : "NONTERM";
+        fprintf(handle, "%d, %s", e->s.num, type);
+    }
 }
 
 static void
@@ -327,50 +402,107 @@ debug_symbols(struct gram_parse_context *context) {
         print_hash_entries(stderr, debug_symbol_entry, context->symtab);
 }
 
-static struct gram_symbol
-term_symbol(struct gram_parse_context *context) {
+static struct gram_symbol_entry term(struct gram_parse_context *context) {
     context->stats.patterns++;
 
-    return (struct gram_symbol) {
-        .type = GM_TERM,
-        .num = context->stats.terms++
+    return (struct gram_symbol_entry) {
+        GM_SYMBOL_ENTRY,
+        { GM_TERM, .num = context->stats.terms++ },
+        .defined = true,
+        .first_loc = gram_location(context)
     };
 }
 
-static struct gram_symbol
-nonterm_symbol(struct gram_parse_context *context) {
-    return (struct gram_symbol) {
-        .type = GM_NONTERM,
-        .num = context->stats.nonterms++
+static struct gram_symbol_entry nonterm(struct gram_parse_context *context) {
+    return (struct gram_symbol_entry) {
+        GM_SYMBOL_ENTRY,
+        { GM_NONTERM, .num = context->stats.nonterms++ },
+        .first_loc = gram_location(context)
     };
 }
 
-static int
-insert_symbol(
+static struct gram_symbol_entry pattern(struct gram_parse_context *context) {
+    return (struct gram_symbol_entry) {
+        GM_PATTERN_ENTRY,
+        .defined = true,
+        .first_loc = gram_location(context)
+    };
+}
+
+static struct gram_symbol_entry defined_nonterm(struct gram_parse_context *context) {
+    struct gram_symbol_entry entry = nonterm(context);
+    entry.defined = true;
+    return entry;
+}
+
+static bool tag_exists_error(
+    struct gram_parse_error *error, char *tag,
+    struct gram_symbol_entry *entry, struct gram_parse_context *context
+) {
+    return pattern_defined_error(error, tag, gram_location(context), entry->first_loc);
+}
+
+static bool pattern_exists_error(
+    struct gram_parse_error *error, char *tag,
+    struct gram_symbol_entry *entry, struct gram_parse_context *context
+) {
+    return duplicate_pattern_error(error, tag, gram_location(context));
+}
+
+static bool nonterm_term_error(
+    struct gram_parse_error *error, char *id,
+    struct gram_symbol_entry *entry, struct gram_parse_context *context
+) {
+    if (entry->s.type == GM_NONTERM) {
+        entry->defined = true;
+        return true;
+    }
+
+    return nonterm_defined_as_term_error(error, id, gram_location(context), entry->first_loc);
+}
+
+static bool insert_symbol(
+    struct gram_parse_error *error,
     char *str,
-    struct gram_symbol (*mkentry)(struct gram_parse_context *context),
+    struct gram_symbol_entry (*mkentry)(struct gram_parse_context *context),
+    bool (*sym_exists)(
+        struct gram_parse_error *error, char *str,
+        struct gram_symbol_entry *entry, struct gram_parse_context *context
+    ),
     struct gram_parse_context *context
 ) {
     struct hash_table *symtab = context->symtab;
-    struct gram_symbol *entry = htlookup(str, symtab);
+    struct gram_symbol_entry *entry = htlookup(str, symtab);
+    if (entry)
+        return sym_exists ? (*sym_exists)(error, str, entry, context) : true;
 
-    if (entry) return entry->num;
-
-    struct gram_symbol new_entry = (*mkentry)(context);
-
+    struct gram_symbol_entry new_entry = (*mkentry)(context);
     htinsert(str, &new_entry, symtab);
-
-    return new_entry.num;
+    return true;
 }
 
-static void
-set_current_rule(char *id, struct gram_parse_context *context) {
-    context->current_rule = htlookup(id, context->symtab);
+static bool insert_tag(
+    struct gram_parse_error *error,
+    bool bump_only, char *tag, struct gram_parse_context *context
+) {
+    gram_lexeme(tag, context);
+
+    if (bump_only) {
+        context->stats.patterns++;
+        return true;
+    }
+
+    debug("inserting pattern %s\n", tag);
+
+    return insert_symbol(error, tag, term, tag_exists_error, context);
 }
 
-static void
-addalts(int nalts, struct gram_parse_context *context) {
-    context->current_rule->nrules += nalts;
+static bool insert_pattern(
+    struct gram_parse_error *error,
+    char *pat, struct gram_parse_context *context
+) {
+    gram_lexeme(pat, context);
+    return insert_symbol(error, pat, pattern, pattern_exists_error, context);
 }
 
 static bool
@@ -381,7 +513,24 @@ sast(void **result, void *p) {
     return true;
 }
 
-#define tryinit(error, result, fn, ...) (sast((void **) (result), fn(__VA_ARGS__)) || oom_error((error), NULL))
+static bool
+start_rule(struct gram_parse_error *error, char *id, struct gram_parse_context *context) {
+    gram_lexeme(id, context);
+
+    if (insert_symbol(error, id, defined_nonterm, nonterm_term_error, context))
+        return true;
+
+    return false;
+}
+
+static void
+addalts(char *id, int nalts, struct gram_parse_context *context) {
+    struct gram_symbol_entry *entry = htlookup(id, context->symtab);
+    entry->nrules += nalts;
+}
+
+#define tryinit(error, result, fn, ...) \
+    (sast((void **) (result), fn(__VA_ARGS__)) || oom_error((error), NULL))
 #define link(head, rest) (head)->next = (rest)
 #define addn(head, rest) if ((rest)) (head)->n += (rest)->n
 
@@ -422,9 +571,9 @@ gram_parse(
         next_set(GRAMMAR_NS, context);
         struct gram_rule *rules = NULL;
         if (parse_grammar(error, &rules, context) && expect(error, GM_EOF_T, context)) {
-            prod(spec, gram_parsed_spec(pdefs, rules, context->stats));
             debug_symbols(context);
-            return true;
+            prod(spec, gram_parsed_spec(pdefs, rules, context->stats));
+            return gram_pack(error, spec, context);
         }
 
         free_gram_pattern_def(pdefs);
@@ -480,17 +629,20 @@ parse_pattern_def(
         skip = true;
 
     char idbuf[BUFSIZ] = "";
+    struct regex_loc loc = gram_location(context);
 
-    if (gram_lexeme(idbuf, context) && expect(error, GM_ID_T, context)) {
+    if (peek(GM_ID_T, context) && !insert_tag(error, tag_only || skip, idbuf, context))
+        return false;
+
+    if (expect(error, GM_ID_T, context)) {
         char patbuf[BUFSIZ] = "";
 
-        if (gram_lexeme(patbuf, context) && expect(error, GM_REGEX_T, context)) {
-            if (!tag_only && !skip) insert_symbol(idbuf, term_symbol, context);
-            else                    context->stats.patterns++;
+        if (peek(GM_REGEX_T, context) && !insert_pattern(error, patbuf, context))
+            return false;
 
-            return
-                tryinit(error, pdef,
-                init_gram_pattern_def, idbuf, patbuf, tag_only, skip, NULL);
+        if (expect(error, GM_REGEX_T, context)) {
+            return tryinit(error, pdef,
+                init_gram_pattern_def, loc, idbuf, patbuf, tag_only, skip, NULL);
         }
     }
 
@@ -547,24 +699,24 @@ parse_rule(
     struct gram_parse_context *context
 ) {
     prod(rule, NULL);
+
     char idbuf[BUFSIZ] = "";
+    struct regex_loc loc = gram_location(context);
 
-    if (gram_lexeme(idbuf, context) && expect(error, GM_ID_T, context)) {
-        insert_symbol(idbuf, nonterm_symbol, context);
-        set_current_rule(idbuf, context);
+    if (peek(GM_ID_T, context) && !start_rule(error, idbuf, context))
+        return false;
 
-        if (!expect(error, GM_ASSIGN_T, context)) return false;
-
+    if (expect(error, GM_ID_T, context) && expect(error, GM_ASSIGN_T, context)) {
         struct gram_alt *alts = NULL;
         if (parse_alt(error, &alts, context)) {
             struct gram_alt *rest = NULL;
             if (next_set(ALTS_NS, context) && parse_alts(error, &rest, context)) {
                 link(alts, rest);
                 addn(alts, rest);
-                addalts(alts->n, context);
+                addalts(idbuf, alts->n, context);
 
                 if (expect(error, GM_SEMICOLON_T, context) &&
-                    tryinit(error, rule, init_gram_rule, idbuf, alts, NULL))
+                    tryinit(error, rule, init_gram_rule, loc, idbuf, alts, NULL))
                     return true;
             }
 
@@ -608,6 +760,8 @@ parse_alt(
 ) {
     prod(alt, NULL);
 
+    struct regex_loc loc = gram_location(context);
+
     struct gram_rhs *rhses = NULL;
     if (next_set(RHS_NS, context) && parse_rhs(error, &rhses, context)) {
         struct gram_rhs *rest = NULL;
@@ -616,7 +770,7 @@ parse_alt(
             addn(rhses, rest);
             context->stats.rules++;
 
-            if (tryinit(error, alt, init_gram_alt, rhses, NULL))
+            if (tryinit(error, alt, init_gram_alt, loc, rhses, NULL))
                 return true;
         }
 
@@ -660,27 +814,25 @@ parse_rhs(
     prod(rhs, NULL);
 
     char symbuf[BUFSIZ] = "";
+    struct regex_loc loc = gram_location(context);
 
     if (peek(GM_ID_T, context) &&
-        gram_lexeme(symbuf, context) &&
-        expect(error, GM_ID_T, context)) {
-        insert_symbol(symbuf, nonterm_symbol, context);
-        return tryinit(error, rhs, init_id_gram_rhs, symbuf, NULL);
+        gram_lexeme(symbuf, context) && expect(error, GM_ID_T, context)) {
+        insert_symbol(NULL, symbuf, nonterm, NULL, context);
+        return tryinit(error, rhs, init_id_gram_rhs, loc, symbuf, NULL);
     } else if (peek(GM_CHAR_T, context) &&
-        gram_lexeme(symbuf, context) &&
-        expect(error, GM_CHAR_T, context)) {
-        insert_symbol(symbuf, term_symbol, context);
-        return tryinit(error, rhs, init_char_gram_rhs, symbuf, NULL);
+        gram_lexeme(symbuf, context) && expect(error, GM_CHAR_T, context)) {
+        insert_symbol(NULL, symbuf, term, NULL, context);
+        return tryinit(error, rhs, init_char_gram_rhs, loc, symbuf, NULL);
     } else if (peek(GM_STRING_T, context) &&
-        gram_lexeme(symbuf, context) &&
-        expect(error, GM_STRING_T, context)) {
-        insert_symbol(symbuf, term_symbol, context);
-        return tryinit(error, rhs, init_string_gram_rhs, symbuf, NULL);
-    } else if (peek(GM_EMPTY_T, context) &&
-        expect(error, GM_EMPTY_T, context)) {
-        return tryinit(error, rhs, init_empty_gram_rhs, NULL);
+        gram_lexeme(symbuf, context) && expect(error, GM_STRING_T, context)) {
+        insert_symbol(NULL, symbuf, term, NULL, context);
+        return tryinit(error, rhs, init_string_gram_rhs, loc, symbuf, NULL);
+    } else if (peek(GM_EMPTY_T, context) && expect(error, GM_EMPTY_T, context)) {
+        return tryinit(error, rhs, init_empty_gram_rhs, loc, NULL);
     }
 
-    return syntax_error(error, context);
+    return expect(error, GM_END_T, context) &&
+        tryinit(error, rhs, init_end_gram_rhs, loc, NULL);
 }
 

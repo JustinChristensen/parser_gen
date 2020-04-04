@@ -1,0 +1,14 @@
+parser_spec       = pattern_defs grammar eof;
+pattern_defs      = pattern_def pattern_defs { += pattern_def } { pattern_defs_head } | $empty;
+pdef_flags        = '@' | '-' | $empty;
+pattern_def       = pdef_flags id regex { pattern_def };
+grammar           = "---" rules | $empty;
+rules             = rule rules { += rule } { rules_head } | $empty;
+rule              = id '=' alt alts { += alt } { rule  } ';';
+alts              = '|' alt alts { += alt } { alts_head } | $empty;
+alt               = rhs rhses { +=rhs } { alt };
+rhses             = rhs rhses { += rhs } { rhses_head } | $empty;
+rhs               = id { id_rhs(lexeme) }
+                  | char { char_rhs(lexeme) }
+                  | string { string_rhs(lexeme) }
+                  | "$empty" { empty };

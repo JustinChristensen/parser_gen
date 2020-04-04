@@ -3,173 +3,23 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
-#include <stdarg.h>
-#include <base/base.h>
-#include <base/debug.h>
 #include <base/hash_table.h>
 #include <base/string.h>
-#include <regex/nfa.h>
+#include <regex/base.h>
+#include "gram/check.h"
+#include "gram/parser.h"
+#include "gram/spec.h"
 #include "gram/pack.h"
 
-#ifdef INVARIANTS
-void assert_gram_parsed_spec(struct gram_parser_spec const *spec) {
-    assert(spec != NULL);
-    assert(spec->type == GM_PARSED_SPEC);
-}
+#include "oom.c"
 
-void assert_gram_packed_spec(struct gram_parser_spec const *spec) {
-    assert(spec != NULL);
-    assert(spec->type == GM_PACKED_SPEC);
+static int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
+    int i = sym->s.num + 1; // #0 reserved
 
-    assert(spec->symbols != NULL);
-    assert(spec->symbols[0].num == 0);
-    assert(spec->symbols[0].rules == NULL);
-
-    assert(spec->rules != NULL);
-    assert(spec->rules[0] == NULL);
-}
-#endif
-
-static bool _oom_error(struct gram_pack_error *error, char *file, int col, void *p, ...) {
-    va_list args;
-    va_start(args, p);
-    vfreel(p, args);
-    va_end(args);
-
-    *error = (struct gram_pack_error) {
-        GM_PACK_OOM_ERROR,
-        .file = file, .col = col
-    };
-
-    return false;
-}
-
-#define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
-
-static bool pattern_defined_error(
-    struct gram_pack_error *error,
-    char *pattern, struct regex_loc loc, struct regex_loc prev_loc
-) {
-    *error = (struct gram_pack_error) {
-        GM_PACK_PATTERN_DEFINED_ERROR,
-        .id = pattern,
-        .loc = loc,
-        .prev_loc = prev_loc
-    };
-
-    return false;
-}
-
-static bool duplicate_pattern_error(
-    struct gram_pack_error *error,
-    char *pattern, struct regex_loc loc, struct regex_loc prev_loc
-) {
-    *error = (struct gram_pack_error) {
-        GM_PACK_DUPLICATE_PATTERN_ERROR,
-        .id = pattern,
-        .loc = loc,
-        .prev_loc = prev_loc
-    };
-
-    return false;
-}
-
-
-static bool nonterm_defined_as_term_error(
-    struct gram_pack_error *error,
-    char *nonterm, struct regex_loc loc, struct regex_loc term_loc
-) {
-    *error = (struct gram_pack_error) {
-        GM_PACK_NONTERM_DEFINED_AS_TERM_ERROR,
-        .id = nonterm,
-        .loc = loc,
-        .prev_loc = term_loc
-    };
-
-    return false;
-}
-
-static bool symbol_not_defined_error(
-    struct gram_pack_error *error,
-    char *nonterm, struct regex_loc loc
-) {
-    *error = (struct gram_pack_error) {
-        GM_PACK_SYMBOL_NOT_DEFINED_ERROR,
-        .id = nonterm,
-        .loc = loc
-    };
-
-    return false;
-}
-
-static bool symbol_not_derivable_error(
-    struct gram_pack_error *error,
-    char *symbol, struct regex_loc loc
-) {
-    *error = (struct gram_pack_error) {
-        GM_PACK_SYMBOL_NOT_DERIVABLE_ERROR,
-        .id = symbol,
-        .loc = loc
-    };
-
-    return false;
-}
-
-static bool missing_accepting_rule_error(struct gram_pack_error *error) {
-    *error = (struct gram_pack_error) { GM_PACK_MISSING_ACCEPTING_RULE };
-    return false;
-}
-
-static bool multiple_accepting_rules_error(struct gram_pack_error *error) {
-    *error = (struct gram_pack_error) { GM_PACK_MULTIPLE_ACCEPTING_RULES };
-    return false;
-}
-
-struct gram_parser_spec gram_parsed_spec(
-    struct gram_pattern_def *pdefs,
-    struct gram_rule *rules,
-    struct gram_stats stats
-) {
-    return (struct gram_parser_spec) {
-        GM_PARSED_SPEC,
-        .pdefs = pdefs, .prules = rules,
-        .stats = stats
-    };
-}
-
-struct gram_parser_spec gram_packed_spec(
-    struct regex_pattern *patterns, struct gram_symbol *symbols,
-    int **rules, struct gram_stats stats
-) {
-    return (struct gram_parser_spec) {
-        GM_PACKED_SPEC,
-        .patterns = patterns, .symbols = symbols, .rules = rules,
-        .stats = stats
-    };
-}
-
-static int detnum(struct gram_symbol *sym, struct gram_stats stats) {
-    int i = sym->num + 1; // #0 reserved
-
-    if (sym->type == GM_NONTERM)
+    if (sym->s.type == GM_NONTERM)
         i += stats.terms;
 
     return i;
-}
-
-bool gram_check(struct gram_pack_error *error, struct gram_parser_spec *spec, struct hash_table *symtab) {
-
-    // struct gram_rule *rule = NULL;
-    // for (rule = spec->prules; rule; rule = rule->next) {
-    //     struct gram_alt *alt = NULL;
-    //     for (alt = rule->alts; alt; alt = alt->next) {
-    //         struct gram_rhs *rhs = NULL;
-    //         for (rhs = alt->rhses; rhs; rhs = rhs->next) {
-    //         }
-    //     }
-    // }
-
-    return true;
 }
 
 static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
@@ -189,17 +39,19 @@ static bool is_empty_rhs(struct gram_rhs *rhs) {
 }
 
 static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats, int **rps) {
-    struct gram_symbol *sym = NULL;
+    struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
+        if (sym->type == GM_PATTERN_ENTRY) continue;
+
         int i = detnum(sym, stats);
-        symbols[i] = *sym;
+        symbols[i] = sym->s;
         symbols[i].num = i;
 
-        if (sym->type == GM_NONTERM && sym->nrules) {
+        if (sym->s.type == GM_NONTERM && sym->nrules) {
             // allocate space for the symbol's derived rules +1 for 0 end marker
             int *rules = calloc(sym->nrules + 1, sizeof *rules);
-            rps[sym->num] = rules;
+            rps[sym->s.num] = rules;
             symbols[i].rules = rules;
             // gram_pack frees resources
             if (!rules) return false;
@@ -216,26 +68,23 @@ static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
     if (!alloc_pattern(pat, sym, NULL, str))
         return false;
 
-    // FIXME: this wastes two bytes per string
     strip_quotes(pat->pattern);
 
     return true;
 }
 
 bool gram_pack(
-    struct gram_pack_error *error,
-    struct gram_parser_spec *spec,
-    struct hash_table *symtab
+    struct gram_parse_error *error, struct gram_parser_spec *spec,
+    struct gram_parse_context *context
 ) {
     assert(spec != NULL);
 
     if (spec->type == GM_PACKED_SPEC) return true;
 
-    // if (spec->type == GM_PARSED_SPEC && !gram_check(&error->checkerr, spec, symtab)) {
-    //     error->type = GM_PACK_CHECK_ERROR;
-    //     return false;
-    // }
+    if (spec->type == GM_PARSED_SPEC && !gram_check(error, spec, context))
+        return false;
 
+    struct hash_table *symtab = context->symtab;
     struct gram_stats stats = spec->stats;
 
     // terminated by a null pattern
@@ -286,7 +135,6 @@ bool gram_pack(
         if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
             goto oom;
 
-        // FIXME: same as above
         strip_quotes(pat->pattern);
 
         pat++;
@@ -297,8 +145,8 @@ bool gram_pack(
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         // for adding rules to the non-terminal's "derives" list (rules)
-        struct gram_symbol *ntsym = htlookup(rule->id, symtab);
-        int *rp = rps[ntsym->num];
+        struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
+        int *rp = rps[ntsym->s.num];
 
         struct gram_alt *alt = rule->alts;
 
@@ -347,228 +195,3 @@ oom:
     return oom_error(error, patterns, symbols, rules, rps);
 }
 
-static void free_parsed_spec(struct gram_parser_spec *spec) {
-    free_gram_pattern_def(spec->pdefs);
-    spec->pdefs = NULL;
-    free_gram_rule(spec->prules);
-    spec->prules = NULL;
-}
-
-static void free_patterns(struct regex_pattern *patterns) {
-    if (!patterns) return;
-    struct regex_pattern *p = patterns;
-    while (p->sym) {
-        free(p->tag);
-        free(p->pattern);
-        p++;
-    }
-    free(patterns);
-}
-
-static void free_symbols(struct gram_symbol *symbols) {
-    if (!symbols) return;
-
-    struct gram_symbol *sym = &symbols[1];
-    while (sym->num) {
-        if (sym->rules) free(sym->rules);
-        sym++;
-    }
-
-    free(symbols);
-}
-
-static void free_rules(int **rules) {
-    if (!rules) return;
-    int **r = &rules[1];
-    while (*r) free(*r), r++;
-    free(rules);
-}
-
-static void free_packed_spec(struct gram_parser_spec *spec) {
-    free_patterns(spec->patterns);
-    free_symbols(spec->symbols);
-    free_rules(spec->rules);
-}
-
-void free_gram_parser_spec(struct gram_parser_spec *spec) {
-    if (!spec) return;
-
-    switch (spec->type) {
-        case GM_PARSED_SPEC:
-        case GM_CHECKED_SPEC:
-            free_parsed_spec(spec);
-            break;
-        case GM_PACKED_SPEC:
-            free_packed_spec(spec);
-            break;
-    }
-}
-
-#define PATTERN_DEF_FMT "%s %s\n"
-static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
-    for (; def; def = def->next) {
-        if (def->tag_only) fprintf(handle, "@");
-        if (def->skip) fprintf(handle, "-");
-        fprintf(handle, PATTERN_DEF_FMT, def->id, def->regex);
-    }
-}
-
-#define RHS_FMT "%s"
-#define EMPTY_RHS_FMT "$empty"
-#define RHS_SEP_FMT " "
-static void _print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
-    switch (rhs->type) {
-        case GM_ID_RHS:
-        case GM_CHAR_RHS:
-        case GM_STRING_RHS:
-            fprintf(handle, RHS_FMT, rhs->str);
-            break;
-        case GM_EMPTY_RHS:
-            fprintf(handle, EMPTY_RHS_FMT);
-            break;
-    }
-}
-
-static void print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
-    if (rhs) {
-        _print_gram_rhs(handle, rhs);
-        for (rhs = rhs->next; rhs; rhs = rhs->next) {
-            fprintf(handle, RHS_SEP_FMT);
-            _print_gram_rhs(handle, rhs);
-        }
-    }
-}
-
-#define ALT_FMT " | "
-static void print_gram_alt(FILE *handle, struct gram_alt *alt) {
-    if (alt) {
-        print_gram_rhs(handle, alt->rhses);
-
-        for (alt = alt->next; alt; alt = alt->next) {
-            fprintf(handle, ALT_FMT);
-            print_gram_rhs(handle, alt->rhses);
-        }
-    }
-}
-
-#define RULE_FMT "%s = "
-#define RULE_END_FMT ";\n"
-static void print_gram_rule(FILE *handle, struct gram_rule *rule) {
-    for (; rule; rule = rule->next) {
-        fprintf(handle, RULE_FMT, rule->id);
-        print_gram_alt(handle, rule->alts);
-        fprintf(handle, RULE_END_FMT);
-    }
-}
-
-static void print_parsed_spec(FILE *handle, struct gram_parser_spec const *spec) {
-    invariants(assert_gram_parsed_spec, spec);
-
-    print_gram_pattern_def(handle, spec->pdefs);
-    if (spec->prules) {
-        fprintf(handle, "---\n");
-        print_gram_rule(handle, spec->prules);
-    }
-}
-
-static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec) {
-    invariants(assert_gram_packed_spec, spec);
-
-    // print packed patterns
-    struct regex_pattern *pat = spec->patterns;
-    fprintf(handle, "patterns:\n");
-    if (pat->sym) {
-        fprintf(handle, "  %4s  %s\n", "num", "pattern");
-        while (pat->sym) {
-            fprintf(handle, "  %4d  %s\n", pat->sym, pat->pattern);
-            pat++;
-        }
-    }
-    fprintf(handle, "\n");
-
-    // print packed symbols
-    struct gram_symbol *sym = &spec->symbols[1];
-    fprintf(handle, "symbols:\n");
-    fprintf(handle, "  %4s  %-7s  %s\n", "num", "type", "rules");
-    fprintf(handle, "  %4d  ---\n", 0);
-    while (sym->num) {
-        char *type = sym->type == GM_TERM ? "term" : "nonterm";
-        fprintf(handle, "  %4d  %-7s", sym->num, type);
-        if (sym->rules) {
-            int *r = sym->rules;
-            fprintf(handle, "  %d", *r++);
-            while (*r)
-                fprintf(handle, ", %d", *r), r++;
-        }
-        fprintf(handle, "\n");
-        sym++;
-    }
-    fprintf(handle, "\n");
-
-    // print packed rules
-    int **rule = &spec->rules[1];
-    fprintf(handle, "rules:\n");
-    fprintf(handle, "  %4s  %s\n", "rule", "symbols");
-    fprintf(handle, "  %4d  %s\n", 0, "---");
-    int r = 1;
-    while (*rule) {
-        int *s = *rule;
-
-        fprintf(handle, "  %4d", r);
-
-        if (*s) {
-            fprintf(handle, "  %d", *s++);
-            while (*s)
-                fprintf(handle, ", %d", *s), s++;
-        }
-
-        fprintf(handle, "\n");
-
-        rule++;
-        r++;
-    }
-    fprintf(handle, "\n");
-}
-
-void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec) {
-    if (!spec) return;
-
-    switch (spec->type) {
-        case GM_PARSED_SPEC:
-        case GM_CHECKED_SPEC:
-            print_parsed_spec(handle, spec);
-            break;
-        case GM_PACKED_SPEC:
-            print_packed_spec(handle, spec);
-            break;
-    }
-}
-
-#define OOM_ERROR_FMT_START "| Out of Memory Error\n|\n"
-#define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
-void
-print_gram_pack_error(FILE *handle, struct gram_pack_error error) {
-    switch (error.type) {
-        case GM_PACK_OOM_ERROR:
-            fprintf(handle, OOM_ERROR_FMT_START);
-            if (debug_is("oom"))
-                fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
-            break;
-        case GM_PACK_PATTERN_DEFINED_ERROR:
-            break;
-        case GM_PACK_DUPLICATE_PATTERN_ERROR:
-            break;
-        case GM_PACK_NONTERM_DEFINED_AS_TERM_ERROR:
-            break;
-        case GM_PACK_SYMBOL_NOT_DEFINED_ERROR:
-            break;
-        case GM_PACK_SYMBOL_NOT_DERIVABLE_ERROR:
-            break;
-        case GM_PACK_MISSING_ACCEPTING_RULE:
-            break;
-        case GM_PACK_MULTIPLE_ACCEPTING_RULES:
-            break;
-    }
-}
-
-#include "ast.c"

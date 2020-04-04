@@ -1,0 +1,53 @@
+frontend:
+  Entrypoint, requires [input_validation]
+  Parses a grammar spec into an AST
+  Parse Error:
+    Syntax
+    OOM
+    Duplicate Pattern Tags
+    Duplicate Pattern
+
+backend:
+
+  Entrypoint, requires [input_validation]
+  Backends: [ll_backend], [slr_backend], [lr_backend], [lalr_backend], [glr_backend]
+
+input_validation:
+
+scanner:
+
+ll_backend:
+
+lr_backend:
+
+slr_backend:
+
+lalr_backend:
+
+glr_backend:
+
+
+1. Error on duplicate tags
+2. Error on duplicate patterns
+3. Error on scanner matches empty string
+    - in libregex I need to compute whether a given nfa matches empty in the scanner
+4. Error if the lhs of a rule is already defined as a terminal
+5. Error if a
+
+Options for checking:
+During parsing
+Explicit validation phase
+While generating the intermediate representation
+
+Errors:
+Syntax Error
+Scanner Error (parse, oom, repeat zero, tag exists, missing tag, duplicate pattern)
+OOM
+Pattern Defined
+Duplicate Pattern
+LHS Symbol Defined as Term
+Non Term Defined But Not Used
+Non Term Used But Not Defined
+Missing Accepting Rule
+
+

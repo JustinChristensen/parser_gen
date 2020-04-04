@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <base/hash_table.h>
-#include <regex/base.h>
+#include "regex/base.h"
 
 #define RX_STATE_POOL_SIZE 1000
 

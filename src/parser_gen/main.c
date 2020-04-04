@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
-#include <gram/spec.h>
 #include <gram/parser.h>
 
 enum command_key {
     GEN_PARSER,
     SCAN,
-    PARSE,
-    PACK
+    PARSE
 };
 
 // enum arg_key {
@@ -64,7 +62,6 @@ int main(int argc, char *argv[]) {
         CMDS {
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
-            { PACK, "pack", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Pack grammar from spec files" },
             END_CMDS
         },
         "Generate a parser"
@@ -100,32 +97,6 @@ int main(int argc, char *argv[]) {
                 }
 
                 print_gram_parse_error(stderr, error);
-                free_gram_parse_context(&context);
-                return EXIT_FAILURE;
-            } else if (args.cmd == PACK) {
-                struct gram_parse_context context = { 0 };
-                struct gram_parse_error parserr = { 0 };
-
-                if (gram_parse_context(&parserr, &context)) {
-                    struct gram_parser_spec spec = { 0 };
-                    if (gram_parse(&parserr, &spec, contents, &context)) {
-                        struct gram_pack_error packerr = { 0 };
-
-                        if (gram_pack(&packerr, &spec, gram_symtab(&context))) {
-                            print_gram_parser_spec(stdout, &spec);
-                            free_gram_parser_spec(&spec);
-                            free_gram_parse_context(&context);
-                            return EXIT_SUCCESS;
-                        }
-
-                        print_gram_pack_error(stderr, packerr);
-                        free_gram_parser_spec(&spec);
-                        free_gram_parse_context(&context);
-                        return EXIT_FAILURE;
-                    }
-                }
-
-                print_gram_parse_error(stderr, parserr);
                 free_gram_parse_context(&context);
                 return EXIT_FAILURE;
             }

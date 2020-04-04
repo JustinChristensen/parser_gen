@@ -4,6 +4,7 @@ id              /{alpha_}{alnum_}*/
 regex           /(\\.|[^\n\/])*/
 char            /'(\\.|[^'])'/
 string          /"(\\.|[^"])*"/
+foo          /"(\\.|[^"])*"/
 
 ---
 parser_spec  = pattern_defs grammar;
@@ -20,4 +21,5 @@ rhses        = rhs rhses | $empty;
 rhs          = id
              | char
              | string
+             | "$end"
              | "$empty";

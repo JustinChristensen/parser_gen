@@ -7,24 +7,20 @@
 #include <base/array.h>
 #include <base/hash_table.h>
 #include <regex/nfa.h>
-#include "gram/pack.h"
+#include "gram/spec.h"
 
-/*
-parser_spec       = pattern_defs grammar eof;
-pattern_defs      = pattern_def pattern_defs { += pattern_def } { pattern_defs_head } | $empty;
-pdef_flags        = '@' | '-' | $empty;
-pattern_def       = pdef_flags id regex { pattern_def };
-grammar           = "---" rules | $empty;
-rules             = rule rules { += rule } { rules_head } | $empty;
-rule              = id '=' alt alts { += alt } { rule  } ';';
-alts              = '|' alt alts { += alt } { alts_head } | $empty;
-alt               = rhs rhses { +=rhs } { alt };
-rhses             = rhs rhses { += rhs } { rhses_head } | $empty;
-rhs               = id { id_rhs(lexeme) }
-                  | char { char_rhs(lexeme) }
-                  | string { string_rhs(lexeme) }
-                  | "$empty" { empty };
-*/
+enum gram_symbol_entry_type {
+    GM_SYMBOL_ENTRY,
+    GM_PATTERN_ENTRY
+};
+
+struct gram_symbol_entry {
+    enum gram_symbol_entry_type type;
+    struct gram_symbol s;
+    struct regex_loc first_loc;
+    bool defined;
+    int nrules;
+};
 
 enum gram_parser_symbol {
     GM_ERROR,
@@ -60,18 +56,31 @@ enum gram_parser_symbol {
 enum gram_parse_error_type {
     GM_PARSER_SYNTAX_ERROR,
     GM_PARSER_OOM_ERROR,
+    GM_PARSER_PATTERN_DEFINED_ERROR,
+    GM_PARSER_DUPLICATE_PATTERN_ERROR,
+    GM_PARSER_NONTERM_DEFINED_AS_TERM_ERROR,
+    GM_PARSER_SYMBOL_NOT_DEFINED_ERROR,
+        GM_PARSER_SYMBOL_NOT_DERIVABLE_ERROR,
+        GM_PARSER_MISSING_ACCEPTING_RULE,
+        GM_PARSER_MULTIPLE_ACCEPTING_RULES,
     GM_PARSER_SCANNER_ERROR
 };
 
 struct gram_parse_error {
     enum gram_parse_error_type type;
     union {
+        // syntax error, pattern defined, nonterm defined as term,
+        // symbol not defined
         struct {
-            enum gram_parser_symbol actual;
             struct regex_loc loc;
-            enum gram_parser_symbol *expected;
+            union {
+                struct { char *id; struct regex_loc prev_loc; };
+                struct { enum gram_parser_symbol actual; enum gram_parser_symbol *expected; };
+            };
         };
+        // oom
         struct { char *file; int col; };
+        // scanner error
         struct regex_error scanerr;
     };
 };
@@ -79,8 +88,6 @@ struct gram_parse_error {
 struct gram_parse_context {
     struct hash_table *symtab;
     struct gram_stats stats;
-
-    struct gram_symbol *current_rule;
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_parser_symbol sym;
@@ -97,7 +104,6 @@ bool gram_parse(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
     char *input, struct gram_parse_context *context
 );
-struct hash_table *gram_symtab(struct gram_parse_context const *context);
 void free_gram_parse_context(struct gram_parse_context *context);
 void print_gram_parse_error(FILE *handle, struct gram_parse_error error);
 void print_gram_tokens(FILE *handle, char *spec);

@@ -42,7 +42,7 @@ static bool is_empty_rhs(struct gram_rhs *rhs) {
     return rhs == NULL || (rhs->type == GM_EMPTY_RHS && rhs->next == NULL);
 }
 
-static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats, unsigned int **rps) {
+static bool pack_symbols(unsigned int **rps, struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats) {
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
@@ -77,6 +77,32 @@ static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
     return true;
 }
 
+static bool pack_patterns(int *ntpatterns, struct regex_pattern *patterns, struct hash_table *symtab, struct gram_parser_spec *spec) {
+    struct regex_pattern *pat = patterns;
+    struct gram_pattern_def *pdef = NULL;
+    for (pdef = spec->pdefs; pdef; pdef = pdef->next) {
+        int sym = 0;
+        if (pdef->tag_only) {
+            sym = RX_TAG_ONLY;
+            (*ntpatterns)++;
+        } else if (pdef->skip) {
+            sym = RX_SKIP;
+            (*ntpatterns)++;
+        } else {
+            sym = detnum(htlookup(pdef->id, symtab), spec->stats);
+        }
+
+        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
+            return false;
+
+        strip_quotes(pat->pattern);
+
+        pat++;
+    }
+
+    return true;
+}
+
 bool gram_pack(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
     struct gram_parse_context *context
@@ -103,46 +129,20 @@ bool gram_pack(
     unsigned int **rules = calloc(stats.rules + 2, sizeof *rules);
     if (!rules) return oom_error(error, patterns, symbols);
 
-    // rules positions
-    // FIXME: because rules may not be contiguous in the spec file
-    // this tracks the current position in each derives list
-    // a few options:
-    // 1. preprocess the AST to merge all rules sharing the same lhs
-    //      a. or make the parser do this up front
-    // 2. store these pointers in the packed symbol list
+    // nonterm rules positions
     unsigned int **rps = calloc(stats.nonterms, sizeof *rps);
 
     if (!rps) goto oom;
 
     // pack the symbols
-    if (!pack_symbols(symbols, symtab, stats, rps))
+    if (!pack_symbols(rps, symbols, symtab, stats))
         goto oom;
 
-    // count the number of pattern terms to compute offsets
-    // when traversing the AST
-    int pattern_terms = 0;
-
-    // pack the pattern definitions
-    struct regex_pattern *pat = patterns;
-    struct gram_pattern_def *pdef = NULL;
-    for (pdef = spec->pdefs; pdef; pdef = pdef->next) {
-        int sym = 0;
-        if (pdef->tag_only) {
-            sym = RX_TAG_ONLY;
-        } else if (pdef->skip) {
-            sym = RX_SKIP;
-        } else {
-            sym = detnum(htlookup(pdef->id, symtab), stats);
-            pattern_terms++;
-        }
-
-        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
-            goto oom;
-
-        strip_quotes(pat->pattern);
-
-        pat++;
-    }
+    // count the number of non-pattern terms to add as an offset
+    // when indexing the patterns table in the below AST loop
+    int ntpatterns = 0;
+    if (!pack_patterns(&ntpatterns, patterns, symtab, spec))
+        goto oom;
 
     int rn = 1; // rule number, for nonterm rules in symbols (rule #0 reserved)
     unsigned int **r = &rules[1];
@@ -151,12 +151,12 @@ bool gram_pack(
         // for adding rules to the non-terminal's "derives" list (rules)
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
         int nti = detnum(ntsym, stats);
-        unsigned int *rp = rps[ntsym->s.num];
+        ;
 
         struct gram_alt *alt = rule->alts;
 
         for (; alt; rn++, alt = alt->next) {
-            *rp++ = rn;
+            *rps[ntsym->s.num]++ = rn;
             struct gram_rhs *rhs = alt->rhses;
 
             // if an alt contains only $empty, mark the non-terminal as nullable
@@ -183,8 +183,8 @@ bool gram_pack(
 
                 // add pattern
                 if (rhs->type == GM_CHAR_RHS || rhs->type == GM_STRING_RHS) {
-                    // N pattern terminals + M grammar terminals + reserved terminals #0/1
-                    if (!pack_rhs_pattern(&pat[sym - pattern_terms - 2], sym, rhs->str))
+                    // sym num + num non-terminal patterns (skip/to) + reserved terminals 0 and eof
+                    if (!pack_rhs_pattern(&patterns[sym + ntpatterns - 2], sym, rhs->str))
                         goto oom;
                 }
             }

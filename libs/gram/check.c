@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include <base/hash_table.h>
 #include <regex/base.h>
 #include "gram/check.h"
@@ -31,14 +32,8 @@ static bool missing_start_rule_error(struct gram_parse_error *error) {
 }
 
 static bool entry_not_defined(struct gram_symbol_entry *entry) {
+    assert(entry != NULL);
     return entry->type == GM_SYMBOL_ENTRY && !entry->defined;
-}
-
-static bool is_eof_entry(struct gram_symbol_entry *entry) {
-    return
-        entry->type == GM_SYMBOL_ENTRY &&
-        entry->s.type == GM_TERM &&
-        entry->s.num == GM_EOF_NUM;
 }
 
 bool gram_check(struct gram_parse_error *error,
@@ -49,31 +44,34 @@ bool gram_check(struct gram_parse_error *error,
 
     struct hash_table *symtab = context->symtab;
 
+    // FIXME: check reachability of symbols from the start rule
+
     bool eof_seen = false;
-
-    struct hash_iterator it = hash_iterator(symtab);
-    char *key = NULL;
-    struct gram_symbol_entry *sym = NULL;
-    while ((sym = htnext(&key, &it))) {
-        if (entry_not_defined(sym))
-            return symbol_not_defined_error(error, key, sym->first_loc);
-
-        if (is_eof_entry(sym)) eof_seen = true;
+    struct gram_rule *rule = NULL;
+    for (rule = spec->prules; rule; rule = rule->next) {
+        struct gram_alt *alt = NULL;
+        for (alt = rule->alts; alt; alt = alt->next) {
+            struct gram_rhs *rhs = NULL;
+            for (rhs = alt->rhses; rhs; rhs = rhs->next) {
+                switch (rhs->type) {
+                    case GM_ID_RHS:
+                    case GM_CHAR_RHS:
+                    case GM_STRING_RHS:
+                        if (entry_not_defined(htlookup(rhs->str, symtab)))
+                            return symbol_not_defined_error(error, rhs->str, rhs->loc);
+                        break;
+                    case GM_EOF_RHS:
+                        eof_seen = true;
+                        break;
+                    case GM_EMPTY_RHS:
+                        break;
+                }
+            }
+        }
     }
 
-    if (!eof_seen)
+    if (spec->prules && !eof_seen)
         return missing_start_rule_error(error);
-
-    // FIXME: check reachability of symbols from the start rule
-    // struct gram_rule *rule = NULL;
-    // for (rule = spec->prules; rule; rule = rule->next) {
-    //     struct gram_alt *alt = NULL;
-    //     for (alt = rule->alts; alt; alt = alt->next) {
-    //         struct gram_rhs *rhs = NULL;
-    //         for (rhs = alt->rhses; rhs; rhs = rhs->next) {
-    //         }
-    //     }
-    // }
 
     spec->type = GM_CHECKED_SPEC;
 

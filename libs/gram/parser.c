@@ -351,6 +351,8 @@ bool
 gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_parse_context *context) {
     struct nfa_match match = { 0 };
 
+    prod(error, ((struct gram_parse_error) { 0 }));
+
     if (nfa_start_match(input, &match, &context->scanner)) {
         htclear(context->symtab);
         context->stats = start_stats();

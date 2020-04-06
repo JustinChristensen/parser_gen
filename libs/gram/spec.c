@@ -414,9 +414,12 @@ void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec) {
     }
 }
 
-#define STATS_FMT "patterns: %d\nterms: %d\nnonterms: %d\nsymbols: %d\nrules: %d\n"
+#define STATS_TITLE_FMT "stats:\n"
+#define STATS_FMT "  patterns: %d\n  terms: %d\n  nonterms: %d\n  symbols: %d\n  rules: %d\n"
 void print_gram_stats(FILE *handle, struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
+    fprintf(handle, STATS_TITLE_FMT);
     fprintf(handle, STATS_FMT, stats.patterns, stats.terms, stats.nonterms,
         stats.symbols, stats.rules);
+    fprintf(handle, "\n");
 }

@@ -21,7 +21,16 @@ void assert_gram_packed_spec(struct gram_parser_spec const *spec) {
     assert(spec->rules != NULL);
     assert(spec->rules[0] == NULL);
 }
+
+void assert_gram_sym_index(unsigned int i, struct gram_stats stats) {
+    assert(i >= 1 && i <= stats.symbols);
+}
 #endif
+
+static struct gram_stats nsymbols(struct gram_stats stats) {
+    stats.symbols = stats.terms + stats.nonterms;
+    return stats;
+}
 
 struct gram_parser_spec gram_parsed_spec(
     struct gram_pattern_def *pdefs, struct gram_rule *rules,
@@ -30,18 +39,18 @@ struct gram_parser_spec gram_parsed_spec(
     return (struct gram_parser_spec) {
         GM_PARSED_SPEC,
         .pdefs = pdefs, .prules = rules,
-        .start_rule = start_rule, .stats = stats
+        .start_rule = start_rule, .stats = nsymbols(stats)
     };
 }
 
 struct gram_parser_spec gram_packed_spec(
     struct regex_pattern *patterns, struct gram_symbol *symbols,
-    int **rules, int start_rule, struct gram_stats stats
+    unsigned int **rules, unsigned int start_rule, struct gram_stats stats
 ) {
     return (struct gram_parser_spec) {
         GM_PACKED_SPEC,
         .patterns = patterns, .symbols = symbols, .rules = rules,
-        .start_rule = start_rule, .stats = stats
+        .start_rule = start_rule, .stats = nsymbols(stats)
     };
 }
 
@@ -219,9 +228,9 @@ static void free_symbols(struct gram_symbol *symbols) {
     free(symbols);
 }
 
-static void free_rules(int **rules) {
+static void free_rules(unsigned int **rules) {
     if (!rules) return;
-    int **r = &rules[1];
+    unsigned int **r = &rules[1];
     while (*r) free(*r), r++;
     free(rules);
 }
@@ -320,7 +329,7 @@ static void print_parsed_spec(FILE *handle, struct gram_parser_spec const *spec)
 #define PATTERNS_TITLE_FMT "patterns:\n"
 #define PATTERNS_HEADER_FMT "  %4s  %s\n"
 #define SYMBOLS_TITLE_FMT "symbols:\n"
-#define SYMBOLS_HEADER_FMT "  %4s  %-7s  %s\n"
+#define SYMBOLS_HEADER_FMT "  %4s  %-7s  %-8s  %s\n"
 #define START_RULE_FMT "start rule: %d\n"
 #define RULES_TITLE_FMT "rules:\n"
 #define RULES_HEADER_FMT "  %4s  %s\n"
@@ -342,7 +351,7 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     // print packed symbols
     struct gram_symbol *sym = &spec->symbols[1];
     fprintf(handle, SYMBOLS_TITLE_FMT);
-    fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "rules");
+    fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "nullable", "rules");
     fprintf(handle, "  %4d  ---\n", 0);
     while (sym->num) {
         char *type = "nonterm";
@@ -350,12 +359,15 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
         else if (sym->type == GM_TERM)  type = "term";
 
         fprintf(handle, "  %4d  %-7s", sym->num, type);
-        if (sym->rules) {
-            int *r = sym->rules;
+
+        if (sym->type == GM_NONTERM) {
+            fprintf(handle, "  %-8s", sym->nullable ? "yes" : "no");
+            unsigned int *r = sym->rules;
             fprintf(handle, "  %d", *r++);
             while (*r)
                 fprintf(handle, ", %d", *r), r++;
         }
+
         fprintf(handle, "\n");
         sym++;
     }
@@ -364,13 +376,13 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     fprintf(handle, START_RULE_FMT, spec->start_rule);
 
     // print packed rules
-    int **rule = &spec->rules[1];
+    unsigned int **rule = &spec->rules[1];
     fprintf(handle, RULES_TITLE_FMT);
     fprintf(handle, RULES_HEADER_FMT, "rule", "symbols");
     fprintf(handle, "  %4d  %s\n", 0, "---");
     int r = 1;
     while (*rule) {
-        int *s = *rule;
+        unsigned int *s = *rule;
 
         fprintf(handle, "  %4d", r);
 
@@ -402,3 +414,9 @@ void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec) {
     }
 }
 
+#define STATS_FMT "patterns: %d\nterms: %d\nnonterms: %d\nsymbols: %d\nrules: %d\n"
+void print_gram_stats(FILE *handle, struct gram_parser_spec const *spec) {
+    struct gram_stats stats = spec->stats;
+    fprintf(handle, STATS_FMT, stats.patterns, stats.terms, stats.nonterms,
+        stats.symbols, stats.rules);
+}

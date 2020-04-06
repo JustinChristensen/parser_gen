@@ -42,7 +42,7 @@ static bool is_empty_rhs(struct gram_rhs *rhs) {
     return rhs == NULL || (rhs->type == GM_EMPTY_RHS && rhs->next == NULL);
 }
 
-static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats, int **rps) {
+static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats, unsigned int **rps) {
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
@@ -54,7 +54,7 @@ static bool pack_symbols(struct gram_symbol *symbols, struct hash_table *symtab,
 
         if (sym->s.type == GM_NONTERM && sym->nrules) {
             // allocate space for the symbol's derived rules +1 for 0 end marker
-            int *rules = calloc(sym->nrules + 1, sizeof *rules);
+            unsigned int *rules = calloc(sym->nrules + 1, sizeof *rules);
             rps[sym->s.num] = rules;
             symbols[i].rules = rules;
             // gram_pack frees resources
@@ -100,7 +100,7 @@ bool gram_pack(
     if (!symbols) return oom_error(error, patterns);
 
     // terminated by NULL, indexed by rule number, and rule #0 reserved
-    int **rules = calloc(stats.rules + 2, sizeof *rules);
+    unsigned int **rules = calloc(stats.rules + 2, sizeof *rules);
     if (!rules) return oom_error(error, patterns, symbols);
 
     // rules positions
@@ -110,7 +110,7 @@ bool gram_pack(
     // 1. preprocess the AST to merge all rules sharing the same lhs
     //      a. or make the parser do this up front
     // 2. store these pointers in the packed symbol list
-    int **rps = calloc(stats.nonterms, sizeof *rps);
+    unsigned int **rps = calloc(stats.nonterms, sizeof *rps);
 
     if (!rps) goto oom;
 
@@ -145,30 +145,34 @@ bool gram_pack(
     }
 
     int rn = 1; // rule number, for nonterm rules in symbols (rule #0 reserved)
-    int **r = &rules[1];
+    unsigned int **r = &rules[1];
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         // for adding rules to the non-terminal's "derives" list (rules)
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
-        int *rp = rps[ntsym->s.num];
+        int nti = detnum(ntsym, stats);
+        unsigned int *rp = rps[ntsym->s.num];
 
         struct gram_alt *alt = rule->alts;
-
-        if (!alt || is_empty_rhs(alt->rhses)) {
-            if ((*r++ = calloc(1, sizeof *r)) == NULL)
-                goto oom;
-            *rp++ = rn;
-            continue;
-        }
 
         for (; alt; rn++, alt = alt->next) {
             *rp++ = rn;
             struct gram_rhs *rhs = alt->rhses;
 
+            // if an alt contains only $empty, mark the non-terminal as nullable
+            //  and allocate a zero rule
+            if (is_empty_rhs(rhs)) {
+                if ((*r++ = calloc(1, sizeof *r)) == NULL)
+                    goto oom;
+                symbols[nti].nullable = true;
+                continue;
+            }
+
+            // otherwise, continue as normal
             if ((*r = calloc(rhs->n + 1, sizeof **r)) == NULL)
                 goto oom;
 
-            int *s = *r;
+            unsigned int *s = *r;
             for (; rhs; rhs = rhs->next) {
                 if (rhs->type == GM_EMPTY_RHS) continue;
 

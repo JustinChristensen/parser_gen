@@ -1,0 +1,20 @@
+Context Free Grammar Properties/Notes/Etc
+
+https://en.wikipedia.org/wiki/Context-free_grammar
+
+A formal grammar that is "context free" in the sense that it's production rules can be applied regardless of the
+context of a given nonterminal. That is,
+
+aBc     iBk         B
+
+The non-terminal B derives the same language regardless of which symbols, a, c, i, and k, surround it.
+
+This stands in opposition to a "Context-Sensitive Grammar"
+
+Derivations:
+
+LL (Left to Right, Leftmost Derivation)
+LR (Left to Right, Rightmost Derivation)
+
+Suitability for parsing:
+

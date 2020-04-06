@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <base/args.h>
+#include <base/intset.h>
+#include <gram/analyze.h>
 #include <gram/parser.h>
 
 enum command_key {
     GEN_PARSER,
+    ANALYZE,
     SCAN,
     PARSE
 };
@@ -60,6 +63,7 @@ int main(int argc, char *argv[]) {
         ARGS { help_and_version_args, END_ARGS },
         NULL,
         CMDS {
+            { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
             END_CMDS
@@ -82,14 +86,22 @@ int main(int argc, char *argv[]) {
 
             if (args.cmd == SCAN) {
                 print_gram_tokens(stdout, contents);
-            } else if (args.cmd == PARSE) {
+            } else {
                 struct gram_parse_context context = { 0 };
                 struct gram_parse_error error = { 0 };
 
                 if (gram_parse_context(&error, &context)) {
                     struct gram_parser_spec spec = { 0 };
                     if (gram_parse(&error, &spec, contents, &context)) {
+                        if (args.cmd == ANALYZE) {
+                            print_gram_stats(stdout, &spec);
+                            struct intset **firsts = gram_firsts(&spec);
+                            print_gram_firsts(stdout, firsts, &spec);
+                            free_gram_firsts(firsts, &spec);
+                        }
+
                         print_gram_parser_spec(stdout, &spec);
+
                         free_gram_parser_spec(&spec);
                         free_gram_parse_context(&context);
                         return EXIT_SUCCESS;

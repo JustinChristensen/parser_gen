@@ -1,0 +1,73 @@
+filename: example_spec_file.pspec, size: 664
+patterns:
+   num  pattern
+    -3  \/\/[^\n]*\n
+    -3  {space}+
+     2  {alpha_}{alnum_}*
+     3  (\\.|[^\n\/])*
+     4  '(\\.|[^'])'
+     5  "(\\.|[^"])*"
+     6  @
+     7  -
+     8  ---\n
+     9  =
+    10  ;
+    11  |
+    12  $eof
+    13  $empty
+
+symbols:
+   num  type     rules
+     0  ---
+     1  eof
+     2  term
+     3  term
+     4  term
+     5  term
+     6  term
+     7  term
+     8  term
+     9  term
+    10  term
+    11  term
+    12  term
+    13  term
+    14  nonterm  1
+    15  nonterm  2, 3
+    16  nonterm  7, 8
+    17  nonterm  4
+    18  nonterm  5, 6
+    19  nonterm  9, 10
+    20  nonterm  11
+    21  nonterm  14
+    22  nonterm  12, 13
+    23  nonterm  17, 18, 19, 20, 21
+    24  nonterm  15, 16
+
+start rule: 1
+rules:
+  rule  symbols
+     0  ---
+     1  15, 16, 1
+     2  17, 15
+     3
+     4  18, 2, 3
+     5  6
+     6  7
+     7  8, 19
+     8
+     9  20, 19
+    10
+    11  2, 9, 21, 22, 10
+    12  11, 21, 22
+    13
+    14  23, 24
+    15  23, 24
+    16
+    17  2
+    18  4
+    19  5
+    20  12
+    21  13
+
+

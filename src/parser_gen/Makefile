@@ -8,3 +8,6 @@ include $(TOPDIR)/make/common_targets.mk
 
 $(PROG): main.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
+
+# heap profiling
+# valgrind --tool=massif --stacks=yes --massif-out-file=massif.out ./parser_gen parse example_spec_file.pspec && ms_print massif.out

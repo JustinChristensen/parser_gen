@@ -11,4 +11,3 @@ bool gram_pack(
 
 #endif // GRAM_PACK_H_
 
-

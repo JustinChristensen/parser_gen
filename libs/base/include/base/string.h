@@ -18,5 +18,6 @@ void indent(int n);
 void printstr(char const *s);
 char *safedup(char const *s);
 void strip_quotes(char *s);
+char const *yesno(bool x);
 
 #endif // BASE_STRING_H_

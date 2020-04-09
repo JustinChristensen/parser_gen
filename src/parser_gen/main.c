@@ -93,14 +93,14 @@ int main(int argc, char *argv[]) {
                 if (gram_parse_context(&error, &context)) {
                     struct gram_parser_spec spec = { 0 };
                     if (gram_parse(&error, &spec, contents, &context)) {
-                        if (args.cmd == ANALYZE) {
-                            print_gram_stats(stdout, &spec);
-                            struct intset **firsts = gram_firsts(&spec);
-                            print_gram_firsts(stdout, firsts, &spec);
-                            free_gram_firsts(firsts, &spec);
-                        }
-
                         print_gram_parser_spec(stdout, &spec);
+
+                        if (args.cmd == ANALYZE) {
+                            print_gram_stats(stdout, spec.stats);
+                            bool *nullable = gram_nullable(&spec);
+                            print_gram_nullable(stdout, nullable, spec.stats);
+                            free(nullable);
+                        }
 
                         free_gram_parser_spec(&spec);
                         free_gram_parse_context(&context);

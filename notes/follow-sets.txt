@@ -1,15 +1,17 @@
--line_comment   /\/\/[^\n]*\n/
--whitespace     /{space}+/
-id              /{alpha_}{alnum_}*/
-regex           /(\\.|[^\n\/])*/
-char            /'(\\.|[^'])'/
-string          /"(\\.|[^"])*"/
+FOLLOW(parser_spec) = {}
+FOLLOW(pattern_defs) = { SECTION, EOF }
 
----
-parser_spec  = pattern_defs grammar;
+ParserSpec  -> PatternDefs Grammar Eof.
+PatternDefs -> PatternDef PatternDefs | .
+PatternDef  -> PdefMod id regex .
+PdefMod     -> tag_only | skip .
+Grammar     -> section | .
+
+
+parser_spec  = pattern_defs grammar $eof;
 pattern_defs = pattern_def pattern_defs | $empty;
 pattern_def  = pdef_mod id regex;
-pdef_mod     = '@' | '-' | $empty;
+pdef_mod     = '@' | '-';
 grammar      = "---\n" rules | $empty;
 rules        = rule rules | $empty;
 rule         = id '=' alt alts ';';
@@ -19,5 +21,6 @@ rhses        = rhs rhses | $empty;
 rhs          = id
              | char
              | string
+             | "$eof"
              | "$empty";
 

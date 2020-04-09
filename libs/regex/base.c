@@ -66,6 +66,10 @@ struct regex_pattern regex_pattern(int sym, char *tag, char *pattern) {
     return (struct regex_pattern) { sym, tag, pattern };
 }
 
+bool regex_null_pattern(struct regex_pattern const *pattern) {
+    return pattern->pattern == NULL;
+}
+
 char const *str_for_regex_sym(enum regex_symbol type) {
     switch (type) {
         case RX_ERROR:             return "ERROR";

@@ -16,8 +16,13 @@
 
 #define debug(...) debug_ns("gram_pack", __VA_ARGS__);
 
-static int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
-    int i = sym->s.num + 1; // #0 reserved
+// symbols and rules list begins at index #1
+#define offs(n) ((n) + 1)
+// symbols, patterns, and rules are all null terminated
+#define nullterm(n) ((n) + 1)
+
+static unsigned int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
+    unsigned int i = offs(sym->s.num); // #0 reserved
 
     if (sym->s.type == GM_NONTERM)
         i += stats.terms;
@@ -38,10 +43,6 @@ static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *p
     return true;
 }
 
-static bool is_empty_rhs(struct gram_rhs *rhs) {
-    return rhs == NULL || (rhs->type == GM_EMPTY_RHS && rhs->next == NULL);
-}
-
 static bool pack_symbols(unsigned int **rps, struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats) {
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
@@ -52,13 +53,13 @@ static bool pack_symbols(unsigned int **rps, struct gram_symbol *symbols, struct
         symbols[i] = sym->s;
         symbols[i].num = i;
 
-        if (sym->s.type == GM_NONTERM && sym->nrules) {
+        if (sym->s.type == GM_NONTERM && sym->nderives) {
             // allocate space for the symbol's derived rules +1 for 0 end marker
-            unsigned int *rules = calloc(sym->nrules + 1, sizeof *rules);
-            rps[sym->s.num] = rules;
-            symbols[i].rules = rules;
+            unsigned int *derives = calloc(nullterm(sym->nderives), sizeof *derives);
+            rps[sym->s.num] = derives;
+            symbols[i].derives = derives;
             // gram_pack frees resources
-            if (!rules) return false;
+            if (!derives) return false;
         }
     }
 
@@ -118,15 +119,15 @@ bool gram_pack(
     struct gram_stats stats = spec->stats;
 
     // terminated by a null pattern
-    struct regex_pattern *patterns = calloc(stats.patterns + 1, sizeof *patterns);
+    struct regex_pattern *patterns = calloc(nullterm(stats.patterns), sizeof *patterns);
     if (!patterns) return oom_error(error, NULL);
 
     // terminated by a null symbol, indexed by symbol number, and symbol #0 reserved
-    struct gram_symbol *symbols = calloc(stats.terms + stats.nonterms + 2, sizeof (*symbols));
+    struct gram_symbol *symbols = calloc(offs(nullterm(stats.terms + stats.nonterms)), sizeof (*symbols));
     if (!symbols) return oom_error(error, patterns);
 
-    // terminated by NULL, indexed by rule number, and rule #0 reserved
-    unsigned int **rules = calloc(stats.rules + 2, sizeof *rules);
+    // indexed by rule number, rule #0 reserved, null terminated
+    unsigned int **rules = calloc(offs(nullterm(stats.rules)) + 1, sizeof *rules);
     if (!rules) return oom_error(error, patterns, symbols);
 
     // nonterm rules positions
@@ -144,32 +145,31 @@ bool gram_pack(
     if (!pack_patterns(&ntpatterns, patterns, symtab, spec))
         goto oom;
 
-    int rn = 1; // rule number, for nonterm rules in symbols (rule #0 reserved)
+    // create an empty rule
+    unsigned int const empty_rule = stats.rules + 1;
+    if (context->empty_rhs_seen &&
+       (rules[empty_rule] = calloc(1, sizeof *rules)) == NULL)
+        goto oom;
+
+    // fill in the rules lists and nonterm derives lists
+    int rn = 1;
     unsigned int **r = &rules[1];
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
-        // for adding rules to the non-terminal's "derives" list (rules)
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
-        int nti = detnum(ntsym, stats);
-        ;
-
         struct gram_alt *alt = rule->alts;
 
-        for (; alt; rn++, alt = alt->next) {
-            *rps[ntsym->s.num]++ = rn;
+        for (; alt; alt = alt->next) {
             struct gram_rhs *rhs = alt->rhses;
 
-            // if an alt contains only $empty, mark the non-terminal as nullable
-            //  and allocate a zero rule
-            if (is_empty_rhs(rhs)) {
-                if ((*r++ = calloc(1, sizeof *r)) == NULL)
-                    goto oom;
-                symbols[nti].nullable = true;
+            if (gram_rhses_empty(rhs)) {
+                *rps[ntsym->s.num]++ = empty_rule;
                 continue;
             }
 
-            // otherwise, continue as normal
-            if ((*r = calloc(rhs->n + 1, sizeof **r)) == NULL)
+            *rps[ntsym->s.num]++ = rn++;
+
+            if ((*r = calloc(nullterm(rhs->n), sizeof **r)) == NULL)
                 goto oom;
 
             unsigned int *s = *r;
@@ -183,8 +183,8 @@ bool gram_pack(
 
                 // add pattern
                 if (rhs->type == GM_CHAR_RHS || rhs->type == GM_STRING_RHS) {
-                    // sym num + num non-terminal patterns (skip/to) + reserved terminals 0 and eof
-                    if (!pack_rhs_pattern(&patterns[sym + ntpatterns - 2], sym, rhs->str))
+                    // sym num + num non-terminal patterns (skip/to) + reserved symbol 0
+                    if (!pack_rhs_pattern(&patterns[sym + ntpatterns - 1], sym, rhs->str))
                         goto oom;
                 }
             }
@@ -196,7 +196,7 @@ bool gram_pack(
     free(rps);
 
     free_gram_parser_spec(spec);
-    *spec = gram_packed_spec(patterns, symbols, rules, spec->start_rule + 1, stats);
+    *spec = gram_packed_spec(patterns, symbols, rules, stats);
 
     return true;
 oom:

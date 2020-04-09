@@ -61,3 +61,7 @@ void strip_quotes(char *s) {
     }
     s[i] = '\0';
 }
+
+char const *yesno(bool x) {
+    return x ? "yes" : "no";
+}

@@ -591,10 +591,6 @@ static void reset_context(struct nfa_context *context) {
     };
 }
 
-static bool is_null_pattern(struct regex_pattern const *pattern) {
-    return pattern->pattern == NULL;
-}
-
 static bool (*const nfa_actions[])(union regex_result val, struct nfa_context *context) = {
     [AI(RX_DO_REGEX)] =        noop_nfa,
     [AI(RX_DO_EMPTY)] =        do_empty_nfa,
@@ -653,7 +649,7 @@ bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *conte
 
     bool success = true;
 
-    while (!is_null_pattern(pat) && success) {
+    while (!regex_null_pattern(pat) && success) {
         success = nfa_regex(pat->sym, pat->tag, pat->pattern, context);
         pat++;
     }

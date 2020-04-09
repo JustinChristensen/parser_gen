@@ -4,15 +4,13 @@
 #include <stdbool.h>
 #include <regex/base.h>
 
-#define GM_EMPTY_TOKEN  "$empty"
-#define GM_EOF_TOKEN    "$eof"
-#define GM_EOF_NUM      0
-
-#define GM_END_PATTERN  { 0 }
+#define GM_EMPTY_TOKEN "$empty"
+#define GM_END_PATTERN { 0 }
 #define GM_START_SYMBOL { 0 }
-#define GM_END_SYMBOL   { 0 }
-#define GM_START_RULE   NULL
-#define GM_END_RULE     NULL
+#define GM_END_SYMBOL { 0 }
+#define GM_START_RULE NULL
+#define GM_END_RULE NULL
+#define GM_RULE_0 1
 
 enum gram_symbol_type {
     GM_TERM,
@@ -21,11 +19,10 @@ enum gram_symbol_type {
 
 struct gram_symbol {
     enum gram_symbol_type type;
-    int num;
-    bool nullable;
+    unsigned int num;
     union {
         struct {
-            unsigned int *rules;  // nonterm derives
+            unsigned int *derives;
         };
     };
 };
@@ -57,7 +54,6 @@ struct gram_parser_spec {
             unsigned int **rules;
         };
     };
-    int start_rule;
     struct gram_stats stats;
 };
 
@@ -90,7 +86,6 @@ enum gram_rhs_type {
     GM_ID_RHS,
     GM_CHAR_RHS,
     GM_STRING_RHS,
-    GM_EOF_RHS,
     GM_EMPTY_RHS
 };
 
@@ -104,19 +99,13 @@ struct gram_rhs {
     size_t n;
 };
 
-#ifdef INVARIANTS
-void assert_gram_parsed_spec(struct gram_parser_spec const *spec);
-void assert_gram_packed_spec(struct gram_parser_spec const *spec);
-void assert_gram_sym_index(unsigned int i, struct gram_stats stats);
-#endif
-
 struct gram_parser_spec gram_parsed_spec(
-    struct gram_pattern_def *pdefs, struct gram_rule *rules,
-    int start_rule, struct gram_stats stats
+    struct gram_pattern_def *pdefs, struct gram_rule *prules,
+    struct gram_stats stats
 );
 struct gram_parser_spec gram_packed_spec(
-    struct regex_pattern *patterns, struct gram_symbol *symbols, unsigned int **rules,
-    unsigned int start_rule, struct gram_stats stats
+    struct regex_pattern *patterns, struct gram_symbol *symbols,
+    unsigned int **rules, struct gram_stats stats
 );
 struct gram_pattern_def *init_gram_pattern_def(
     struct regex_loc loc,
@@ -129,8 +118,9 @@ struct gram_alt *init_gram_alt(struct regex_loc loc, struct gram_rhs *rhses, str
 struct gram_rhs *init_id_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_char_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_string_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
-struct gram_rhs *init_eof_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
 struct gram_rhs *init_empty_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
+
+bool gram_rhses_empty(struct gram_rhs *rhses);
 
 void free_gram_parser_spec(struct gram_parser_spec *spec);
 void free_gram_pattern_def(struct gram_pattern_def *pdef);
@@ -138,8 +128,14 @@ void free_gram_rule(struct gram_rule *rule);
 void free_gram_alt(struct gram_alt *alt);
 void free_gram_rhs(struct gram_rhs *rhs);
 
+bool gram_has_rules(struct gram_parser_spec const *spec);
+bool gram_null_symbol(struct gram_symbol const *sym);
+struct gram_symbol *gram_term0(struct gram_parser_spec const *spec);
+struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec);
+struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec);
+unsigned int **gram_rule0(struct gram_parser_spec const *spec);
+
 void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec);
-void print_gram_stats(FILE *handle, struct gram_parser_spec const *spec);
 
 #endif // GRAM_AST_H_
 

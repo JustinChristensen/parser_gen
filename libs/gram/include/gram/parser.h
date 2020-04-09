@@ -20,7 +20,7 @@ struct gram_symbol_entry {
     struct gram_symbol s;
     struct regex_loc first_loc;
     bool defined;
-    int nrules;
+    int nderives;
 };
 
 enum gram_parser_symbol {
@@ -38,7 +38,6 @@ enum gram_parser_symbol {
     GM_CHAR_T,
     GM_STRING_T,
     GM_EMPTY_T,
-    GM_END_T,
     GM_ID_T,
 
     // non-terminals
@@ -61,8 +60,9 @@ enum gram_parse_error_type {
     GM_PARSER_DUPLICATE_PATTERN_ERROR,
     GM_PARSER_NONTERM_DEFINED_AS_TERM_ERROR,
     GM_PARSER_SYMBOL_NOT_DEFINED_ERROR,
-    GM_PARSER_MISSING_START_RULE_ERROR,
-    GM_PARSER_MULTIPLE_EOF_ERROR,
+    // https://en.wikipedia.org/wiki/Useless_rules
+    // GM_PARSER_UNREACHABLE_SYMBOLS_ERROR,
+    // GM_PARSER_UNPRODUCTIVE_SYMBOLS_ERROR,
     GM_PARSER_SCANNER_ERROR
 };
 
@@ -87,8 +87,9 @@ struct gram_parse_error {
 
 struct gram_parse_context {
     struct hash_table *symtab;
-    unsigned int start_rule;
     struct gram_stats stats;
+    bool empty_rhs_seen;
+
     struct nfa_context scanner;
     struct nfa_match match;
     enum gram_parser_symbol sym;

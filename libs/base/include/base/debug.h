@@ -10,9 +10,9 @@
 #endif
 
 #ifdef INVARIANTS
-#define invariants(fn, ...) ((void) 0)
+#define invariant(fn, ...) fn(__VA_ARGS__)
 #else
-#define invariants(fn, ...) fn(__VA_ARGS__)
+#define invariant(fn, ...) ((void) 0)
 #endif
 
 bool debug_is(char const *ns);

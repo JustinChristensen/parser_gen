@@ -2,6 +2,7 @@
 #define BASE_INTSET_H_ 1
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "base/array.h"
@@ -63,7 +64,7 @@ bool snull(struct intset const *set);
 size_t ssize(struct intset const *set);
 size_t streesize(struct intset const *set);
 size_t streedepth(struct intset const *set);
-void print_intset(struct intset const *set);
+void print_intset(FILE *handle, struct intset const *set);
 void print_intset_tree(struct intset const *set);
 void free_siterator(struct intset_iterator *it);
 void free_intset(struct intset *set);

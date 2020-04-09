@@ -9,6 +9,11 @@
 #include <base/macros.h>
 #include "suites.h"
 
+static void _print_intset(struct intset *set) {
+    print_intset(stdout, set);
+    printf("\n");
+}
+
 struct intset *set = NULL;
 
 void assert_branch(struct intset const *set) {
@@ -222,7 +227,7 @@ START_TEST(test_snext) {
 
     printf("snext:\n");
     print_intset_tree(set);
-    print_intset(set);
+    _print_intset(set);
 
     int x;
     ck_assert(snext(&x, &it));
@@ -269,9 +274,9 @@ START_TEST(test_sintersection) {
     ck_assert_int_eq(ssize(set3), 3);
 
     printf("sintersection:\n");
-    print_intset(set);
-    print_intset(set2);
-    print_intset(set3);
+    _print_intset(set);
+    _print_intset(set2);
+    _print_intset(set3);
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -307,9 +312,9 @@ START_TEST(test_sintersection_props) {
 
     printf("intersection_props:\n");
     printf("expected:\n");
-    print_intset(set2);
+    _print_intset(set2);
     printf("got:\n");
-    print_intset(set3);
+    _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
 
@@ -330,9 +335,9 @@ START_TEST(test_sunion) {
     ck_assert_int_eq(ssize(set3), 9);
 
     printf("sunion:\n");
-    print_intset(set);
-    print_intset(set2);
-    print_intset(set3);
+    _print_intset(set);
+    _print_intset(set2);
+    _print_intset(set3);
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -381,13 +386,13 @@ START_TEST(test_sdifference) {
         *set2 = sfromlist(ys, SIZEOF(ys));
 
     printf("sdifference:\n");
-    print_intset(set1);
-    print_intset(set2);
+    _print_intset(set1);
+    _print_intset(set2);
 
     struct intset *set3 = sdifference(set1, set2);
 
     print_intset_tree(set3);
-    print_intset(set3);
+    _print_intset(set3);
 
     struct intset_iterator it;
     ck_assert(siterator(set3, &it));
@@ -426,9 +431,9 @@ START_TEST(test_sdifference_props) {
 
     printf("difference_props:\n");
     printf("expected:\n");
-    print_intset(set2);
+    _print_intset(set2);
     printf("got:\n");
-    print_intset(set3);
+    _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
 
@@ -453,9 +458,9 @@ START_TEST(test_sdifference_props_xl) {
 
     printf("difference_props_xl:\n");
     printf("expected:\n");
-    print_intset(set2);
+    _print_intset(set2);
     printf("got:\n");
-    print_intset(set3);
+    _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
 
@@ -476,8 +481,8 @@ START_TEST(test_sdisjoint) {
     set2 = sinsert(901, set2);
 
     printf("sdisjoint:\n");
-    print_intset(set);
-    print_intset(set2);
+    _print_intset(set);
+    _print_intset(set2);
 
     ck_assert(sdisjoint(set, set2));
 
@@ -547,7 +552,7 @@ END_TEST
 START_TEST(test_print_intset) {
     add_elements();
     printf("print_intset:\n");
-    print_intset(set);
+    _print_intset(set);
 }
 END_TEST
 

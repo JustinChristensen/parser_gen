@@ -21,70 +21,86 @@ void print_gram_stats(FILE *handle, struct gram_stats const stats) {
     fprintf(handle, "\n");
 }
 
-// static bool rule_first(bool *added, struct intset **set, unsigned int r, struct gram_parser_spec *spec);
-// static bool symbol_first(bool *added, struct intset **set, unsigned int i, struct gram_parser_spec *spec);
-//
-// static bool symbol_first(bool *added, struct intset **set, unsigned int i, struct gram_parser_spec *spec) {
-//     invariant(assert_symbol_index, i, spec);
-//
-//     struct gram_symbol s = spec->symbols[i];
-//
-//     if (added[i]) return s.nullable;
-//     added[i] = true;
-//
-//     if (s.type == GM_TERM) {
-//         *set = sinsert(s.num, *set);
-//     } else {
-//         unsigned int *d = s.derives;
-//         while (*d) rule_first(added, set, *d, spec), d++;
-//     }
-//
-//     return s.nullable;
-// }
-//
-// static bool rule_first(bool *added, struct intset **set, unsigned int i, struct gram_parser_spec *spec) {
-//     invariant(assert_rule_index, i, spec);
-//     unsigned int *r = spec->rules[i];
-//     while (*r && symbol_first(added, set, *r, spec)) r++;
-// }
-//
-// static struct gram_sets *alloc_sets(unsigned int symbols) {
-//     int nsets = symbols + 1;
-//     size_t ssize = sizeof (struct intset *) * nsets;
-//     struct gram_sets *sets = malloc(sizeof *sets + ssize);
-//     if (!sets) return NULL;
-//     sets->n = nsets;
-//     memset(sets->s, 0, ssize);
-//     return sets;
-// }
-//
-// struct gram_sets *gram_firsts(struct gram_parser_spec *spec) {
-//     struct gram_sets *firsts = alloc_sets(spec->stats.symbols);
-//     if (!firsts) return NULL;
-//
-//     unsigned int nsymbols = spec->stats.symbols + 1;
-//     bool *added = calloc(nsymbols, sizeof *added);
-//     if (!added) return free(firsts), NULL;
-//
-//     struct intset **sets = firsts->sets;
-//
-//     struct gram_symbol *sym = gram_symbol0(spec);
-//     while (!gram_null_symbol(sym)) {
-//         gram_sym_first(added, &sets[sym->num], sym->num, spec);
-//         memset(added, false, nsymbols);
-//         sym++;
-//     }
-//
-//     free(added);
-//
-//     return firsts;
-// }
+static void rule_first(bool *added, struct intset **set, unsigned int r, bool const *nullable, struct gram_parser_spec const *spec);
+static void symbol_first(bool *added, struct intset **set, unsigned int i, bool const *nullable, struct gram_parser_spec const *spec);
 
-static bool symbol_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec *spec);
-static bool rule_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec *spec);
+static void symbol_first(bool *added, struct intset **set, unsigned int i, bool const *nullable, struct gram_parser_spec const *spec) {
+    invariant(assert_symbol_index, i, spec);
+
+    struct gram_symbol s = spec->symbols[i];
+
+    if (added[i]) return;
+    added[i] = true;
+
+    if (s.type == GM_TERM) {
+        *set = sinsert(s.num, *set);
+    } else {
+        unsigned int *d = s.derives;
+        while (*d) rule_first(added, set, *d, nullable, spec), d++;
+    }
+    debug("computed symbol %d first set\n", i);
+}
+
+static void rule_first(bool *added, struct intset **set, unsigned int i, bool const *nullable, struct gram_parser_spec const *spec) {
+    invariant(assert_rule_index, i, spec);
+    unsigned int *r = spec->rules[i];
+    while (*r) {
+        symbol_first(added, set, *r, nullable, spec);
+        if (!nullable[*r]) break;
+        r++;
+    }
+    debug("computed rule %d first set\n", i);
+}
+
+struct intset **gram_firsts(bool const *nullable, struct gram_parser_spec const *spec) {
+    int nsymbols = spec->stats.symbols + 1;
+    struct intset **firsts = calloc(nsymbols, sizeof *firsts);
+    if (!firsts) return NULL;
+
+    bool *added = calloc(nsymbols, sizeof *added);
+    if (!added) return free(firsts), NULL;
+
+    if (gram_has_rules(spec)) {
+        struct gram_symbol *s = gram_symbol0(spec);
+        while (!gram_null_symbol(s)) {
+            symbol_first(added, &firsts[s->num], s->num, nullable, spec);
+            memset(added, false, nsymbols);
+            s++;
+        }
+    }
+
+    free(added);
+
+    return firsts;
+}
+
+void free_gram_sets(struct intset **sets, struct gram_parser_spec const *spec) {
+    if (!sets) return;
+
+    for (int i = 1; i < spec->stats.symbols + 1; i++) {
+        free_intset(sets[i]);
+    }
+
+    free(sets);
+}
+
+void print_gram_sets(FILE *handle, struct intset **sets, struct gram_parser_spec const *spec) {
+    if (!sets) return;
+
+    fprintf(handle, "  %4s  %-s\n", "num", "set");
+    for (int i = 1; i < spec->stats.symbols + 1; i++) {
+        fprintf(handle, "  %4d  ", i);
+        print_intset(handle, sets[i]);
+        fprintf(handle, "\n");
+    }
+    fprintf(handle, "\n");
+}
+
+static bool symbol_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec const *spec);
+static bool rule_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec const *spec);
 
 static bool
-symbol_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec *spec) {
+symbol_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec const *spec) {
     invariant(assert_symbol_index, i, spec);
     struct gram_symbol s = spec->symbols[i];
 
@@ -109,7 +125,7 @@ symbol_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_
 }
 
 static bool
-rule_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec *spec) {
+rule_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_spec const *spec) {
     invariant(assert_rule_index, i, spec);
     unsigned int *r = spec->rules[i];
     bool rnull = true;
@@ -123,7 +139,7 @@ rule_nullable(bool *added, bool *nullable, unsigned int i, struct gram_parser_sp
 }
 
 bool *
-gram_nullable(struct gram_parser_spec *spec) {
+gram_nullable(struct gram_parser_spec const *spec) {
     int nsyms = spec->stats.symbols + 1;
     bool *nullable = calloc(nsyms, sizeof *nullable);
     if (!nullable) return NULL;
@@ -144,33 +160,12 @@ gram_nullable(struct gram_parser_spec *spec) {
 #define NULLABLE_TITLE_FMT  "nullable:\n"
 #define NULLABLE_HEADER_FMT "  %4s  %s\n"
 #define NULLABLE_ROW_FMT    "  %4d  %s\n"
-void print_gram_nullable(FILE *handle, bool const *nullable, struct gram_stats stats) {
+void print_gram_nullable(FILE *handle, bool const *nullable, struct gram_parser_spec const *spec) {
     fprintf(handle, NULLABLE_TITLE_FMT);
     fprintf(handle, NULLABLE_HEADER_FMT, "num", "nullable");
-    for (int i = 1; i < stats.symbols + 1; i++) {
+    for (int i = 1; i < spec->stats.symbols + 1; i++) {
         fprintf(handle, NULLABLE_ROW_FMT, i, yesno(nullable[i]));
     }
     fprintf(handle, "\n");
 }
-
-// void free_gram_sets(struct gram_sets *sets) {
-//     assert(sets != NULL);
-//
-//     for (int i = 1; i < sets->n; i++) {
-//         free_intset(sets->s[i]);
-//         sets->s[i] = NULL;
-//     }
-//     free(sets);
-// }
-
-// void print_gram_sets(FILE *handle, struct gram_sets const *sets) {
-//     assert(sets != NULL);
-//
-//     fprintf(handle, "  %4s  %-s\n", "num", "set");
-//     for (int i = 1; i < sets->n; i++) {
-//         fprintf(handle, "  %4d  ", i);
-//         print_intset(sets->s[i]);
-//     }
-//     fprintf(handle, "\n");
-// }
 

@@ -98,8 +98,12 @@ int main(int argc, char *argv[]) {
                         if (args.cmd == ANALYZE) {
                             print_gram_stats(stdout, spec.stats);
                             bool *nullable = gram_nullable(&spec);
-                            print_gram_nullable(stdout, nullable, spec.stats);
+                            struct intset **firsts = gram_firsts(nullable, &spec);
+                            print_gram_nullable(stdout, nullable, &spec);
+                            printf("firsts:\n");
+                            print_gram_sets(stdout, firsts, &spec);
                             free(nullable);
+                            free_gram_sets(firsts, &spec);
                         }
 
                         free_gram_parser_spec(&spec);

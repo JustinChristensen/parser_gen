@@ -23,6 +23,7 @@ module CIntSet (
 ) where
 
 import Foreign
+import Foreign.C
 import Data.Set (Set, toList, size)
 import Data.List (genericLength)
 import Test.QuickCheck
@@ -61,7 +62,7 @@ foreign import ccall "sintersection" sintersection :: Ptr CIntSet -> Ptr CIntSet
 foreign import ccall "sdifference" sdifference :: Ptr CIntSet -> Ptr CIntSet -> IO (Ptr CIntSet)
 foreign import ccall "sdisjoint" sdisjoint :: Ptr CIntSet -> Ptr CIntSet -> IO Bool
 foreign import ccall "sfromlist" sFromList :: Ptr Int32 -> Word64 -> IO (Ptr CIntSet)
-foreign import ccall "print_intset" printIntSet :: Ptr CIntSet -> IO ()
+foreign import ccall "print_intset" printIntSet :: Ptr CFile -> Ptr CIntSet -> IO ()
 foreign import ccall "print_intset_tree" printIntSetTree :: Ptr CIntSet -> IO ()
 foreign import ccall "free_intset" freeIntSet :: Ptr CIntSet -> IO ()
 

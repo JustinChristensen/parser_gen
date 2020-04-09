@@ -570,23 +570,22 @@ size_t streedepth(struct intset const *set) {
     return _streedepth(set, 0);
 }
 
-static void _print_intset(struct intset const *set) {
+static void _print_intset(FILE *handle, struct intset const *set) {
     if (!set) return;
 
     struct intset_iterator it;
     if (siterator(set, &it)) {
         int x;
         while (snext(&x, &it)) {
-            printf("%d ", x);
+            fprintf(handle, "%d ", x);
         }
 
         free_siterator(&it);
     }
 }
 
-void print_intset(struct intset const *set) {
-    _print_intset(set);
-    printf("\n");
+void print_intset(FILE *handle, struct intset const *set) {
+    _print_intset(handle, set);
 }
 
 static void _print_intset_tree(struct intset const *set, int depth) {

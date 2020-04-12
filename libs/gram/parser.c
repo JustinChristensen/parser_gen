@@ -15,7 +15,7 @@
 #include "gram/parser.h"
 #include "gram/spec.h"
 
-#include "oom.c"
+#include "internal/oom.c"
 
 #define debug(...) debug_ns("gram_parser", __VA_ARGS__);
 

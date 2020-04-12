@@ -4,7 +4,7 @@
 #include <base/debug.h>
 #include "gram/spec.h"
 
-#include "assert.c"
+#include "internal/assert.c"
 
 static struct gram_stats nsymbols(struct gram_stats stats) {
     stats.symbols = stats.terms + stats.nonterms;
@@ -175,35 +175,7 @@ static void free_parsed_spec(struct gram_parser_spec *spec) {
     spec->prules = NULL;
 }
 
-static void free_patterns(struct regex_pattern *patterns) {
-    if (!patterns) return;
-    struct regex_pattern *p = patterns;
-    while (p->sym) {
-        free(p->tag);
-        free(p->pattern);
-        p++;
-    }
-    free(patterns);
-}
-
-static void free_symbols(struct gram_symbol *symbols) {
-    if (!symbols) return;
-
-    struct gram_symbol *sym = &symbols[1];
-    while (sym->num) {
-        if (sym->derives) free(sym->derives);
-        sym++;
-    }
-
-    free(symbols);
-}
-
-static void free_rules(unsigned int **rules) {
-    if (!rules) return;
-    unsigned int **r = &rules[1];
-    while (*r) free(*r), r++;
-    free(rules);
-}
+#include "internal/spec.c"
 
 static void free_packed_spec(struct gram_parser_spec *spec) {
     free_patterns(spec->patterns);
@@ -351,6 +323,12 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     fprintf(handle, SYMBOLS_TITLE_FMT);
     fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "derives");
     fprintf(handle, "  %4d  ---\n", 0);
+
+    if (!gram_symbol_null(sym)) {
+        fprintf(handle, "  %4d  %-7s\n", sym->num, "eof");
+        sym++;
+    }
+
     while (!gram_symbol_null(sym)) {
         char *type = "nonterm";
         if (sym->type == GM_TERM) type = "term";

@@ -8,7 +8,7 @@
 #include "gram/spec.h"
 #include "gram/analyze.h"
 
-#include "assert.c"
+#include "internal/assert.c"
 
 #define debug(...) debug_ns("gram_analyze", __VA_ARGS__);
 
@@ -267,7 +267,11 @@ struct intset **gram_follows(bool const *nullable, struct intset **firsts, struc
     // use cardinality of all sets to compute equivalence, and continue until we find the least fixed point
     size_t p = 1, n;
     int i = 1;
-    while ((n = symbol_follows(added, nullable, firsts, follows, start->num, spec)) != p) p = n, i++;
+    while ((n = symbol_follows(added, nullable, firsts, follows, start->num, spec)) != p) {
+        p = n;
+        memset(added, false, nsymbols);
+        i++;
+    }
     debug("computing the follow sets required %d total passes\n", i);
 
     free(added);

@@ -20,4 +20,3 @@ rhs          = id
              | char
              | string
              | "$empty";
-

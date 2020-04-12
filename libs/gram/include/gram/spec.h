@@ -5,12 +5,17 @@
 #include <regex/base.h>
 
 #define GM_EMPTY_TOKEN "$empty"
+
 #define GM_END_PATTERN { 0 }
 #define GM_START_SYMBOL { 0 }
 #define GM_END_SYMBOL { 0 }
 #define GM_START_RULE NULL
 #define GM_END_RULE NULL
-#define GM_RULE_0 1
+
+#define GM_EOF 1
+#define GM_START 1
+#define GM_RULE0 1
+#define GM_SYMBOL0 1
 
 enum gram_symbol_type {
     GM_TERM,
@@ -129,7 +134,7 @@ void free_gram_alt(struct gram_alt *alt);
 void free_gram_rhs(struct gram_rhs *rhs);
 
 bool gram_has_rules(struct gram_parser_spec const *spec);
-bool gram_null_symbol(struct gram_symbol const *sym);
+bool gram_symbol_null(struct gram_symbol const *sym);
 struct gram_symbol *gram_term0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec);

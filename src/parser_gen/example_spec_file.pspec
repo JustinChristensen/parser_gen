@@ -1,7 +1,7 @@
 -line_comment   /\/\/[^\n]*\n/
 -whitespace     /{space}+/
 id              /{alpha_}{alnum_}*/
-regex           /(\\.|[^\n\/])*/
+regex           /\/(\\.|[^\n\/])*\//
 char            /'(\\.|[^'])'/
 string          /"(\\.|[^"])*"/
 

@@ -88,7 +88,6 @@ struct gram_parse_error {
 struct gram_parse_context {
     struct hash_table *symtab;
     struct gram_stats stats;
-    bool empty_rhs_seen;
 
     struct nfa_context scanner;
     struct nfa_match match;

@@ -1,0 +1,283 @@
+Nullability:
+
+    A terminal is not nullable
+    A non-terminal is nullable if ANY of it's rules are nullable
+    A rule is nullable if ALL of it's symbols are nullable
+
+First Sets:
+
+    The first set of a terminal is the set containing only that terminal
+    The first set of a non-terminal is the union of first sets of it's rules
+    The first set of a rule is the union of all of the first sets of the rule's
+        symbols up to and including the first symbol that does not derive null
+
+Follow Sets:
+
+    The follow set of a symbol is the union of all of the first set of the
+        remaining symbols in all of the rules that derive the symbol, and if
+        the first set of the remainder derives null, then the follow set of
+        the rule's non-terminal is included
+    The follow set of a rule is the same as the follow set of the rule's
+        non-terminal
+
+I want to VISIT every rule only once
+    - Is that the same as visiting every non-terminal only once?
+
+Regardless of whether or not I've visited a symbol, I want to add the elements of
+    it's FIRST set to the current FOLLOW set.
+
+Then VISIT just determines whether or not I've examined the rules for a non-terminal?
+
+-- I need to compute the FOLLOW(A) before descending and examining A's rules,
+--     because, if any of the rules end with a non-terminal B, or derive epsilon following the non-terminal B,
+--     I need to add FOLLOW(A) to FOLLOW(B)
+
+Shit, this doesn't quite work...
+A could potentially be used in multiple places, and so the first time I compute FOLLOW(B) I may only have
+    a partial answer for FOLLOW(A) available:
+
+A': A 1
+A: 6 | 5 B C
+B: ...
+C: 12 |
+D: A 9
+
+FOLLOW(A) = { 1 }
+FOLLOW(B) = { 12, 1 }
+
+... it should be ...
+
+FOLLOW(A) = { 1, 9 }
+FOLLOW(B) = { 12, 1, 9 }
+
+Do I need some form of topo-sort on rules?
+
+One possibility is that I could compute a table of symbols mapped to the rules they appear in.
+i.e. A -> rule #1, rule #6
+
+or following positions? A -> rule #1, pos. 1, rule #6, pos .1
+
+And a stack to queue up symbols that I need to visit after iterating the rules, starting from the start symbol
+i.e. push A, pop A, visit #1 and #6 which pushes
+
+Do we only need the follow-sets of non-terminals that are nullable? I think yes.
+
+What would a rule order look like?
+
+QUEUE = { 1, 7 }
+QUEUE = { 7 }      rule #1, FOLLOW(A) = { 1 }         QUEUE = { 7, 2, 3 }
+QUEUE = { 2, 3 }   rule #7, FOLLOW(A) = { 1, 9 }      QUEUE = { 2, 3 }
+QUEUE = { 3 }                                         QUEUE = { 3 }
+QUEUE = { }        rule #3, FOLLOW(B) = { 12, 1, 9 }  QUEUE = { 4, 5, 6 }
+
+1. A': A 1
+2. A: 6
+3. A: 5 B C
+4. B: ...
+5. C: 12
+6. C:
+7. D: A 9
+
+-- NONFACT: I can't visit the rules for a non-terminal until I've computed the follow set for that non-terminal.
+
+g: xs 1
+xs: xs x
+xs:
+x: 3 y
+y: y xs
+y: 9
+
+The proposed algorithm:
+1. Make { $ } the follow set of the start symbol
+2. For each occurrence of a non-terminal, or at least nullable non-terminal, B, in the grammar:
+    if the rule is of the form A -> a B C and C does NOT derive null, add FIRST(C) to FOLLOW(B)
+    if the rule is of the form A -> a B C and C does derive null, add FIRST(C) to FOLLOW(B) and FOLLOW(A) to FOLLOW(B)
+
+For step #2, could I lazily store a reference to where the follow set of A will be found and point FOLLOW(B) to that?
+    i.e. FOLLOW(B) = { FIRST(C) = { x, y, z }, FOLLOW(A) = ? }
+Then I'd have to do a pass to resolve these... Would there be any created cycles?
+
+The issue is that I can't know ahead of time which rules I'll have to examine to compute FOLLOW(A) unless i pre-emptively compute it
+
+Breadth First:
+A: B D F
+B: C E A
+...
+D: F
+
+where Q = queue and V = visited:
+Q = { A },                  V = { }
+visit A, Q = { B D F },     V = { A }
+visit B, Q = { D F C E A }, V = { A, B }
+visit D, Q = { F C E A F }, V = { A, B, D }
+
+The difference between a graph and a grammar is that that with a grammar
+every non-terminal vertice represents a variable that can point to 1 or more subgraphs
+
+So we have the set of nullable non-terminals for which we need FOLLOW sets
+and of that set, we have the set of non-terminals that DO NOT depend on the FOLLOW sets of other non-terminals
+    i.e. at least one symbol following the non-terminal, B, in all rules that derive it is not nullable
+            e.g. A: a B C D d       where B, C, and D are all nullable, but a and d represent terminals which are not nullable
+and the set of non-terminals that DO depend on the FOLLOW sets of other non-terminals
+    i.e. all of the symbols following the non-terminal, B, in at least one rule are nullable
+            e.g. A: a B C D         where B, C, D are all nullable. FOLLOW(B) then depends on FOLLOW(A)
+
+So in order to compute FOLLOW(B) I then first need to compute FOLLOW(A)
+So that means A > B
+
+What about the co-dependent case?
+A: a B C        where B and C are nullable
+A:
+B: d A C        where A and C are nullable
+B:
+
+B depends on A, and A depends on B
+So A == B
+
+Can an order be computed for either symbols or rules?
+
+One way to determine when FOLLOW(A) has been computed would be to compute the number of occurrences of A
+in the grammar, and whenever we compute part of FOLLOW(A) subtract from the number of occurences.
+When Occ(A) then == 0, we know that FOLLOW(A) has been fully computed
+
+We could track follow set computations that depend on other follow set computations by maintaining a table:
+A: B C D
+
+null-eliminated:
+A: a B C
+A: a C
+B: d A C
+B: d C
+
+left-factored:
+X: a A
+A: B C
+A: C
+Y: d B
+B: A C
+B: C
+
+
+
+In LL parsers, this is all only used to select the appropriate rule given the current non-terminal and input symbol
+If the leading symbol of a given rule derives null, then symbols after (following) the leading symbol need to be examined
+    to compute the list of input symbols that should cause the parser to select this rule
+
+Reachability
+Productivity
+
+Transformations:
+    Eliminate Epsilon Rules
+        If A -> x y z | ε, each rule of the form B -> w A v can be replace with
+        two rules: B -> w A v | w v  and A then becomes just A -> x y z
+
+FOLLOW(parser_spec) < FOLLOW(pattern_defs) < FOLLOW(pattern_def)
+FOLLOW(parser_spec) < FOLLOW(grammar) < FOLLOW(rules) < FOLLOW(rule)
+FOLLOW(alts) < FOLLOW(alt) < FOLLOW(rhses) < FOLLOW(rhs)
+
+FOLLOW(pdef_mod) = { id }
+FOLLOW(alt) = { |, ; }
+FOLLOW(alts) = { ; }
+
+So...
+FOLLOW(parser_spec), FOLLOW(pattern_defs), FOLLOW(pattern_def), FOLLOW(pdef_mod),
+FOLLOW(grammar), FOLLOW(rules), FOLLOW(rule),
+FOLLOW(alts), FOLLOW(alt), FOLLOW(rhses), FOLLOW(rhs)
+
+parser_spec  = pattern_defs grammar         nullable        FOLLOW(pattern_defs) depends on FOLLOW(parser_spec), FOLLOW(grammar) depends on FOLLOW(parser_spec)
+pattern_defs = pattern_def pattern_defs     nullable        FOLLOW(pattern_def) depends on FOLLOW(pattern_defs), FOLLOW(pattern_defs) depends on FOLLOW(pattern_defs)
+pattern_defs =                              nullable
+pattern_def  = pdef_mod id regex;                           FOLLOW(pdef_mod) = { id }
+pdef_mod     = '@'
+pdef_mod     = '-'
+pdef_mod     =                              nullable
+grammar      = "---\n" rules                                FOLLOW(rules) depends on FOLLOW(grammar)
+grammar      =                              nullable
+rules        = rule rules                                   FOLLOW(rule) depends on FOLLOW(rules), FOLLOW(rules) depends on FOLLOW(rules)
+rules        =                              nullable
+rule         = id '=' alt alts ';'                          FOLLOW(alt) = { |, ; }, FOLLOW(alts) = { ';' }
+alts         = '|' alt alts                                 FOLLOW(alt) depends on FOLLOW(alts), FOLLOW(alts) depends on FOLLOW(alts)
+alts         =                              nullable
+alt          = rhs rhses                                    FOLLOW(rhs) depends on FOLLOW(alt), FOLLOW(rhses) depends on FOLLOW(alt)
+rhses        = rhs rhses                                    FOLLOW(rhs) depends on FOLLOW(rhses), FOLLOW(rhses) depends on FOLLOW(rhses)
+rhses        =                              nullable
+rhs          = id
+rhs          = char
+rhs          = string
+rhs          = "$empty"
+
+start = expr eof
+expr = term + expr
+expr = term
+term = factor * term
+term = factor
+factor = ( expr )
+factor = id
+
+FOLLOW(expr) = { eof, ) }
+
+https://cs.stackexchange.com/questions/101450/parser-theory-how-to-systematically-compute-follow-sets
+
+least fixed point
+a fixed point is any point where the input to a function equals it's output, so f(x) = x
+the "least" fixed point is the first one we'll encounter when iterating
+
+So if the input to a function that partially computes follow sets, FOLLOWS, is FOLLOWS(rules, { A: { $ } })
+we keep feeding the result back into it until FOLLOWS(rules, x) = x
+
+Obviously the challenge here is computing set of sets equality to detect the fixed point
+
+A: a B C D
+B: c d A D E
+
+
+Things that can be computed about a grammar:
+
+# terminals
+# non-terminals
+# symbols
+# rules
+
+nullability of symbols
+
+# of occurrences of symbols
+
+whether or not a symbol directly or indirectly derives itself without consuming symbols from the input
+i.e. whether or not the grammar is suitable for LL parsing
+
+whether or not the FIRST/FOLLOW sets of each rule in a non-terminal are disjoint,
+i.e. whether or not we can compute a LL parsing table for the grammar
+
+endability of symbols, i.e. whether or not the symbol has any rules that derive eof
+
+FIRST sets of symbols
+FOLLOW sets of symbols
+
+The reachability of symbols, i.e. can we derive the symbol from the start rule
+The productivity of symbols, i.e. do all symbols derive at least one terminal
+
+reachability of symbols from other symbols
+
+nullability of rules
+
+FIRST sets of rules
+FOLLOW sets of rules
+
+null ambiguity?
+ambiguity?
+
+Transformations:
+
+The left-factored grammar
+The null-eliminated grammar
+
+FOLLOW
+From start symbol
+    if symbol was not visited
+        for each rule in symbol (pass in non-terminal id)
+            for each symbol in rule
+                add the first sets up to the first non-nullable symbol
+                    if we reach the end, add FOLLOW(non-terminal)
+
+    mark symbol visited
+

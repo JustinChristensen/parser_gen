@@ -96,14 +96,19 @@ int main(int argc, char *argv[]) {
                         print_gram_parser_spec(stdout, &spec);
 
                         if (args.cmd == ANALYZE) {
+                            // TODO: error handling
                             print_gram_stats(stdout, spec.stats);
                             bool *nullable = gram_nullable(&spec);
                             struct intset **firsts = gram_firsts(nullable, &spec);
+                            struct intset **follows = gram_follows(nullable, firsts, &spec);
                             print_gram_nullable(stdout, nullable, &spec);
                             printf("firsts:\n");
                             print_gram_sets(stdout, firsts, &spec);
+                            printf("follows:\n");
+                            print_gram_sets(stdout, follows, &spec);
                             free(nullable);
                             free_gram_sets(firsts, &spec);
+                            free_gram_sets(follows, &spec);
                         }
 
                         free_gram_parser_spec(&spec);

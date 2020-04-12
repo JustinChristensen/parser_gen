@@ -238,12 +238,12 @@ bool gram_has_rules(struct gram_parser_spec const *spec) {
     return spec->stats.rules > 0;
 }
 
-bool gram_null_symbol(struct gram_symbol const *sym) {
+bool gram_symbol_null(struct gram_symbol const *sym) {
     return sym->num == 0;
 }
 
 struct gram_symbol *gram_term0(struct gram_parser_spec const *spec) {
-    return &spec->symbols[1];
+    return &spec->symbols[GM_SYMBOL0];
 }
 
 struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec) {
@@ -255,7 +255,7 @@ struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec) {
 }
 
 unsigned int **gram_rule0(struct gram_parser_spec const *spec) {
-    return &spec->rules[GM_RULE_0];
+    return &spec->rules[GM_RULE0];
 }
 
 #define PATTERN_DEF_FMT "%s %s\n"
@@ -351,7 +351,7 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     fprintf(handle, SYMBOLS_TITLE_FMT);
     fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "derives");
     fprintf(handle, "  %4d  ---\n", 0);
-    while (!gram_null_symbol(sym)) {
+    while (!gram_symbol_null(sym)) {
         char *type = "nonterm";
         if (sym->type == GM_TERM) type = "term";
 

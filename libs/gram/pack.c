@@ -22,12 +22,14 @@
 #define nullterm(n) ((n) + 1)
 
 static unsigned int detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
-    unsigned int i = offs(sym->s.num); // #0 reserved
+    unsigned int i = sym->s.num; // #0 reserved
 
     if (sym->s.type == GM_NONTERM)
         i += stats.terms;
+    else
+        i += 1; // eof
 
-    return i;
+    return offs(i);
 }
 
 static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
@@ -44,6 +46,9 @@ static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *p
 }
 
 static bool pack_symbols(unsigned int **rps, struct gram_symbol *symbols, struct hash_table *symtab, struct gram_stats stats) {
+    // eof symbol
+    symbols[GM_EOF] = (struct gram_symbol) { GM_TERM, GM_EOF };
+
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
     while ((sym = htnext(NULL, &it))) {
@@ -104,6 +109,10 @@ static bool pack_patterns(int *ntpatterns, struct regex_pattern *patterns, struc
     return true;
 }
 
+unsigned int *alloc_rule(size_t n) {
+    return calloc(n, sizeof (unsigned int));
+}
+
 bool gram_pack(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
     struct gram_parse_context *context
@@ -115,19 +124,23 @@ bool gram_pack(
     if (spec->type == GM_PARSED_SPEC && !gram_check(error, spec, context))
         return false;
 
+    // start rule, empty rule
+    spec->stats.rules += 2;
+
+    // eof symbol
+    spec->stats.terms++;
+    spec->stats.symbols++;
+
     struct hash_table *symtab = context->symtab;
     struct gram_stats stats = spec->stats;
 
-    // terminated by a null pattern
     struct regex_pattern *patterns = calloc(nullterm(stats.patterns), sizeof *patterns);
     if (!patterns) return oom_error(error, NULL);
 
-    // terminated by a null symbol, indexed by symbol number, and symbol #0 reserved
-    struct gram_symbol *symbols = calloc(offs(nullterm(stats.terms + stats.nonterms)), sizeof (*symbols));
+    struct gram_symbol *symbols = calloc(offs(nullterm(stats.symbols)), sizeof (*symbols));
     if (!symbols) return oom_error(error, patterns);
 
-    // indexed by rule number, rule #0 reserved, null terminated
-    unsigned int **rules = calloc(offs(nullterm(stats.rules)) + 1, sizeof *rules);
+    unsigned int **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
     if (!rules) return oom_error(error, patterns, symbols);
 
     // nonterm rules positions
@@ -135,25 +148,28 @@ bool gram_pack(
 
     if (!rps) goto oom;
 
-    // pack the symbols
     if (!pack_symbols(rps, symbols, symtab, stats))
         goto oom;
 
-    // count the number of non-pattern terms to add as an offset
+    // NTPATTERNS count the number of non-pattern terms to add as an offset
     // when indexing the patterns table in the below AST loop
     int ntpatterns = 0;
     if (!pack_patterns(&ntpatterns, patterns, symtab, spec))
         goto oom;
 
     // create an empty rule
-    unsigned int const empty_rule = stats.rules + 1;
-    if (context->empty_rhs_seen &&
-       (rules[empty_rule] = calloc(1, sizeof *rules)) == NULL)
+    unsigned int const empty_rule = stats.rules;
+    if ((rules[empty_rule] = alloc_rule(1)) == NULL)
         goto oom;
 
+    // create the start rule
+    rules[GM_START] = alloc_rule(3);
+    rules[GM_START][0] = offs(stats.terms);
+    rules[GM_START][1] = GM_EOF;
+
     // fill in the rules lists and nonterm derives lists
-    int rn = 1;
-    unsigned int **r = &rules[1];
+    int rn = 2;
+    unsigned int **r = &rules[2];
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
@@ -169,7 +185,7 @@ bool gram_pack(
 
             *rps[ntsym->s.num]++ = rn++;
 
-            if ((*r = calloc(nullterm(rhs->n), sizeof **r)) == NULL)
+            if ((*r = alloc_rule(nullterm(rhs->n))) == NULL)
                 goto oom;
 
             unsigned int *s = *r;
@@ -184,7 +200,7 @@ bool gram_pack(
                 // add pattern
                 if (rhs->type == GM_CHAR_RHS || rhs->type == GM_STRING_RHS) {
                     // sym num + num non-terminal patterns (skip/to) + reserved symbol 0
-                    if (!pack_rhs_pattern(&patterns[sym + ntpatterns - 1], sym, rhs->str))
+                    if (!pack_rhs_pattern(&patterns[sym + ntpatterns - 2], sym, rhs->str))
                         goto oom;
                 }
             }

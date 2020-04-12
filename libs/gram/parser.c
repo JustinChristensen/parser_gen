@@ -320,7 +320,6 @@ gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_par
     if (nfa_start_match(input, &match, &context->scanner)) {
         htclear(context->symtab);
         context->stats = (struct gram_stats) { 0 };
-        context->empty_rhs_seen = false;
 
         context->match = match;
         context->sym = gram_scan(context);
@@ -773,8 +772,8 @@ parse_alt(
             link(rhses, rest);
             addn(rhses, rest);
 
-            if (!gram_rhses_empty(rhses)) context->stats.rules++;
-            else                          context->empty_rhs_seen = true;
+            if (!gram_rhses_empty(rhses))
+                context->stats.rules++;
 
             if (tryinit(error, alt, init_gram_alt, loc, rhses, NULL))
                 return true;

@@ -281,3 +281,18 @@ From start symbol
 
     mark symbol visited
 
+A grammar is LL(1) if it:
+
+    is not left-recursive
+    is not ambiguous
+
+    So, if G -> A | B
+
+    FIRST(A) and FIRST(B) are disjoint sets and,
+
+    either A or B can derive epsilon, but not both
+
+    also, if B derives epsilon, then A does not derive a string
+    beginning with FOLLOW(G)
+    and if A derives epsilon, the reverse is true
+

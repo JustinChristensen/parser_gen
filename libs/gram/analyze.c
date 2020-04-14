@@ -300,3 +300,12 @@ void print_gram_sets(FILE *handle, struct intset **sets, struct gram_parser_spec
     }
     fprintf(handle, "\n");
 }
+
+bool gram_is_ll1(
+    bool const *nullable, struct intset **firsts, struct intset **follows,
+    struct gram_parser_spec const *spec
+) {
+
+}
+
+

@@ -81,8 +81,8 @@ struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, st
 
 void siterator(struct intset const *set, struct intset_iterator *it) {
     assert(it != NULL);
-    reset_siterator(set, it);
     it->stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
+    reset_siterator(set, it);
 }
 
 // iterate all nodes

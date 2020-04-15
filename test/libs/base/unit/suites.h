@@ -9,5 +9,6 @@ Suite *intset_suite();
 Suite *array_suite();
 Suite *hash_table_suite();
 Suite *btree_suite();
+Suite *bitset_suite();
 
 #endif // TEST_BASE_H_

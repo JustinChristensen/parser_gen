@@ -825,12 +825,15 @@ parse_rhs(
 
     if (peek(GM_ID_T, context) && expect(error, GM_ID_T, context)) {
         insert_symbol(NULL, symbuf, nonterm, NULL, context);
+        context->stats.rsymbols++;
         return tryinit(error, rhs, init_id_gram_rhs, loc, symbuf, NULL);
     } else if (peek(GM_CHAR_T, context) && expect(error, GM_CHAR_T, context)) {
         insert_symbol(NULL, symbuf, term, NULL, context);
+        context->stats.rsymbols++;
         return tryinit(error, rhs, init_char_gram_rhs, loc, symbuf, NULL);
     } else if (peek(GM_STRING_T, context) && expect(error, GM_STRING_T, context)) {
         insert_symbol(NULL, symbuf, term, NULL, context);
+        context->stats.rsymbols++;
         return tryinit(error, rhs, init_string_gram_rhs, loc, symbuf, NULL);
     }
 

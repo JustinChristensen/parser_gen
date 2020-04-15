@@ -7,7 +7,8 @@
 #include "gram/spec.h"
 
 enum ll1_error_type {
-    GM_LL1_SCANNER_ERROR
+    GM_LL1_SCANNER_ERROR,
+    GM_LL1_OOM_ERROR
 };
 
 struct ll1_error {
@@ -18,8 +19,7 @@ struct ll1_error {
     };
 };
 
-
-struct gram_stats gram_count(struct gram_parser_spec const *spec);
+void gram_count(struct gram_parser_spec *spec);
 void print_gram_stats(FILE *handle, struct gram_stats const stats);
 
 bool *gram_nullable(struct gram_parser_spec const *spec);

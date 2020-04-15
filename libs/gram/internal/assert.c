@@ -19,20 +19,34 @@ INVARIANT(assert_packed_spec, struct gram_parser_spec const *spec) {
     check(spec != NULL);
     check(spec->type == GM_PACKED_SPEC);
 
-    if (spec->symbols) {
-        check(spec->symbols[0].num == 0);
-        check(spec->symbols[0].derives == NULL);
+    struct gram_stats stats = spec->stats;
+
+    // try to enforce null-termination
+    if (stats.patterns) {
+        check(spec->patterns != NULL);
+        check(regex_null_pattern(&spec->patterns[stats.patterns - 1]));
     }
 
-    if (spec->rules)
-        check(spec->rules[0] == NULL);
+    check(stats.symbols > 0);
+    check(spec->symbols != NULL);
+    check(spec->symbols[0].num == 0);
+    check(spec->symbols[0].derives == NULL);
+    check(gram_symbol_null(&spec->symbols[stats.symbols]));
+
+    check(stats.rules > 0);
+    check(spec->rules != NULL);
+    check(spec->rules[0] == NULL);
+    check(spec->rules[stats.rules] == NULL);
+
+    if (stats.nonterms) check(spec->rules[1][1] == GM_EOF);
+    else                check(spec->rules[1][0] == GM_EOF);
 }
 
-INVARIANT(assert_symbol_index, unsigned int i, struct gram_parser_spec const *spec) {
+INVARIANT(assert_symbol_index, unsigned i, struct gram_parser_spec const *spec) {
     check(i >= 1 && i <= spec->stats.symbols);
 }
 
-INVARIANT(assert_rule_index, unsigned int i, struct gram_parser_spec const *spec) {
+INVARIANT(assert_rule_index, unsigned i, struct gram_parser_spec const *spec) {
     check(i >= 1 && i <= spec->stats.symbols);
 }
 

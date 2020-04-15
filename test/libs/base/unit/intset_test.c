@@ -119,14 +119,13 @@ START_TEST(test_sdelete) {
     ck_assert_int_eq(ssize(set), 8);
     ck_assert_int_eq(ssize(set2), 8);
 
-    if (siterator(set2, &it)) {
-        int x;
-        while (snext(&x, &it)) {
-            set = sdelete(x, set);
-        }
-
-        free_siterator(&it);
+    siterator(set2, &it);
+    int x;
+    while (snext(&x, &it)) {
+        set = sdelete(x, set);
     }
+
+    free_siterator(&it);
 
     ck_assert_int_eq(ssize(set), 0);
 
@@ -161,7 +160,7 @@ START_TEST(test_snextnode) {
     printf("snextnode:\n");
     print_intset_tree(set);
 
-    ck_assert(siterator(set, &it));
+    siterator(set, &it);
 
     // twice
     for (int i = 0; i < 2; i++) {
@@ -188,7 +187,7 @@ START_TEST(test_snextbitmap) {
     struct intset const *leaf = NULL;
     int x;
 
-    ck_assert(siterator(set, &it));
+    siterator(set, &it);
     ck_assert(snextleaf(&leaf, &it));
 
     ck_assert_msg(snextbitmap(&x, &it), "integer not found in bitmap"); ;
@@ -221,7 +220,7 @@ START_TEST(test_snext) {
 
     struct intset_iterator it;
 
-    ck_assert(siterator(set, &it));
+    siterator(set, &it);
 
     assert_iter_reset(&it);
 
@@ -279,7 +278,7 @@ START_TEST(test_sintersection) {
     _print_intset(set3);
 
     struct intset_iterator it;
-    ck_assert(siterator(set3, &it));
+    siterator(set3, &it);
     int x;
     ck_assert(snext(&x, &it));
     ck_assert_int_eq(x, -2694);
@@ -340,7 +339,7 @@ START_TEST(test_sunion) {
     _print_intset(set3);
 
     struct intset_iterator it;
-    ck_assert(siterator(set3, &it));
+    siterator(set3, &it);
     int x;
     ck_assert(snext(&x, &it));
     ck_assert_int_eq(x, -413000);
@@ -395,7 +394,7 @@ START_TEST(test_sdifference) {
     _print_intset(set3);
 
     struct intset_iterator it;
-    ck_assert(siterator(set3, &it));
+    siterator(set3, &it);
     int x;
 
     ck_assert(snext(&x, &it));

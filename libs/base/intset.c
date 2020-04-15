@@ -79,12 +79,10 @@ struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, st
     return set;
 }
 
-bool siterator(struct intset const *set, struct intset_iterator *it) {
-    if (!it || !set) return false;
+void siterator(struct intset const *set, struct intset_iterator *it) {
+    assert(it != NULL);
+    reset_siterator(set, it);
     it->stack = init_array(sizeof set, IT_STACK_SIZE, 0, 0);
-    reset_siterator(it);
-    it->root = set;
-    return true;
 }
 
 // iterate all nodes
@@ -97,7 +95,7 @@ bool snextnode(struct intset const **out, struct intset_iterator *it) {
 
     if (aempty(stack)) {
         *out = NULL;
-        reset_siterator(it);
+        reset_siterator(NULL, it);
         return false;
     } else {
         struct intset *set = NULL;
@@ -118,7 +116,7 @@ bool snextnode(struct intset const **out, struct intset_iterator *it) {
 
         // used by the bitmap and int iterators
         // DO NOT REMOVE
-        it->set = set;
+        it->node = set;
         it->at_root = false;
 
         // output
@@ -147,9 +145,9 @@ bool snextleaf(struct intset const **out, struct intset_iterator *it) {
 }
 
 bool snextbitmap(int *out, struct intset_iterator *it) {
-    if (!out || !it || !it->set) return false;
+    if (!out || !it || !it->node) return false;
 
-    struct intset const *set = it->set;
+    struct intset const *set = it->node;
 
     uint64_t x;
     for (int i = it->i; i < WORDBITS; (it->i = ++i)) {
@@ -167,7 +165,7 @@ bool snextbitmap(int *out, struct intset_iterator *it) {
 
 bool snext(int *out, struct intset_iterator *it) {
     if (!out || !it) return false;
-    struct intset const *set = it->set;
+    struct intset const *set = it->node;
 
     while (true) {
         if (it->i == 0 && !snextleaf(&set, it))
@@ -180,9 +178,10 @@ bool snext(int *out, struct intset_iterator *it) {
     return false;
 }
 
-void reset_siterator(struct intset_iterator *it) {
+void reset_siterator(struct intset const *set, struct intset_iterator *it) {
     it->at_root = true;
-    it->set = NULL;
+    it->root = set ? set : it->root;
+    it->node = NULL;
     it->i = 0;
     areset(it->stack);
 }
@@ -514,14 +513,12 @@ int *stolist(struct intset const *set) {
     int *list = NULL;
     struct intset_iterator it;
 
-    if (siterator(set, &it)) {
-        list = calloc(ssize(set), sizeof *list);
-        assert(list != NULL);
-        int *i = list;
-        while (snext(i++, &it));
-
-        free_siterator(&it);
-    }
+    siterator(set, &it);
+    list = calloc(ssize(set), sizeof *list);
+    assert(list != NULL);
+    int *i = list;
+    while (snext(i++, &it));
+    free_siterator(&it);
 
 
     return list;
@@ -537,11 +534,10 @@ size_t ssize(struct intset const *set) {
     size_t n = 0;
 
     struct intset_iterator it;
-    if (siterator(set, &it)) {
-        int x;
-        while (snext(&x, &it)) n++;
-        free_siterator(&it);
-    }
+    siterator(set, &it);
+    int x;
+    while (snext(&x, &it)) n++;
+    free_siterator(&it);
 
     return n;
 }
@@ -552,10 +548,9 @@ size_t streesize(struct intset const *set) {
     size_t n = 0;
 
     struct intset_iterator it;
-    if (siterator(set, &it)) {
-        while (snextnode(&set, &it)) n++;
-        free_siterator(&it);
-    }
+    siterator(set, &it);
+    while (snextnode(&set, &it)) n++;
+    free_siterator(&it);
 
     return n;
 }
@@ -574,14 +569,13 @@ static void _print_intset(FILE *handle, struct intset const *set) {
     if (!set) return;
 
     struct intset_iterator it;
-    if (siterator(set, &it)) {
-        int x;
-        while (snext(&x, &it)) {
-            fprintf(handle, "%d ", x);
-        }
-
-        free_siterator(&it);
+    siterator(set, &it);
+    int x;
+    while (snext(&x, &it)) {
+        fprintf(handle, "%d ", x);
     }
+
+    free_siterator(&it);
 }
 
 void print_intset(FILE *handle, struct intset const *set) {
@@ -613,4 +607,5 @@ void free_siterator(struct intset_iterator *it) {
     if (!it) return;
     free_array(it->stack);
     it->stack = NULL;
+    *it = (struct intset_iterator) { 0 };
 }

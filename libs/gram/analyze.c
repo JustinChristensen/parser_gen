@@ -5,6 +5,7 @@
 #include <base/debug.h>
 #include <base/string.h>
 #include <base/intset.h>
+#include <regex/base.h>
 #include "gram/spec.h"
 #include "gram/analyze.h"
 
@@ -12,22 +13,62 @@
 
 #define debug(...) debug_ns("gram_analyze", __VA_ARGS__);
 
+void gram_count(struct gram_parser_spec *spec) {
+    assert(spec != NULL);
+    assert(spec->type == GM_PACKED_SPEC);
+
+    struct gram_stats stats = { 0 };
+
+    if (spec->patterns) {
+        struct regex_pattern *pattern = spec->patterns;
+        while (!regex_null_pattern(pattern))
+            stats.patterns++, pattern++;
+    }
+
+    if (spec->symbols) {
+        struct gram_symbol *sym = gram_symbol0(spec);
+        while (!gram_symbol_null(sym)) {
+            if (sym->type == GM_TERM) stats.terms++;
+            else stats.nonterms++;
+            stats.symbols++;
+            sym++;
+        }
+    }
+
+    if (spec->rules) {
+        unsigned **rule = gram_rule0(spec);
+        while (*rule) {
+            unsigned *s = *rule;
+            while (*s) stats.rsymbols++, s++;
+            stats.rules++;
+            rule++;
+        }
+    }
+
+    spec->stats = stats;
+}
+
 #define STATS_TITLE_FMT "stats:\n"
-#define STATS_FMT "  patterns: %d\n  terms: %d\n  nonterms: %d\n  symbols: %d\n  rules: %d\n"
+#define STATS_FMT "  patterns: %d\n  terms: %d\n  nonterms: %d\n  symbols: %d\n  rules: %d\n symbols: %d\n"
 void print_gram_stats(FILE *handle, struct gram_stats const stats) {
     fprintf(handle, STATS_TITLE_FMT);
-    fprintf(handle, STATS_FMT, stats.patterns, stats.terms, stats.nonterms,
-        stats.symbols, stats.rules);
+    fprintf(handle, STATS_FMT,
+        stats.patterns,
+        stats.terms,
+        stats.nonterms,
+        stats.symbols,
+        stats.rules,
+        stats.rsymbols);
     fprintf(handle, "\n");
 }
 
 #define SYMBOL_NULLABLE(name) \
 static bool name( \
-    bool *added, bool *nullable, unsigned int s, struct gram_parser_spec const *spec \
+    bool *added, bool *nullable, unsigned s, struct gram_parser_spec const *spec \
 )
 #define RULE_NULLABLE(name) \
 static bool name( \
-    bool *added, bool *nullable, unsigned int r, struct gram_parser_spec const *spec \
+    bool *added, bool *nullable, unsigned r, struct gram_parser_spec const *spec \
 )
 
 SYMBOL_NULLABLE(symbol_nullable);
@@ -43,7 +84,7 @@ SYMBOL_NULLABLE(symbol_nullable) {
     bool snull = false;
 
     if (sym.type == GM_NONTERM) {
-        unsigned int *r = sym.derives;
+        unsigned *r = sym.derives;
         while (*r) {
             bool rnull = rule_nullable(added, nullable, *r, spec);
             snull = snull || rnull; // a non-terminal is nullable if any of it's rules are nullable
@@ -58,7 +99,7 @@ SYMBOL_NULLABLE(symbol_nullable) {
 
 RULE_NULLABLE(rule_nullable) {
     invariant(assert_rule_index, r, spec);
-    unsigned int *s = spec->rules[r];
+    unsigned *s = spec->rules[r];
     bool rnull = true;
     while (*s) {
         bool snull = symbol_nullable(added, nullable, *s, spec);
@@ -72,7 +113,7 @@ bool *
 gram_nullable(struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
-    if (!spec->stats.nonterms) return NULL;
+    if (!gram_has_rules(spec)) return NULL;
 
     int nsyms = spec->stats.symbols + 1;
     bool *nullable = calloc(nsyms, sizeof *nullable);
@@ -105,12 +146,12 @@ void print_gram_nullable(FILE *handle, bool const *nullable, struct gram_parser_
 #define RULE_FIRST(name) \
 static void name( \
     bool *added, struct intset **first, bool const *nullable, \
-    unsigned int r, struct gram_parser_spec const *spec \
+    unsigned r, struct gram_parser_spec const *spec \
 )
 #define SYMBOL_FIRST(name) \
 static void name( \
     bool *added, struct intset **first, bool const *nullable, \
-    unsigned int s, struct gram_parser_spec const *spec \
+    unsigned s, struct gram_parser_spec const *spec \
 )
 
 RULE_FIRST(rule_first);
@@ -127,7 +168,7 @@ SYMBOL_FIRST(symbol_first) {
     if (sym.type == GM_TERM) {
         *first = sinsert(sym.num, *first);
     } else {
-        unsigned int *r = sym.derives;
+        unsigned *r = sym.derives;
         while (*r) rule_first(added, first, nullable, *r, spec), r++;
     }
 }
@@ -135,7 +176,7 @@ SYMBOL_FIRST(symbol_first) {
 RULE_FIRST(rule_first) {
     invariant(assert_rule_index, r, spec);
 
-    unsigned int *s = spec->rules[r];
+    unsigned *s = spec->rules[r];
     while (*s) {
         symbol_first(added, first, nullable, *s, spec);
         if (!nullable[*s]) break;
@@ -147,7 +188,7 @@ RULE_FIRST(rule_first) {
 struct intset **gram_firsts(bool const *nullable, struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
-    if (!spec->stats.nonterms) return NULL;
+    if (!gram_has_rules(spec)) return NULL;
 
     int nsymbols = spec->stats.symbols + 1;
     struct intset **firsts = calloc(nsymbols, sizeof *firsts);
@@ -169,7 +210,7 @@ struct intset **gram_firsts(bool const *nullable, struct gram_parser_spec const 
 }
 
 // FIXME: add version of sunion that mutates s and avoids the need for freeing
-static void addset(struct intset **follows, unsigned int s, struct intset const *t) {
+static void addset(struct intset **follows, unsigned s, struct intset const *t) {
     struct intset *sf = follows[s];
     follows[s] = sunion(sf, t);
     free_intset(sf);
@@ -178,13 +219,13 @@ static void addset(struct intset **follows, unsigned int s, struct intset const 
 #define RULE_FOLLOWS(name) \
 static void name( \
     bool *added, bool const *nullable, struct intset **firsts, struct intset **follows, \
-    unsigned int r, unsigned int nt, struct gram_parser_spec const *spec \
+    unsigned r, unsigned nt, struct gram_parser_spec const *spec \
 )
 
 #define SYMBOL_FOLLOWS(name) \
 static void name( \
     bool *added, bool const *nullable, struct intset **firsts, struct intset **follows, \
-    unsigned int s, struct gram_parser_spec const *spec \
+    unsigned s, struct gram_parser_spec const *spec \
 )
 
 RULE_FOLLOWS(rule_follows);
@@ -198,7 +239,7 @@ SYMBOL_FOLLOWS(_symbol_follows) {
     added[sym.num] = true;
 
     if (sym.type == GM_NONTERM) {
-        unsigned int *r = sym.derives;
+        unsigned *r = sym.derives;
         while (*r) {
             rule_follows(added, nullable, firsts, follows, *r, sym.num, spec);
             r++;
@@ -208,9 +249,9 @@ SYMBOL_FOLLOWS(_symbol_follows) {
 
 RULE_FOLLOWS(rule_follows) {
     invariant(assert_rule_index, r, spec);
-    unsigned int *s = spec->rules[r];
+    unsigned *s = spec->rules[r];
     while (*s) {
-        unsigned int *n = s + 1;
+        unsigned *n = s + 1;
 
         // add the first sets for the symbols up to the first non-nullable symbol
         while (*n) {
@@ -241,7 +282,7 @@ static size_t all_sets_size(struct intset **follows, struct gram_parser_spec con
 static size_t
 symbol_follows(
     bool *added, bool const *nullable, struct intset **firsts,
-    struct intset **follows, unsigned int s, struct gram_parser_spec const *spec
+    struct intset **follows, unsigned s, struct gram_parser_spec const *spec
 ) {
     _symbol_follows(added, nullable, firsts, follows, s, spec);
     return all_sets_size(follows, spec);
@@ -250,8 +291,7 @@ symbol_follows(
 struct intset **gram_follows(bool const *nullable, struct intset **firsts, struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
-    // TODO: better pack implementation
-    if (!spec->stats.nonterms) return NULL;
+    if (!gram_has_rules(spec)) return NULL;
 
     int nsymbols = spec->stats.symbols + 1;
     struct intset **follows = calloc(nsymbols, sizeof *follows);
@@ -302,10 +342,11 @@ void print_gram_sets(FILE *handle, struct intset **sets, struct gram_parser_spec
 }
 
 bool gram_is_ll1(
+    struct ll1_error *error,
     bool const *nullable, struct intset **firsts, struct intset **follows,
     struct gram_parser_spec const *spec
 ) {
-
+    return true;
 }
 
 

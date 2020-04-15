@@ -35,19 +35,19 @@ struct intset_iterator {
     // cached root set for multiple iteration
     struct intset const *root;
     // current set for bitmap iteration
-    struct intset const *set;
+    struct intset const *node;
     // the bitmap iterator
     int i;
 };
 
 struct intset intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
 struct intset *init_intset(uint64_t pfix, uint64_t mask, struct intset *left, struct intset *right);
-bool siterator(struct intset const *set, struct intset_iterator *it);
+void siterator(struct intset const *set, struct intset_iterator *it);
 bool snextnode(struct intset const **out, struct intset_iterator *it);
 bool snextleaf(struct intset const **out, struct intset_iterator *it);
 bool snextbitmap(int *out, struct intset_iterator *it);
 bool snext(int *out, struct intset_iterator *it);
-void reset_siterator(struct intset_iterator *it);
+void reset_siterator(struct intset const *set, struct intset_iterator *it);
 bool selem(int k, struct intset const *set);
 struct intset *sinsert(int k, struct intset *set);
 struct intset *slistinsert(int *k, size_t n, struct intset *set);

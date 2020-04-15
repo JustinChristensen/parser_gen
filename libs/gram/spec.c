@@ -20,7 +20,7 @@ struct gram_parser_spec gram_parsed_spec(struct gram_pattern_def *pdefs, struct 
 
 struct gram_parser_spec gram_packed_spec(
     struct regex_pattern *patterns, struct gram_symbol *symbols,
-    unsigned int **rules, struct gram_stats stats
+    unsigned **rules, struct gram_stats stats
 ) {
     return (struct gram_parser_spec) {
         GM_PACKED_SPEC,
@@ -226,7 +226,7 @@ struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec) {
     return gram_term0(spec);
 }
 
-unsigned int **gram_rule0(struct gram_parser_spec const *spec) {
+unsigned **gram_rule0(struct gram_parser_spec const *spec) {
     return &spec->rules[GM_RULE0];
 }
 
@@ -336,7 +336,7 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
         fprintf(handle, "  %4d  %-7s", sym->num, type);
 
         if (sym->type == GM_NONTERM) {
-            unsigned int *r = sym->derives;
+            unsigned *r = sym->derives;
             fprintf(handle, "  %d", *r++);
             while (*r)
                 fprintf(handle, " %d", *r), r++;
@@ -348,13 +348,13 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     fprintf(handle, "\n");
 
     // print packed rules
-    unsigned int **rule = gram_rule0(spec);
+    unsigned **rule = gram_rule0(spec);
     fprintf(handle, RULES_TITLE_FMT);
     fprintf(handle, RULES_HEADER_FMT, "rule", "symbols");
     fprintf(handle, "  %4d  %s\n", 0, "---");
     int r = 1;
     while (*rule) {
-        unsigned int *s = *rule;
+        unsigned *s = *rule;
 
         fprintf(handle, "  %4d", r);
 

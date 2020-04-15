@@ -29,7 +29,7 @@ void assert_iter(
 ) {
     ck_assert(asize(it->stack) == stack_size);
     ck_assert(it->at_root == is_root);
-    ck_assert(has_set ? it->set != NULL : it->set == NULL);
+    ck_assert(has_set ? it->node != NULL : it->node == NULL);
     ck_assert(it->i == bm_iterator);
 }
 

@@ -39,7 +39,7 @@ static void teardown() {
 }
 
 START_TEST(test_bsins_bsdel) {
-    debug("test_bsins_bsdel:\n");
+    debug("bsins_bsdel:\n");
 
     unsigned elems[] = { 0, 1, 14, 63, 64 };
 
@@ -68,7 +68,7 @@ START_TEST(test_bsins_bsdel) {
 END_TEST
 
 START_TEST(test_bsunion) {
-    debug("test_bsunion:\n");
+    debug("bsunion:\n");
 
     struct bitset
         *s = bitset(N),
@@ -97,7 +97,7 @@ START_TEST(test_bsunion) {
 END_TEST
 
 START_TEST(test_bsintersect) {
-    debug("test_bsintersect:\n");
+    debug("bsintersect:\n");
 
     struct bitset
         *s = bitset(N),
@@ -126,7 +126,7 @@ START_TEST(test_bsintersect) {
 END_TEST
 
 START_TEST(test_bsdifference) {
-    debug("test_bsdifference:\n");
+    debug("bsdifference:\n");
 
     struct bitset
         *s = bitset(N),
@@ -155,7 +155,7 @@ START_TEST(test_bsdifference) {
 END_TEST
 
 START_TEST(test_bsdisjoint) {
-    debug("test_bsdisjoint:\n");
+    debug("bsdisjoint:\n");
 
     struct bitset
         *s = bitset(N),
@@ -178,6 +178,32 @@ START_TEST(test_bsdisjoint) {
 }
 END_TEST
 
+START_TEST(test_bsiter) {
+    debug("bsiter:\n");
+
+    unsigned xs[] = { 0, 0, 1, 5, 25, 62, 63, 64, 77, 77 };
+
+    bsinsarr(set, SIZEOF(xs), xs);
+
+    _print_bitset(set);
+
+    unsigned i;
+    unsigned n = 0;
+    struct bsiter it = bsiter(set);
+    while (bsnext(&i, &it)) {
+        debug("%d ", i);
+        n++;
+    }
+    debug("\n");
+
+    ck_assert_int_eq(n, bssize(set));
+
+    while (bsnext(&i, &it))
+        debug("%d ", i);
+    debug("\n");
+}
+END_TEST
+
 Suite *bitset_suite()
 {
     Suite *s = suite_create("bitset");
@@ -190,6 +216,7 @@ Suite *bitset_suite()
     tcase_add_test(tc_core, test_bsintersect);
     tcase_add_test(tc_core, test_bsdifference);
     tcase_add_test(tc_core, test_bsdisjoint);
+    tcase_add_test(tc_core, test_bsiter);
 
     suite_add_tcase(s, tc_core);
 

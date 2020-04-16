@@ -7,7 +7,7 @@
 #include <stdarg.h>
 
 struct bitset {
-    unsigned nwords;
+    unsigned short nwords;
     size_t words[];
 };
 

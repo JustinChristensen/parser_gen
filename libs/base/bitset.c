@@ -143,9 +143,9 @@ bool bsnext(unsigned *i, struct bsiter *it) {
     unsigned w = it->w;
     unsigned n = it->n;
 
-    for (; w < set->nwords; w++) {
+    for (; w < set->nwords; n = 0, w++) {
         for (; n < WORDBITS; n++) {
-            if (set->words[w] & (1 << n)) {
+            if (set->words[w] & (BIT << n)) {
                 *i = (WORDBITS * w) + n++;
                 it->w = w;
                 it->n = n;

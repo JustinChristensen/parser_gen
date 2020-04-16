@@ -7,14 +7,22 @@
 #include "gram/spec.h"
 
 struct ll1_parser {
-    unsigned int **ptable;
     unsigned int **rtable;
+    unsigned int **ptable;
     struct nfa_context scanner;
+    struct gram_stats stats;
 };
 
-struct ll1_parser ll1_parser(struct nfa_context scanner, unsigned int **ptable, unsigned int **rtable);
-bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_parser_spec *spec);
+struct ll1_parser ll1_parser(
+    struct nfa_context scanner, unsigned int **rtable, unsigned int **ptable,
+    struct gram_stats stats
+);
+bool gen_ll1(
+    struct ll1_error *error, struct ll1_parser *parser,
+    struct gram_parser_spec *spec
+);
 bool ll1_parse(char *input, struct ll1_parser const *parser);
+void print_ll1_parser(FILE *handle, struct ll1_parser *parser);
 void free_ll1_parser(struct ll1_parser *parser);
 
 

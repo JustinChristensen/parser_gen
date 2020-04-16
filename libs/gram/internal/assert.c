@@ -24,19 +24,19 @@ INVARIANT(assert_packed_spec, struct gram_parser_spec const *spec) {
     // try to enforce null-termination
     if (stats.patterns) {
         check(spec->patterns != NULL);
-        check(regex_null_pattern(&spec->patterns[stats.patterns - 1]));
+        check(regex_null_pattern(&spec->patterns[stats.patterns]));
     }
 
     check(stats.symbols > 0);
     check(spec->symbols != NULL);
     check(spec->symbols[0].num == 0);
     check(spec->symbols[0].derives == NULL);
-    check(gram_symbol_null(&spec->symbols[stats.symbols]));
+    check(gram_symbol_null(&spec->symbols[stats.symbols + 1]));
 
     check(stats.rules > 0);
     check(spec->rules != NULL);
     check(spec->rules[0] == NULL);
-    check(spec->rules[stats.rules] == NULL);
+    check(spec->rules[stats.rules + 1] == NULL);
 
     if (stats.nonterms) check(spec->rules[1][1] == GM_EOF);
     else                check(spec->rules[1][0] == GM_EOF);

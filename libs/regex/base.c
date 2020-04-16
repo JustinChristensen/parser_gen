@@ -138,8 +138,8 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
 #define SYNERR_FMT_END "\n|\n| At Column: %d\n|\n"
 #define OOM_FMT "| OOM Error\n|\n"
 #define REPEAT_ZERO_FMT "| Repeat Zero Error\n|\n"
-#define MISSING_TAG_FMT "| Tag Exists Error\n|\n| Pattern %s already tagged\n|\n"
-#define TAG_EXISTS_FMT "| Missing Tag Error\n|\n| Pattern %s not tagged\n|\n"
+#define TAG_EXISTS_FMT "| Tag Exists Error\n|\n| Pattern %s already tagged\n|\n"
+#define MISSING_TAG_FMT "| Missing Tag Error\n|\n| Pattern %s not tagged\n|\n"
 #define DUPLICATE_PATTERN_FMT "| Duplicate Pattern Error\n|\n| Pattern %s duplicated\n|\n"
 
 void print_regex_error(FILE *handle, struct regex_error error) {

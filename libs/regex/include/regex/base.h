@@ -186,10 +186,8 @@ struct regex_pattern {
     char *pattern;
 };
 
-static struct regex_pattern const RX_NULL_PATTERN = { 0, NULL, NULL };
-
 #define RX_PATTERNS (struct regex_pattern[])
-#define RX_END_PATTERNS RX_NULL_PATTERN
+#define RX_END_PATTERNS { 0, NULL, NULL }
 
 enum {
     RX_TAG_ONLY = -4,

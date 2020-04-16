@@ -4,7 +4,7 @@
 #include <string.h>
 #include <base/debug.h>
 #include <base/string.h>
-#include <base/intset.h>
+#include <base/bitset.h>
 #include <regex/base.h>
 #include "gram/spec.h"
 #include "gram/analyze.h"
@@ -12,6 +12,8 @@
 #include "internal/assert.c"
 
 #define debug(...) debug_ns("gram_analyze", __VA_ARGS__);
+
+#define offs(n) ((n) + 1)
 
 void gram_count(struct gram_parser_spec *spec) {
     assert(spec != NULL);
@@ -49,7 +51,7 @@ void gram_count(struct gram_parser_spec *spec) {
 }
 
 #define STATS_TITLE_FMT "stats:\n"
-#define STATS_FMT "  patterns: %d\n  terms: %d\n  nonterms: %d\n  symbols: %d\n  rules: %d\n symbols: %d\n"
+#define STATS_FMT "  patterns: %d\n  terms: %d\n  nonterms: %d\n  symbols: %d\n  rules: %d\n  rsymbols: %d\n"
 void print_gram_stats(FILE *handle, struct gram_stats const stats) {
     fprintf(handle, STATS_TITLE_FMT);
     fprintf(handle, STATS_FMT,
@@ -137,20 +139,57 @@ void print_gram_nullable(FILE *handle, bool const *nullable, struct gram_parser_
     if (!nullable) return;
     fprintf(handle, NULLABLE_TITLE_FMT);
     fprintf(handle, NULLABLE_HEADER_FMT, "num", "nullable");
-    for (int i = 1; i < spec->stats.symbols + 1; i++) {
+    for (int i = 1; i < offs(spec->stats.symbols); i++) {
         fprintf(handle, NULLABLE_ROW_FMT, i, yesno(nullable[i]));
     }
     fprintf(handle, "\n");
 }
 
+struct bitset **alloc_sets(struct gram_stats const stats) {
+    struct bitset **sets = calloc(offs(stats.symbols), sizeof *sets);
+    if (!sets) return NULL;
+
+    for (int i = 1; i < offs(stats.symbols); i++) {
+        if (!(sets[i] = bitset(stats.terms))) {
+            free_gram_sets(sets, stats);
+            return NULL;
+        }
+    }
+
+    return sets;
+}
+
+void free_gram_sets(struct bitset **sets, struct gram_stats const stats) {
+    if (!sets) return;
+
+    for (int i = 1; i < offs(stats.symbols); i++) {
+        free(sets[i]);
+    }
+
+    free(sets);
+}
+
+void print_gram_sets(FILE *handle, struct bitset **sets, struct gram_stats const stats) {
+    if (!sets) return;
+
+    fprintf(handle, "  %4s  %-s\n", "num", "set");
+    for (int i = 1; i < offs(stats.symbols); i++) {
+        fprintf(handle, "  %4d  ", i);
+        print_bitset(handle, sets[i]);
+        fprintf(handle, "\n");
+    }
+    fprintf(handle, "\n");
+}
+
+
 #define RULE_FIRST(name) \
 static void name( \
-    bool *added, struct intset **first, bool const *nullable, \
+    bool *added, struct bitset **first, bool const *nullable, \
     unsigned r, struct gram_parser_spec const *spec \
 )
 #define SYMBOL_FIRST(name) \
 static void name( \
-    bool *added, struct intset **first, bool const *nullable, \
+    bool *added, struct bitset **first, bool const *nullable, \
     unsigned s, struct gram_parser_spec const *spec \
 )
 
@@ -166,7 +205,7 @@ SYMBOL_FIRST(symbol_first) {
     added[s] = true;
 
     if (sym.type == GM_TERM) {
-        *first = sinsert(sym.num, *first);
+        bsins(sym.num, *first);
     } else {
         unsigned *r = sym.derives;
         while (*r) rule_first(added, first, nullable, *r, spec), r++;
@@ -185,22 +224,23 @@ RULE_FIRST(rule_first) {
 }
 
 // FIXME: this doesn't take into account the reachability of symbols from the start rule
-struct intset **gram_firsts(bool const *nullable, struct gram_parser_spec const *spec) {
+struct bitset **gram_firsts(bool const *nullable, struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
     if (!gram_has_rules(spec)) return NULL;
 
-    int nsymbols = spec->stats.symbols + 1;
-    struct intset **firsts = calloc(nsymbols, sizeof *firsts);
+    struct gram_stats stats = spec->stats;
+
+    struct bitset **firsts = alloc_sets(stats);
     if (!firsts) return NULL;
 
-    bool *added = calloc(nsymbols, sizeof *added);
-    if (!added) return free(firsts), NULL;
+    bool *added = calloc(offs(stats.symbols), sizeof *added);
+    if (!added) return free_gram_sets(firsts, stats), NULL;
 
     struct gram_symbol *s = gram_symbol0(spec);
     while (!gram_symbol_null(s)) {
         symbol_first(added, &firsts[s->num], nullable, s->num, spec);
-        memset(added, false, nsymbols);
+        memset(added, false, offs(stats.symbols));
         s++;
     }
 
@@ -209,22 +249,15 @@ struct intset **gram_firsts(bool const *nullable, struct gram_parser_spec const 
     return firsts;
 }
 
-// FIXME: add version of sunion that mutates s and avoids the need for freeing
-static void addset(struct intset **follows, unsigned s, struct intset const *t) {
-    struct intset *sf = follows[s];
-    follows[s] = sunion(sf, t);
-    free_intset(sf);
-}
-
 #define RULE_FOLLOWS(name) \
 static void name( \
-    bool *added, bool const *nullable, struct intset **firsts, struct intset **follows, \
+    bool *added, bool const *nullable, struct bitset **firsts, struct bitset **follows, \
     unsigned r, unsigned nt, struct gram_parser_spec const *spec \
 )
 
 #define SYMBOL_FOLLOWS(name) \
 static void name( \
-    bool *added, bool const *nullable, struct intset **firsts, struct intset **follows, \
+    bool *added, bool const *nullable, struct bitset **firsts, struct bitset **follows, \
     unsigned s, struct gram_parser_spec const *spec \
 )
 
@@ -255,13 +288,13 @@ RULE_FOLLOWS(rule_follows) {
 
         // add the first sets for the symbols up to the first non-nullable symbol
         while (*n) {
-            addset(follows, *s, firsts[*n]);
+            bsunion(follows[*s], firsts[*n]);
             if (!nullable[*n]) break;
             n++;
         }
 
         // if we're at the end, add the follow set for the current non-terminal
-        if (!*n) addset(follows, *s, follows[nt]);
+        if (!*n) bsunion(follows[*s], follows[nt]);
 
         _symbol_follows(added, nullable, firsts, follows, *s, spec);
 
@@ -269,11 +302,11 @@ RULE_FOLLOWS(rule_follows) {
     }
 }
 
-static size_t all_sets_size(struct intset **follows, struct gram_parser_spec const *spec) {
+static size_t all_sets_size(struct bitset **follows, struct gram_parser_spec const *spec) {
     size_t size = 0;
 
-    for (int i = 1; i < spec->stats.symbols + 1; i++) {
-        size += ssize(follows[i]);
+    for (int i = 1; i < offs(spec->stats.symbols); i++) {
+        size += bssize(follows[i]);
     }
 
     return size;
@@ -281,35 +314,36 @@ static size_t all_sets_size(struct intset **follows, struct gram_parser_spec con
 
 static size_t
 symbol_follows(
-    bool *added, bool const *nullable, struct intset **firsts,
-    struct intset **follows, unsigned s, struct gram_parser_spec const *spec
+    bool *added, bool const *nullable, struct bitset **firsts,
+    struct bitset **follows, unsigned s, struct gram_parser_spec const *spec
 ) {
     _symbol_follows(added, nullable, firsts, follows, s, spec);
     return all_sets_size(follows, spec);
 }
 
-struct intset **gram_follows(bool const *nullable, struct intset **firsts, struct gram_parser_spec const *spec) {
+struct bitset **gram_follows(bool const *nullable, struct bitset **firsts, struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
     if (!gram_has_rules(spec)) return NULL;
 
-    int nsymbols = spec->stats.symbols + 1;
-    struct intset **follows = calloc(nsymbols, sizeof *follows);
+    struct gram_stats stats = spec->stats;
+
+    struct bitset **follows = alloc_sets(stats);
     if (!follows) return NULL;
 
-    bool *added = calloc(nsymbols, sizeof *added);
-    if (!added) return free(follows), NULL;
+    bool *added = calloc(offs(stats.symbols), sizeof *added);
+    if (!added) return free_gram_sets(follows, stats), NULL;
 
     // add $ to the follow set for the start symbol
     struct gram_symbol *start = gram_nonterm0(spec);
-    follows[start->num] = sinsert(GM_EOF, follows[start->num]);
+    bsins(GM_EOF, follows[start->num]);
 
     // use cardinality of all sets to compute equivalence, and continue until we find the least fixed point
     size_t p = 1, n;
     int i = 1;
     while ((n = symbol_follows(added, nullable, firsts, follows, start->num, spec)) != p) {
         p = n;
-        memset(added, false, nsymbols);
+        memset(added, false, offs(stats.symbols));
         i++;
     }
     debug("computing the follow sets required %d total passes\n", i);
@@ -319,34 +353,27 @@ struct intset **gram_follows(bool const *nullable, struct intset **firsts, struc
     return follows;
 }
 
-void free_gram_sets(struct intset **sets, struct gram_parser_spec const *spec) {
-    if (!sets) return;
-
-    for (int i = 1; i < spec->stats.symbols + 1; i++) {
-        free_intset(sets[i]);
-    }
-
-    free(sets);
-}
-
-void print_gram_sets(FILE *handle, struct intset **sets, struct gram_parser_spec const *spec) {
-    if (!sets) return;
-
-    fprintf(handle, "  %4s  %-s\n", "num", "set");
-    for (int i = 1; i < spec->stats.symbols + 1; i++) {
-        fprintf(handle, "  %4d  ", i);
-        print_intset(handle, sets[i]);
-        fprintf(handle, "\n");
-    }
-    fprintf(handle, "\n");
-}
-
 bool gram_is_ll1(
     struct ll1_error *error,
-    bool const *nullable, struct intset **firsts, struct intset **follows,
+    bool const *nullable, struct bitset **firsts, struct bitset **follows,
     struct gram_parser_spec const *spec
 ) {
     return true;
 }
 
+#define OOM_ERROR_FMT_START "| Out of Memory\n|\n"
+#define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+
+void print_ll1_error(FILE *handle, struct ll1_error error) {
+    switch (error.type) {
+        case GM_LL1_SCANNER_ERROR:
+            print_regex_error(handle, error.scanerr);
+            break;
+        case GM_LL1_OOM_ERROR:
+            fprintf(handle, OOM_ERROR_FMT_START);
+            if (debug_is("oom"))
+                fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
+            break;
+    }
+}
 

@@ -24,11 +24,9 @@ struct gram_symbol_entry {
 };
 
 enum gram_parser_symbol {
-    GM_ERROR,
-
     // terminals
-    GM_EOF_T,
-    GM_TAG_ONLY_T,
+    GM_EOF_T = RX_EOF,
+    GM_TAG_ONLY_T = RX_START,
     GM_SKIP_T,
     GM_REGEX_T,
     GM_SECTION_T,

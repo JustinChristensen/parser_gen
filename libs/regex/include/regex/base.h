@@ -190,10 +190,11 @@ struct regex_pattern {
 #define RX_END_PATTERNS { 0, NULL, NULL }
 
 enum {
-    RX_TAG_ONLY = -4,
-    RX_SKIP = -3,
-    RX_REJECTED = -2,
-    RX_EOF = -1
+    RX_TAG_ONLY = -2,
+    RX_SKIP = -1,
+    RX_REJECTED = 0,
+    RX_EOF = 1,
+    RX_START = 2
 };
 
 #define RX_ALPHA(sym)        { sym, "alpha",        "[A-Za-z]"              }

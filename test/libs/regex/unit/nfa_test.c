@@ -32,7 +32,7 @@ END_TEST
 
 START_TEST(test_init_with_invalid_patterns) {
     ck_assert_msg(nfa_context(&context, RX_PATTERNS {
-        { 0, NULL, "{5}" },
+        { 2, NULL, "{5}" },
         RX_END_PATTERNS
     }) == false, "init with invalid patterns succeeded");
 
@@ -42,8 +42,8 @@ END_TEST
 
 START_TEST(test_init_with_duplicate_tags) {
     ck_assert_msg(nfa_context(&context, RX_PATTERNS {
-        { 0, "abc", "a" },
-        { 1, "abc", "" },
+        { 2, "abc", "a" },
+        { 3, "abc", "" },
         RX_END_PATTERNS
     }) == false, "init with duplicate tags succeeded");
 
@@ -54,12 +54,12 @@ END_TEST
 START_TEST(test_init_with_patterns) {
     bool success = nfa_context(&context, RX_PATTERNS {
         RX_ALNUM_(RX_TAG_ONLY),
-        { 0, "abc", "a|b|c" },
-        { 1, "a!", "a[?!]" },
-        { 2, NULL, "{alnum_}{5}" },
-        { 3, "e's", "([0-7]|u)|e+" },
-        { 4, "aa",  ".." },
-        { 5, "n followed by optional binary operator",  "[0-9]+[\t ]*(\\+|-|\\*|/)" },
+        { 2, "abc", "a|b|c" },
+        { 3, "a!", "a[?!]" },
+        { 4, NULL, "{alnum_}{5}" },
+        { 5, "e's", "([0-7]|u)|e+" },
+        { 6, "aa",  ".." },
+        { 7, "n followed by optional binary operator",  "[0-9]+[\t ]*(\\+|-|\\*|/)" },
         RX_END_PATTERNS
     });
 
@@ -71,18 +71,18 @@ END_TEST
 
 START_TEST(test_scanner_is_reentrant) {
     ck_assert(nfa_context(&context, RX_PATTERNS {
-        { 0, NULL, "var" },
-        { 1, NULL, "[a-z]+" },
-        { 2, NULL, "[0-9]+" },
-        { 3, NULL, "=" },
-        { 4, NULL, ";" },
-        { 5, NULL, " *" },
+        { 2, NULL, "var" },
+        { 3, NULL, "[a-z]+" },
+        { 4, NULL, "[0-9]+" },
+        { 5, NULL, "=" },
+        { 6, NULL, ";" },
+        { 7, NULL, " *" },
         RX_END_PATTERNS
     }));
 
     char *input = "var foo = 33;";
     int const ENDT = -10;
-    int tokens[] = { 0, 5, 1, 5, 3, 5, 2, 4, RX_EOF, ENDT };
+    int tokens[] = { 2, 7, 3, 7, 5, 7, 4, 6, RX_EOF, ENDT };
 
     struct nfa_match match = {0};
     ck_assert(nfa_start_match(input, &match, &context));
@@ -99,16 +99,16 @@ START_TEST(test_scanner_is_reentrant) {
 END_TEST
 
 enum {
-    _RESERVED = 1,
-    _IDENT = 2,
-    _NUM = 3,
-    _ADD = 4,
-    _SUB = 5,
-    _MULT = 6,
-    _DIV = 7,
-    _LPAREN = 8,
-    _RPAREN = 9,
-    _WHITESPACE = 10
+    _RESERVED = RX_START,
+    _IDENT = 3,
+    _NUM = 4,
+    _ADD = 5,
+    _SUB = 6,
+    _MULT = 7,
+    _DIV = 8,
+    _LPAREN = 9,
+    _RPAREN = 10,
+    _WHITESPACE = 11
 };
 
 START_TEST(test_scans_simple_expression) {

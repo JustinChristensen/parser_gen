@@ -165,7 +165,7 @@ static unsigned **rule_table(struct gram_parser_spec const *spec) {
 static struct regex_pattern const default_tagged_patterns[] = {
     RX_ALPHA(RX_TAG_ONLY), RX_ALPHA_(RX_TAG_ONLY),
     RX_ALNUM(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
-    RX_SPACE(RX_TAG_ONLY) ,
+    RX_SPACE(RX_TAG_ONLY),
     RX_END_PATTERNS
 };
 

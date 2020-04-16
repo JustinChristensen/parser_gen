@@ -65,9 +65,6 @@ next_set(enum next_set next, struct gram_parse_context *context) {
 static char const *
 str_for_sym(enum gram_parser_symbol sym) {
     switch (sym) {
-        case GM_ERROR:                 return "unrecognized token";
-
-        case GM_EOF_T:                 return "eof";
         case GM_TAG_ONLY_T:            return "@";
         case GM_SKIP_T:                return "-";
         case GM_REGEX_T:               return "/abc/";
@@ -90,6 +87,7 @@ str_for_sym(enum gram_parser_symbol sym) {
         case GM_ALT_NT:                return "ALT";
         case GM_RHSES_NT:              return "RHSES";
         case GM_RHS_NT:                return "RHS";
+        default:                       return "unrecognized token";
     }
 }
 
@@ -225,7 +223,6 @@ gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *co
         { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" },
         { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
         { RX_SKIP, NULL, "{space}+" },
-        { GM_ERROR, NULL, "." },
         RX_END_PATTERNS
     })) {
         scanner_error(error, nfa_error(&scanner));
@@ -332,9 +329,7 @@ gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_par
 
 enum gram_parser_symbol
 gram_scan(struct gram_parse_context *context) {
-    enum gram_parser_symbol sym = gram_lookahead(context);
-    sym = nfa_match(&context->match);
-    return sym == RX_EOF ? GM_EOF_T : sym;
+    return nfa_match(&context->match);
 }
 
 enum gram_parser_symbol

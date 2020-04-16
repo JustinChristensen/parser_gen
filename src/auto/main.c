@@ -117,9 +117,8 @@ static void debug_args(struct args args) {
 }
 
 enum cfile_symbol {
-    C_ERROR,
-
-    C_INCLUDE,
+    C_EOF = RX_EOF,
+    C_INCLUDE = RX_START,
     C_DEFINE,
     C_UNDEF,
     C_LINE_COMMENT,
@@ -181,7 +180,7 @@ static int const NUM_CSYMS = C_WS + 1;
 
 static char *str_for_csym(enum cfile_symbol sym) {
     switch (sym) {
-        case C_ERROR:        return "ERROR";
+        case C_EOF:          return "eof";
         case C_INCLUDE:      return "#include";
         case C_DEFINE:       return "#define";
         case C_UNDEF:        return "#undef";
@@ -238,6 +237,7 @@ static char *str_for_csym(enum cfile_symbol sym) {
         case C_CONSTANT:     return "CONSTANT";
         case C_IDENTIFIER:   return "identifier";
         case C_WS:           return "whitespace";
+        default:             return "ERROR";
     }
 };
 
@@ -346,13 +346,13 @@ int main(int argc, char *argv[]) {
             success =
                 nfa_regex(RX_TAG_ONLY, "alpha", "[A-Za-z_]", &ncontext) &&
                 nfa_regex(RX_TAG_ONLY, "alnum", "[0-9A-Za-z_]", &ncontext) &&
-                nfa_regex(0, "if", "if", &ncontext) &&
-                nfa_regex(1, "else", "else", &ncontext) &&
-                nfa_regex(2, "for", "for", &ncontext) &&
-                nfa_regex(3, "while", "while", &ncontext) &&
-                nfa_regex(4, "do", "do", &ncontext) &&
-                nfa_regex(5, NULL, "[ \t\n]", &ncontext) &&
-                nfa_regex(6, NULL, "{alpha}{alnum}*", &ncontext);
+                nfa_regex(2, "if", "if", &ncontext) &&
+                nfa_regex(3, "else", "else", &ncontext) &&
+                nfa_regex(4, "for", "for", &ncontext) &&
+                nfa_regex(5, "while", "while", &ncontext) &&
+                nfa_regex(6, "do", "do", &ncontext) &&
+                nfa_regex(7, NULL, "[ \t\n]", &ncontext) &&
+                nfa_regex(8, NULL, "{alpha}{alnum}*", &ncontext);
         }
 
         if (!success) {

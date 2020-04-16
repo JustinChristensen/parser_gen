@@ -65,22 +65,7 @@ SETOP(union, |= );
 
 SETOP(intersect, &= );
 
-static void vbsdifference_(struct bitset *s, va_list args) {
-    assert(s != NULL);
-    struct bitset *t = NULL;
-    while ((t = va_arg(args, struct bitset *))) {
-        assert(s->nwords == t->nwords);
-        for (int w = 0; w < s->nwords; w++)
-            s->words[w] &= ~t->words[w];
-    }
-}
-
-void bsdifference_(struct bitset *s, ...) {
-    va_list args;
-    va_start(args, s);
-    vbsdifference_(s, args);
-    va_end(args);
-}
+SETOP(difference, &= ~);
 
 bool bsdisjoint(struct bitset const *s, struct bitset const *t) {
     assert(s != NULL);

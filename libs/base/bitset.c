@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <limits.h>
 #include <string.h>
 #include <assert.h>
@@ -32,28 +33,85 @@ void bsins(unsigned i, struct bitset *s) {
     s->words[WINDEX(i)] |= MASK(i);
 }
 
+void bsinsarr(struct bitset *s, unsigned n, unsigned *arr) {
+    assert(s != NULL);
+    for (int i = 0; i < n; i++) bsins(arr[i], s);
+}
+
 void bsdel(unsigned i, struct bitset *s) {
     assert(s != NULL);
     s->words[WINDEX(i)] &= ~MASK(i);
 }
 
-void bsunion(struct bitset *s, struct bitset const *t) {
-    assert(s->nwords == t->nwords);
-    for (int w = 0; w < s->nwords; w++)
-        s->words[w] |= t->words[w];
+#define SETOP(name, op) \
+static void vbs##name##_(struct bitset *s, va_list args) { \
+    assert(s != NULL);                                     \
+    struct bitset *t = NULL;                               \
+    while ((t = va_arg(args, struct bitset *))) {          \
+        assert(s->nwords == t->nwords);                    \
+        for (int w = 0; w < s->nwords; w++)                \
+            s->words[w] op t->words[w];                    \
+    }                                                      \
+}                                                          \
+                                                           \
+void bs##name##_(struct bitset *s, ...) {                  \
+    va_list args;                                          \
+    va_start(args, s);                                     \
+    vbs##name##_(s, args);                                 \
+    va_end(args);                                          \
 }
 
-void bsintersect(struct bitset *s, struct bitset const *t) {
-    assert(s->nwords == t->nwords);
-    for (int w = 0; w < s->nwords; w++)
-        s->words[w] &= t->words[w];
+SETOP(union, |= );
+
+SETOP(intersect, &= );
+
+static void vbsdifference_(struct bitset *s, va_list args) {
+    assert(s != NULL);
+    struct bitset *t = NULL;
+    while ((t = va_arg(args, struct bitset *))) {
+        assert(s->nwords == t->nwords);
+        for (int w = 0; w < s->nwords; w++)
+            s->words[w] &= ~t->words[w];
+    }
+}
+
+void bsdifference_(struct bitset *s, ...) {
+    va_list args;
+    va_start(args, s);
+    vbsdifference_(s, args);
+    va_end(args);
 }
 
 bool bsdisjoint(struct bitset const *s, struct bitset const *t) {
+    assert(s != NULL);
     assert(s->nwords == t->nwords);
+
     for (int w = 0; w < s->nwords; w++)
         if (s->words[w] & t->words[w]) return false;
+
     return true;
+}
+
+bool bseq(struct bitset const *s, struct bitset const *t) {
+    assert(s != NULL);
+    assert(t != NULL);
+    assert(s->nwords == t->nwords);
+    for (int w = 0; w < s->nwords; w++)
+        if (s->words[w] != t->words[w]) return false;
+    return true;
+}
+
+bool bsnull(struct bitset const *s) {
+    assert(s != NULL);
+    for (int w = 0; w < s->nwords; w++)
+        if (s->words[w] != 0) return false;
+    return true;
+}
+
+void bszero(struct bitset *s) {
+    assert(s != NULL);
+    for (int w = 0; w < s->nwords; w++)
+        s->words[w] = 0;
 }
 
 unsigned bssize(struct bitset const *s) {
@@ -74,7 +132,7 @@ void print_bitset(FILE *handle, struct bitset const *s) {
     for (int w = 0; w < s->nwords; w++)
         for (int i = 0; i < WORDBITS; i++)
             if (s->words[w] & (BIT << i))
-                fprintf(handle, "%u ", (unsigned) (w * WORDBITS + 1));
+                fprintf(handle, "%u ", (unsigned) (w * WORDBITS + i));
 }
 
 void print_bitset_bits(FILE *handle, struct bitset const *s) {
@@ -87,12 +145,12 @@ void print_bitset_bits(FILE *handle, struct bitset const *s) {
     }
 }
 
-struct bitset_iter bitset_iter(struct bitset *s) {
+struct bsiter bsiter(struct bitset *s) {
     assert(s != NULL);
-    return (struct bitset_iter) { s };
+    return (struct bsiter) { s };
 }
 
-bool bsnext(unsigned *i, struct bitset_iter *it) {
+bool bsnext(unsigned *i, struct bsiter *it) {
     assert(i != NULL);
     assert(it != NULL);
 

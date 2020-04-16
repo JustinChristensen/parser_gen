@@ -8,7 +8,7 @@ void vfreel(void *p, va_list ptrs) {
     while ((p = va_arg(ptrs, void *)));
 }
 
-void freel(void *p, ...) {
+void freel_(void *p, ...) {
     va_list args;
     va_start(args, p);
     vfreel(p, args);

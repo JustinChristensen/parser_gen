@@ -7,6 +7,7 @@
 #define prod(p, expr) if ((p)) *(p) = (expr)
 
 void vfreel(void *p, va_list ptrs);
-void freel(void *p, ...);
+#define freel(...) freel_(__VA_ARGS__, NULL);
+void freel_(void *p, ...);
 
 #endif // BASE_BASE_H_

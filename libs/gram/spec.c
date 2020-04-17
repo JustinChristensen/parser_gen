@@ -227,7 +227,7 @@ struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec) {
 }
 
 unsigned **gram_rule0(struct gram_parser_spec const *spec) {
-    return &spec->rules[GM_RULE0];
+    return &spec->rules[GM_START];
 }
 
 #define PATTERN_DEF_FMT "%s %s\n"

@@ -13,7 +13,7 @@ pdef_mod     = '@' | '-' | $empty;
 grammar      = "---\n" rules | $empty;
 rules        = rule rules | $empty;
 rule         = id '=' alt alts ';';
-alts         = '|' alt alts | $empty;
+alts         = '\|' alt alts | $empty;
 alt          = rhs rhses;
 rhses        = rhs rhses | $empty;
 rhs          = id

@@ -3,9 +3,11 @@
 #include <assert.h>
 #include <string.h>
 #include <base/base.h>
+#include <base/array.h>
 #include <base/assert.h>
 #include <base/debug.h>
 #include <base/bitset.h>
+#include <regex/nfa.h>
 #include "gram/ll1.h"
 #include "gram/spec.h"
 #include "gram/analyze.h"
@@ -29,6 +31,18 @@ _oom_error(struct ll1_error *error, char *file, int col, void *p, ...) {
 static bool
 scanner_error(struct ll1_error *error, struct regex_error scanerr) {
     prod(error, ((struct ll1_error) { .type = GM_LL1_SCANNER_ERROR, .scanerr = scanerr }));
+    return false;
+}
+
+static bool
+syntax_error(struct ll1_error *error, unsigned expected, struct ll1_parser_state *state) {
+    prod(error, ((struct ll1_error) {
+        .type = GM_LL1_SYNTAX_ERROR,
+        .loc = nfa_match_loc(&state->match),
+        .actual = state->lookahead,
+        .expected = expected
+    }));
+
     return false;
 }
 
@@ -91,11 +105,8 @@ static unsigned **parse_table(
             while (*s) {
                 struct bsiter it = bsiter(firsts[*s]);
                 unsigned t;
-                while (bsnext(&t, &it)) {
-                    unsigned ti = TI(t);
-                    debug("ptable[%u][%u] = %u\n", nti, ti, *r);
-                    ptable[nti][ti] = *r;
-                }
+                while (bsnext(&t, &it))
+                    ptable[nti][TI(t)] = *r;
                 if (!nullable[*s]) break;
                 s++;
             }
@@ -103,11 +114,8 @@ static unsigned **parse_table(
             if (!*s) {
                 struct bsiter it = bsiter(follows[nt]);
                 unsigned t;
-                while (bsnext(&t, &it)) {
-                    unsigned ti = TI(t);
-                    debug("ptable[%u][%u] = %u\n", nti, ti, *r);
-                    ptable[nti][ti] = *r;
-                }
+                while (bsnext(&t, &it))
+                    ptable[nti][TI(t)] = *r;
             }
 
             r++;
@@ -274,3 +282,108 @@ void free_ll1_parser(struct ll1_parser *parser) {
     *parser = (struct ll1_parser) { 0 };
 }
 
+struct ll1_parser_state ll1_parser_state(struct ll1_parser *parser) {
+    assert(parser != NULL);
+    return (struct ll1_parser_state) { .parser = parser };
+}
+
+static void push_rule(unsigned r, struct array *syms, unsigned **rtable) {
+    unsigned *s = rtable[r];
+    while (*s) apush(s, syms), s++;
+};
+
+static bool start_scanning(char *input, struct ll1_parser_state *state) {
+    if (nfa_start_match(input, &state->match, &state->parser->scanner)) {
+        state->lookahead = nfa_match(&state->match);
+        debug("initial lookahead: %u\n", state->lookahead);
+        return true;
+    }
+
+    return false;
+}
+
+static bool peek(unsigned expected, struct ll1_parser_state *state) {
+    return state->lookahead == expected;
+}
+
+static bool expect(unsigned expected, struct ll1_parser_state *state) {
+    if (peek(expected, state)) {
+        debug("success: expected %u, actual %u\n", expected, state->lookahead);
+        state->lookahead = nfa_match(&state->match);
+        return true;
+    }
+
+    debug("failure: expected %u, actual %u\n", expected, state->lookahead);
+
+    return false;
+}
+
+static void debug_syms(struct array *syms) {
+    int sym;
+
+    debug("symbols:");
+    for (int i = 0; i < asize(syms); i++) {
+        at(&sym, i, syms);
+        debug("%u ", sym);
+    }
+
+    debug("\n");
+}
+
+#define SYM_STACK_SIZE 7
+bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *state) {
+    assert(state != NULL);
+
+    if (!start_scanning(input, state)) return oom_error(error, NULL);
+
+    struct array *syms = init_array(sizeof (unsigned), SYM_STACK_SIZE, 0, 0);
+    if (!syms) return oom_error(error, NULL);
+
+    struct ll1_parser const *parser = state->parser;
+    unsigned **rtable = parser->rtable,
+             **ptable = parser->ptable;
+
+    struct gram_stats stats = parser->stats;
+    unsigned const nonterm0 = stats.terms + 1;
+
+    push_rule(GM_START, syms, rtable);
+
+    bool success = true;
+    unsigned sym = 0;
+
+    while (success && !aempty(syms)) {
+        apeek(&sym, syms);
+        debug_syms(syms);
+
+        if (state->lookahead == RX_REJECTED) {
+            success = syntax_error(error, sym, state);
+            break;
+        }
+
+        bool const isterm = sym < nonterm0;
+
+        if (isterm) {
+            if (expect(sym, state)) apop(&sym, syms);
+            else (success = syntax_error(error, sym, state));
+        } else {
+            debug("ptable[%u][%u]", sym, state->lookahead);
+            unsigned rule = ptable[NTI(sym, stats)][TI(state->lookahead)];
+            debug(" = %u\n", rule);
+
+            if (rule) {
+                apop(&sym, syms);
+                push_rule(rule, syms, rtable);
+            } else {
+                success = syntax_error(error, sym, state);
+            }
+        }
+    }
+
+    free_array(syms);
+
+    return success;
+}
+
+void free_ll1_parser_state(struct ll1_parser_state *state) {
+    free_nfa_match(&state->match);
+}

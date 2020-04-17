@@ -34,7 +34,7 @@ enum output_fmt {
 struct args {
     enum command_key cmd;
     enum output_fmt output;
-    char *regex;
+    char regex[BUFSIZ];
     int posc;
     char **pos;
 };
@@ -92,7 +92,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                 }
                 break;
             case REGEX:
-                args->regex = argval();
+                strcpy(args->regex, argval());
                 break;
         }
     }
@@ -105,7 +105,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 static void debug_args(struct args args) {
     debug("cmd: %s\n", cmd_str(args.cmd));
     debug("output: %s\n", output_str(args.output));
-    if (args.regex) debug("regex: %s\n", args.regex);
+    if (args.regex[0]) debug("regex: %s\n", args.regex);
     if (args.posc > 0) {
         debug("posc: %d\n", args.posc);
         debug("pos: ");
@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = AUTO,
         .output = OUTPUT_TRIAL,
-        .regex = NULL,
+        .regex = "",
         .posc = 0,
         .pos = NULL
     };
@@ -310,7 +310,7 @@ int main(int argc, char *argv[]) {
     if (args.cmd == PRINT) {
         struct regex_expr exprbuf[RX_EXPR_MAX];
         struct regex_expr_context econtext = expr_context(exprbuf);
-        char *regex = args.regex ? args.regex : "(a|b)*abbc?";
+        char *regex = args.regex[0] ? args.regex : "(a|b)*abbc?";
         struct regex_parse_context pcontext = regex_parse_context(&econtext, expr_parse_iface);
 
         if (parse_regex(regex, &pcontext)) {
@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
 
-        if (args.regex) {
+        if (args.regex[0]) {
             success = nfa_regex(35, NULL, args.regex, &ncontext);
         } else {
             success =
@@ -415,7 +415,7 @@ int main(int argc, char *argv[]) {
         }
 
         free_nfa_context(&ncontext);
-    } else if (args.cmd == SCAN_ONLY && args.regex) {
+    } else if (args.cmd == SCAN_ONLY && args.regex[0]) {
         print_regex_token_table(args.regex);
     } else if (args.cmd == C_FILE) {
         struct nfa_context context;

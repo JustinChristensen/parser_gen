@@ -7,6 +7,7 @@
 #include "gram/spec.h"
 
 enum ll1_error_type {
+    GM_LL1_SYNTAX_ERROR,
     GM_LL1_SCANNER_ERROR,
     GM_LL1_OOM_ERROR
 };
@@ -14,8 +15,9 @@ enum ll1_error_type {
 struct ll1_error {
     enum ll1_error_type type;
     union {
-        struct regex_error scanerr;
+        struct { struct regex_loc loc; unsigned actual; unsigned expected; };
         struct { char *file; int col; };
+        struct regex_error scanerr;
     };
 };
 

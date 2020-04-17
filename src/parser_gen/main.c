@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <base/args.h>
 #include <base/bitset.h>
 #include <base/string.h>
@@ -15,7 +16,8 @@ enum command_key {
 };
 
 enum arg_key {
-    PARSER_TYPE
+    PARSER_TYPE,
+    SPEC_FILE
 };
 
 enum parser_type {
@@ -25,6 +27,7 @@ enum parser_type {
 struct args {
     enum command_key cmd;
     enum parser_type type;
+    char spec[BUFSIZ];
     int posc;
     char **pos;
 };
@@ -34,11 +37,18 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 
     while ((key = readarg(context)) != END) {
         if (cmd == GEN_PARSER) {
-            if (streq("ll1", argval())) {
-                args->type = LL1;
-            } else {
-                print_usage(stderr, context);
-                exit(EXIT_FAILURE);
+            switch (key) {
+                case PARSER_TYPE:
+                    if (streq("ll1", argval())) {
+                        args->type = LL1;
+                    } else {
+                        print_usage(stderr, context);
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+                case SPEC_FILE:
+                    strcpy(args->spec, argval());
+                    break;
             }
         }
     }
@@ -73,15 +83,17 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = GEN_PARSER,
-        .type = LL1
+        .type = LL1,
+        .spec = ""
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, optional_argument, "Parser type: ll1" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll1" };
+    struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
         NULL,
-        ARGS { parser_type_arg, help_and_version_args, END_ARGS },
+        ARGS { parser_type_arg, spec_file_arg, help_and_version_args, END_ARGS },
         NULL,
         CMDS {
             { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },
@@ -97,21 +109,35 @@ int main(int argc, char *argv[]) {
     char **files = args.pos;
 
     if (args.cmd == GEN_PARSER) {
+        char specfile[bufsize];
+
+        if (!args.spec[0]) {
+            fprintf(stderr, "spec file required\n");
+            return EXIT_FAILURE;
+        }
+
         if (args.posc == 0) {
             fprintf(stderr, "no input files\n");
             return EXIT_FAILURE;
         }
 
         int nread = 0;
-        if ((nread = slurp_file(bufsize, contents, files[0])) == -1)
+        if ((nread = slurp_file(bufsize, specfile, args.spec)) == -1) {
+            fprintf(stderr, "reading spec file %s failed\n", args.spec);
             return EXIT_FAILURE;
+        }
+
+        if ((nread = slurp_file(bufsize, contents, files[0])) == -1) {
+            fprintf(stderr, "reading file %s failed\n", files[0]);
+            return EXIT_FAILURE;
+        }
 
         struct gram_parse_context context = { 0 };
         struct gram_parse_error parserr = { 0 };
 
         if (gram_parse_context(&parserr, &context)) {
             struct gram_parser_spec spec = { 0 };
-            if (gram_parse(&parserr, &spec, contents, &context)) {
+            if (gram_parse(&parserr, &spec, specfile, &context)) {
                 free_gram_parse_context(&context);
 
                 struct ll1_parser parser = { 0 };
@@ -123,8 +149,20 @@ int main(int argc, char *argv[]) {
                     return EXIT_FAILURE;
                 }
 
-                print_ll1_parser(stdout, &parser);
+                struct ll1_parser_state pstate = ll1_parser_state(&parser);
 
+                if (!ll1_parse(&generr, contents, &pstate)) {
+                    print_ll1_error(stderr, generr);
+                    free_ll1_parser_state(&pstate);
+                    free_ll1_parser(&parser);
+                    free_gram_parser_spec(&spec);
+                    return EXIT_FAILURE;
+                }
+
+                printf("parse succeeded\n");
+                // print_ll1_parser(stdout, &parser);
+
+                free_ll1_parser_state(&pstate);
                 free_ll1_parser(&parser);
                 free_gram_parser_spec(&spec);
 

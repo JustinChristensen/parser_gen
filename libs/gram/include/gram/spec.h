@@ -14,7 +14,6 @@
 
 #define GM_EOF 1
 #define GM_START 1
-#define GM_RULE0 1
 #define GM_SYMBOL0 1
 
 enum gram_symbol_type {

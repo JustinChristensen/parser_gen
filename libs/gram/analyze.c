@@ -361,11 +361,20 @@ bool gram_is_ll1(
     return true;
 }
 
-#define OOM_ERROR_FMT_START "| Out of Memory\n|\n"
+#define ERROR_FMT_END "\n|\n"
+#define OOM_ERROR_FMT_START "| LL1 Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+#define SYNTAX_ERROR_FMT_START "| LL1 Syntax Error\n|\n| Got: %u\n| Expected: %u"
+#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
 
 void print_ll1_error(FILE *handle, struct ll1_error error) {
     switch (error.type) {
+        case GM_LL1_SYNTAX_ERROR:
+            fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
+            fprintf(handle, SYNTAX_ERROR_FMT_LOC);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, ERROR_FMT_END);
+            break;
         case GM_LL1_SCANNER_ERROR:
             print_regex_error(handle, error.scanerr);
             break;

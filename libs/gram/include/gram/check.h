@@ -6,7 +6,7 @@
 
 bool gram_check(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
-    struct gram_parse_context *context
+    struct gram_spec_parser *parser
 );
 
 #endif // GRAM_CHECK_H_

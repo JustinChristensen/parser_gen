@@ -1,0 +1,16 @@
+id      /{alpha_}{alnum_}*/
+int     /[0-9]+/
+---
+stmts: stmt stmts | $empty ;
+
+stmt: assign_stmt ;
+
+assign_stmt: "var" id '=' expr ';' ;
+
+expr: factor expr_tail ;
+
+expr_tail: '+' factor expr_tail |
+           '*' factor expr_tail |
+           $empty ;
+
+factor: id | int;

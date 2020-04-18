@@ -6,17 +6,14 @@ char            /'(\\.|[^'])'/
 string          /"(\\.|[^"])*"/
 
 ---
-parser_spec  = pattern_defs grammar;
-pattern_defs = pattern_def pattern_defs | $empty;
-pattern_def  = pdef_mod id regex;
-pdef_mod     = '@' | '-' | $empty;
-grammar      = "---\n" rules | $empty;
-rules        = rule rules | $empty;
-rule         = id '=' alt alts ';';
-alts         = '\|' alt alts | $empty;
-alt          = rhs rhses;
-rhses        = rhs rhses | $empty;
-rhs          = id
-             | char
-             | string
-             | "$empty";
+parser_spec:  pattern_defs grammar;
+pattern_defs: pattern_def pattern_defs | $empty;
+pattern_def:  pdef_mod id regex;
+pdef_mod:     '@' | '-' | $empty;
+grammar:      "---\n" rules | $empty;
+rules:        rule rules | $empty;
+rule:         id ':' alt alts ';';
+alts:         '\|' alt alts | $empty;
+alt:          rhs rhses;
+rhses:        rhs rhses | $empty;
+rhs:          id | char | string | "$empty";

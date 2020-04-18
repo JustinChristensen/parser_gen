@@ -30,7 +30,7 @@ enum gram_parser_symbol {
     GM_SKIP_T,
     GM_REGEX_T,
     GM_SECTION_T,
-    GM_ASSIGN_T,
+    GM_COLON_T,
     GM_ALT_T,
     GM_SEMICOLON_T,
     GM_CHAR_T,
@@ -83,7 +83,7 @@ struct gram_parse_error {
     };
 };
 
-struct gram_parse_context {
+struct gram_spec_parser {
     struct hash_table *symtab;
     struct gram_stats stats;
 
@@ -93,17 +93,17 @@ struct gram_parse_context {
     enum gram_parser_symbol *next_set;
 };
 
-bool gram_parse_context(struct gram_parse_error *error, struct gram_parse_context *context);
-bool gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_parse_context *context);
-enum gram_parser_symbol gram_scan(struct gram_parse_context *context);
-enum gram_parser_symbol gram_lookahead(struct gram_parse_context *context);
-struct regex_loc gram_location(struct gram_parse_context *context);
-bool gram_lexeme(char *lexeme, struct gram_parse_context *context);
+bool gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser);
+bool gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_spec_parser *parser);
+enum gram_parser_symbol gram_scan(struct gram_spec_parser *parser);
+enum gram_parser_symbol gram_lookahead(struct gram_spec_parser *parser);
+struct regex_loc gram_location(struct gram_spec_parser *parser);
+bool gram_lexeme(char *lexeme, struct gram_spec_parser *parser);
 bool gram_parse(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
-    char *input, struct gram_parse_context *context
+    char *input, struct gram_spec_parser *parser
 );
-void free_gram_parse_context(struct gram_parse_context *context);
+void free_gram_spec_parser(struct gram_spec_parser *parser);
 void print_gram_parse_error(FILE *handle, struct gram_parse_error error);
 void print_gram_tokens(FILE *handle, char *spec);
 

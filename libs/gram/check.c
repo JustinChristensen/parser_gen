@@ -33,11 +33,11 @@ static bool entry_not_defined(struct gram_symbol_entry *entry) {
 
 bool gram_check(struct gram_parse_error *error,
     struct gram_parser_spec *spec,
-    struct gram_parse_context *context
+    struct gram_spec_parser *parser
 ) {
     if (spec->type == GM_CHECKED_SPEC || spec->type == GM_PACKED_SPEC) return true;
 
-    struct hash_table *symtab = context->symtab;
+    struct hash_table *symtab = parser->symtab;
 
     struct gram_rule *rule = NULL;
     for (rule = spec->prules; rule; rule = rule->next) {

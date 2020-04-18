@@ -321,7 +321,7 @@ static bool expect(unsigned expected, struct ll1_parser_state *state) {
 static void debug_syms(struct array *syms) {
     int sym;
 
-    debug("symbols:");
+    debug("symbols: ");
     for (int i = 0; i < asize(syms); i++) {
         at(&sym, i, syms);
         debug("%u ", sym);

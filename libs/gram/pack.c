@@ -206,16 +206,16 @@ oom:
 
 bool gram_pack(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
-    struct gram_parse_context *context
+    struct gram_spec_parser *parser
 ) {
     assert(spec != NULL);
 
     if (spec->type == GM_PACKED_SPEC) return true;
 
-    if (spec->type == GM_PARSED_SPEC && !gram_check(error, spec, context))
+    if (spec->type == GM_PARSED_SPEC && !gram_check(error, spec, parser))
         return false;
 
-    struct hash_table *symtab = context->symtab;
+    struct hash_table *symtab = parser->symtab;
     struct gram_stats stats = spec->stats;
 
     // account for eof symbol

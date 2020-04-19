@@ -144,6 +144,8 @@ static unsigned **pack_rules(
     if (!rules) return NULL;
 
     // create an empty rule
+    // this makes computing first/follow for rules less than ideal
+    // but the actual parser generation doesn't require nonterms to have unique rules
     unsigned const empty_rule = stats.rules;
     if ((rules[empty_rule] = alloc_rule(1)) == NULL)
         return free(rules), NULL;

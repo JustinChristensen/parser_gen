@@ -83,17 +83,13 @@ static unsigned TI(unsigned t) {
 }
 
 #define PTABLE_STACK 7
-static unsigned **parse_table(
-    bool const *nullable, struct bitset **firsts, struct bitset **follows,
-    struct gram_parser_spec const *spec
-) {
+static unsigned **parse_table(struct gram_symbol_analysis *an, struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
 
     unsigned **ptable = alloc_parse_table(stats);
     if (!ptable) return NULL;
 
     struct gram_symbol *sym = gram_nonterm0(spec);
-
     while (!gram_symbol_null(sym)) {
         unsigned nt = sym->num;
         unsigned nti = NTI(nt, stats);
@@ -103,16 +99,16 @@ static unsigned **parse_table(
             unsigned *s = spec->rules[*r];
 
             while (*s) {
-                struct bsiter it = bsiter(firsts[*s]);
+                struct bsiter it = bsiter(an->firsts[*s]);
                 unsigned t;
                 while (bsnext(&t, &it))
                     ptable[nti][TI(t)] = *r;
-                if (!nullable[*s]) break;
+                if (!an->nullable[*s]) break;
                 s++;
             }
 
             if (!*s) {
-                struct bsiter it = bsiter(follows[nt]);
+                struct bsiter it = bsiter(an->follows[nt]);
                 unsigned t;
                 while (bsnext(&t, &it))
                     ptable[nti][TI(t)] = *r;
@@ -187,25 +183,15 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
 
     struct gram_stats stats = spec->stats;
 
-    bool *nullable = NULL;
-    struct bitset **firsts = NULL, **follows = NULL;
+    struct gram_symbol_analysis an = { 0 };
     struct nfa_context scanner = { 0 };
     unsigned **ptable = NULL, **rtable = NULL;
 
-    nullable = gram_nullable(spec);
-    if (!nullable) return oom_error(error, NULL);
+    if (!gram_analyze_symbols(&an, spec))
+        return false;
 
-    firsts = gram_firsts(nullable, spec);
-    if (!firsts) return oom_error(error, nullable);
-
-    follows = gram_follows(nullable, firsts, spec);
-    if (!follows) {
-        oom_error(error, NULL);
-        goto free;
-    }
-
-    if (!gram_is_ll1(error, nullable, firsts, follows, spec))
-        goto free;
+    // if (!gram_is_ll1(error, nullable, firsts, follows, spec))
+    //     goto free;
 
     if (!nfa_context(&scanner, default_tagged_patterns)) {
         scanner_error(error, nfa_error(&scanner));
@@ -223,23 +209,19 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
         goto free;
     }
 
-    ptable = parse_table(nullable, firsts, follows, spec);
+    ptable = parse_table(&an, spec);
     if (!ptable) {
         oom_error(error, NULL);
         goto free;
     }
 
-    *parser = ll1_parser(scanner, rtable, ptable, stats);
+    free_gram_symbol_analysis(&an);
 
-    free(nullable);
-    free_gram_sets(firsts, stats);
-    free_gram_sets(follows, stats);
+    *parser = ll1_parser(scanner, rtable, ptable, stats);
 
     return true;
 free:
-    free(nullable);
-    free_gram_sets(firsts, stats);
-    free_gram_sets(follows, stats);
+    free_gram_symbol_analysis(&an);
     free_nfa_context(&scanner);
     free(ptable);
     free(rtable);
@@ -387,3 +369,29 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
 void free_ll1_parser_state(struct ll1_parser_state *state) {
     free_nfa_match(&state->match);
 }
+
+#define ERROR_FMT_END "\n|\n"
+#define OOM_ERROR_FMT_START "| LL1 Out of Memory\n|\n"
+#define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+#define SYNTAX_ERROR_FMT_START "| LL1 Syntax Error\n|\n| Got: %u\n| Expected: %u"
+#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
+
+void print_ll1_error(FILE *handle, struct ll1_error error) {
+    switch (error.type) {
+        case GM_LL1_SYNTAX_ERROR:
+            fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
+            fprintf(handle, SYNTAX_ERROR_FMT_LOC);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, ERROR_FMT_END);
+            break;
+        case GM_LL1_SCANNER_ERROR:
+            print_regex_error(handle, error.scanerr);
+            break;
+        case GM_LL1_OOM_ERROR:
+            fprintf(handle, OOM_ERROR_FMT_START);
+            if (debug_is("oom"))
+                fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
+            break;
+    }
+}
+

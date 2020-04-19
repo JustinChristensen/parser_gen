@@ -52,12 +52,16 @@ START_TEST(test_bsins_bsdel) {
     bsins(1, set);
     _print_bitset_bits(set);
     ck_assert_int_eq(bssize(set), 5);
+    ck_assert(bselem(1, set));
 
     bsdel(1, set);
+    ck_assert(!bselem(1, set));
     _print_bitset_bits(set);
     ck_assert_int_eq(bssize(set), 4);
 
+    ck_assert(bselem(64, set));
     bsdel(64, set);
+    ck_assert(!bselem(64, set));
     _print_bitset_bits(set);
     ck_assert_int_eq(bssize(set), 3);
 

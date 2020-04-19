@@ -151,6 +151,44 @@ int gen_parser(struct args args) {
     return EXIT_SUCCESS;
 }
 
+int analyze(struct args args, char *contents) {
+    struct gram_spec_parser spec_parser = { 0 };
+    struct gram_parse_error error = { 0 };
+    struct gram_parser_spec spec = { 0 };
+
+    if (gram_spec_parser(&error, &spec_parser) && gram_parse(&error, &spec, contents, &spec_parser)) {
+        free_gram_spec_parser(&spec_parser);
+        print_gram_parser_spec(stdout, &spec);
+
+        if (args.cmd == ANALYZE) {
+            print_gram_stats(stdout, spec.stats);
+
+            struct gram_symbol_analysis san = { 0 };
+            if (gram_analyze_symbols(&san, &spec)) {
+                print_gram_symbol_analysis(stdout, &san);
+
+                struct gram_rule_analysis ran = { 0 };
+                if (gram_analyze_rules(&ran, &san, &spec)) {
+                    print_gram_rule_analysis(stdout, &ran);
+                    free_gram_rule_analysis(&ran);
+                }
+
+                free_gram_symbol_analysis(&san);
+            }
+        }
+
+        free_gram_parser_spec(&spec);
+
+        return EXIT_SUCCESS;
+    }
+
+    print_gram_parse_error(stderr, error);
+    free_gram_spec_parser(&spec_parser);
+    free_gram_parser_spec(&spec);
+
+    return EXIT_FAILURE;
+}
+
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = GEN_PARSER,
@@ -191,40 +229,8 @@ int main(int argc, char *argv[]) {
 
             if (args.cmd == SCAN) {
                 print_gram_tokens(stdout, contents);
-            } else {
-                struct gram_spec_parser spec_parser = { 0 };
-                struct gram_parse_error error = { 0 };
-
-                if (gram_spec_parser(&error, &spec_parser)) {
-                    struct gram_parser_spec spec = { 0 };
-                    if (gram_parse(&error, &spec, contents, &spec_parser)) {
-                        free_gram_spec_parser(&spec_parser);
-                        print_gram_parser_spec(stdout, &spec);
-
-                        if (args.cmd == ANALYZE) {
-                            print_gram_stats(stdout, spec.stats);
-                            bool *nullable = gram_nullable(&spec);
-                            struct bitset **firsts = gram_firsts(nullable, &spec);
-                            struct bitset **follows = gram_follows(nullable, firsts, &spec);
-                            print_gram_nullable(stdout, nullable, &spec);
-                            printf("firsts:\n");
-                            print_gram_sets(stdout, firsts, spec.stats);
-                            printf("follows:\n");
-                            print_gram_sets(stdout, follows, spec.stats);
-                            free(nullable);
-                            free_gram_sets(firsts, spec.stats);
-                            free_gram_sets(follows, spec.stats);
-                        }
-
-                        free_gram_parser_spec(&spec);
-                        return EXIT_SUCCESS;
-                    }
-                }
-
-                print_gram_parse_error(stderr, error);
-                free_gram_spec_parser(&spec_parser);
+            } else if (!analyze(args, contents))
                 return EXIT_FAILURE;
-            }
         }
     }
 

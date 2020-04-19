@@ -11,3 +11,6 @@
 * add filename to regex_loc, and support seeding the libregex parser with the current file and location
 * add filename to the parser_spec AST
 * decide what to do with error handling in the generated parser
+* detect the reachability of symbols in the grammar, and the symbols' productiveness
+    - right now some of the analyze routines do not do this
+* add a string field to gram_symbol to make error messaging prettier

@@ -173,6 +173,12 @@ int analyze(struct args args, char *contents) {
                     free_gram_rule_analysis(&ran);
                 }
 
+                struct gram_analysis gan = { 0 };
+                if (gram_analyze(&gan, &san, &spec)) {
+                    print_gram_analysis(stdout, &gan);
+                    free_gram_analysis(&gan);
+                }
+
                 free_gram_symbol_analysis(&san);
             }
         }

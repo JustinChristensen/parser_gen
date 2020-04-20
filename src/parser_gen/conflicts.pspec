@@ -1,0 +1,12 @@
+---
+
+S: T 'a'
+ | T
+ | $empty;
+
+T: "foo"
+ | "bar"
+ | U "baz"
+ | $empty;
+
+U: "baz" | $empty | $empty;

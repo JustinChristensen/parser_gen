@@ -388,39 +388,39 @@ void print_gram_symbol_analysis(FILE *handle, struct gram_symbol_analysis const 
     print_sets(handle, an->follows, an->nsymbols);
 }
 
-static bool *rules_nullable(struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec) {
+static bool *rules_nullable(struct gram_symbol_analysis *san, struct gram_parser_spec const *spec) {
     unsigned const nrules = offs(spec->stats.rules);
     bool *rnullable = calloc(nrules, sizeof *rnullable);
     if (!rnullable) return NULL;
 
     for (int r = 1; r < nrules; r++)
-        rnullable[r] = rule_nullable(NULL, syman->nullable, r, spec);
+        rnullable[r] = rule_nullable(NULL, san->nullable, r, spec);
 
     return rnullable;
 }
 
-static struct bitset **rules_firsts(struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec) {
+static struct bitset **rules_firsts(struct gram_symbol_analysis *san, struct gram_parser_spec const *spec) {
     unsigned const nrules = offs(spec->stats.rules);
     struct bitset **firsts = calloc(nrules, sizeof *firsts);
     if (!firsts) return NULL;
 
     for (int r = 1; r < nrules; r++)
-        firsts[r] = rule_first(NULL, 0, syman->firsts, syman->nullable, r, spec);
+        firsts[r] = rule_first(NULL, 0, san->firsts, san->nullable, r, spec);
 
     return firsts;
 }
 
-bool gram_analyze_rules(struct gram_rule_analysis *an, struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec) {
+bool gram_analyze_rules(struct gram_rule_analysis *an, struct gram_symbol_analysis *san, struct gram_parser_spec const *spec) {
     invariant(assert_packed_spec, spec);
 
     free_gram_rule_analysis(an);
 
     an->nrules = offs(spec->stats.rules);
 
-    an->nullable = rules_nullable(syman, spec);
+    an->nullable = rules_nullable(san, spec);
     if (!an->nullable) return false;
 
-    an->firsts = rules_firsts(syman, spec);
+    an->firsts = rules_firsts(san, spec);
     if (!an->firsts) return false;
 
     return true;
@@ -443,44 +443,204 @@ void print_gram_rule_analysis(FILE *handle, struct gram_rule_analysis const *an)
     print_sets(handle, an->firsts, an->nrules);
 }
 
-// static unsigned nderives(unsigned *r) {
-//     unsigned n = 0;
-//     while (*r) n++, r++;
-//     return n;
-// }
-//
-// bool gram_analyze(
-//     struct gram_analysis *an, struct gram_symbol_analysis *syman,
-//     struct gram_parser_spec const *spec
-// ) {
-//     invariant(assert_packed_spec, spec);
-//
-//     struct gram_rule_analysis ran = { 0 };
-//
-//     if (!gram_analyze_rules(&ran, spec))
-//         return false;
-//
-//     bool *rnullable = ran.nullable;
-//     struct bitset **firsts = ran.firsts;
-//
-//     struct gram_symbol *nt = gram_nonterm0(spec);
-//     while (!gram_symbol_null(nt)) {
-//         unsigned *r = nt->derives;
-//         unsigned n = nderives(r);
-//
-//         for (int i = 0; i < n; i++) {
-//             for (int j = i + 1; j < n; j++) {
-//             }
-//         }
-//
-//         nt++;
-//     }
-//
-//     free_gram_rule_analysis(&ran);
-//
-//     return true;
-// }
-//
-// void free_gram_analysis(struct gram_analysis *an);
-// void print_gram_analysis(struct gram_analysis *an);
-//
+static struct gram_conflict *first_first_conflict(
+    struct gram_conflict *last, unsigned nt, unsigned r1, unsigned r2,
+    struct gram_analysis *an
+) {
+    struct gram_conflict *conf = malloc(sizeof *conf);
+    if (!conf) return NULL;
+
+    *conf = (struct gram_conflict) {
+        GM_FIRST_FIRST,
+        .nonterm = nt,
+        .rules = { offs(r1), offs(r2) }
+    };
+
+    if (last) last->next = conf;
+    else an->conflicts = conf;
+
+    if (an->clas == GM_LL) an->clas--;
+
+    return conf;
+}
+
+static struct gram_conflict *first_follows_conflict(
+    struct gram_conflict *last, unsigned nt, unsigned r,
+    struct gram_analysis *an
+) {
+    struct gram_conflict *conf = malloc(sizeof *conf);
+    if (!conf) return NULL;
+
+    *conf = (struct gram_conflict) {
+        GM_FIRST_FOLLOWS,
+        .nonterm = nt,
+        .rule = offs(r)
+    };
+
+    if (last) last->next = conf;
+    else an->conflicts = conf;
+
+    if (an->clas == GM_LL) an->clas--;
+
+    return conf;
+}
+
+static struct gram_conflict *null_ambiguity_conflict(
+    struct gram_conflict *last, unsigned nt,
+    struct gram_analysis *an
+) {
+    struct gram_conflict *conf = malloc(sizeof *conf);
+    if (!conf) return NULL;
+
+    *conf = (struct gram_conflict) {
+        GM_NULL_AMBIGUITY,
+        .nonterm = nt
+    };
+
+    if (last) last->next = conf;
+    else an->conflicts = conf;
+
+    if (an->clas == GM_LL) an->clas--;
+
+    return conf;
+}
+
+static unsigned nderives(unsigned *r) {
+    unsigned n = 0;
+    while (*r) n++, r++;
+    return n;
+}
+
+bool gram_analyze(
+    struct gram_analysis *an, struct gram_symbol_analysis *san,
+    struct gram_parser_spec const *spec
+) {
+    invariant(assert_packed_spec, spec);
+
+    free_gram_analysis(an);
+
+    an->clas = GM_LL;
+
+    struct gram_rule_analysis ran = { 0 };
+
+    if (!gram_analyze_rules(&ran, san, spec))
+        return false;
+
+    struct gram_stats stats = spec->stats;
+
+    bool *rnullable = ran.nullable,
+         *snullable = san->nullable;
+    struct bitset **rfirsts = ran.firsts,
+                  **sfollows = san->follows;
+
+    struct gram_conflict *conflict = NULL;
+
+    struct gram_symbol *nt = gram_nonterm0(spec);
+    while (!gram_symbol_null(nt)) {
+        unsigned *rules = nt->derives;
+        unsigned ntnum = nt->num - stats.terms;
+        unsigned n = nderives(rules);
+        unsigned nnulls = 0;
+
+        for (int i = 0; i < n; i++) {
+            unsigned r = rules[i];
+
+            if (rnullable[r]) nnulls++;
+
+            // first-first conflicts
+            for (int j = i + 1; j < n; j++) {
+                unsigned t = rules[j];
+
+                if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
+                    if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))
+                        return free_gram_analysis(an), false;
+                }
+            }
+
+            if (!snullable[nt->num]) continue;
+
+            // first-follows conflicts
+            if (!bsdisjoint(rfirsts[r], sfollows[nt->num])) {
+                if (!(conflict = first_follows_conflict(conflict, ntnum, i, an)))
+                    return free_gram_analysis(an), false;
+            }
+        }
+
+        // null ambiguity
+        if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, ntnum, an)))
+            return free_gram_analysis(an), false;
+
+        nt++;
+    }
+
+    free_gram_rule_analysis(&ran);
+
+    return true;
+}
+
+void free_gram_analysis(struct gram_analysis *an) {
+    if (!an) return;
+
+    struct gram_conflict *conf, *next;
+
+    for (conf = an->conflicts; conf; conf = next) {
+        next = conf->next;
+        free(conf);
+    }
+}
+
+#define GRAMMAR_TITLE_FMT "grammar:\n"
+#define HEADER_INDENT_FMT "  "
+#define CONF_INDENT_FMT "    "
+#define CONFLICTS_TITLE_FMT "conflicts:\n"
+#define FIRST_FIRST_FMT "first-first conflict for non-terminal %u on rules %u and %u\n"
+#define FIRST_FOLLOWS_FMT "first-follows conflict for non-terminal %u on rule %u\n"
+#define NULL_AMBIGUITY_FMT "non-terminal %u is null ambiguous, i.e. multiple rules are nullable\n"
+void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
+    assert(an != NULL);
+
+    fprintf(handle, GRAMMAR_TITLE_FMT);
+
+    char *clas = NULL;
+    switch (an->clas) {
+        case GM_LL: clas = "LL"; break;
+        case GM_LR: clas = "LR"; break;
+        default: break;
+    }
+
+    if (clas) {
+        fprintf(handle, HEADER_INDENT_FMT);
+        fprintf(handle, "class: %s\n", clas);
+    }
+
+    if (!an->conflicts) {
+        fprintf(handle, "\n");
+        return;
+    }
+
+    fprintf(handle, HEADER_INDENT_FMT);
+    fprintf(handle, CONFLICTS_TITLE_FMT);
+
+    int n = 1;
+    for (struct gram_conflict *conf = an->conflicts; conf; conf = conf->next, n++) {
+        fprintf(handle, CONF_INDENT_FMT);
+        fprintf(handle, "%3d. ", n);
+
+        switch (conf->type) {
+            case GM_FIRST_FIRST:
+                fprintf(handle, FIRST_FIRST_FMT, conf->nonterm, conf->rules[0], conf->rules[1]);
+                break;
+            case GM_FIRST_FOLLOWS:
+                fprintf(handle, FIRST_FOLLOWS_FMT, conf->nonterm, conf->rule);
+                break;
+            case GM_NULL_AMBIGUITY:
+                fprintf(handle, NULL_AMBIGUITY_FMT, conf->nonterm);
+                break;
+            case GM_LEFT_RECURSION:
+                break;
+        }
+    }
+
+    fprintf(handle, "\n");
+}
+

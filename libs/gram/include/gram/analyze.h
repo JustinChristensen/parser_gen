@@ -21,26 +21,32 @@ struct gram_rule_analysis {
 enum gram_conflict_type {
     GM_FIRST_FIRST,
     GM_FIRST_FOLLOWS,
-    GM_LEFT_RECURSION,
     GM_NULL_AMBIGUITY,
-    GM_AMBIGUITY
+    GM_LEFT_RECURSION
 };
 
 struct gram_conflict {
     enum gram_conflict_type type;
     union {
-        struct { unsigned nonterm; unsigned *rules; };
+        struct {
+            unsigned nonterm;
+            union {
+                unsigned rules[2];
+                unsigned rule;
+            };
+        };
     };
     struct gram_conflict *next;
 };
 
-enum gram_type {
+enum gram_class {
     GM_NONE,
-    GM_LL1
+    GM_LR,
+    GM_LL
 };
 
 struct gram_analysis {
-    enum gram_type type;
+    enum gram_class clas;
     struct gram_conflict *conflicts;
 };
 
@@ -51,13 +57,13 @@ bool gram_analyze_symbols(struct gram_symbol_analysis *an, struct gram_parser_sp
 void free_gram_symbol_analysis(struct gram_symbol_analysis *an);
 void print_gram_symbol_analysis(FILE *handle, struct gram_symbol_analysis const *an);
 
-bool gram_analyze_rules(struct gram_rule_analysis *an, struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec);
+bool gram_analyze_rules(struct gram_rule_analysis *an, struct gram_symbol_analysis *san, struct gram_parser_spec const *spec);
 void free_gram_rule_analysis(struct gram_rule_analysis *an);
 void print_gram_rule_analysis(FILE *handle, struct gram_rule_analysis const *an);
 
-// bool gram_analyze(struct gram_analysis *an, struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec);
-// void free_gram_analysis(struct gram_analysis *an);
-// void print_gram_analysis(struct gram_analysis *an);
+bool gram_analyze(struct gram_analysis *an, struct gram_symbol_analysis *san, struct gram_parser_spec const *spec);
+void free_gram_analysis(struct gram_analysis *an);
+void print_gram_analysis(FILE *handle, struct gram_analysis *an);
 
 #endif // GRAM_ANALYZE_H_
 

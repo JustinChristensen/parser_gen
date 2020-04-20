@@ -14,3 +14,4 @@
 * detect the reachability of symbols in the grammar, and the symbols' productiveness
     - right now some of the analyze routines do not do this
 * add a string field to gram_symbol to make error messaging prettier
+* typedef symbol numbers and rule numbers just to make changing the underlying type easier should I choose to do so

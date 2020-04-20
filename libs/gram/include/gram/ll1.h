@@ -8,6 +8,7 @@
 
 enum ll1_error_type {
     GM_LL1_SYNTAX_ERROR,
+    GM_LL1_NOT_LL1_ERROR,
     GM_LL1_SCANNER_ERROR,
     GM_LL1_OOM_ERROR
 };

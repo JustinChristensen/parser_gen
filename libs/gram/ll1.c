@@ -16,8 +16,7 @@
 
 #define debug(...) debug_ns("gram_ll1", __VA_ARGS__);
 
-static bool
-_oom_error(struct ll1_error *error, char *file, int col, void *p, ...) {
+static bool _oom_error(struct ll1_error *error, char *file, int col, void *p, ...) {
     va_list args;
     va_start(args, p);
     vfreel(p, args);
@@ -28,14 +27,17 @@ _oom_error(struct ll1_error *error, char *file, int col, void *p, ...) {
     return false;
 }
 
-static bool
-scanner_error(struct ll1_error *error, struct regex_error scanerr) {
+static bool not_ll_error(struct ll1_error *error) {
+    prod(error, ((struct ll1_error) { .type = GM_LL1_NOT_LL1_ERROR }));
+    return false;
+}
+
+static bool scanner_error(struct ll1_error *error, struct regex_error scanerr) {
     prod(error, ((struct ll1_error) { .type = GM_LL1_SCANNER_ERROR, .scanerr = scanerr }));
     return false;
 }
 
-static bool
-syntax_error(struct ll1_error *error, unsigned expected, struct ll1_parser_state *state) {
+static bool syntax_error(struct ll1_error *error, unsigned expected, struct ll1_parser_state *state) {
     prod(error, ((struct ll1_error) {
         .type = GM_LL1_SYNTAX_ERROR,
         .loc = nfa_match_loc(&state->match),
@@ -183,15 +185,24 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
 
     struct gram_stats stats = spec->stats;
 
-    struct gram_symbol_analysis an = { 0 };
+    struct gram_symbol_analysis san = { 0 };
     struct nfa_context scanner = { 0 };
     unsigned **ptable = NULL, **rtable = NULL;
 
-    if (!gram_analyze_symbols(&an, spec))
+    if (!gram_analyze_symbols(&san, spec))
         return false;
 
-    // if (!gram_is_ll1(error, nullable, firsts, follows, spec))
-    //     goto free;
+    // TODO: figure out what to do about heap allocated errors
+    struct gram_analysis gan = { 0 };
+    if (!gram_analyze(&gan, &san, spec)) {
+        oom_error(error, NULL);
+        goto free;
+    }
+
+    if (gan.clas < GM_LL) {
+        not_ll_error(error);
+        goto free;
+    }
 
     if (!nfa_context(&scanner, default_tagged_patterns)) {
         scanner_error(error, nfa_error(&scanner));
@@ -209,19 +220,20 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
         goto free;
     }
 
-    ptable = parse_table(&an, spec);
+    ptable = parse_table(&san, spec);
     if (!ptable) {
         oom_error(error, NULL);
         goto free;
     }
 
-    free_gram_symbol_analysis(&an);
+    free_gram_symbol_analysis(&san);
 
     *parser = ll1_parser(scanner, rtable, ptable, stats);
 
     return true;
 free:
-    free_gram_symbol_analysis(&an);
+    free_gram_analysis(&gan);
+    free_gram_symbol_analysis(&san);
     free_nfa_context(&scanner);
     free(ptable);
     free(rtable);
@@ -373,9 +385,9 @@ void free_ll1_parser_state(struct ll1_parser_state *state) {
 #define ERROR_FMT_END "\n|\n"
 #define OOM_ERROR_FMT_START "| LL1 Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+#define NOT_LL1_FMT "| Grammar Not LL1\n|\n"
 #define SYNTAX_ERROR_FMT_START "| LL1 Syntax Error\n|\n| Got: %u\n| Expected: %u"
 #define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
-
 void print_ll1_error(FILE *handle, struct ll1_error error) {
     switch (error.type) {
         case GM_LL1_SYNTAX_ERROR:
@@ -383,6 +395,9 @@ void print_ll1_error(FILE *handle, struct ll1_error error) {
             fprintf(handle, SYNTAX_ERROR_FMT_LOC);
             print_regex_loc(handle, error.loc);
             fprintf(handle, ERROR_FMT_END);
+            break;
+        case GM_LL1_NOT_LL1_ERROR:
+            fprintf(handle, NOT_LL1_FMT);
             break;
         case GM_LL1_SCANNER_ERROR:
             print_regex_error(handle, error.scanerr);

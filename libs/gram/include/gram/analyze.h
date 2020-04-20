@@ -5,15 +5,6 @@
 #include <base/bitset.h>
 #include "gram/spec.h"
 
-// enum ll1_check_result {
-//     GM_IS_LL1,
-//     GM_LL1_FIRST_FIRST_CONFLICT,
-//     GM_LL1_FIRST_FOLLOW_CONFLICT,
-//     GM_LL1_DIRECTLY_LEFT_RECURSIVE,
-//     GM_LL1_INDIRECTLY_LEFT_RECURSIVE,
-//     GM_LL1_AMBIGUOUS
-// };
-
 struct gram_symbol_analysis {
     unsigned nsymbols;
     bool *nullable;
@@ -24,7 +15,33 @@ struct gram_symbol_analysis {
 struct gram_rule_analysis {
     unsigned nrules;
     bool *nullable;
-    struct bitset **ffollows;
+    struct bitset **firsts;
+};
+
+enum gram_conflict_type {
+    GM_FIRST_FIRST,
+    GM_FIRST_FOLLOWS,
+    GM_LEFT_RECURSION,
+    GM_NULL_AMBIGUITY,
+    GM_AMBIGUITY
+};
+
+struct gram_conflict {
+    enum gram_conflict_type type;
+    union {
+        struct { unsigned nonterm; unsigned *rules; };
+    };
+    struct gram_conflict *next;
+};
+
+enum gram_type {
+    GM_NONE,
+    GM_LL1
+};
+
+struct gram_analysis {
+    enum gram_type type;
+    struct gram_conflict *conflicts;
 };
 
 void gram_count(struct gram_parser_spec *spec);
@@ -38,10 +55,9 @@ bool gram_analyze_rules(struct gram_rule_analysis *an, struct gram_symbol_analys
 void free_gram_rule_analysis(struct gram_rule_analysis *an);
 void print_gram_rule_analysis(FILE *handle, struct gram_rule_analysis const *an);
 
-// bool gram_is_ll1(
-//     bool const *nullable, struct bitset **firsts, struct bitset **follows,
-//     struct gram_parser_spec const *spec
-// );
+// bool gram_analyze(struct gram_analysis *an, struct gram_symbol_analysis *syman, struct gram_parser_spec const *spec);
+// void free_gram_analysis(struct gram_analysis *an);
+// void print_gram_analysis(struct gram_analysis *an);
 
 #endif // GRAM_ANALYZE_H_
 

@@ -5,13 +5,21 @@
 #include <limits.h>
 #include <check.h>
 #include <base/intset.h>
-#include <base/array.h>
+#include <base/debug.h>
 #include <base/macros.h>
 #include "suites.h"
 
+#define debug(...) debug_ns("intset", __VA_ARGS__);
+
 static void _print_intset(struct intset *set) {
-    print_intset(stdout, set);
-    printf("\n");
+    if (!debug_is("intset")) return;
+    print_intset(stderr, set);
+    fprintf(stderr, "\n");
+}
+
+static void _print_intset_tree(struct intset *set) {
+    if (!debug_is("intset")) return;
+    print_intset_tree(stderr, set);
 }
 
 struct intset *set = NULL;
@@ -102,11 +110,11 @@ END_TEST
 START_TEST(test_sdelete) {
     add_elements();
 
-    printf("sdelete:\n");
-    print_intset_tree(set);
+    debug("sdelete:\n");
+    _print_intset_tree(set);
     ck_assert_int_eq(ssize(set), 5);
     set = sdelete(INT_MIN, set);
-    print_intset_tree(set);
+    _print_intset_tree(set);
     ck_assert_int_eq(ssize(set), 4);
 
     free_intset(set);
@@ -142,10 +150,10 @@ START_TEST(test_sdelete_props_s) {
     set = sfromlist(xs, SIZEOF(xs));
     set2 = sfromlist(ys, SIZEOF(ys));
 
-    printf("sdelete_props_s:\n");
-    print_intset_tree(set);
+    debug("sdelete_props_s:\n");
+    _print_intset_tree(set);
     set = sdelete(-1258611884, set);
-    print_intset_tree(set);
+    _print_intset_tree(set);
 
     free_intset(set2);
 }
@@ -157,8 +165,8 @@ START_TEST(test_snextnode) {
     set = sinsert(9000, set);
     set = sinsert(-9000, set);
 
-    printf("snextnode:\n");
-    print_intset_tree(set);
+    debug("snextnode:\n");
+    _print_intset_tree(set);
 
     siterator(set, &it);
 
@@ -200,10 +208,10 @@ START_TEST(test_snextbitmap) {
     add_elements();
 
     // more intensive test using the leaf iterator
-    printf("snextleaf/snextbitmap\n");
+    debug("snextleaf/snextbitmap\n");
     while (snextleaf(&leaf, &it)) {
         while (snextbitmap(&x, &it)) {
-            printf("%d\n", x);
+            debug("%d\n", x);
         }
     }
 
@@ -224,8 +232,8 @@ START_TEST(test_snext) {
 
     assert_iter_reset(&it);
 
-    printf("snext:\n");
-    print_intset_tree(set);
+    debug("snext:\n");
+    _print_intset_tree(set);
     _print_intset(set);
 
     int x;
@@ -245,12 +253,12 @@ END_TEST
 
 START_TEST(test_sclone) {
     add_elements();
-    printf("sclone:\nset1:\n");
-    print_intset_tree(set);
+    debug("sclone:\nset1:\n");
+    _print_intset_tree(set);
 
     struct intset *set2 = sclone(set);
-    printf("set2:\n");
-    print_intset_tree(set2);
+    debug("set2:\n");
+    _print_intset_tree(set2);
 
     ck_assert(intseteq(set, set2));
 
@@ -272,7 +280,7 @@ START_TEST(test_sintersection) {
     struct intset *set3 = sintersection(set, set2);
     ck_assert_int_eq(ssize(set3), 3);
 
-    printf("sintersection:\n");
+    debug("sintersection:\n");
     _print_intset(set);
     _print_intset(set2);
     _print_intset(set3);
@@ -309,10 +317,10 @@ START_TEST(test_sintersection_props) {
 
     set3 = sintersection(set, set1);
 
-    printf("intersection_props:\n");
-    printf("expected:\n");
+    debug("intersection_props:\n");
+    debug("expected:\n");
     _print_intset(set2);
-    printf("got:\n");
+    debug("got:\n");
     _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
@@ -333,7 +341,7 @@ START_TEST(test_sunion) {
     struct intset *set3 = sunion(set, set2);
     ck_assert_int_eq(ssize(set3), 9);
 
-    printf("sunion:\n");
+    debug("sunion:\n");
     _print_intset(set);
     _print_intset(set2);
     _print_intset(set3);
@@ -384,13 +392,13 @@ START_TEST(test_sdifference) {
         *set1 = sfromlist(xs, SIZEOF(xs)),
         *set2 = sfromlist(ys, SIZEOF(ys));
 
-    printf("sdifference:\n");
+    debug("sdifference:\n");
     _print_intset(set1);
     _print_intset(set2);
 
     struct intset *set3 = sdifference(set1, set2);
 
-    print_intset_tree(set3);
+    _print_intset_tree(set3);
     _print_intset(set3);
 
     struct intset_iterator it;
@@ -428,10 +436,10 @@ START_TEST(test_sdifference_props) {
 
     set3 = sdifference(set, set1);
 
-    printf("difference_props:\n");
-    printf("expected:\n");
+    debug("difference_props:\n");
+    debug("expected:\n");
     _print_intset(set2);
-    printf("got:\n");
+    debug("got:\n");
     _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
@@ -455,10 +463,10 @@ START_TEST(test_sdifference_props_xl) {
 
     set3 = sdifference(set, set1);
 
-    printf("difference_props_xl:\n");
-    printf("expected:\n");
+    debug("difference_props_xl:\n");
+    debug("expected:\n");
     _print_intset(set2);
-    printf("got:\n");
+    debug("got:\n");
     _print_intset(set3);
 
     ck_assert(intseteq(set2, set3));
@@ -479,7 +487,7 @@ START_TEST(test_sdisjoint) {
     set2 = sinsert(899, set2);
     set2 = sinsert(901, set2);
 
-    printf("sdisjoint:\n");
+    debug("sdisjoint:\n");
     _print_intset(set);
     _print_intset(set2);
 
@@ -538,9 +546,9 @@ START_TEST(test_intseteq_0) {
     set = slistinsert(xs, SIZEOF(xs), set);
     set2 = slistinsert(xs, SIZEOF(xs), set2);
 
-    printf("intseteq_0:\n");
-    print_intset_tree(set);
-    print_intset_tree(set2);
+    debug("intseteq_0:\n");
+    _print_intset_tree(set);
+    _print_intset_tree(set2);
 
     ck_assert(intseteq(set, set2));
 
@@ -550,15 +558,15 @@ END_TEST
 
 START_TEST(test_print_intset) {
     add_elements();
-    printf("print_intset:\n");
+    debug("print_intset:\n");
     _print_intset(set);
 }
 END_TEST
 
 START_TEST(test_print_intset_tree) {
     add_elements();
-    printf("print_intset_tree:\n");
-    print_intset_tree(set);
+    debug("print_intset_tree:\n");
+    _print_intset_tree(set);
 }
 END_TEST
 
@@ -566,8 +574,8 @@ START_TEST(test_print_matching_prefixes) {
     set = sinsert(0b01110000101000, set);
     set = sinsert(0b01110000101011, set);
     set = sinsert(0b01100000101111, set);
-    printf("test_print_matching_prefixes:\n");
-    print_intset_tree(set);
+    debug("test_print_matching_prefixes:\n");
+    _print_intset_tree(set);
 }
 END_TEST
 

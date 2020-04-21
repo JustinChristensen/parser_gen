@@ -10,15 +10,15 @@
 #include "base/array.h"
 #include "base/bits.h"
 
-static void print_intset_node(struct intset const *set) {
+static void print_intset_node(FILE *handle, struct intset const *set) {
 #if PRINT_BINARY
-    printf("%p (", set);
-    printbits(set->pfix);
-    printf(", ");
-    printbits(set->mask);
-    printf(", %p, %p)", set->left, set->right);
+    fprintf(handle, "%p (", set);
+    printbits(handle, set->pfix);
+    fprintf(handle, ", ");
+    printbits(handle, set->mask);
+    fprintf(handle, ", %p, %p)", set->left, set->right);
 #else
-    printf("%p (%"PRIu64", %"PRIu64", %p, %p)",
+    fprintf(handle, "%p (%"PRIu64", %"PRIu64", %p, %p)",
         set, set->pfix, set->mask, set->left, set->right);
 #endif
 }
@@ -582,18 +582,18 @@ void print_intset(FILE *handle, struct intset const *set) {
     _print_intset(handle, set);
 }
 
-static void _print_intset_tree(struct intset const *set, int depth) {
+static void _print_intset_tree(FILE *handle, struct intset const *set, int depth) {
     if (!set) return;
-    indent(depth);
-    print_intset_node(set);
-    printf("\n");
+    indent(handle, depth);
+    print_intset_node(handle, set);
+    fprintf(handle, "\n");
     depth++;
-    _print_intset_tree(set->left, depth);
-    _print_intset_tree(set->right, depth);
+    _print_intset_tree(handle, set->left, depth);
+    _print_intset_tree(handle, set->right, depth);
 }
 
-void print_intset_tree(struct intset const *set) {
-    _print_intset_tree(set, 0);
+void print_intset_tree(FILE *handle, struct intset const *set) {
+    _print_intset_tree(handle, set, 0);
 }
 
 void free_intset(struct intset *set) {

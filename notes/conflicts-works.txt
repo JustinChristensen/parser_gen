@@ -1,4 +1,4 @@
-filename: conflicts.pspec, size: 100
+filename: conflicts.pspec, size: 104
 patterns:
    num  pattern
      2  a
@@ -14,9 +14,9 @@ symbols:
      3  term
      4  term
      5  term
-     6  nonterm  2 3 8
-     7  nonterm  4 5 6 8
-     8  nonterm  7 8 8
+     6  nonterm  2 3 9
+     7  nonterm  4 5 6 9
+     8  nonterm  7 8 9 9
 
 rules:
   rule  symbols
@@ -27,16 +27,17 @@ rules:
      4  3
      5  4
      6  8 5
-     7  5
-     8
+     7  6
+     8  5
+     9
 
 stats:
   patterns: 4
   terms: 5
   nonterms: 3
   symbols: 8
-  rules: 8
-  rsymbols: 8
+  rules: 9
+  rsymbols: 9
 
 symbol nullable:
    num  nullable
@@ -57,18 +58,18 @@ symbol firsts:
      4  4
      5  5
      6  2 3 4 5
-     7  3 4 5
-     8  5
+     7  2 3 4 5
+     8  2 3 4 5
 
 symbol follows:
    num  set
      1
-     2  1
-     3  1 2
-     4  1 2
+     2  1 5
+     3  1 2 5
+     4  1 2 5
      5  1 2 5
-     6  1
-     7  1 2
+     6  1 5
+     7  1 2 5
      8  5
 
 rule nullable:
@@ -79,24 +80,37 @@ rule nullable:
      4  no
      5  no
      6  no
-     7  no
-     8  yes
+     7  yes
+     8  no
+     9  yes
 
 rule firsts:
    num  set
      1  1 2 3 4 5
      2  2 3 4 5
-     3  3 4 5
+     3  2 3 4 5
      4  3
      5  4
-     6  5
-     7  5
-     8
+     6  2 3 4 5
+     7  2 3 4 5
+     8  5
+     9
 
 grammar:
   class: LR
   conflicts:
       1. first-first conflict for non-terminal 1 on rules 1 and 2
-      2. non-terminal 1 is null ambiguous, i.e. multiple rules are nullable
-      3. first-follows conflict for non-terminal 3 on rule 1
-      4. non-terminal 3 is null ambiguous, i.e. multiple rules are nullable
+      2. first-follows conflict for non-terminal 1 on rule 1
+      3. first-follows conflict for non-terminal 1 on rule 2
+      4. non-terminal 1 is null ambiguous
+      5. non-terminal 1 is left recursive: 1 -> 2 -> 3 -> 1
+      6. first-first conflict for non-terminal 2 on rules 1 and 3
+      7. first-first conflict for non-terminal 2 on rules 2 and 3
+      8. first-follows conflict for non-terminal 2 on rule 3
+      9. non-terminal 2 is left recursive: 2 -> 3 -> 1 -> 2
+     10. non-terminal 2 is left recursive: 2 -> 3 -> 1 -> 2
+     11. first-first conflict for non-terminal 3 on rules 1 and 2
+     12. first-follows conflict for non-terminal 3 on rule 1
+     13. first-follows conflict for non-terminal 3 on rule 2
+     14. non-terminal 3 is null ambiguous
+     15. non-terminal 3 is left recursive: 3 -> 1 -> 2 -> 3

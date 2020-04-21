@@ -1,7 +1,9 @@
 #ifndef BASE_BITS_H_
 #define BASE_BITS_H_ 1
 
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
 
 #define BIT UINT64_C(1)
@@ -20,7 +22,7 @@ int msbpos(int i);
 uint64_t msbmask(int i);
 uint64_t branch_mask(int i, int j);
 uint64_t prefix_upto_branch(int i, uint64_t bmask);
-void printbits(uint64_t x);
+void printbits(FILE *handle, uint64_t x);
 
 #endif // BASE_BITS_H_
 

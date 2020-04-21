@@ -9,4 +9,4 @@ T: "foo"
  | U "baz"
  | $empty;
 
-U: "baz" | $empty | $empty;
+U: S | "baz" | $empty | $empty;

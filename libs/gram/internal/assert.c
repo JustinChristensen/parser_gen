@@ -47,7 +47,7 @@ INVARIANT(assert_symbol_index, unsigned i, struct gram_parser_spec const *spec) 
 }
 
 INVARIANT(assert_rule_index, unsigned i, struct gram_parser_spec const *spec) {
-    check(i >= 1 && i <= spec->stats.symbols);
+    check(i >= 1 && i <= spec->stats.rules);
 }
 
 #endif

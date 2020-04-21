@@ -16,17 +16,17 @@ enum growth {
 };
 
 struct array {
-    void *buf;                    // the buffer
-    enum growth growth;           // 1, 2, 4, ... vs 1, 2, 3, ...
-    float factor;                 // (* 2) or (+ 1)
-    int i;                        // current position
-    unsigned int init_size;       // initial size (will not shrink below this)
-    unsigned int size;            // current allocated size
-    unsigned int elem_size;       // size of an element
+    void *buf;                // the buffer
+    enum growth growth;       // 1, 2, 4, ... vs 1, 2, 3, ...
+    float factor;             // (* 2) or (+ 1)
+    int i;                    // current position
+    unsigned init_size;       // initial size (will not shrink below this)
+    unsigned size;            // current allocated size
+    unsigned elem_size;       // size of an element
 };
 
-struct array array(void *buf, size_t elem_size, unsigned int init_size, enum growth growth, float factor);
-struct array *init_array(size_t elem_size, unsigned int init_size, enum growth growth, float factor);
+struct array array(void *buf, unsigned elem_size, unsigned init_size, enum growth growth, float factor);
+struct array *init_array(unsigned elem_size, unsigned init_size, enum growth growth, float factor);
 void agfactor(enum growth growth, float factor, struct array *arr);
 void afreeze(struct array *arr);
 void asort(int (*compare)(void const *a, void const *b), struct array *arr);
@@ -35,7 +35,7 @@ bool arrayeq(
     struct array const *a,
     struct array const *b
 );
-void aresize(unsigned int size, struct array *arr);
+void aresize(unsigned size, struct array *arr);
 void adel(void *elem, struct array *arr);
 void *aptr(int i, struct array const *arr);
 void at(void *out, int i, struct array const *arr);
@@ -45,8 +45,9 @@ void apeek(void *out, struct array const *arr);
 void abottom(void *out, struct array const *arr);
 struct array *aclone(struct array const *arr);
 void areset(struct array *arr);
-unsigned int asize(struct array const *arr);
+unsigned asize(struct array const *arr);
 bool aempty(struct array const *arr);
+void *alist(struct array const *arr);
 void free_array(struct array *arr);
 
 #endif // BASE_ARRAY_H_

@@ -26,15 +26,15 @@ void print_expr(struct regex_expr *expr) {
                     fprintf(stderr, "null expression encountered\n");
                     break;
                 case RX_EMPTY_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("ε");
                     break;
                 case RX_DOTALL_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf(".");
                     break;
                 case RX_ALT_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("|");
                     indent_level++;
                     *sp++ = NULL; // use NULL as a sentinel to decrease the indent level
@@ -42,7 +42,7 @@ void print_expr(struct regex_expr *expr) {
                     *sp++ = expr->lexpr;
                     break;
                 case RX_CAT_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("+");
                     indent_level++;
                     *sp++ = NULL;
@@ -50,67 +50,67 @@ void print_expr(struct regex_expr *expr) {
                     *sp++ = expr->lexpr;
                     break;
                 case RX_STAR_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("*");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_PLUS_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("+");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_OPTIONAL_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("?");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_REPEAT_EXACT_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("{%d}", expr->num);
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_SUB_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("()");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_CHAR_CLASS_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("[]");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_NEG_CLASS_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("[^]");
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_RANGE_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     print_regex_range(stdout, expr->range);
                     indent_level++;
                     *sp++ = NULL;
                     *sp++ = expr->expr;
                     break;
                 case RX_CHAR_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("%c", expr->ch);
                     break;
                 case RX_TAG_EXPR:
-                    indent(indent_level);
+                    indent(stdout, indent_level);
                     printf("{%s}", expr->tag);
                     break;
             }

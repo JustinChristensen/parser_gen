@@ -59,8 +59,8 @@ uint64_t prefix_upto_branch(int i, uint64_t bmask) {
     return i & (~(bmask - 1) ^ bmask);
 }
 
-void printbits(uint64_t x) {
+void printbits(FILE *handle, uint64_t x) {
     for (int i = WORDBITS - 1; i >= 0; i--) {
-        printf("%c", x & (BIT << i) ? '1' : '0');
+        fprintf(handle, "%c", x & (BIT << i) ? '1' : '0');
     }
 }

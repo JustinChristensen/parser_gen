@@ -39,8 +39,8 @@ char *putln(char *str, char *s) {
     return str;
 }
 
-void indent(int n) {
-    while (n-- > 0) printf("    ");
+void indent(FILE *handle, int n) {
+    while (n-- > 0) fprintf(handle, "    ");
 }
 
 void printstr(char const *s) {

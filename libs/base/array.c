@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "base/array.h"
 
-struct array array(void *buf, size_t elem_size, unsigned int init_size, enum growth growth, float factor) {
+struct array array(void *buf, unsigned elem_size, unsigned init_size, enum growth growth, float factor) {
     return (struct array) {
         .buf = buf,
         .growth = growth,
@@ -14,15 +14,15 @@ struct array array(void *buf, size_t elem_size, unsigned int init_size, enum gro
         .i = 0,
         .init_size = init_size,
         .size = init_size,
-        .elem_size = (int) elem_size,
+        .elem_size = elem_size,
     };
 }
 
-struct array *init_array(size_t elem_size, unsigned int init_size, enum growth growth, float factor) {
+struct array *init_array(unsigned elem_size, unsigned init_size, enum growth growth, float factor) {
     init_size = init_size > 0 ? init_size : 1;
     if (!factor) factor = growth == LINEAR ? GROWTH_CONSTANT : GROWTH_FACTOR;
 
-    void *buf = calloc(init_size, (unsigned int) elem_size);
+    void *buf = calloc(init_size, elem_size);
     assert(buf != NULL);
 
     struct array *arr = malloc(sizeof *arr);
@@ -85,7 +85,7 @@ static void ensure_memory(struct array *arr) {
     }
 }
 
-void aresize(unsigned int size, struct array *arr) {
+void aresize(unsigned size, struct array *arr) {
     if (arr->size == size) return;
     arr->buf = realloc(arr->buf, size * arr->elem_size);
     assert(arr->buf != NULL);
@@ -140,12 +140,21 @@ void areset(struct array *arr) {
     ensure_memory(arr);
 }
 
-unsigned int asize(struct array const *arr) {
+unsigned asize(struct array const *arr) {
     return arr->i;
 }
 
 bool aempty(struct array const *arr) {
     return arr->i == 0;
+}
+
+void *alist(struct array const *arr) {
+    unsigned const n = asize(arr);
+    if (!n) return NULL;
+    void *list = calloc(n, arr->elem_size);
+    if (!list) return NULL;
+    memcpy(list, arr->buf, n * arr->elem_size);
+    return list;
 }
 
 void free_array(struct array *arr) {

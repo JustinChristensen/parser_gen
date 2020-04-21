@@ -28,12 +28,18 @@ enum gram_conflict_type {
 struct gram_conflict {
     enum gram_conflict_type type;
     union {
+        // first-first, first-follows
         struct {
             unsigned nonterm;
             union {
                 unsigned rules[2];
                 unsigned rule;
             };
+        };
+        // left recursion
+        struct {
+            unsigned *derivations;
+            unsigned n;
         };
     };
     struct gram_conflict *next;

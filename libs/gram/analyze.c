@@ -505,12 +505,100 @@ static struct gram_conflict *null_ambiguity_conflict(
     return conf;
 }
 
+static struct gram_conflict *left_recursion_conflict(
+    struct gram_conflict *last, struct array *derivs,
+    struct gram_stats stats, struct gram_analysis *an
+) {
+    struct gram_conflict *conf = malloc(sizeof *conf);
+    if (!conf) return NULL;
+
+    unsigned *dlist = alist(derivs);
+    if (!dlist) return free(conf), NULL;
+
+    // shift everything back over
+    for (int i = 0; i < asize(derivs); i++)
+        dlist[i] -= stats.terms;
+
+    *conf = (struct gram_conflict) {
+        GM_LEFT_RECURSION,
+        .derivations = dlist,
+        .n = asize(derivs)
+    };
+
+    if (last) last->next = conf;
+    else an->conflicts = conf;
+
+    if (an->clas == GM_LL) an->clas--;
+
+    return conf;
+}
+
+#define RULE_LEFT_RECURSION(name) \
+static struct gram_conflict *name( \
+    struct gram_conflict *last, struct gram_analysis *an, struct gram_symbol_analysis *san, \
+    bool *added, struct array *derivs, unsigned r, unsigned const nt, struct gram_parser_spec const *spec \
+)
+
+#define SYMBOL_LEFT_RECURSION(name) \
+static struct gram_conflict *name( \
+    struct gram_conflict *last, struct gram_analysis *an, struct gram_symbol_analysis *san, \
+    bool *added, struct array *derivs, unsigned s, unsigned const nt, struct gram_parser_spec const *spec \
+)
+
+RULE_LEFT_RECURSION(rule_left_recursion);
+SYMBOL_LEFT_RECURSION(symbol_left_recursion);
+
+RULE_LEFT_RECURSION(rule_left_recursion) {
+    invariant(assert_rule_index, r, spec);
+
+    unsigned *s = spec->rules[r];
+
+    bool *nullable = san->nullable;
+
+    while (*s && (last = symbol_left_recursion(last, an, san, added, derivs, *s, nt, spec))) {
+        if (!nullable[*s]) break;
+        s++;
+    }
+
+    return last;
+}
+
+SYMBOL_LEFT_RECURSION(symbol_left_recursion) {
+    invariant(assert_symbol_index, s, spec);
+
+    struct gram_symbol sym = spec->symbols[s];
+
+    if (added[sym.num]) {
+        if (sym.type == GM_NONTERM && sym.num == nt) {
+            apush(&sym.num, derivs);
+            last = left_recursion_conflict(last, derivs, spec->stats, an);
+            apop(&sym.num, derivs);
+        }
+        return last;
+    }
+
+    added[sym.num] = true;
+
+    if (sym.type == GM_NONTERM) {
+        apush(&sym.num, derivs);
+
+        unsigned *r = sym.derives;
+        while (*r && (last = rule_left_recursion(last, an, san, added, derivs, *r, nt, spec)))
+            r++;
+
+        apop(&sym.num, derivs);
+    }
+
+    return last;
+}
+
 static unsigned nderives(unsigned *r) {
     unsigned n = 0;
     while (*r) n++, r++;
     return n;
 }
 
+#define DERIVS_STACK_SIZE 5
 bool gram_analyze(
     struct gram_analysis *an, struct gram_symbol_analysis *san,
     struct gram_parser_spec const *spec
@@ -534,6 +622,15 @@ bool gram_analyze(
                   **sfollows = san->follows;
 
     struct gram_conflict *conflict = NULL;
+    struct array *derivs = NULL;
+    bool *added = NULL;
+
+    derivs = init_array(sizeof (unsigned), DERIVS_STACK_SIZE, 0, 0);
+    if (!derivs) goto free;
+
+    unsigned const nsymbols = offs(spec->stats.symbols);
+    added = calloc(nsymbols, sizeof *added);
+    if (!added) goto free;
 
     struct gram_symbol *nt = gram_nonterm0(spec);
     while (!gram_symbol_null(nt)) {
@@ -553,7 +650,7 @@ bool gram_analyze(
 
                 if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
                     if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))
-                        return free_gram_analysis(an), false;
+                        goto free;
                 }
             }
 
@@ -562,20 +659,33 @@ bool gram_analyze(
             // first-follows conflicts
             if (!bsdisjoint(rfirsts[r], sfollows[nt->num])) {
                 if (!(conflict = first_follows_conflict(conflict, ntnum, i, an)))
-                    return free_gram_analysis(an), false;
+                    goto free;
             }
         }
 
         // null ambiguity
         if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, ntnum, an)))
-            return free_gram_analysis(an), false;
+            goto free;
+
+        // left recursion
+        conflict = symbol_left_recursion(conflict, an, san, added, derivs, nt->num, nt->num, spec);
+        memset(added, false, nsymbols);
+        areset(derivs);
 
         nt++;
     }
 
     free_gram_rule_analysis(&ran);
+    free_array(derivs);
+    free(added);
 
     return true;
+free:
+    free_gram_analysis(an);
+    free_gram_rule_analysis(&ran);
+    free_array(derivs);
+    free(added);
+    return false;
 }
 
 void free_gram_analysis(struct gram_analysis *an) {
@@ -585,6 +695,8 @@ void free_gram_analysis(struct gram_analysis *an) {
 
     for (conf = an->conflicts; conf; conf = next) {
         next = conf->next;
+        if (conf->type == GM_LEFT_RECURSION)
+            free(conf->derivations);
         free(conf);
     }
 }
@@ -595,7 +707,8 @@ void free_gram_analysis(struct gram_analysis *an) {
 #define CONFLICTS_TITLE_FMT "conflicts:\n"
 #define FIRST_FIRST_FMT "first-first conflict for non-terminal %u on rules %u and %u\n"
 #define FIRST_FOLLOWS_FMT "first-follows conflict for non-terminal %u on rule %u\n"
-#define NULL_AMBIGUITY_FMT "non-terminal %u is null ambiguous, i.e. multiple rules are nullable\n"
+#define NULL_AMBIGUITY_FMT "non-terminal %u is null ambiguous\n"
+#define LEFT_RECURSION_FMT "non-terminal %u is left recursive: "
 void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
     assert(an != NULL);
 
@@ -637,6 +750,12 @@ void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
                 fprintf(handle, NULL_AMBIGUITY_FMT, conf->nonterm);
                 break;
             case GM_LEFT_RECURSION:
+                fprintf(handle, LEFT_RECURSION_FMT, conf->derivations[0]);
+                fprintf(handle, "%u", conf->derivations[0]);
+                for (int i = 1; i < conf->n; i++) {
+                    fprintf(handle, " -> %u", conf->derivations[i]);
+                }
+                fprintf(handle, "\n");
                 break;
         }
     }

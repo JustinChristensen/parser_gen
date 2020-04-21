@@ -504,7 +504,7 @@ void btinvariants(struct bin const *node, bool root, int (*keycmp) (void const *
 
 static void _print_btree(void (*print_key) (void const *key), unsigned int depth, struct bin const *node) {
     if (!node || !print_key) return;
-    indent(depth); printf("("); (*print_key)(node->assoc.key); printf(", %s)", node->red ? "R" : "B"); printf("\n");
+    indent(stdout, depth); printf("("); (*print_key)(node->assoc.key); printf(", %s)", node->red ? "R" : "B"); printf("\n");
     _print_btree(print_key, depth + 1, node->left);
     _print_btree(print_key, depth + 1, node->right);
 }

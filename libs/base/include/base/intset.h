@@ -65,7 +65,7 @@ size_t ssize(struct intset const *set);
 size_t streesize(struct intset const *set);
 size_t streedepth(struct intset const *set);
 void print_intset(FILE *handle, struct intset const *set);
-void print_intset_tree(struct intset const *set);
+void print_intset_tree(FILE *handle, struct intset const *set);
 void free_siterator(struct intset_iterator *it);
 void free_intset(struct intset *set);
 

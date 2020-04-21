@@ -22,8 +22,8 @@
 // symbols, patterns, and rules are all null terminated
 #define nullterm(n) ((n) + 1)
 
-static unsigned detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
-    unsigned i = sym->s.num; // #0 reserved
+static gram_sym_no detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
+    gram_sym_no i = sym->s.num; // #0 reserved
 
     if (sym->s.type == GM_NONTERM)
         i += stats.terms;
@@ -35,6 +35,7 @@ static unsigned detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
 
 static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
     debug("packing pattern: %d, %s, %s\n", sym, tag, pattern);
+
     if (tag && ((tag = strdup(tag)) == NULL)) return false;
     if (pattern && ((pattern = strdup(pattern)) == NULL)) {
         free(tag);
@@ -46,7 +47,7 @@ static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *p
     return true;
 }
 
-static struct gram_symbol *pack_symbols(unsigned **dps, struct hash_table *symtab, struct gram_stats stats) {
+static struct gram_symbol *pack_symbols(gram_rule_no **dps, struct hash_table *symtab, struct gram_stats stats) {
     struct gram_symbol *symbols = calloc(offs(nullterm(stats.symbols)), sizeof (*symbols));
     if (!symbols) return NULL;
 
@@ -59,13 +60,13 @@ static struct gram_symbol *pack_symbols(unsigned **dps, struct hash_table *symta
     while ((sym = htnext(NULL, &it))) {
         if (sym->type != GM_SYMBOL_ENTRY) continue;
 
-        int i = detnum(sym, stats);
+        gram_sym_no i = detnum(sym, stats);
         symbols[i] = sym->s;
         symbols[i].num = i;
 
         if (sym->s.type == GM_NONTERM && sym->nderives) {
             // allocate space for the symbol's derived rules +1 for 0 end marker
-            unsigned *derives = calloc(nullterm(sym->nderives), sizeof *derives);
+            gram_rule_no *derives = calloc(nullterm(sym->nderives), sizeof *derives);
             dps[sym->s.num] = derives;
             symbols[i].derives = derives;
 
@@ -132,21 +133,21 @@ static struct regex_pattern *pack_patterns(int *ntpatterns, struct hash_table *s
     return patterns;
 }
 
-unsigned *alloc_rule(size_t n) {
-    return calloc(n, sizeof (unsigned));
+gram_sym_no *alloc_rule(size_t n) {
+    return calloc(n, sizeof (gram_sym_no));
 }
 
-static unsigned **pack_rules(
-    unsigned **dps, int ntpatterns, struct regex_pattern *patterns,
+static gram_sym_no **pack_rules(
+    gram_rule_no **dps, int ntpatterns, struct regex_pattern *patterns,
     struct hash_table *symtab, struct gram_stats stats, struct gram_parser_spec *spec
 ) {
-    unsigned **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
+    gram_sym_no **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
     if (!rules) return NULL;
 
     // create an empty rule
     // this makes computing first/follow for rules less than ideal
     // but the actual parser generation doesn't require nonterms to have unique rules
-    unsigned const empty_rule = stats.rules;
+    gram_rule_no const empty_rule = stats.rules;
     if ((rules[empty_rule] = alloc_rule(1)) == NULL)
         return free(rules), NULL;
 
@@ -158,8 +159,8 @@ static unsigned **pack_rules(
     rules[GM_START][1] = GM_EOF;
 
     // fill in the rules lists and nonterm derives lists
-    int rn = 2;
-    unsigned **r = &rules[2];
+    gram_rule_no rn = 2;
+    gram_sym_no **r = &rules[rn];
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
@@ -178,11 +179,11 @@ static unsigned **pack_rules(
             if ((*r = alloc_rule(nullterm(rhs->n))) == NULL)
                 goto oom;
 
-            unsigned *s = *r;
+            gram_sym_no *s = *r;
             for (; rhs; rhs = rhs->next) {
                 if (rhs->type == GM_EMPTY_RHS) continue;
 
-                int sym = detnum(htlookup(rhs->str, symtab), stats);
+                gram_sym_no sym = detnum(htlookup(rhs->str, symtab), stats);
 
                 // add rule symbol
                 *s++ = sym;
@@ -228,7 +229,7 @@ bool gram_pack(
     stats.rules += 2;
 
     // nonterm derives positions
-    unsigned **dps = calloc(stats.nonterms, sizeof *dps);
+    gram_rule_no **dps = calloc(stats.nonterms, sizeof *dps);
     if (!dps) return oom_error(error, NULL);
 
     struct gram_symbol *symbols = NULL;
@@ -243,7 +244,7 @@ bool gram_pack(
         return oom_error(error, dps);
     }
 
-    unsigned **rules = NULL;
+    gram_sym_no **rules = NULL;
     if ((rules = pack_rules(dps, ntpatterns, patterns, symtab, stats, spec)) == NULL) {
         free_symbols(symbols);
         free_patterns(patterns);

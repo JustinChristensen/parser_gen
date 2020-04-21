@@ -37,7 +37,7 @@ static bool scanner_error(struct ll1_error *error, struct regex_error scanerr) {
     return false;
 }
 
-static bool syntax_error(struct ll1_error *error, unsigned expected, struct ll1_parser_state *state) {
+static bool syntax_error(struct ll1_error *error, gram_sym_no expected, struct ll1_parser_state *state) {
     prod(error, ((struct ll1_error) {
         .type = GM_LL1_SYNTAX_ERROR,
         .loc = nfa_match_loc(&state->match),
@@ -54,19 +54,19 @@ static bool syntax_error(struct ll1_error *error, unsigned expected, struct ll1_
 #define offs(n) ((n) + 1)
 
 struct ll1_parser ll1_parser(
-    struct nfa_context scanner, unsigned **rtable, unsigned **ptable,
+    struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
     struct gram_stats stats
 ) {
     return (struct ll1_parser) { rtable, ptable, scanner, stats };
 }
 
-static unsigned **alloc_parse_table(struct gram_stats stats) {
-    size_t xsyms = sizeof (unsigned) * stats.terms * stats.nonterms;
+static gram_rule_no **alloc_parse_table(struct gram_stats stats) {
+    size_t xsyms = sizeof (gram_rule_no) * stats.terms * stats.nonterms;
 
-    unsigned **ptable = malloc(sizeof (unsigned *) * stats.nonterms + xsyms);
+    gram_rule_no **ptable = malloc(sizeof (gram_rule_no *) * stats.nonterms + xsyms);
     if (!ptable) return NULL;
 
-    unsigned *srules = (unsigned *) (ptable + stats.nonterms);
+    gram_rule_no *srules = (gram_rule_no *) (ptable + stats.nonterms);
 
     memset(srules, 0, xsyms);
 
@@ -76,33 +76,33 @@ static unsigned **alloc_parse_table(struct gram_stats stats) {
     return ptable;
 }
 
-static unsigned NTI(unsigned nt, struct gram_stats const stats) {
+static gram_sym_no NTI(gram_sym_no nt, struct gram_stats const stats) {
     return nt - stats.terms - 1;
 }
 
-static unsigned TI(unsigned t) {
+static gram_sym_no TI(gram_sym_no t) {
     return t - 1;
 }
 
 #define PTABLE_STACK 7
-static unsigned **parse_table(struct gram_symbol_analysis *an, struct gram_parser_spec const *spec) {
+static gram_rule_no **parse_table(struct gram_symbol_analysis *an, struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
 
-    unsigned **ptable = alloc_parse_table(stats);
+    gram_rule_no **ptable = alloc_parse_table(stats);
     if (!ptable) return NULL;
 
     struct gram_symbol *sym = gram_nonterm0(spec);
     while (!gram_symbol_null(sym)) {
-        unsigned nt = sym->num;
-        unsigned nti = NTI(nt, stats);
-        unsigned *r = sym->derives;
+        gram_sym_no nt = sym->num;
+        gram_sym_no nti = NTI(nt, stats);
+        gram_rule_no *r = sym->derives;
 
         while (*r) {
-            unsigned *s = spec->rules[*r];
+            gram_sym_no *s = spec->rules[*r];
 
             while (*s) {
                 struct bsiter it = bsiter(an->firsts[*s]);
-                unsigned t;
+                gram_sym_no t;
                 while (bsnext(&t, &it))
                     ptable[nti][TI(t)] = *r;
                 if (!an->nullable[*s]) break;
@@ -111,7 +111,7 @@ static unsigned **parse_table(struct gram_symbol_analysis *an, struct gram_parse
 
             if (!*s) {
                 struct bsiter it = bsiter(an->follows[nt]);
-                unsigned t;
+                gram_sym_no t;
                 while (bsnext(&t, &it))
                     ptable[nti][TI(t)] = *r;
             }
@@ -125,37 +125,37 @@ static unsigned **parse_table(struct gram_symbol_analysis *an, struct gram_parse
     return ptable;
 }
 
-static unsigned **alloc_rule_table(struct gram_stats stats) {
+static gram_sym_no **alloc_rule_table(struct gram_stats stats) {
     return malloc(
-        sizeof (unsigned *) * nullterm(offs(stats.rules)) +
-        sizeof (unsigned) * (stats.rsymbols + stats.rules)
+        sizeof (gram_sym_no *) * nullterm(offs(stats.rules)) +
+        sizeof (gram_sym_no) * (stats.rsymbols + stats.rules)
     );
 }
 
-static unsigned rsize(unsigned *s) {
+static unsigned rsize(gram_sym_no *s) {
     unsigned size = 0;
     while (*s++) size++;
     return size;
 }
 
-static unsigned **rule_table(struct gram_parser_spec const *spec) {
+static gram_sym_no **rule_table(struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
-    unsigned **rtable = alloc_rule_table(stats);
+    gram_sym_no **rtable = alloc_rule_table(stats);
     if (!rtable) return NULL;
 
     // offset the rule table by 1
     rtable[0] = NULL;
 
     // start counting 1 past
-    unsigned **trule = &rtable[1];
+    gram_sym_no **trule = &rtable[1];
     // symbol lists start after the list pointers
-    unsigned *tsym = (unsigned *) (rtable + nullterm(offs(stats.rules)));
+    gram_sym_no *tsym = (gram_sym_no *) (rtable + nullterm(offs(stats.rules)));
 
-    unsigned **r = gram_rule0(spec);
+    gram_sym_no **r = gram_rule0(spec);
     while (*r) {
         *trule++ = tsym;
 
-        unsigned *s = *r + rsize(*r);
+        gram_sym_no *s = *r + rsize(*r);
         while (s != *r) *tsym++ = *--s;
         *tsym++ = 0;
 
@@ -187,7 +187,8 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
 
     struct gram_symbol_analysis san = { 0 };
     struct nfa_context scanner = { 0 };
-    unsigned **ptable = NULL, **rtable = NULL;
+    gram_rule_no **ptable = NULL;
+    gram_sym_no **rtable = NULL;
 
     if (!gram_analyze_symbols(&san, spec))
         return false;
@@ -247,9 +248,9 @@ void print_ll1_parser(FILE *handle, struct ll1_parser *parser) {
     struct gram_stats stats = parser->stats;
 
     fprintf(handle, "rule table:\n\n");
-    unsigned **rtable = parser->rtable;
+    gram_sym_no **rtable = parser->rtable;
     for (int r = 0; r < nullterm(offs(stats.rules)); r++) {
-        unsigned *s = rtable[r];
+        gram_sym_no *s = rtable[r];
         fprintf(handle, "  %d. ", r);
         if (s) while (*s) fprintf(handle, "%u ", *s), s++;
         fprintf(handle, "\n");
@@ -257,7 +258,7 @@ void print_ll1_parser(FILE *handle, struct ll1_parser *parser) {
     fprintf(handle, "\n");
 
     fprintf(handle, "parse table:\n\n");
-    unsigned **ptable = parser->ptable;
+    gram_rule_no **ptable = parser->ptable;
     for (int n = 0; n < stats.nonterms; n++) {
         for (int t = 0; t < stats.terms; t++) {
             if (ptable[n][t]) {
@@ -281,8 +282,8 @@ struct ll1_parser_state ll1_parser_state(struct ll1_parser *parser) {
     return (struct ll1_parser_state) { .parser = parser };
 }
 
-static void push_rule(unsigned r, struct array *syms, unsigned **rtable) {
-    unsigned *s = rtable[r];
+static void push_rule(gram_rule_no r, gram_sym_no **rtable, struct array *syms) {
+    gram_sym_no *s = rtable[r];
     while (*s) apush(s, syms), s++;
 };
 
@@ -296,11 +297,11 @@ static bool start_scanning(char *input, struct ll1_parser_state *state) {
     return false;
 }
 
-static bool peek(unsigned expected, struct ll1_parser_state *state) {
+static bool peek(gram_sym_no expected, struct ll1_parser_state *state) {
     return state->lookahead == expected;
 }
 
-static bool expect(unsigned expected, struct ll1_parser_state *state) {
+static bool expect(gram_sym_no expected, struct ll1_parser_state *state) {
     if (peek(expected, state)) {
         debug("success: expected %u, actual %u\n", expected, state->lookahead);
         state->lookahead = nfa_match(&state->match);
@@ -330,20 +331,20 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
 
     if (!start_scanning(input, state)) return oom_error(error, NULL);
 
-    struct array *syms = init_array(sizeof (unsigned), SYM_STACK_SIZE, 0, 0);
+    struct array *syms = init_array(sizeof (gram_sym_no), SYM_STACK_SIZE, 0, 0);
     if (!syms) return oom_error(error, NULL);
 
     struct ll1_parser const *parser = state->parser;
-    unsigned **rtable = parser->rtable,
-             **ptable = parser->ptable;
+    gram_sym_no **rtable = parser->rtable;
+    gram_rule_no **ptable = parser->ptable;
 
     struct gram_stats stats = parser->stats;
-    unsigned const nonterm0 = stats.terms + 1;
+    gram_sym_no const nonterm0 = stats.terms + 1;
 
-    push_rule(GM_START, syms, rtable);
+    push_rule(GM_START, rtable, syms);
 
     bool success = true;
-    unsigned sym = 0;
+    gram_sym_no sym = 0;
 
     while (success && !aempty(syms)) {
         apeek(&sym, syms);
@@ -361,12 +362,12 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
             else (success = syntax_error(error, sym, state));
         } else {
             debug("ptable[%u][%u]", sym, state->lookahead);
-            unsigned rule = ptable[NTI(sym, stats)][TI(state->lookahead)];
+            gram_rule_no rule = ptable[NTI(sym, stats)][TI(state->lookahead)];
             debug(" = %u\n", rule);
 
             if (rule) {
                 apop(&sym, syms);
-                push_rule(rule, syms, rtable);
+                push_rule(rule, rtable, syms);
             } else {
                 success = syntax_error(error, sym, state);
             }

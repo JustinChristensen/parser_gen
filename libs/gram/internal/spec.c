@@ -28,9 +28,9 @@ static void free_symbols(struct gram_symbol *symbols) {
     free(symbols);
 }
 
-static void free_rules(unsigned int **rules) {
+static void free_rules(gram_sym_no **rules) {
     if (!rules) return;
-    unsigned int **r = &rules[1];
+    gram_sym_no **r = &rules[1];
     while (*r) free(*r), r++;
     free(rules);
 }

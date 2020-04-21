@@ -1,19 +1,19 @@
-id /{alpha_}+/
+// id /{alpha_}+/
 ---
 
-// S: T 'a'
-//  | T
-//  | $empty;
-//
-// T: "foo"
-//  | "bar"
-//  | U "baz"
-//  | $empty;
-//
-// U: S | "baz" | $empty | $empty;
+S: T 'a'
+ | T
+ | $empty;
+
+T: "foo"
+ | "bar"
+ | U "baz"
+ | $empty;
+
+U: S | "baz" | $empty | $empty;
 
 // E: E '+' E | E '*' E | '(' E ')' | id ;
 
 // nonterm-precedence rules should handle this
-E: '(' E ')' E' | id E';
-E': '+' E E' | '*' E E' | $empty;
+// E: '(' E ')' E' | id E';
+// E': '+' E E' | '*' E E' | $empty;

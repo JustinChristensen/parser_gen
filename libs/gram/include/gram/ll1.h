@@ -16,15 +16,15 @@ enum ll1_error_type {
 struct ll1_error {
     enum ll1_error_type type;
     union {
-        struct { struct regex_loc loc; unsigned actual; unsigned expected; };
+        struct { struct regex_loc loc; gram_sym_no actual; gram_sym_no expected; };
         struct { char *file; int col; };
         struct regex_error scanerr;
     };
 };
 
 struct ll1_parser {
-    unsigned int **rtable;
-    unsigned int **ptable;
+    gram_sym_no **rtable;
+    gram_rule_no **ptable;
     struct nfa_context scanner;
     struct gram_stats stats;
 };
@@ -32,11 +32,11 @@ struct ll1_parser {
 struct ll1_parser_state {
     struct ll1_parser *parser;
     struct nfa_match match;
-    unsigned lookahead;
+    gram_sym_no lookahead;
 };
 
 struct ll1_parser ll1_parser(
-    struct nfa_context scanner, unsigned int **rtable, unsigned int **ptable,
+    struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
     struct gram_stats stats
 );
 bool gen_ll1(

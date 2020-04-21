@@ -30,15 +30,15 @@ struct gram_conflict {
     union {
         // first-first, first-follows
         struct {
-            unsigned nonterm;
+            gram_sym_no nonterm;
             union {
-                unsigned rules[2];
-                unsigned rule;
+                gram_rule_no rules[2];
+                gram_rule_no rule;
             };
         };
         // left recursion
         struct {
-            unsigned *derivations;
+            gram_sym_no *derivations;
             unsigned n;
         };
     };

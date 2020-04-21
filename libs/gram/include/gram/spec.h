@@ -1,5 +1,5 @@
-#ifndef GRAM_AST_H_
-#define GRAM_AST_H_ 1
+#ifndef GRAM_SPEC_H_
+#define GRAM_SPEC_H_ 1
 
 #include <stdbool.h>
 #include <regex/base.h>
@@ -16,6 +16,10 @@
 #define GM_START 1
 #define GM_SYMBOL0 1
 
+#define GM_NUM_TYPE unsigned
+typedef GM_NUM_TYPE gram_sym_no;
+typedef GM_NUM_TYPE gram_rule_no;
+
 enum gram_symbol_type {
     GM_TERM,
     GM_NONTERM
@@ -23,10 +27,10 @@ enum gram_symbol_type {
 
 struct gram_symbol {
     enum gram_symbol_type type;
-    unsigned num;
+    gram_sym_no num;
     union {
         struct {
-            unsigned *derives;
+            gram_rule_no *derives;
         };
     };
 };
@@ -56,7 +60,7 @@ struct gram_parser_spec {
         struct { // packed
             struct regex_pattern *patterns;
             struct gram_symbol *symbols;
-            unsigned **rules;
+            gram_sym_no **rules;
         };
     };
     struct gram_stats stats;
@@ -110,7 +114,7 @@ struct gram_parser_spec gram_parsed_spec(
 );
 struct gram_parser_spec gram_packed_spec(
     struct regex_pattern *patterns, struct gram_symbol *symbols,
-    unsigned **rules, struct gram_stats stats
+    gram_sym_no **rules, struct gram_stats stats
 );
 struct gram_pattern_def *init_gram_pattern_def(
     struct regex_loc loc,
@@ -138,9 +142,9 @@ bool gram_symbol_null(struct gram_symbol const *sym);
 struct gram_symbol *gram_term0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec);
-unsigned **gram_rule0(struct gram_parser_spec const *spec);
+gram_sym_no **gram_rule0(struct gram_parser_spec const *spec);
 
 void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec);
 
-#endif // GRAM_AST_H_
+#endif // GRAM_SPEC_H_
 

@@ -42,11 +42,11 @@ INVARIANT(assert_packed_spec, struct gram_parser_spec const *spec) {
     else                check(spec->rules[1][0] == GM_EOF);
 }
 
-INVARIANT(assert_symbol_index, unsigned i, struct gram_parser_spec const *spec) {
+INVARIANT(assert_symbol_index, gram_sym_no i, struct gram_parser_spec const *spec) {
     check(i >= 1 && i <= spec->stats.symbols);
 }
 
-INVARIANT(assert_rule_index, unsigned i, struct gram_parser_spec const *spec) {
+INVARIANT(assert_rule_index, gram_rule_no i, struct gram_parser_spec const *spec) {
     check(i >= 1 && i <= spec->stats.rules);
 }
 

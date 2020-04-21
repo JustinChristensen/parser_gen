@@ -39,9 +39,9 @@ void gram_count(struct gram_parser_spec *spec) {
     }
 
     if (spec->rules) {
-        unsigned **rule = gram_rule0(spec);
+        gram_sym_no **rule = gram_rule0(spec);
         while (*rule) {
-            unsigned *s = *rule;
+            gram_sym_no *s = *rule;
             while (*s) stats.rsymbols++, s++;
             stats.rules++;
             rule++;
@@ -111,11 +111,11 @@ struct bitset **alloc_sets(unsigned nsets, unsigned size) {
 
 #define SYMBOL_NULLABLE(name) \
 static bool name( \
-    bool *added, bool *nullable, unsigned s, struct gram_parser_spec const *spec \
+    bool *added, bool *nullable, gram_sym_no s, struct gram_parser_spec const *spec \
 )
 #define RULE_NULLABLE(name) \
 static bool name( \
-    bool *added, bool *nullable, unsigned r, struct gram_parser_spec const *spec \
+    bool *added, bool *nullable, gram_rule_no r, struct gram_parser_spec const *spec \
 )
 
 SYMBOL_NULLABLE(symbol_nullable);
@@ -131,7 +131,7 @@ SYMBOL_NULLABLE(symbol_nullable) {
     bool snull = false;
 
     if (sym.type == GM_NONTERM) {
-        unsigned *r = sym.derives;
+        gram_rule_no *r = sym.derives;
         while (*r) {
             bool rnull = rule_nullable(added, nullable, *r, spec);
             snull = snull || rnull; // a non-terminal is nullable if any of it's rules are nullable
@@ -146,7 +146,7 @@ SYMBOL_NULLABLE(symbol_nullable) {
 
 RULE_NULLABLE(rule_nullable) {
     invariant(assert_rule_index, r, spec);
-    unsigned *s = spec->rules[r];
+    gram_sym_no *s = spec->rules[r];
     bool rnull = true;
     while (*s) {
         // added determines whether we're visiting symbols or not
@@ -175,13 +175,13 @@ static bool *symbols_nullable(struct gram_parser_spec const *spec) {
 
 #define RULE_FIRST(name) \
 static struct bitset *name( \
-    bool *added, unsigned fsym, struct bitset **firsts, bool *nullable, \
-    unsigned r, struct gram_parser_spec const *spec \
+    bool *added, gram_sym_no fsym, struct bitset **firsts, bool *nullable, \
+    gram_rule_no r, struct gram_parser_spec const *spec \
 )
 #define SYMBOL_FIRST(name) \
 static void name( \
-    bool *added, unsigned fsym, struct bitset **firsts, bool *nullable, \
-    unsigned s, struct gram_parser_spec const *spec \
+    bool *added, gram_sym_no fsym, struct bitset **firsts, bool *nullable, \
+    gram_sym_no s, struct gram_parser_spec const *spec \
 )
 
 RULE_FIRST(rule_first);
@@ -198,7 +198,7 @@ SYMBOL_FIRST(symbol_first) {
     if (sym.type == GM_TERM) {
         bsins(sym.num, firsts[fsym]);
     } else {
-        unsigned *r = sym.derives;
+        gram_rule_no *r = sym.derives;
         while (*r) rule_first(added, fsym, firsts, nullable, *r, spec), r++;
     }
 }
@@ -211,7 +211,7 @@ RULE_FIRST(rule_first) {
     if (!added && !(rfirst = bitset(spec->stats.terms)))
         return NULL;
 
-    unsigned *s = spec->rules[r];
+    gram_sym_no *s = spec->rules[r];
 
     while (*s) {
         if (added) symbol_first(added, fsym, firsts, nullable, *s, spec);
@@ -248,13 +248,13 @@ static struct bitset **symbols_firsts(struct gram_symbol_analysis *an, struct gr
 #define RULE_FOLLOWS(name) \
 static void name( \
     bool *added, struct bitset **follows, struct gram_symbol_analysis *an,  \
-    unsigned r, unsigned nt, struct gram_parser_spec const *spec \
+    gram_rule_no r, gram_sym_no nt, struct gram_parser_spec const *spec \
 )
 
 #define SYMBOL_FOLLOWS(name) \
 static void name( \
     bool *added, struct bitset **follows, struct gram_symbol_analysis *an, \
-    unsigned s, struct gram_parser_spec const *spec \
+    gram_sym_no s, struct gram_parser_spec const *spec \
 )
 
 RULE_FOLLOWS(rule_follows);
@@ -268,7 +268,7 @@ SYMBOL_FOLLOWS(_symbol_follows) {
     added[sym.num] = true;
 
     if (sym.type == GM_NONTERM) {
-        unsigned *r = sym.derives;
+        gram_rule_no *r = sym.derives;
         while (*r) {
             rule_follows(added, follows, an, *r, sym.num, spec);
             r++;
@@ -278,9 +278,9 @@ SYMBOL_FOLLOWS(_symbol_follows) {
 
 RULE_FOLLOWS(rule_follows) {
     invariant(assert_rule_index, r, spec);
-    unsigned *s = spec->rules[r];
+    gram_sym_no *s = spec->rules[r];
     while (*s) {
-        unsigned *n = s + 1;
+        gram_sym_no *n = s + 1;
 
         // add the first sets for the symbols up to the first non-nullable symbol
         while (*n) {
@@ -311,7 +311,7 @@ static size_t all_sets_size(struct bitset **follows, struct gram_parser_spec con
 static size_t
 symbol_follows(
     bool *added, struct bitset **follows, struct gram_symbol_analysis *an,
-    unsigned s, struct gram_parser_spec const *spec
+    gram_sym_no s, struct gram_parser_spec const *spec
 ) {
     _symbol_follows(added, follows, an, s, spec);
     return all_sets_size(follows, spec);
@@ -444,7 +444,7 @@ void print_gram_rule_analysis(FILE *handle, struct gram_rule_analysis const *an)
 }
 
 static struct gram_conflict *first_first_conflict(
-    struct gram_conflict *last, unsigned nt, unsigned r1, unsigned r2,
+    struct gram_conflict *last, gram_sym_no nt, gram_rule_no r1, gram_rule_no r2,
     struct gram_analysis *an
 ) {
     struct gram_conflict *conf = malloc(sizeof *conf);
@@ -465,7 +465,7 @@ static struct gram_conflict *first_first_conflict(
 }
 
 static struct gram_conflict *first_follows_conflict(
-    struct gram_conflict *last, unsigned nt, unsigned r,
+    struct gram_conflict *last, gram_sym_no nt, gram_rule_no r,
     struct gram_analysis *an
 ) {
     struct gram_conflict *conf = malloc(sizeof *conf);
@@ -486,7 +486,7 @@ static struct gram_conflict *first_follows_conflict(
 }
 
 static struct gram_conflict *null_ambiguity_conflict(
-    struct gram_conflict *last, unsigned nt,
+    struct gram_conflict *last, gram_sym_no nt,
     struct gram_analysis *an
 ) {
     struct gram_conflict *conf = malloc(sizeof *conf);
@@ -512,7 +512,7 @@ static struct gram_conflict *left_recursion_conflict(
     struct gram_conflict *conf = malloc(sizeof *conf);
     if (!conf) return NULL;
 
-    unsigned *dlist = alist(derivs);
+    gram_sym_no *dlist = alist(derivs);
     if (!dlist) return free(conf), NULL;
 
     // shift everything back over
@@ -536,13 +536,13 @@ static struct gram_conflict *left_recursion_conflict(
 #define RULE_LEFT_RECURSION(name) \
 static struct gram_conflict *name( \
     struct gram_conflict *last, struct gram_analysis *an, struct gram_symbol_analysis *san, \
-    bool *added, struct array *derivs, unsigned r, unsigned const nt, struct gram_parser_spec const *spec \
+    bool *added, struct array *derivs, gram_rule_no r, gram_sym_no const nt, struct gram_parser_spec const *spec \
 )
 
 #define SYMBOL_LEFT_RECURSION(name) \
 static struct gram_conflict *name( \
     struct gram_conflict *last, struct gram_analysis *an, struct gram_symbol_analysis *san, \
-    bool *added, struct array *derivs, unsigned s, unsigned const nt, struct gram_parser_spec const *spec \
+    bool *added, struct array *derivs, gram_sym_no s, gram_sym_no const nt, struct gram_parser_spec const *spec \
 )
 
 RULE_LEFT_RECURSION(rule_left_recursion);
@@ -551,7 +551,7 @@ SYMBOL_LEFT_RECURSION(symbol_left_recursion);
 RULE_LEFT_RECURSION(rule_left_recursion) {
     invariant(assert_rule_index, r, spec);
 
-    unsigned *s = spec->rules[r];
+    gram_sym_no *s = spec->rules[r];
 
     bool *nullable = san->nullable;
 
@@ -582,7 +582,7 @@ SYMBOL_LEFT_RECURSION(symbol_left_recursion) {
     if (sym.type == GM_NONTERM) {
         apush(&sym.num, derivs);
 
-        unsigned *r = sym.derives;
+        gram_rule_no *r = sym.derives;
         while (*r && (last = rule_left_recursion(last, an, san, added, derivs, *r, nt, spec)))
             r++;
 
@@ -592,7 +592,7 @@ SYMBOL_LEFT_RECURSION(symbol_left_recursion) {
     return last;
 }
 
-static unsigned nderives(unsigned *r) {
+static unsigned nderives(gram_rule_no *r) {
     unsigned n = 0;
     while (*r) n++, r++;
     return n;
@@ -625,7 +625,7 @@ bool gram_analyze(
     struct array *derivs = NULL;
     bool *added = NULL;
 
-    derivs = init_array(sizeof (unsigned), DERIVS_STACK_SIZE, 0, 0);
+    derivs = init_array(sizeof (gram_sym_no), DERIVS_STACK_SIZE, 0, 0);
     if (!derivs) goto free;
 
     unsigned const nsymbols = offs(spec->stats.symbols);
@@ -634,19 +634,19 @@ bool gram_analyze(
 
     struct gram_symbol *nt = gram_nonterm0(spec);
     while (!gram_symbol_null(nt)) {
-        unsigned *rules = nt->derives;
-        unsigned ntnum = nt->num - stats.terms;
+        gram_rule_no *rules = nt->derives;
+        gram_sym_no ntnum = nt->num - stats.terms;
         unsigned n = nderives(rules);
         unsigned nnulls = 0;
 
         for (int i = 0; i < n; i++) {
-            unsigned r = rules[i];
+            gram_rule_no r = rules[i];
 
             if (rnullable[r]) nnulls++;
 
             // first-first conflicts
             for (int j = i + 1; j < n; j++) {
-                unsigned t = rules[j];
+                gram_rule_no t = rules[j];
 
                 if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
                     if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))

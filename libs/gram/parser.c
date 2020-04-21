@@ -218,7 +218,7 @@ gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser
         { GM_EMPTY_T, NULL, GM_EMPTY_TOKEN },
         { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" },
         { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" },
-        { GM_ID_T, NULL, "{alpha_}{alnum_}*" },
+        { GM_ID_T, NULL, "{alpha_}({alnum_}|')*" },
         { RX_SKIP, NULL, "{space}+" },
         RX_END_PATTERNS
     })) {

@@ -9,7 +9,7 @@ CLEAN := *.png *.svg
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): main.c array_test.c bitset_test.c btree_test.c btree_dot.c hash_table_test.c intset_test.c
+$(PROG): main.c array_test.c bitset_test.c rbtree_test.c btree_dot.c hash_table_test.c intset_test.c
 	$(CC) $(INCLUDEPATHS) $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS)
 
 .PHONY: check

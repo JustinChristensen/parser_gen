@@ -2,14 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <base/btree.h>
+#include <base/rbtree.h>
 #include <base/graphviz.h>
 #include <base/ord.h>
 #include <base/macros.h>
 #include <base/random.h>
 #include "btree_dot.h"
 
-static bool red(struct bin *node) {
+static bool red(struct rb_node *node) {
     return node && node->red;
 }
 
@@ -17,7 +17,7 @@ static int uid = 0;
 
 #define NAMEBUFSIZE 16
 #define LABELBUFSIZE 64
-Agnode_t *node_to_agnode(Agraph_t *graph, struct bin *node, void (*key_to_str)(char *out, void const *key)) {
+Agnode_t *node_to_agnode(Agraph_t *graph, struct rb_node *node, void (*key_to_str)(char *out, void const *key)) {
     // determine the node id
     char namebuf[NAMEBUFSIZE];
     sprintf(namebuf, "n%d", uid++);
@@ -29,7 +29,7 @@ Agnode_t *node_to_agnode(Agraph_t *graph, struct bin *node, void (*key_to_str)(c
     char labelbuf[NAMEBUFSIZE] = "nil";
 
     if (node) {
-        (*key_to_str)(labelbuf, nodekey(node));
+        (*key_to_str)(labelbuf, rbkey(node));
     }
 
     agset(agn, "label", labelbuf);
@@ -58,7 +58,7 @@ Agnode_t *node_to_agnode(Agraph_t *graph, struct bin *node, void (*key_to_str)(c
     return agn;
 }
 
-void btree_to_graph(struct bin *node, void (*key_to_str)(char *out, void const *key)) {
+void btree_to_graph(struct rb_node *node, void (*key_to_str)(char *out, void const *key)) {
     Agraph_t *graph = agopen("tree", Agundirected, NULL);
 
     default_styles(graph);
@@ -87,7 +87,7 @@ static void int_to_str(char *out, void const *key) {
 void graph_int_tree() {
     char *env_size = getenv("SIZE"),
          *random = getenv("RANDOM");
-    struct bin *node = NULL;
+    struct rb_node *node = NULL;
     int intlist[] = {82,61,28,49,76,13,25,31,43,58,85,1,10,52,37,34,7,73,19,64,4,91,22,46,67,55,79,16,88,40,70};
     size_t size = SIZEOF(intlist);
     int *keys = intlist;
@@ -107,15 +107,15 @@ void graph_int_tree() {
     }
 
     for (int i = 0; i < size; i++) {
-        node = btinsert(&keys[i], CMPFN intcmp, NULL, node);
+        node = rbinsert(&keys[i], CMPFN intcmp, NULL, node);
     }
 
-    btinvariants(node, true, CMPFN intcmp);
+    rbinvariants(node, true, CMPFN intcmp);
 
     btree_to_graph(node, int_to_str);
 
     if (env_size) free(keys);
-    free_btree(node);
+    free_rbtree(node);
 }
 
 

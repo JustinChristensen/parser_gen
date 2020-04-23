@@ -28,14 +28,14 @@ static struct rb_node *rotate_right(struct rb_node *node) {
 
 static struct rb_node
 rbtree(void *key, void *val, bool red, struct rb_node *left, struct rb_node *right) {
-    return (struct rb_node) { assoc(key, val), red, left, right };
+    return (struct rb_node) { rb_assoc(key, val), red, left, right };
 }
 
-struct rb_assoc assoc(void *key, void *val) {
+struct rb_assoc rb_assoc(void *key, void *val) {
     return (struct rb_assoc) { key, val };
 }
 
-struct rb_assoc node_assoc(struct rb_node const *node) {
+struct rb_assoc rb_node_assoc(struct rb_node const *node) {
     return node->assoc;
 }
 
@@ -394,11 +394,6 @@ size_t rbdepth(struct rb_node const *node) {
     return max(rbdepth(node->left), rbdepth(node->right)) + 1;
 }
 
-// static bool balanced(struct rb_node const *node) {
-//     if (!node) return true;
-//     return rbdepth(node->left) == rbdepth(node->right);
-// }
-
 struct rb_node *rbfromlist(struct rb_assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b)) {
     struct rb_node *node = NULL;
 
@@ -420,7 +415,7 @@ struct rb_assoc *rbtolist(struct rb_node const *node) {
 
     struct rb_assoc *as = assocs;
     while ((node = rbnext(&it))) {
-        *as++ = node_assoc(node);
+        *as++ = rb_node_assoc(node);
     }
 
     free_rb_iter(&it);

@@ -30,8 +30,8 @@ struct rb_iter {
     enum rb_trav_order order;
 };
 
-struct rb_assoc assoc(void *key, void *val);
-struct rb_assoc assoc_from_node(struct rb_node const *node);
+struct rb_assoc rb_assoc(void *key, void *val);
+struct rb_assoc rb_node_assoc(struct rb_node const *node);
 void *rbkey(struct rb_node const *node);
 void *rbval(struct rb_node const *node);
 void rb_iter(enum rb_trav_order order, struct rb_node const *node, struct rb_iter *it);
@@ -55,11 +55,11 @@ struct rb_node *rbinsert(
     void *val,
     struct rb_node *node
 );
-struct rb_node *rbdelete(
-    void *key,
-    int (*keycmp) (void const *a, void const *b),
-    struct rb_node *node
-);
+// struct rb_node *rbdelete(
+//     void *key,
+//     int (*keycmp) (void const *a, void const *b),
+//     struct rb_node *node
+// );
 bool rbtree_eq(
     bool (*keyeq) (void const *a, void const *b),
     bool (*valeq) (void const *a, void const *b),

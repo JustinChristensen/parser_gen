@@ -19,10 +19,10 @@ test-suite props-test
         CArray,
         CIntSet,
         CHashTable,
-        CBTree,
+        CRBTree,
         CIntSetProps,
         CHashTableProps,
-        CBTreeProps,
+        CRBTreeProps,
         Utils,
         Types
     build-depends:

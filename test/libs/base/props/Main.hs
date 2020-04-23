@@ -7,7 +7,7 @@ import System.Exit
 import Test.QuickCheck hiding (verbose)
 import qualified CIntSetProps
 import qualified CHashTableProps
-import qualified CBTreeProps
+import qualified CRBTreeProps
 
 main :: IO ()
 main = do
@@ -24,5 +24,5 @@ main = do
         suites = [
                 CIntSetProps.runTests,
                 CHashTableProps.runTests,
-                CBTreeProps.runTests
+                CRBTreeProps.runTests
             ]

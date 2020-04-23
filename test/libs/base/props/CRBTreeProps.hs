@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
-module CBTreeProps (runTests) where
+module CRBTreeProps (runTests) where
 
-import CBTree
+import CRBTree
 import Types
 import Data.List (sort)
 import Foreign
@@ -36,10 +36,10 @@ prop_produces_sorted_keys (UniqList keys) = monadicIO $ do
         let strKeys = unwrapKeys keys
         strCKeys <- run $ cKeys strKeys
         tree <- run $ bTreeFromKeys strCKeys
-        run $ btInvariants tree True cstrcmp
-        treeCKeys <- run $ btKeys tree
-        treeSize <- run $ btSize tree
-        treeDepth <- run $ btDepth tree
+        run $ rbInvariants tree True cstrcmp
+        treeCKeys <- run $ rbKeys tree
+        treeSize <- run $ rbSize tree
+        treeDepth <- run $ rbDepth tree
         treeKeys <- run $ do
             arr <- peekArray (fromIntegral treeSize) treeCKeys
             mapM peekCAString arr
@@ -47,7 +47,7 @@ prop_produces_sorted_keys (UniqList keys) = monadicIO $ do
         let equal = sort strKeys == treeKeys
         run $ free treeCKeys
         run $ freeKeys strCKeys
-        run $ freeBtree tree
+        run $ freeRbTree tree
         assert equal
 
 return []

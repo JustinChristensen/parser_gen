@@ -55,11 +55,6 @@ struct rb_node *rbinsert(
     void *val,
     struct rb_node *node
 );
-// struct rb_node *rbdelete(
-//     void *key,
-//     int (*keycmp) (void const *a, void const *b),
-//     struct rb_node *node
-// );
 bool rbtree_eq(
     bool (*keyeq) (void const *a, void const *b),
     bool (*valeq) (void const *a, void const *b),

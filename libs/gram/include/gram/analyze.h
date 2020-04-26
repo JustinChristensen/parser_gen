@@ -18,11 +18,15 @@ struct gram_rule_analysis {
     struct bitset **firsts;
 };
 
+// TODO: shift/reduce arises because of ambiguity
+// should the conflict really be an ambiguity conflict?
 enum gram_conflict_type {
     GM_FIRST_FIRST,
     GM_FIRST_FOLLOWS,
     GM_NULL_AMBIGUITY,
     GM_LEFT_RECURSION
+    // GM_SHIFT_REDUCE,
+    // GM_REDUCE_REDUCE
 };
 
 struct gram_conflict {
@@ -48,6 +52,7 @@ struct gram_conflict {
 enum gram_class {
     GM_NONE,
     GM_LR,
+    GM_SLR,
     GM_LL
 };
 

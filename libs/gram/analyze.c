@@ -10,11 +10,9 @@
 #include "gram/analyze.h"
 
 #include "internal/assert.c"
+#include "internal/macros.c"
 
 #define debug(...) debug_ns("gram_analyze", __VA_ARGS__);
-
-#define offs(n) ((n) + 1)
-#define nullterm(n) ((n) + 1)
 
 void gram_count(struct gram_parser_spec *spec) {
     assert(spec != NULL);
@@ -459,7 +457,7 @@ static struct gram_conflict *first_first_conflict(
     if (last) last->next = conf;
     else an->conflicts = conf;
 
-    if (an->clas == GM_LL) an->clas--;
+    if (an->clas >= GM_LL) an->clas--;
 
     return conf;
 }
@@ -480,7 +478,7 @@ static struct gram_conflict *first_follows_conflict(
     if (last) last->next = conf;
     else an->conflicts = conf;
 
-    if (an->clas == GM_LL) an->clas--;
+    if (an->clas >= GM_LL) an->clas--;
 
     return conf;
 }
@@ -500,7 +498,7 @@ static struct gram_conflict *null_ambiguity_conflict(
     if (last) last->next = conf;
     else an->conflicts = conf;
 
-    if (an->clas == GM_LL) an->clas--;
+    if (an->clas >= GM_LL) an->clas--;
 
     return conf;
 }
@@ -528,7 +526,7 @@ static struct gram_conflict *left_recursion_conflict(
     if (last) last->next = conf;
     else an->conflicts = conf;
 
-    if (an->clas == GM_LL) an->clas--;
+    if (an->clas >= GM_LL) an->clas--;
 
     return conf;
 }

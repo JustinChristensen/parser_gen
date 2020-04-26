@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 #include "gram/analyze.h"
 
 #include "internal/assert.c"
+#include "internal/macros.c"
 
 #define debug(...) debug_ns("gram_ll1", __VA_ARGS__);
 
@@ -49,9 +51,6 @@ static bool syntax_error(struct ll1_error *error, gram_sym_no expected, struct l
 }
 
 #define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
-
-#define nullterm(n) ((n) + 1)
-#define offs(n) ((n) + 1)
 
 struct ll1_parser ll1_parser(
     struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
@@ -339,7 +338,7 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
     gram_rule_no **ptable = parser->ptable;
 
     struct gram_stats stats = parser->stats;
-    gram_sym_no const nonterm0 = stats.terms + 1;
+    gram_sym_no const nonterm0 = offs(stats.terms);
 
     push_rule(GM_START, rtable, syms);
 

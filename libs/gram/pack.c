@@ -14,13 +14,9 @@
 
 #include "internal/spec.c"
 #include "internal/oom.c"
+#include "internal/macros.c"
 
 #define debug(...) debug_ns("gram_pack", __VA_ARGS__);
-
-// symbols and rules list begins at index #1
-#define offs(n) ((n) + 1)
-// symbols, patterns, and rules are all null terminated
-#define nullterm(n) ((n) + 1)
 
 static gram_sym_no detnum(struct gram_symbol_entry *sym, struct gram_stats stats) {
     gram_sym_no i = sym->s.num; // #0 reserved

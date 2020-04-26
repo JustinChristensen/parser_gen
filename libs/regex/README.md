@@ -23,9 +23,18 @@ TODO improvements:
 4. For multiple patterns, identify which pattern is causing the error for the syntax error
 5. Make the overall API more "monadic"
 6. Make the resulting scanner handle escape sequences
+7. Add the ability to "fold" over the input characters as the automaton recognizes the input prefix.
+    i.e. (previous value, current input symbol) -> next value
+    union val val;
+    int sym = nfa_match(&val, match)
+    if (sym == FLOAT) {
+        float x = val.f;
+    }
 
 Notes:
 
 The NFA context can be considered "online" in the sense that calling nfa_match_state copies the current machine
 to the nfa match state, and nodes reachable from the start state of that machine should be immutable until freed
     
+
+

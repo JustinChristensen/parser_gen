@@ -65,6 +65,7 @@ promote_kernel(struct gram_parser_spec const *spec, struct states_context *conte
     unsigned rule;
     while (bsnext(&rule, &it)) *item++ = (struct slr_item) { rule, 0 };
 
+    // add id
     struct slr_state *state = make_state(kernel);
 
     bszero(context->ruleset);
@@ -160,6 +161,7 @@ reach_states(
     }
 
     state->trans = make_transitions(trans->nitems, trans->nitems, trans->items);
+    // clear template transitions
 
     return last;
 }

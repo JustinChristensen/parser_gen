@@ -1,0 +1,29 @@
+Graph Anamorphism
+
+Problem:
+Starting from node 0, I have the kernel itemset, (0, 0).
+An item set can have at most NRULES worth of items (one position per rule).
+A transitions set can have at most NSYMBOLS worth of transitions (a worst case
+    scenario where a state transitions on every grammar symbol to a state)
+
+let template itemset refer to an itemset NRULES in size
+let template transitions refer to a transitions set NSYMBOLS in size
+
+I can compute the closure using the template itemset no problem, by seeding
+the template with either the initial item (0, 0), or the result of GOTO(state itemset, sym)
+    - Unfortunately this restricts the ability to parallelize the state discovery process,
+      because computing a node would be dependent on the single template itemset
+
+And I can compute the transitions set for a node in a similar fashion, using the template transitions set,
+    but this has the same drawback, and it would be ideal to have the anamorphism only dependent on a single
+    depth-first traversal starting from the root node.
+
+So for choices:
+1. I can do a first pass on the closed itemset to compute the number of transition symbols for the state,
+   i.e. the number of shifts and gotos, prior to allocating the transitions
+2. I can use the template transitions set...
+
+Hmm, by that logic it would also be possible to do "counting" pass when closing an itemset,
+i.e. if A -> B and B -> C | d and C -> e, count(A) = 4 because C, d, e, and 0, 0
+
+

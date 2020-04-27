@@ -25,21 +25,78 @@ struct states_context {
     struct bitset *ruleset;
 };
 
-static void debug_item(struct slr_item const item) {
-    debug("(%u,%u)", item.rule, item.pos);
+static void print_item(FILE *handle, struct slr_item item) {
+    fprintf(handle, "(%u, %u)", item.rule, item.pos);
+}
+
+static void print_itemset_compact(FILE *handle, void const *a) {
+    if (!a) return;
+    struct slr_itemset const *itemset = a;
+    fprintf(handle, "{");
+    if (itemset->nitems) {
+        print_item(handle, itemset->items[0]);
+        for (unsigned i = 1; i < itemset->nitems; i++) {
+            fprintf(handle, ",");
+            print_item(handle, itemset->items[i]);
+        }
+    }
+    fprintf(handle, "}");
+}
+
+static void print_itemset(FILE *handle, struct slr_itemset *itemset) {
+    fprintf(handle, "  itemset:\n");
+    for (int i = 0; i < itemset->nitems; i++) {
+        fprintf(handle, "    ");
+        print_item(handle, itemset->items[i]);
+        fprintf(handle, "\n");
+    }
+}
+
+static void print_transitions(FILE *handle, struct slr_transitions *trans) {
+    if (trans->nstates) {
+        fprintf(handle, "  transitions:\n");
+        for (int i = 0; i < trans->nstates; i++) {
+            fprintf(handle, "    %u\n", trans->states[i]->num);
+        }
+    }
+}
+
+static void print_state(FILE *handle, struct slr_state *state) {
+    fprintf(handle, "  num: %u\n  sym: %u\n", state->num, state->sym);
+    print_itemset(handle, state->itemset);
+    print_transitions(handle, state->trans);
+}
+
+static void print_states(FILE *handle, unsigned nstates, struct slr_state *state) {
+    struct array *stack = init_array(sizeof (struct slr_state *), 7, 0, 0);
+    if (!stack) return;
+    bool *visited = calloc(nstates, sizeof *visited);
+    if (!visited) return free(stack);
+
+    fprintf(handle, "states:\n");
+
+    apush(&state, stack);
+    while (!aempty(stack)) {
+        apop(&state, stack);
+
+        if (visited[state->num]) continue;
+        visited[state->num] = true;
+
+        fprintf(handle, "\n");
+        print_state(handle, state);
+
+        struct slr_transitions *trans = state->trans;
+        for (unsigned i = trans->nstates; i > 0; i--) {
+            apush(&trans->states[i - 1], stack);
+        }
+    }
+
+    free_array(stack);
+    free(visited);
 }
 
 static void debug_itemset(struct slr_itemset const *itemset) {
-    if (!itemset) return;
-    debug("{");
-    if (itemset->nitems) {
-        debug_item(itemset->items[0]);
-        for (unsigned i = 1; i < itemset->nitems; i++) {
-            debug(",");
-            debug_item(itemset->items[i]);
-        }
-    }
-    debug("}");
+    if (debug_is("gram_slr")) print_itemset_compact(stderr, itemset);
 }
 
 static struct slr_itemset *
@@ -116,8 +173,8 @@ static void _add_rules(gram_sym_no nt, struct gram_parser_spec const *spec, stru
 
 static void add_rules(struct slr_item *item, struct gram_parser_spec const *spec, struct states_context *context) {
     gram_sym_no const nonterm0 = offs(spec->stats.terms);
-    gram_sym_no *s = spec->rules[item->rule];
-    if (*s >= nonterm0) _add_rules(*s, spec, context);
+    gram_sym_no s = spec->rules[item->rule][item->pos];
+    if (s >= nonterm0) _add_rules(s, spec, context);
 }
 
 
@@ -153,41 +210,48 @@ static unsigned count_items(
         }
     }
 
+    bszero(context->symset);
+
     return count_rules(&nitems, context);
 }
 
+#define KERN(x) ((x)->rule == GM_START || (x)->pos)
+#define NONKERN(x) ((x)->rule > GM_START && !(x)->pos)
 static int compare_items(void const *a, void const *b) {
     struct slr_item const *x = a, *y = b;
-    int cmp = x->rule - y->rule;
-    return cmp ? cmp : x->pos - y->pos;
+    int cmp;
+
+    if (KERN(x) && NONKERN(y)) cmp = 1;
+    else if (NONKERN(x) && KERN(y)) cmp = -1;
+    else {
+        cmp = y->rule - x->rule;
+        cmp = cmp ? cmp : y->pos - x->pos;
+    }
+
+    return -cmp;
 }
 
 static int compare_itemsets(void const *a, void const *b) {
-#define NONKERN(x) (x->rule > GM_START && !(x)->pos)
     struct slr_itemset const *s = a, *t = b;
     struct slr_item const *sitem = s->items, *titem = t->items;
     int cmp = 0;
 
     unsigned i, j;
-    for (i = s->nitems, j = t->nitems; !cmp && (!i || !j); sitem++, titem++, i--, j--) {
+    for (i = s->nitems, j = t->nitems; !cmp && i && j; sitem++, titem++, i--, j--) {
         while (i && NONKERN(sitem)) sitem++, i--;
         while (j && NONKERN(titem)) titem++, j--;
-        if (!i || !j) break;
-        cmp = compare_items(sitem, titem);
+        if (i && j) cmp = compare_items(sitem, titem);
     }
+    while (i && NONKERN(sitem)) sitem++, i--;
+    while (j && NONKERN(titem)) titem++, j--;
 
     if (!i && j) cmp = -1;
     if (i && !j) cmp = 1;
 
-    debug("cmp: ");
-    debug_itemset(s);
-    debug(" ");
-    debug_itemset(t);
-    debug(" = %u\n", cmp);
-
     return cmp;
-#undef NONKERN
 }
+#undef KERN
+#undef NONKERN
 
 static void sort_itemset(struct slr_itemset *itemset) {
     qsort(itemset->items, itemset->nitems, sizeof (struct slr_item), compare_items);
@@ -248,28 +312,27 @@ _discover_states(
 
     if ((snode = rbfind(kernel, compare_itemsets, context->states))) {
         free(kernel);
+        bszero(context->ruleset);
         return rbval(snode);
     }
 
     closure(kernel, context);
+    struct slr_itemset *itemset = kernel;
 
-    unsigned nstates = count_transitions(kernel, spec, context);
+    unsigned nstates = count_transitions(itemset, spec, context);
 
     struct slr_transitions *trans = make_transitions(nstates, 0, NULL);
     // handle error
 
-    struct slr_state *state = make_state(context->nstates++, sym, kernel, trans);
+    struct slr_state *state = make_state(context->nstates++, sym, itemset, trans);
     // handle error
 
     // this must happen prior to recursive calls to this function
-    context->states = rbinsert(kernel, compare_itemsets, state, context->states);
+    context->states = rbinsert(itemset, compare_itemsets, state, context->states);
 
-    // this is dependent on count_transitions seeding the symbol set
     struct slr_state **states = trans->states;
-    struct bsiter it = bsiter(context->symset);
-    gram_sym_no s;
-    while (bsnext(&s, &it)) {
-        if ((kernel = goto_(s, kernel, spec, context))) {
+    for (gram_sym_no s = GM_SYMBOL0; s < spec->stats.symbols; s++) {
+        if ((kernel = goto_(s, itemset, spec, context))) {
             *states++ = _discover_states(s, kernel, spec, context);
             trans->nstates++;
         }
@@ -279,13 +342,14 @@ _discover_states(
 }
 
 static struct slr_state *
-discover_states(struct gram_parser_spec const *spec) {
+discover_states(unsigned *nstates, struct gram_parser_spec const *spec) {
     struct states_context context = { 0 };
 
     if (!states_context(&context, spec->stats)) return NULL;
 
     struct slr_item item0 = { GM_START, 0 };
     add_rules(&item0, spec, &context);
+    bszero(context.symset);
 
     unsigned nitems = 1;
     nitems = count_rules(&nitems, &context);
@@ -294,10 +358,40 @@ discover_states(struct gram_parser_spec const *spec) {
     if (!kernel) return free_states_context(&context), NULL;
 
     struct slr_state *states = _discover_states(0, kernel, spec, &context);
+    *nstates = context.nstates;
 
     free_states_context(&context);
 
     return states;
+}
+
+static void free_states(unsigned nstates, struct slr_state *state) {
+    struct array *stack = init_array(sizeof (struct slr_state *), 7, 0, 0);
+    if (!stack) return;
+    struct slr_state **states = calloc(nstates, sizeof *states);
+    if (!states) return free(stack);
+
+    apush(&state, stack);
+    while (!aempty(stack)) {
+        apop(&state, stack);
+
+        if (states[state->num]) continue;
+        states[state->num] = state;
+
+        struct slr_transitions *trans = state->trans;
+        for (unsigned i = trans->nstates; i > 0; i--) {
+            apush(&trans->states[i - 1], stack);
+        }
+    }
+
+    for (unsigned i = 0; i < nstates; i++) {
+        free(states[i]->itemset);
+        free(states[i]->trans);
+        free(states[i]);
+    }
+
+    free_array(stack);
+    free(states);
 }
 
 // struct slr_parser slr_parser(
@@ -313,7 +407,10 @@ bool gen_slr(
     invariant(assert_packed_spec, spec);
     assert(parser != NULL);
 
-    struct slr_state *states = discover_states(spec);
+    unsigned nstates;
+    struct slr_state *states = discover_states(&nstates,spec);
+    print_states(stdout, nstates, states);
+    free_states(nstates, states);
 
     return true;
 }

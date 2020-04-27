@@ -156,6 +156,7 @@ int gen_parser(struct args args) {
         struct slr_parser parser = { 0 };
         struct slr_error generr = { 0 };
         gen_slr(&generr, &parser, &spec);
+        free_gram_parser_spec(&spec);
     }
 
     return EXIT_SUCCESS;

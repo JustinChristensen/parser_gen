@@ -1,24 +1,21 @@
-filename: example_spec_file.pspec, size: 664
 patterns:
    num  pattern
-    -3  \/\/[^\n]*\n
-    -3  {space}+
-     2  {alpha_}{alnum_}*
-     3  (\\.|[^\n\/])*
+    -1  \/\/[^\n]*\n
+    -1  {space}+
+     2  {alpha_}({alnum_}|')*
+     3  \/(\\.|[^\n\/])*\/
      4  '(\\.|[^'])'
      5  "(\\.|[^"])*"
      6  @
      7  -
      8  ---\n
-     9  =
+     9  :
     10  ;
-    11  |
-    12  $eof
-    13  $empty
+    11  \|
+    12  $empty
 
 symbols:
-   num  type     rules
-     0  ---
+   num  type     derives
      1  eof
      2  term
      3  term
@@ -31,43 +28,163 @@ symbols:
     10  term
     11  term
     12  term
-    13  term
-    14  nonterm  1
-    15  nonterm  2, 3
-    16  nonterm  7, 8
-    17  nonterm  4
-    18  nonterm  5, 6
-    19  nonterm  9, 10
+    13  nonterm  2
+    14  nonterm  3 17
+    15  nonterm  7 17
+    16  nonterm  4
+    17  nonterm  5 6 17
+    18  nonterm  8 17
+    19  nonterm  9
     20  nonterm  11
-    21  nonterm  14
-    22  nonterm  12, 13
-    23  nonterm  17, 18, 19, 20, 21
-    24  nonterm  15, 16
+    21  nonterm  10 17
+    22  nonterm  13 14 15 16
+    23  nonterm  12 17
 
-start rule: 1
 rules:
   rule  symbols
-     0  ---
-     1  15, 16, 1
-     2  17, 15
-     3
-     4  18, 2, 3
+     1  13 1
+     2  14 15
+     3  16 14
+     4  17 2 3
      5  6
      6  7
-     7  8, 19
-     8
-     9  20, 19
-    10
-    11  2, 9, 21, 22, 10
-    12  11, 21, 22
-    13
-    14  23, 24
-    15  23, 24
-    16
+     7  8 18
+     8  19 18
+     9  2 9 20 21 10
+    10  11 20 21
+    11  22 23
+    12  22 23
+    13  2
+    14  4
+    15  5
+    16  12
+    17
+
+stats:
+  patterns: 13
+  terms: 12
+  nonterms: 11
+  symbols: 23
+  rules: 17
+  rsymbols: 29
+
+symbol nullable:
+   num  nullable
+     1  no
+     2  no
+     3  no
+     4  no
+     5  no
+     6  no
+     7  no
+     8  no
+     9  no
+    10  no
+    11  no
+    12  no
+    13  yes
+    14  yes
+    15  yes
+    16  no
+    17  yes
+    18  yes
+    19  no
+    20  no
+    21  yes
+    22  no
+    23  yes
+
+symbol firsts:
+   num  set
+     1  1
+     2  2
+     3  3
+     4  4
+     5  5
+     6  6
+     7  7
+     8  8
+     9  9
+    10  10
+    11  11
+    12  12
+    13  2 6 7 8
+    14  2 6 7
+    15  8
+    16  2 6 7
+    17  6 7
+    18  2
+    19  2
+    20  2 4 5 12
+    21  11
+    22  2 4 5 12
+    23  2 4 5 12
+
+symbol follows:
+   num  set
+     1
+     2  2 3 4 5 9 10 11 12
+     3  1 2 6 7 8
+     4  2 4 5 10 11 12
+     5  2 4 5 10 11 12
+     6  2
+     7  2
+     8  1 2
+     9  2 4 5 12
+    10  1 2
+    11  2 4 5 12
+    12  2 4 5 10 11 12
+    13  1
+    14  1 8
+    15  1
+    16  1 2 6 7 8
     17  2
-    18  4
-    19  5
-    20  12
-    21  13
+    18  1
+    19  1 2
+    20  10 11
+    21  10
+    22  2 4 5 10 11 12
+    23  10 11
 
+rule nullable:
+   num  nullable
+     1  no
+     2  yes
+     3  no
+     4  no
+     5  no
+     6  no
+     7  no
+     8  no
+     9  no
+    10  no
+    11  no
+    12  no
+    13  no
+    14  no
+    15  no
+    16  no
+    17  yes
 
+rule firsts:
+   num  set
+     1  1 2 6 7 8
+     2  2 6 7 8
+     3  2 6 7
+     4  2 6 7
+     5  6
+     6  7
+     7  8
+     8  2
+     9  2
+    10  11
+    11  2 4 5 12
+    12  2 4 5 12
+    13  2
+    14  4
+    15  5
+    16  12
+    17
+
+grammar:
+  class: LL

@@ -2,15 +2,21 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
+#include <base/assert.h>
 #include <base/base.h>
 #include <base/bitset.h>
+#include <base/debug.h>
 #include <base/rbtree.h>
 #include <regex/nfa.h>
 #include "gram/spec.h"
 #include "gram/analyze.h"
 #include "gram/slr.h"
 
+#include "internal/assert.c"
 #include "internal/macros.c"
+
+#define debug(...) debug_ns("gram_slr", __VA_ARGS__);
 
 struct states_context {
     gram_state_no nstates;
@@ -18,6 +24,23 @@ struct states_context {
     struct bitset *symset;
     struct bitset *ruleset;
 };
+
+static void debug_item(struct slr_item const item) {
+    debug("(%u,%u)", item.rule, item.pos);
+}
+
+static void debug_itemset(struct slr_itemset const *itemset) {
+    if (!itemset) return;
+    debug("{");
+    if (itemset->nitems) {
+        debug_item(itemset->items[0]);
+        for (unsigned i = 1; i < itemset->nitems; i++) {
+            debug(",");
+            debug_item(itemset->items[i]);
+        }
+    }
+    debug("}");
+}
 
 static struct slr_itemset *
 make_itemset(unsigned maxitems, unsigned nitems, struct slr_item *items) {
@@ -34,7 +57,7 @@ make_transitions(unsigned maxstates, unsigned nstates, struct slr_state *states)
     if (!trans) return NULL;
     trans->nstates = nstates;
     if (states) memcpy(trans->states, states, sizeof (struct slr_item) * nstates);
-    return itemset;
+    return trans;
 }
 
 static struct slr_state *
@@ -74,6 +97,29 @@ static void free_states_context(struct states_context *context) {
     free_rbtree(context->states);
     *context = (struct states_context) { 0 };
 }
+
+static void _add_rules(gram_sym_no nt, struct gram_parser_spec const *spec, struct states_context *context) {
+    gram_sym_no const nonterm0 = offs(spec->stats.terms);
+    struct gram_symbol sym = spec->symbols[nt];
+
+    if (bselem(sym.num, context->symset)) return;
+    bsins(sym.num, context->symset);
+
+    gram_rule_no *r = sym.derives;
+    while (*r) {
+        bsins(*r, context->ruleset);
+        gram_sym_no *s = spec->rules[*r];
+        if (*s >= nonterm0) _add_rules(*s, spec, context);
+        r++;
+    }
+}
+
+static void add_rules(struct slr_item *item, struct gram_parser_spec const *spec, struct states_context *context) {
+    gram_sym_no const nonterm0 = offs(spec->stats.terms);
+    gram_sym_no *s = spec->rules[item->rule];
+    if (*s >= nonterm0) _add_rules(*s, spec, context);
+}
+
 
 static unsigned count_transitions(struct slr_itemset *itemset, struct gram_parser_spec const *spec, struct states_context *context) {
     struct bitset *symset = context->symset;
@@ -117,12 +163,13 @@ static int compare_items(void const *a, void const *b) {
 }
 
 static int compare_itemsets(void const *a, void const *b) {
-#define NONKERN(x) (x->rule && !(x)->pos)
+#define NONKERN(x) (x->rule > GM_START && !(x)->pos)
     struct slr_itemset const *s = a, *t = b;
-    struct slr_item *sitem = s->items, *titem = t->items;
+    struct slr_item const *sitem = s->items, *titem = t->items;
     int cmp = 0;
 
-    for (unsigned i = s->nitems, j = t->nitems; !cmp && !i || !j; sitem++, titem++, i--, j--) {
+    unsigned i, j;
+    for (i = s->nitems, j = t->nitems; !cmp && (!i || !j); sitem++, titem++, i--, j--) {
         while (i && NONKERN(sitem)) sitem++, i--;
         while (j && NONKERN(titem)) titem++, j--;
         if (!i || !j) break;
@@ -132,30 +179,14 @@ static int compare_itemsets(void const *a, void const *b) {
     if (!i && j) cmp = -1;
     if (i && !j) cmp = 1;
 
+    debug("cmp: ");
+    debug_itemset(s);
+    debug(" ");
+    debug_itemset(t);
+    debug(" = %u\n", cmp);
+
     return cmp;
 #undef NONKERN
-}
-
-static void _add_rules(gram_sym_no nt, struct gram_parser_spec const *spec, struct states_context *context) {
-    gram_sym_no const nonterm0 = offs(spec->stats.terms);
-    struct gram_symbol sym = spec->symbols[nt];
-
-    if (bselem(sym.num, context->symset)) return;
-    bsins(sym.num, context->symset);
-
-    gram_rule_no *r = sym.derives;
-    while (*r) {
-        bsins(*r, context->ruleset);
-        gram_sym_no *s = spec->rules[*r];
-        if (*s >= nonterm0) _add_rules(*s, spec, context);
-        r++;
-    }
-}
-
-static void add_rules(struct slr_item *item, struct gram_parser_spec const *spec, struct states_context *context) {
-    gram_sym_no const nonterm0 = offs(spec->stats.terms);
-    gram_sym_no *s = spec->rules[item->rule];
-    if (*s >= nonterm0) _add_rules(*s, spec, context);
 }
 
 static void sort_itemset(struct slr_itemset *itemset) {
@@ -164,12 +195,19 @@ static void sort_itemset(struct slr_itemset *itemset) {
 
 static void closure(struct slr_itemset *kernel, struct states_context *context) {
     struct slr_item *item = &kernel->items[kernel->nitems];
-    struct bsiter it = bsiter(context->ruleset);
+
+    debug("kernel: "); debug_itemset(kernel); debug("\n");
+
+    struct slr_item nitem = { 0 };
     gram_rule_no r;
+    struct bsiter it = bsiter(context->ruleset);
     while (bsnext(&r, &it)) {
-        *item++ = (struct slr_item) { r, 0 };
+        nitem.rule = r;
+        *item++ = nitem;
         kernel->nitems++;
     }
+
+    debug("closure: "); debug_itemset(kernel); debug("\n");
 
     bszero(context->ruleset);
     sort_itemset(kernel);
@@ -215,9 +253,9 @@ _discover_states(
 
     closure(kernel, context);
 
-    struct nstates = count_transitions(kernel, spec, context);
+    unsigned nstates = count_transitions(kernel, spec, context);
 
-    struct slr_transitions trans = make_transitions(nstates, 0, NULL);
+    struct slr_transitions *trans = make_transitions(nstates, 0, NULL);
     // handle error
 
     struct slr_state *state = make_state(context->nstates++, sym, kernel, trans);
@@ -244,13 +282,13 @@ static struct slr_state *
 discover_states(struct gram_parser_spec const *spec) {
     struct states_context context = { 0 };
 
-    if (!states_context(&context)) return NULL;
+    if (!states_context(&context, spec->stats)) return NULL;
 
     struct slr_item item0 = { GM_START, 0 };
-    add_rules(&item0, spec, context);
+    add_rules(&item0, spec, &context);
 
     unsigned nitems = 1;
-    nitems = count_rules(&nitems, context);
+    nitems = count_rules(&nitems, &context);
 
     struct slr_itemset *kernel = make_itemset(nitems, 1, &item0);
     if (!kernel) return free_states_context(&context), NULL;
@@ -275,7 +313,7 @@ bool gen_slr(
     invariant(assert_packed_spec, spec);
     assert(parser != NULL);
 
-
+    struct slr_state *states = discover_states(spec);
 
     return true;
 }

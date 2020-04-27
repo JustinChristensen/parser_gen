@@ -6,6 +6,7 @@
 #include <base/string.h>
 #include <gram/analyze.h>
 #include <gram/ll1.h>
+#include <gram/slr.h>
 #include <gram/parser.h>
 
 enum command_key {
@@ -21,7 +22,8 @@ enum arg_key {
 };
 
 enum parser_type {
-    LL1
+    LL,
+    LR
 };
 
 struct args {
@@ -39,8 +41,10 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
         if (cmd == GEN_PARSER) {
             switch (key) {
                 case PARSER_TYPE:
-                    if (streq("ll1", argval())) {
-                        args->type = LL1;
+                    if (streq("ll", argval())) {
+                        args->type = LL;
+                    } else if (streq("lr", argval())) {
+                        args->type = LR;
                     } else {
                         print_usage(stderr, context);
                         exit(EXIT_FAILURE);
@@ -114,39 +118,45 @@ int gen_parser(struct args args) {
 
     free_gram_spec_parser(&spec_parser);
 
-    struct ll1_parser parser = { 0 };
-    struct ll1_error generr = { 0 };
+    if (args.type == LL) {
+        struct ll1_parser parser = { 0 };
+        struct ll1_error generr = { 0 };
 
-    if (!gen_ll1(&generr, &parser, &spec)) {
-        print_ll1_error(stderr, generr);
-        free_gram_parser_spec(&spec);
-        return EXIT_FAILURE;
-    }
-
-    free_gram_parser_spec(&spec);
-
-    struct ll1_parser_state pstate = ll1_parser_state(&parser);
-
-    for (int i = 0; i < args.posc; i++) {
-        if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
-            fprintf(stderr, "reading file %s failed\n", files[i]);
-            free_ll1_parser(&parser);
-            free_ll1_parser_state(&pstate);
-            return EXIT_FAILURE;
-        }
-
-        if (!ll1_parse(&generr, contents, &pstate)) {
+        if (!gen_ll1(&generr, &parser, &spec)) {
             print_ll1_error(stderr, generr);
-            free_ll1_parser(&parser);
-            free_ll1_parser_state(&pstate);
+            free_gram_parser_spec(&spec);
             return EXIT_FAILURE;
         }
 
-        printf("parsed %s\n", files[i]);
-    }
+        free_gram_parser_spec(&spec);
 
-    free_ll1_parser(&parser);
-    free_ll1_parser_state(&pstate);
+        struct ll1_parser_state pstate = ll1_parser_state(&parser);
+
+        for (int i = 0; i < args.posc; i++) {
+            if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
+                fprintf(stderr, "reading file %s failed\n", files[i]);
+                free_ll1_parser(&parser);
+                free_ll1_parser_state(&pstate);
+                return EXIT_FAILURE;
+            }
+
+            if (!ll1_parse(&generr, contents, &pstate)) {
+                print_ll1_error(stderr, generr);
+                free_ll1_parser(&parser);
+                free_ll1_parser_state(&pstate);
+                return EXIT_FAILURE;
+            }
+
+            printf("parsed %s\n", files[i]);
+        }
+
+        free_ll1_parser(&parser);
+        free_ll1_parser_state(&pstate);
+    } else if (args.type == LR) {
+        struct slr_parser parser = { 0 };
+        struct slr_error generr = { 0 };
+        gen_slr(&generr, &parser, &spec);
+    }
 
     return EXIT_SUCCESS;
 }
@@ -198,11 +208,11 @@ int analyze(struct args args, char *contents) {
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = GEN_PARSER,
-        .type = LL1,
+        .type = LL,
         .spec = ""
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll1" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, lr" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {

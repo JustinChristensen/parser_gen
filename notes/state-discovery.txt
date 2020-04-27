@@ -1,6 +1,7 @@
 Graph Anamorphism
 
 Problem:
+
 Starting from node 0, I have the kernel itemset, (0, 0).
 An item set can have at most NRULES worth of items (one position per rule).
 A transitions set can have at most NSYMBOLS worth of transitions (a worst case
@@ -18,6 +19,8 @@ And I can compute the transitions set for a node in a similar fashion, using the
     but this has the same drawback, and it would be ideal to have the anamorphism only dependent on a single
     depth-first traversal starting from the root node.
 
+Solution:
+
 So for choices:
 1. I can do a first pass on the closed itemset to compute the number of transition symbols for the state,
    i.e. the number of shifts and gotos, prior to allocating the transitions
@@ -25,5 +28,31 @@ So for choices:
 
 Hmm, by that logic it would also be possible to do "counting" pass when closing an itemset,
 i.e. if A -> B and B -> C | d and C -> e, count(A) = 4 because C, d, e, and 0, 0
+
+
+"Counting"
+
+start:
+
+So at the beginning of computing a node I've got the itemset of the adjacent (tail) node.
+
+The goal is to determine whether or not the node already exists, or needs to be created.
+    - I can use either the kernel of the itemset for this, or the fully closed set, but either way
+      I'll need to know how much space to allocate for the next itemset.
+
+I need to determine what the size of the next itemset is going to be, so I need to count the size of
+    the next closed itemset and allocate enough storage.
+
+After adding GOTO(prev_set, sym) to the new itemset I can perform the lookup with the new kernel itemset.
+
+If the node exists, return it
+If the node does not exist
+    1. add the closure items to the itemset
+    2. count the number of transitions that will exist by iterating the
+        closed itemset and counting the number of unique symbols after the position
+    3. allocate the transitions for the state
+    4. for each symbol, goto start:
+    5. set the resulting state in the current state's transitions list
+
 
 

@@ -67,7 +67,6 @@ struct slr_state {
     gram_state_no num;
     gram_sym_no sym;
     struct slr_itemset *itemset;
-    struct slr_state *next;
     struct slr_transitions *trans;
 };
 

@@ -3,11 +3,7 @@
 
 #include <stdbool.h>
 #include <regex/nfa.h>
-#include "gram/analyze.h"
 #include "gram/spec.h"
-
-typedef unsigned gram_pos_no;
-typedef unsigned gram_state_no;
 
 enum slr_error_type {
     GM_SLR_SYNTAX_ERROR,
@@ -48,28 +44,6 @@ struct slr_action {
     unsigned n;
 };
 
-struct slr_item {
-    gram_rule_no rule;
-    gram_pos_no pos;
-};
-
-struct slr_itemset {
-    unsigned nitems;
-    struct slr_item items[];
-};
-
-struct slr_transitions {
-    unsigned nstates;
-    struct slr_state *states[];
-};
-
-struct slr_state {
-    gram_state_no num;
-    gram_sym_no sym;
-    struct slr_itemset *itemset;
-    struct slr_transitions *trans;
-};
-
 struct slr_parser slr_parser(
     struct nfa_context scanner, struct gram_stats stats
 );
@@ -78,7 +52,7 @@ bool gen_slr(
     struct gram_parser_spec *spec
 );
 void print_slr_parser(FILE *handle, struct slr_parser *parser);
-void fre_slr_parser(struct slr_parser *parser);
+void free_slr_parser(struct slr_parser *parser);
 
 void print_slr_error(FILE *handle, struct slr_error error);
 

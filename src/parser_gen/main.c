@@ -5,15 +5,17 @@
 #include <base/bitset.h>
 #include <base/string.h>
 #include <gram/analyze.h>
-#include <gram/ll1.h>
+#include <gram/ll.h>
 #include <gram/slr.h>
+#include <gram/states.h>
 #include <gram/parser.h>
 
 enum command_key {
     GEN_PARSER,
     ANALYZE,
     SCAN,
-    PARSE
+    PARSE,
+    AUTOMATA
 };
 
 enum arg_key {
@@ -119,39 +121,39 @@ int gen_parser(struct args args) {
     free_gram_spec_parser(&spec_parser);
 
     if (args.type == LL) {
-        struct ll1_parser parser = { 0 };
-        struct ll1_error generr = { 0 };
+        struct ll_parser parser = { 0 };
+        struct ll_error generr = { 0 };
 
-        if (!gen_ll1(&generr, &parser, &spec)) {
-            print_ll1_error(stderr, generr);
+        if (!gen_ll(&generr, &parser, &spec)) {
+            print_ll_error(stderr, generr);
             free_gram_parser_spec(&spec);
             return EXIT_FAILURE;
         }
 
         free_gram_parser_spec(&spec);
 
-        struct ll1_parser_state pstate = ll1_parser_state(&parser);
+        struct ll_parser_state pstate = ll_parser_state(&parser);
 
         for (int i = 0; i < args.posc; i++) {
             if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
                 fprintf(stderr, "reading file %s failed\n", files[i]);
-                free_ll1_parser(&parser);
-                free_ll1_parser_state(&pstate);
+                free_ll_parser(&parser);
+                free_ll_parser_state(&pstate);
                 return EXIT_FAILURE;
             }
 
-            if (!ll1_parse(&generr, contents, &pstate)) {
-                print_ll1_error(stderr, generr);
-                free_ll1_parser(&parser);
-                free_ll1_parser_state(&pstate);
+            if (!ll_parse(&generr, contents, &pstate)) {
+                print_ll_error(stderr, generr);
+                free_ll_parser(&parser);
+                free_ll_parser_state(&pstate);
                 return EXIT_FAILURE;
             }
 
             printf("parsed %s\n", files[i]);
         }
 
-        free_ll1_parser(&parser);
-        free_ll1_parser_state(&pstate);
+        free_ll_parser(&parser);
+        free_ll_parser_state(&pstate);
     } else if (args.type == LR) {
         struct slr_parser parser = { 0 };
         struct slr_error generr = { 0 };
@@ -160,6 +162,38 @@ int gen_parser(struct args args) {
     }
 
     return EXIT_SUCCESS;
+}
+
+int automata(struct args args) {
+    if (!args.posc)
+        return fprintf(stderr, "no spec file\n"), EXIT_FAILURE;
+
+    char *specfile = args.pos[0];
+    int const bufsize = BUFSIZ * 32;
+    char spec_contents[bufsize] = "";
+    int nread = 0;
+    if ((nread = slurp_file(bufsize, spec_contents, specfile)) == -1)
+        return fprintf(stderr, "reading spec %s failed", specfile), EXIT_FAILURE;
+
+    struct gram_spec_parser spec_parser = { 0 };
+    struct gram_parse_error spec_parse_error = { 0 };
+    struct gram_parser_spec spec = { 0 };
+
+    if (gram_spec_parser(&spec_parse_error, &spec_parser) && gram_parse(&spec_parse_error, &spec, spec_contents, &spec_parser)) {
+        free_gram_spec_parser(&spec_parser);
+
+        unsigned nstates;
+        struct lr_state *states = discover_lr_states(&nstates, &spec);
+        free_gram_parser_spec(&spec);
+        print_lr_states(stdout, nstates, states);
+        free_lr_states(nstates, states);
+        return EXIT_SUCCESS;
+    }
+
+    free_gram_spec_parser(&spec_parser);
+    print_gram_parse_error(stderr, spec_parse_error);
+
+    return EXIT_FAILURE;
 }
 
 int analyze(struct args args, char *contents) {
@@ -223,8 +257,9 @@ int main(int argc, char *argv[]) {
         NULL,
         CMDS {
             { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },
-            { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
+            { AUTOMATA, "automata", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Print the LR(0) automaton in dot format " },
             { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
+            { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             END_CMDS
         },
         "Generate a parser"
@@ -236,6 +271,8 @@ int main(int argc, char *argv[]) {
 
     if (args.cmd == GEN_PARSER) {
         return gen_parser(args);
+    } else if (args.cmd == AUTOMATA) {
+        return automata(args);
     } else {
         for (int i = 0; i < args.posc; i++) {
             int nread = 0;

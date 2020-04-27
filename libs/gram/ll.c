@@ -9,39 +9,39 @@
 #include <base/debug.h>
 #include <base/bitset.h>
 #include <regex/nfa.h>
-#include "gram/ll1.h"
+#include "gram/ll.h"
 #include "gram/spec.h"
 #include "gram/analyze.h"
 
 #include "internal/assert.c"
 #include "internal/macros.c"
 
-#define debug(...) debug_ns("gram_ll1", __VA_ARGS__);
+#define debug(...) debug_ns("gram_ll", __VA_ARGS__);
 
-static bool _oom_error(struct ll1_error *error, char *file, int col, void *p, ...) {
+static bool _oom_error(struct ll_error *error, char *file, int col, void *p, ...) {
     va_list args;
     va_start(args, p);
     vfreel(p, args);
     va_end(args);
 
-    prod(error, ((struct ll1_error) { .type = GM_LL1_OOM_ERROR, .file = file, .col = col }));
+    prod(error, ((struct ll_error) { .type = GM_LL_OOM_ERROR, .file = file, .col = col }));
 
     return false;
 }
 
-static bool not_ll_error(struct ll1_error *error) {
-    prod(error, ((struct ll1_error) { .type = GM_LL1_NOT_LL1_ERROR }));
+static bool not_ll_error(struct ll_error *error) {
+    prod(error, ((struct ll_error) { .type = GM_LL_NOT_LL1_ERROR }));
     return false;
 }
 
-static bool scanner_error(struct ll1_error *error, struct regex_error scanerr) {
-    prod(error, ((struct ll1_error) { .type = GM_LL1_SCANNER_ERROR, .scanerr = scanerr }));
+static bool scanner_error(struct ll_error *error, struct regex_error scanerr) {
+    prod(error, ((struct ll_error) { .type = GM_LL_SCANNER_ERROR, .scanerr = scanerr }));
     return false;
 }
 
-static bool syntax_error(struct ll1_error *error, gram_sym_no expected, struct ll1_parser_state *state) {
-    prod(error, ((struct ll1_error) {
-        .type = GM_LL1_SYNTAX_ERROR,
+static bool syntax_error(struct ll_error *error, gram_sym_no expected, struct ll_parser_state *state) {
+    prod(error, ((struct ll_error) {
+        .type = GM_LL_SYNTAX_ERROR,
         .loc = nfa_match_loc(&state->match),
         .actual = state->lookahead,
         .expected = expected
@@ -52,11 +52,11 @@ static bool syntax_error(struct ll1_error *error, gram_sym_no expected, struct l
 
 #define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
 
-struct ll1_parser ll1_parser(
+struct ll_parser ll_parser(
     struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
     struct gram_stats stats
 ) {
-    return (struct ll1_parser) { rtable, ptable, scanner, stats };
+    return (struct ll_parser) { rtable, ptable, scanner, stats };
 }
 
 static gram_rule_no **alloc_parse_table(struct gram_stats stats) {
@@ -174,13 +174,13 @@ static struct regex_pattern const default_tagged_patterns[] = {
     RX_END_PATTERNS
 };
 
-bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_parser_spec *spec) {
+bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser_spec *spec) {
     gram_count(spec);
     invariant(assert_packed_spec, spec);
     assert(parser != NULL);
 
-    prod(error, ((struct ll1_error) { 0 }));
-    *parser = (struct ll1_parser) { 0 };
+    prod(error, ((struct ll_error) { 0 }));
+    *parser = (struct ll_parser) { 0 };
 
     struct gram_stats stats = spec->stats;
 
@@ -228,7 +228,7 @@ bool gen_ll1(struct ll1_error *error, struct ll1_parser *parser, struct gram_par
 
     free_gram_symbol_analysis(&san);
 
-    *parser = ll1_parser(scanner, rtable, ptable, stats);
+    *parser = ll_parser(scanner, rtable, ptable, stats);
 
     return true;
 free:
@@ -241,7 +241,7 @@ free:
     return false;
 }
 
-void print_ll1_parser(FILE *handle, struct ll1_parser *parser) {
+void print_ll_parser(FILE *handle, struct ll_parser *parser) {
     assert(parser != NULL);
 
     struct gram_stats stats = parser->stats;
@@ -268,17 +268,17 @@ void print_ll1_parser(FILE *handle, struct ll1_parser *parser) {
     fprintf(handle, "\n");
 }
 
-void free_ll1_parser(struct ll1_parser *parser) {
+void free_ll_parser(struct ll_parser *parser) {
     if (!parser) return;
     free(parser->rtable);
     free(parser->ptable);
     free_nfa_context(&parser->scanner);
-    *parser = (struct ll1_parser) { 0 };
+    *parser = (struct ll_parser) { 0 };
 }
 
-struct ll1_parser_state ll1_parser_state(struct ll1_parser *parser) {
+struct ll_parser_state ll_parser_state(struct ll_parser *parser) {
     assert(parser != NULL);
-    return (struct ll1_parser_state) { .parser = parser };
+    return (struct ll_parser_state) { .parser = parser };
 }
 
 static void push_rule(gram_rule_no r, gram_sym_no **rtable, struct array *syms) {
@@ -286,7 +286,7 @@ static void push_rule(gram_rule_no r, gram_sym_no **rtable, struct array *syms) 
     while (*s) apush(s, syms), s++;
 };
 
-static bool start_scanning(char *input, struct ll1_parser_state *state) {
+static bool start_scanning(char *input, struct ll_parser_state *state) {
     if (nfa_start_match(input, &state->match, &state->parser->scanner)) {
         state->lookahead = nfa_match(&state->match);
         debug("initial lookahead: %u\n", state->lookahead);
@@ -296,11 +296,11 @@ static bool start_scanning(char *input, struct ll1_parser_state *state) {
     return false;
 }
 
-static bool peek(gram_sym_no expected, struct ll1_parser_state *state) {
+static bool peek(gram_sym_no expected, struct ll_parser_state *state) {
     return state->lookahead == expected;
 }
 
-static bool expect(gram_sym_no expected, struct ll1_parser_state *state) {
+static bool expect(gram_sym_no expected, struct ll_parser_state *state) {
     if (peek(expected, state)) {
         debug("success: expected %u, actual %u\n", expected, state->lookahead);
         state->lookahead = nfa_match(&state->match);
@@ -325,7 +325,7 @@ static void debug_syms(struct array *syms) {
 }
 
 #define SYM_STACK_SIZE 7
-bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *state) {
+bool ll_parse(struct ll_error *error, char *input, struct ll_parser_state *state) {
     assert(state != NULL);
 
     if (!start_scanning(input, state)) return oom_error(error, NULL);
@@ -333,7 +333,7 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
     struct array *syms = init_array(sizeof (gram_sym_no), SYM_STACK_SIZE, 0, 0);
     if (!syms) return oom_error(error, NULL);
 
-    struct ll1_parser const *parser = state->parser;
+    struct ll_parser const *parser = state->parser;
     gram_sym_no **rtable = parser->rtable;
     gram_rule_no **ptable = parser->ptable;
 
@@ -378,31 +378,31 @@ bool ll1_parse(struct ll1_error *error, char *input, struct ll1_parser_state *st
     return success;
 }
 
-void free_ll1_parser_state(struct ll1_parser_state *state) {
+void free_ll_parser_state(struct ll_parser_state *state) {
     free_nfa_match(&state->match);
 }
 
 #define ERROR_FMT_END "\n|\n"
-#define OOM_ERROR_FMT_START "| LL1 Out of Memory\n|\n"
+#define OOM_ERROR_FMT_START "| LL Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
-#define NOT_LL1_FMT "| Grammar Not LL1\n|\n"
-#define SYNTAX_ERROR_FMT_START "| LL1 Syntax Error\n|\n| Got: %u\n| Expected: %u"
+#define NOT_LL1_FMT "| Grammar Not LL(1)\n|\n"
+#define SYNTAX_ERROR_FMT_START "| LL Syntax Error\n|\n| Got: %u\n| Expected: %u"
 #define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
-void print_ll1_error(FILE *handle, struct ll1_error error) {
+void print_ll_error(FILE *handle, struct ll_error error) {
     switch (error.type) {
-        case GM_LL1_SYNTAX_ERROR:
+        case GM_LL_SYNTAX_ERROR:
             fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
             fprintf(handle, SYNTAX_ERROR_FMT_LOC);
             print_regex_loc(handle, error.loc);
             fprintf(handle, ERROR_FMT_END);
             break;
-        case GM_LL1_NOT_LL1_ERROR:
+        case GM_LL_NOT_LL1_ERROR:
             fprintf(handle, NOT_LL1_FMT);
             break;
-        case GM_LL1_SCANNER_ERROR:
+        case GM_LL_SCANNER_ERROR:
             print_regex_error(handle, error.scanerr);
             break;
-        case GM_LL1_OOM_ERROR:
+        case GM_LL_OOM_ERROR:
             fprintf(handle, OOM_ERROR_FMT_START);
             if (debug_is("oom"))
                 fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);

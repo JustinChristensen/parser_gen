@@ -1,0 +1,262 @@
+states:
+
+  num: 0
+  sym: 0
+  itemset:
+    (1, 0)
+    (2, 0)
+    (3, 0)
+    (4, 0)
+    (5, 0)
+    (6, 0)
+    (17, 0)
+  transitions:
+    1
+    2
+    3
+    5
+    25
+    27
+
+  num: 1
+  sym: 6
+  itemset:
+    (5, 1)
+
+  num: 2
+  sym: 7
+  itemset:
+    (6, 1)
+
+  num: 3
+  sym: 13
+  itemset:
+    (1, 1)
+  transitions:
+    4
+
+  num: 4
+  sym: 1
+  itemset:
+    (1, 2)
+
+  num: 5
+  sym: 14
+  itemset:
+    (2, 1)
+    (7, 0)
+    (17, 0)
+  transitions:
+    6
+    24
+
+  num: 6
+  sym: 8
+  itemset:
+    (7, 1)
+    (8, 0)
+    (9, 0)
+    (17, 0)
+  transitions:
+    7
+    21
+    22
+
+  num: 7
+  sym: 2
+  itemset:
+    (9, 1)
+  transitions:
+    8
+
+  num: 8
+  sym: 9
+  itemset:
+    (9, 2)
+    (11, 0)
+    (13, 0)
+    (14, 0)
+    (15, 0)
+    (16, 0)
+  transitions:
+    9
+    10
+    11
+    12
+    13
+    17
+
+  num: 9
+  sym: 2
+  itemset:
+    (13, 1)
+
+  num: 10
+  sym: 4
+  itemset:
+    (14, 1)
+
+  num: 11
+  sym: 5
+  itemset:
+    (15, 1)
+
+  num: 12
+  sym: 12
+  itemset:
+    (16, 1)
+
+  num: 13
+  sym: 20
+  itemset:
+    (9, 3)
+    (10, 0)
+    (17, 0)
+  transitions:
+    14
+    19
+
+  num: 14
+  sym: 11
+  itemset:
+    (10, 1)
+    (11, 0)
+    (13, 0)
+    (14, 0)
+    (15, 0)
+    (16, 0)
+  transitions:
+    9
+    10
+    11
+    12
+    15
+    17
+
+  num: 15
+  sym: 20
+  itemset:
+    (10, 2)
+    (10, 0)
+    (17, 0)
+  transitions:
+    14
+    16
+
+  num: 16
+  sym: 21
+  itemset:
+    (10, 3)
+
+  num: 17
+  sym: 22
+  itemset:
+    (11, 1)
+    (12, 0)
+    (13, 0)
+    (14, 0)
+    (15, 0)
+    (16, 0)
+    (17, 0)
+  transitions:
+    9
+    10
+    11
+    12
+    18
+
+  num: 18
+  sym: 22
+  itemset:
+    (12, 1)
+    (12, 0)
+    (13, 0)
+    (14, 0)
+    (15, 0)
+    (16, 0)
+    (17, 0)
+  transitions:
+    9
+    10
+    11
+    12
+    18
+
+  num: 19
+  sym: 21
+  itemset:
+    (9, 4)
+  transitions:
+    20
+
+  num: 20
+  sym: 10
+  itemset:
+    (9, 5)
+
+  num: 21
+  sym: 18
+  itemset:
+    (7, 2)
+
+  num: 22
+  sym: 19
+  itemset:
+    (8, 1)
+    (8, 0)
+    (9, 0)
+    (17, 0)
+  transitions:
+    7
+    23
+    22
+
+  num: 23
+  sym: 18
+  itemset:
+    (8, 2)
+
+  num: 24
+  sym: 15
+  itemset:
+    (2, 2)
+
+  num: 25
+  sym: 16
+  itemset:
+    (3, 1)
+    (3, 0)
+    (4, 0)
+    (5, 0)
+    (6, 0)
+    (17, 0)
+  transitions:
+    1
+    2
+    26
+    25
+    27
+
+  num: 26
+  sym: 14
+  itemset:
+    (3, 2)
+
+  num: 27
+  sym: 17
+  itemset:
+    (4, 1)
+  transitions:
+    28
+
+  num: 28
+  sym: 2
+  itemset:
+    (4, 2)
+  transitions:
+    29
+
+  num: 29
+  sym: 3
+  itemset:
+    (4, 3)

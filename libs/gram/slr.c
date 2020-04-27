@@ -177,7 +177,6 @@ static void add_rules(struct slr_item *item, struct gram_parser_spec const *spec
     if (s >= nonterm0) _add_rules(s, spec, context);
 }
 
-
 static unsigned count_transitions(struct slr_itemset *itemset, struct gram_parser_spec const *spec, struct states_context *context) {
     struct bitset *symset = context->symset;
 
@@ -414,7 +413,6 @@ bool gen_slr(
 
     return true;
 }
-
 
 // void print_slr_parser(FILE *handle, struct slr_parser *parser);
 // void fre_slr_parser(struct slr_parser *parser);

@@ -230,6 +230,10 @@ gram_sym_no **gram_rule0(struct gram_parser_spec const *spec) {
     return &spec->rules[GM_START];
 }
 
+struct gram_symbol *gram_start_sym(struct gram_parser_spec const *spec) {
+    return spec->stats.nonterms ? gram_nonterm0(spec) : gram_term0(spec);
+}
+
 #define PATTERN_DEF_FMT "%s %s\n"
 static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
     for (; def; def = def->next) {

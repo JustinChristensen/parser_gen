@@ -143,6 +143,7 @@ struct gram_symbol *gram_term0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_symbol0(struct gram_parser_spec const *spec);
 gram_sym_no **gram_rule0(struct gram_parser_spec const *spec);
+struct gram_symbol *gram_start_sym(struct gram_parser_spec const *spec);
 
 void print_gram_parser_spec(FILE *handle, struct gram_parser_spec const *spec);
 

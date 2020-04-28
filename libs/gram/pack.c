@@ -140,19 +140,22 @@ static gram_sym_no **pack_rules(
     gram_sym_no **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
     if (!rules) return NULL;
 
-    // create an empty rule
-    // this makes computing first/follow for rules less than ideal
-    // but the actual parser generation doesn't require nonterms to have unique rules
-    gram_rule_no const empty_rule = stats.rules;
-    if ((rules[empty_rule] = alloc_rule(1)) == NULL)
-        return free(rules), NULL;
-
     // create the start rule
     if ((rules[GM_START] = alloc_rule(3)) == NULL)
         goto oom;
 
-    rules[GM_START][0] = offs(stats.terms);
-    rules[GM_START][1] = GM_EOF;
+    gram_rule_no const empty_rule = stats.rules;
+
+    if (spec->stats.rules) {
+        if ((rules[empty_rule] = alloc_rule(1)) == NULL)
+            return free(rules), NULL;
+
+        gram_sym_no const nonterm0 = offs(stats.terms);
+        rules[GM_START][0] = nonterm0;
+        rules[GM_START][1] = GM_EOF;
+    } else {
+        rules[GM_START][0] = GM_EOF;
+    }
 
     // fill in the rules lists and nonterm derives lists
     gram_rule_no rn = 2;
@@ -198,7 +201,7 @@ static gram_sym_no **pack_rules(
 
     return rules;
 oom:
-    free(rules[empty_rule]);
+    if (spec->stats.rules) free(rules[empty_rule]);
     free_rules(rules);
     return NULL;
 }
@@ -222,7 +225,7 @@ bool gram_pack(
     stats.symbols++;
 
     // account for start and empty rule
-    stats.rules += 2;
+    stats.rules += stats.rules ? 2 : 1;
 
     // nonterm derives positions
     gram_rule_no **dps = calloc(stats.nonterms, sizeof *dps);

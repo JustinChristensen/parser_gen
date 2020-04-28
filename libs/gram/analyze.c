@@ -163,7 +163,7 @@ static bool *symbols_nullable(struct gram_parser_spec const *spec) {
     bool *added = calloc(nsymbols, sizeof *added);
     if (!added) return free(nullable), NULL;
 
-    struct gram_symbol *start = gram_nonterm0(spec);
+    struct gram_symbol *start = gram_start_sym(spec);
     symbol_nullable(added, nullable, start->num, spec);
 
     free(added);
@@ -325,9 +325,10 @@ static struct bitset **symbols_follows(struct gram_symbol_analysis *an, struct g
     if (!added) return free_sets(follows, nsymbols), NULL;
 
     // add $ to the follow set for the start symbol
-    struct gram_symbol *start = gram_nonterm0(spec);
+    struct gram_symbol *start = gram_start_sym(spec);
 
-    bsins(GM_EOF, follows[start->num]);
+    if (start->num != GM_EOF)
+        bsins(GM_EOF, follows[start->num]);
 
     // use cardinality of all sets to compute equivalence, and continue until we find the least fixed point
     size_t p = 1, n;
@@ -630,47 +631,49 @@ bool gram_analyze(
     added = calloc(nsymbols, sizeof *added);
     if (!added) goto free;
 
-    struct gram_symbol *nt = gram_nonterm0(spec);
-    while (!gram_symbol_null(nt)) {
-        gram_rule_no *rules = nt->derives;
-        gram_sym_no ntnum = nt->num - stats.terms;
-        unsigned n = nderives(rules);
-        unsigned nnulls = 0;
+    if (spec->stats.nonterms) {
+        struct gram_symbol *nt = gram_nonterm0(spec);
+        while (!gram_symbol_null(nt)) {
+            gram_rule_no *rules = nt->derives;
+            gram_sym_no ntnum = nt->num - stats.terms;
+            unsigned n = nderives(rules);
+            unsigned nnulls = 0;
 
-        for (int i = 0; i < n; i++) {
-            gram_rule_no r = rules[i];
+            for (int i = 0; i < n; i++) {
+                gram_rule_no r = rules[i];
 
-            if (rnullable[r]) nnulls++;
+                if (rnullable[r]) nnulls++;
 
-            // first-first conflicts
-            for (int j = i + 1; j < n; j++) {
-                gram_rule_no t = rules[j];
+                // first-first conflicts
+                for (int j = i + 1; j < n; j++) {
+                    gram_rule_no t = rules[j];
 
-                if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
-                    if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))
+                    if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
+                        if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))
+                            goto free;
+                    }
+                }
+
+                if (!snullable[nt->num]) continue;
+
+                // first-follows conflicts
+                if (!bsdisjoint(rfirsts[r], sfollows[nt->num])) {
+                    if (!(conflict = first_follows_conflict(conflict, ntnum, i, an)))
                         goto free;
                 }
             }
 
-            if (!snullable[nt->num]) continue;
+            // null ambiguity
+            if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, ntnum, an)))
+                goto free;
 
-            // first-follows conflicts
-            if (!bsdisjoint(rfirsts[r], sfollows[nt->num])) {
-                if (!(conflict = first_follows_conflict(conflict, ntnum, i, an)))
-                    goto free;
-            }
+            // left recursion
+            conflict = symbol_left_recursion(conflict, an, san, added, derivs, nt->num, nt->num, spec);
+            memset(added, false, nsymbols);
+            areset(derivs);
+
+            nt++;
         }
-
-        // null ambiguity
-        if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, ntnum, an)))
-            goto free;
-
-        // left recursion
-        conflict = symbol_left_recursion(conflict, an, san, added, derivs, nt->num, nt->num, spec);
-        memset(added, false, nsymbols);
-        areset(derivs);
-
-        nt++;
     }
 
     free_gram_rule_analysis(&ran);

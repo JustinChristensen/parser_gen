@@ -32,5 +32,6 @@ struct lr_state {
 struct lr_state *discover_lr_states(unsigned *nstates, struct gram_parser_spec const *spec);
 void free_lr_states(unsigned nstates, struct lr_state *state);
 void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state);
+int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state);
 
 #endif // GRAM_STATES_H_

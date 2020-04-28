@@ -185,9 +185,11 @@ int automata(struct args args) {
         unsigned nstates;
         struct lr_state *states = discover_lr_states(&nstates, &spec);
         free_gram_parser_spec(&spec);
-        print_lr_states(stdout, nstates, states);
+        int result = print_lr_states_dot(stdout, nstates, states);
+        // print_lr_states(stdout, nstates, states);
+        // int result = 0;
         free_lr_states(nstates, states);
-        return EXIT_SUCCESS;
+        return result;
     }
 
     free_gram_spec_parser(&spec_parser);

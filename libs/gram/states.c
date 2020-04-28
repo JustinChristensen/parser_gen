@@ -8,7 +8,9 @@
 #include <base/base.h>
 #include <base/bitset.h>
 #include <base/debug.h>
+#include <base/graphviz.h>
 #include <base/rbtree.h>
+#include <cgraph.h>
 #include "gram/spec.h"
 #include "gram/states.h"
 
@@ -339,7 +341,7 @@ void free_lr_states(unsigned nstates, struct lr_state *state) {
     struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
     if (!stack) return;
     struct lr_state **states = calloc(nstates, sizeof *states);
-    if (!states) return free(stack);
+    if (!states) return free_array(stack);
 
     apush(&state, stack);
     while (!aempty(stack)) {
@@ -368,7 +370,7 @@ void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state) {
     struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
     if (!stack) return;
     bool *visited = calloc(nstates, sizeof *visited);
-    if (!visited) return free(stack);
+    if (!visited) return free_array(stack);
 
     fprintf(handle, "states:\n");
 
@@ -392,3 +394,62 @@ void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state) {
     free(visited);
 }
 
+static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct lr_state *state, Agnode_t *parent) {
+    Agnode_t *node = nodes[state->num];
+
+    if (!node) {
+        sprintf(buf, "n%u", state->num);
+        nodes[state->num] = node = agnode(graph, buf, 1);
+
+        char *bufp = buf;
+        int n = sprintf(bufp, "<table cellspacing=\"0\" cellpadding=\"6\" border=\"0\"><tr><td border=\"1\" color=\"#cccccc\">#%u </td></tr>", state->num);
+        bufp += n;
+
+        struct lr_itemset *itemset = state->itemset;
+        for (unsigned i = 0; i < itemset->nitems; i++) {
+            struct lr_item item = itemset->items[i];
+            n = sprintf(bufp, "<tr><td align=\"left\" border=\"1\" color=\"#cccccc\">(%u, %u) </td></tr>", item.rule, item.pos);
+            bufp += n;
+        }
+
+        sprintf(bufp, "</table>");
+
+        agstrdup_html(graph, buf);
+        agset(node, "label", buf);
+
+        struct lr_transitions *trans = state->trans;
+        for (unsigned i = trans->nstates; i > 0; i--) {
+            state_to_gvnode(buf, nodes, graph, trans->states[i - 1], node);
+        }
+    }
+
+    if (parent) {
+        sprintf(buf, "e%u-%u", state->num, state->sym);
+        Agedge_t *edge = agedge(graph, parent, node, buf, 1);
+        sprintf(buf, "%u", state->sym);
+        agset(edge, "label", buf);
+    }
+}
+
+int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state) {
+    Agnode_t **nodes = calloc(nstates, sizeof *nodes);
+    if (!nodes) return EXIT_FAILURE;
+    char buf[BUFSIZ * 16] = "";
+
+    Agraph_t *graph = agopen("top", Agdirected, NULL);
+
+    default_styles(graph);
+    agattr(graph, AGNODE, "shape", "none");
+    agattr(graph, AGNODE, "margin", "0");
+
+    state_to_gvnode(buf, nodes, graph, state, NULL);
+
+    if (agwrite(graph, stdout) == EOF) {
+        return fprintf(stderr, "writing dot file failed\n"), EXIT_FAILURE;
+    }
+
+    agclose(graph);
+    free(nodes);
+
+    return EXIT_SUCCESS;
+}

@@ -324,7 +324,6 @@ static struct bitset **symbols_follows(struct gram_symbol_analysis *an, struct g
     bool *added = calloc(nsymbols, sizeof *added);
     if (!added) return free_sets(follows, nsymbols), NULL;
 
-    // add $ to the follow set for the start symbol
     struct gram_symbol *start = gram_start_sym(spec);
 
     if (start->num != GM_EOF)
@@ -631,7 +630,7 @@ bool gram_analyze(
     added = calloc(nsymbols, sizeof *added);
     if (!added) goto free;
 
-    if (spec->stats.nonterms) {
+    if (gram_exists(spec)) {
         struct gram_symbol *nt = gram_nonterm0(spec);
         while (!gram_symbol_null(nt)) {
             gram_rule_no *rules = nt->derives;

@@ -206,8 +206,8 @@ bool gram_rhses_empty(struct gram_rhs *rhses) {
     return empty;
 }
 
-bool gram_has_rules(struct gram_parser_spec const *spec) {
-    return spec->stats.rules > 0;
+bool gram_exists(struct gram_parser_spec const *spec) {
+    return spec->stats.nonterms > 0;
 }
 
 bool gram_symbol_null(struct gram_symbol const *sym) {
@@ -231,7 +231,7 @@ gram_sym_no **gram_rule0(struct gram_parser_spec const *spec) {
 }
 
 struct gram_symbol *gram_start_sym(struct gram_parser_spec const *spec) {
-    return spec->stats.nonterms ? gram_nonterm0(spec) : gram_term0(spec);
+    return gram_exists(spec) ? gram_nonterm0(spec) : gram_term0(spec);
 }
 
 #define PATTERN_DEF_FMT "%s %s\n"
@@ -312,15 +312,16 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
 
     // print packed patterns
     struct regex_pattern *pat = spec->patterns;
-    fprintf(handle, PATTERNS_TITLE_FMT);
     if (!regex_null_pattern(pat)) {
+        fprintf(handle, PATTERNS_TITLE_FMT);
         fprintf(handle, PATTERNS_HEADER_FMT, "num", "pattern");
         while (!regex_null_pattern(pat)) {
             fprintf(handle, "  %4d  %s\n", pat->sym, pat->pattern);
             pat++;
         }
+
+        fprintf(handle, "\n");
     }
-    fprintf(handle, "\n");
 
     // print packed symbols
     struct gram_symbol *sym = gram_symbol0(spec);

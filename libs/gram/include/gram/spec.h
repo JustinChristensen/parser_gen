@@ -137,7 +137,7 @@ void free_gram_rule(struct gram_rule *rule);
 void free_gram_alt(struct gram_alt *alt);
 void free_gram_rhs(struct gram_rhs *rhs);
 
-bool gram_has_rules(struct gram_parser_spec const *spec);
+bool gram_exists(struct gram_parser_spec const *spec);
 bool gram_symbol_null(struct gram_symbol const *sym);
 struct gram_symbol *gram_term0(struct gram_parser_spec const *spec);
 struct gram_symbol *gram_nonterm0(struct gram_parser_spec const *spec);

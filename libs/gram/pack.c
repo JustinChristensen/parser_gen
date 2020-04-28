@@ -140,20 +140,22 @@ static gram_sym_no **pack_rules(
     gram_sym_no **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
     if (!rules) return NULL;
 
-    // create the start rule
-    if ((rules[GM_START] = alloc_rule(3)) == NULL)
-        goto oom;
-
     gram_rule_no const empty_rule = stats.rules;
 
-    if (spec->stats.rules) {
+    if (gram_exists(spec)) {
         if ((rules[empty_rule] = alloc_rule(1)) == NULL)
             return free(rules), NULL;
+
+        // create the start rule
+        if ((rules[GM_START] = alloc_rule(3)) == NULL)
+            goto oom;
 
         gram_sym_no const nonterm0 = offs(stats.terms);
         rules[GM_START][0] = nonterm0;
         rules[GM_START][1] = GM_EOF;
     } else {
+        if ((rules[GM_START] = alloc_rule(2)) == NULL)
+            goto oom;
         rules[GM_START][0] = GM_EOF;
     }
 
@@ -201,7 +203,7 @@ static gram_sym_no **pack_rules(
 
     return rules;
 oom:
-    if (spec->stats.rules) free(rules[empty_rule]);
+    if (gram_exists(spec)) free(rules[empty_rule]);
     free_rules(rules);
     return NULL;
 }

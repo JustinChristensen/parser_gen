@@ -847,7 +847,6 @@ bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *c
 static int _nfa_match(struct nfa_match *match) {
     assert(match != NULL);
     struct nfa mach = match->mach;
-    assert(runnable(mach));
 
     if (match->eof_seen) reset_match(match);
 
@@ -858,6 +857,9 @@ static int _nfa_match(struct nfa_match *match) {
         match->eof_seen = true;
         return RX_EOF;
     }
+
+    if (!runnable(mach))
+        return RX_REJECTED;
 
     match->match_start = input;
     match->match_loc = loc;

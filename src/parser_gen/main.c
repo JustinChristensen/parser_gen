@@ -157,8 +157,16 @@ int gen_parser(struct args args) {
     } else if (args.type == LR) {
         struct slr_parser parser = { 0 };
         struct slr_error generr = { 0 };
-        gen_slr(&generr, &parser, &spec);
+
+        if (!gen_slr(&generr, &parser, &spec)) {
+            print_slr_error(stderr, generr);
+            free_gram_parser_spec(&spec);
+            return EXIT_FAILURE;
+        }
+
         free_gram_parser_spec(&spec);
+        print_slr_parser(stdout, &parser);
+        free_slr_parser(&parser);
     }
 
     return EXIT_SUCCESS;

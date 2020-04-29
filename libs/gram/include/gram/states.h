@@ -10,6 +10,7 @@ typedef unsigned gram_state_no;
 struct lr_item {
     gram_rule_no rule;
     gram_pos_no pos;
+    gram_sym_no nt;
 };
 
 struct lr_itemset {

@@ -35,6 +35,7 @@ struct slr_error {
 };
 
 struct slr_parser {
+    unsigned nstates;
     struct slr_action **atable;
     struct nfa_context scanner;
     struct gram_stats stats;
@@ -47,8 +48,8 @@ struct slr_parser_state {
 };
 
 struct slr_parser slr_parser(
-    struct nfa_context scanner, struct slr_action **atable,
-    struct gram_stats stats
+    unsigned nstates, struct slr_action **atable, struct nfa_context scanner,
+    struct gram_stats const stats
 );
 bool gen_slr(
     struct slr_error *error, struct slr_parser *parser,

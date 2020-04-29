@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include <base/base.h>
+#include <base/bitset.h>
 #include <base/assert.h>
 #include <base/debug.h>
 #include <regex/nfa.h>
@@ -42,18 +43,23 @@ static bool scanner_error(struct slr_error *error, struct regex_error scanerr) {
 }
 
 struct slr_parser slr_parser(
-    struct nfa_context scanner, struct slr_action **atable,
-    struct gram_stats stats
+    unsigned nstates, struct slr_action **atable, struct nfa_context scanner,
+    struct gram_stats const stats
 ) {
-    return (struct slr_parser) { atable, scanner, stats };
+    return (struct slr_parser) { nstates, atable, scanner, stats };
 }
 
 #define ACCEPT() (struct slr_action) { GM_SLR_ACCEPT }
 #define SHIFT(num) (struct slr_action) { GM_SLR_SHIFT, (num) }
+#define REDUCE(num) (struct slr_action) { GM_SLR_REDUCE, (num) }
 #define GOTO(num) (struct slr_action) { GM_SLR_GOTO, (num) }
-static struct slr_action **action_table(unsigned nstates, struct lr_state *state, struct gram_stats const stats) {
+static struct slr_action **action_table(
+    unsigned nstates, struct lr_state *state, struct gram_symbol_analysis const *san,
+    struct gram_parser_spec const *spec
+) {
+    struct gram_stats const stats = spec->stats;
     unsigned nsymbols = offs(stats.symbols);
-    size_t atsize = nstates + nstates * nsymbols * sizeof (struct slr_action);
+    size_t atsize = nstates * sizeof (struct slr_action *) + nstates * nsymbols * sizeof (struct slr_action);
 
     struct slr_action **atable = malloc(atsize);
     if (!atable) return NULL;
@@ -75,6 +81,21 @@ static struct slr_action **action_table(unsigned nstates, struct lr_state *state
         struct slr_action *row = rows + state->num * nsymbols;
         atable[state->num] = row;
 
+        // reductions
+        struct lr_itemset *itemset = state->itemset;
+        for (unsigned i = 0; i < itemset->nitems; i++) {
+            struct lr_item item = itemset->items[i];
+            gram_sym_no *rule = spec->rules[item.rule];
+
+            if (item.nt && !rule[item.pos]) {
+                unsigned rsize = rulesize(rule);
+                struct bsiter it = bsiter(san->follows[item.nt]);
+                gram_sym_no s;
+                while (bsnext(&s, &it)) row[s] = REDUCE(rsize);
+            }
+        }
+
+        // shifts, gotos, accept
         struct lr_transitions *trans = state->trans;
         for (unsigned i = 0; i < trans->nstates; i++) {
             struct lr_state *next = trans->states[i];
@@ -136,7 +157,7 @@ bool gen_slr(
     if ((states = discover_lr_states(&nstates, spec)) == NULL)
         goto free;
 
-    atable = action_table(nstates, states, spec->stats);
+    atable = action_table(nstates, states, &san, spec);
     if (!atable) {
         oom_error(error, NULL);
         goto free;
@@ -145,11 +166,12 @@ bool gen_slr(
     free_lr_states(nstates, states);
     free_gram_symbol_analysis(&san);
 
-    *parser = slr_parser(scanner, atable, stats);
+    *parser = slr_parser(nstates, atable, scanner, stats);
 
     return true;
 free:
     free_gram_symbol_analysis(&san);
+    free_gram_analysis(&gan);
     free_nfa_context(&scanner);
     free_lr_states(nstates, states);
     free(atable);
@@ -157,7 +179,67 @@ free:
     return false;
 }
 
-// void print_slr_parser(FILE *handle, struct slr_parser *parser);
-// void fre_slr_parser(struct slr_parser *parser);
-//
-// void print_slr_error(FILE *handle, struct slr_error error);
+static char action_sym(enum slr_action_type action) {
+    switch (action) {
+        case GM_SLR_ERROR:  return ' ';
+        case GM_SLR_SHIFT:  return 'S';
+        case GM_SLR_REDUCE: return 'R';
+        case GM_SLR_GOTO:   return 'G';
+        case GM_SLR_ACCEPT: return 'A';
+    }
+}
+
+void print_slr_parser(FILE *handle, struct slr_parser *parser) {
+    assert(parser != NULL);
+
+    unsigned const nsymbols = offs(parser->stats.symbols);
+    struct slr_action **atable = parser->atable;
+
+    fprintf(handle, "action table:\n\n");
+
+    for (unsigned st = 0; st < parser->nstates; st++) {
+        for (unsigned s = GM_SYMBOL0; s < nsymbols; s++) {
+            struct slr_action act = atable[st][s];
+            if (act.action)
+                fprintf(handle, "  atable[%u][%u] = (%c, %u)\n", st, s, action_sym(act.action), act.n);
+        }
+    }
+
+    fprintf(handle, "\n");
+}
+
+void free_slr_parser(struct slr_parser *parser) {
+    if (!parser) return;
+    free(parser->atable);
+    free_nfa_context(&parser->scanner);
+    *parser = (struct slr_parser) { 0 };
+}
+
+#define ERROR_FMT_END "\n|\n"
+#define OOM_ERROR_FMT_START "| SLR Out of Memory\n|\n"
+#define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
+#define NOT_SLR_FMT "| Grammar Not SLR\n|\n"
+#define SYNTAX_ERROR_FMT_START "| SLR Syntax Error\n|\n| Got: %u\n| Expected: %u"
+#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
+void print_slr_error(FILE *handle, struct slr_error error) {
+    switch (error.type) {
+        case GM_SLR_SYNTAX_ERROR:
+            fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
+            fprintf(handle, SYNTAX_ERROR_FMT_LOC);
+            print_regex_loc(handle, error.loc);
+            fprintf(handle, ERROR_FMT_END);
+            break;
+        case GM_SLR_NOT_SLR_ERROR:
+            fprintf(handle, NOT_SLR_FMT);
+            break;
+        case GM_SLR_SCANNER_ERROR:
+            print_regex_error(handle, error.scanerr);
+            break;
+        case GM_SLR_OOM_ERROR:
+            fprintf(handle, OOM_ERROR_FMT_START);
+            if (debug_is("oom"))
+                fprintf(handle, OOM_ERROR_FMT_FILE, error.file, error.col);
+            break;
+    }
+}
+

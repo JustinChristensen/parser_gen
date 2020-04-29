@@ -1,3 +1,4 @@
+filename: example_spec_file.pspec, size: 605
 patterns:
    num  pattern
     -1  \/\/[^\n]*\n
@@ -15,30 +16,30 @@ patterns:
     12  $empty
 
 symbols:
-   num  type     derives
+   num  type     sym               derives
      1  eof
-     2  term
-     3  term
-     4  term
-     5  term
-     6  term
-     7  term
-     8  term
-     9  term
-    10  term
-    11  term
-    12  term
-    13  nonterm  2
-    14  nonterm  3 17
-    15  nonterm  7 17
-    16  nonterm  4
-    17  nonterm  5 6 17
-    18  nonterm  8 17
-    19  nonterm  9
-    20  nonterm  11
-    21  nonterm  10 17
-    22  nonterm  13 14 15 16
-    23  nonterm  12 17
+     2  term     id
+     3  term     regex
+     4  term     char
+     5  term     string
+     6  term     '@'
+     7  term     '-'
+     8  term     "---\n"
+     9  term     ':'
+    10  term     ';'
+    11  term     '\|'
+    12  term     "$empty"
+    13  nonterm  parser_spec       2
+    14  nonterm  pattern_defs      3 17
+    15  nonterm  grammar           7 17
+    16  nonterm  pattern_def       4
+    17  nonterm  pdef_mod          5 6 17
+    18  nonterm  rules             8 17
+    19  nonterm  rule              9
+    20  nonterm  alt               11
+    21  nonterm  alts              10 17
+    22  nonterm  rhs               13 14 15 16
+    23  nonterm  rhses             12 17
 
 rules:
   rule  symbols

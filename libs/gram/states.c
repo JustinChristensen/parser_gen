@@ -22,12 +22,12 @@
 struct states_context {
     gram_state_no nstates;
     struct rb_node *states;
+    gram_sym_no *rulemap;
     struct bitset *symset;
-    struct bitset *ruleset;
 };
 
 static void print_item(FILE *handle, struct lr_item item) {
-    fprintf(handle, "(%u, %u)", item.rule, item.pos);
+    fprintf(handle, "(%u, %u, %u)", item.rule, item.pos, item.nt);
 }
 
 static void print_itemset_compact(FILE *handle, void const *a) {
@@ -108,14 +108,14 @@ make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struc
 }
 
 static bool states_context(struct states_context *context, struct gram_stats const stats) {
-    struct bitset *ruleset = bitset(offs(stats.rules));
-    if (!ruleset) return false;
+    gram_sym_no *rulemap = calloc(offs(stats.rules), sizeof *rulemap);
+    if (!rulemap) return false;
 
     struct bitset *symset = bitset(offs(stats.symbols));
-    if (!symset) return free(ruleset), false;
+    if (!symset) return free(rulemap), false;
 
     *context = (struct states_context) {
-        .ruleset = ruleset,
+        .rulemap = rulemap,
         .symset = symset
     };
 
@@ -123,9 +123,13 @@ static bool states_context(struct states_context *context, struct gram_stats con
 }
 
 static void free_states_context(struct states_context *context) {
-    freel(context->symset, context->ruleset);
+    freel(context->symset, context->rulemap);
     free_rbtree(context->states);
     *context = (struct states_context) { 0 };
+}
+
+static void clear_rulemap(gram_sym_no *rulemap, struct gram_stats const stats) {
+    memset(rulemap, 0, offs(stats.rules) * sizeof *rulemap);
 }
 
 static void _add_rules(gram_sym_no nt, struct gram_parser_spec const *spec, struct states_context *context) {
@@ -137,7 +141,7 @@ static void _add_rules(gram_sym_no nt, struct gram_parser_spec const *spec, stru
 
     gram_rule_no *r = sym.derives;
     while (*r) {
-        bsins(*r, context->ruleset);
+        context->rulemap[*r] = nt;
         gram_sym_no *s = spec->rules[*r];
         if (*s >= nonterm0) _add_rules(*s, spec, context);
         r++;
@@ -163,8 +167,11 @@ static unsigned count_transitions(struct lr_itemset *itemset, struct gram_parser
     return bssize(symset);
 }
 
-static unsigned count_rules(unsigned *nitems, struct states_context *context) {
-    return *nitems + bssize(context->ruleset);
+static unsigned count_rules(unsigned *nitems, struct gram_stats const stats, struct states_context *context) {
+    unsigned nrules = 0;
+    for (gram_rule_no r = 1; r < offs(stats.rules); r++)
+        nrules += context->rulemap[r] ? 1 : 0;
+    return *nitems + nrules;
 }
 
 static unsigned count_items(
@@ -184,7 +191,7 @@ static unsigned count_items(
 
     bszero(context->symset);
 
-    return count_rules(&nitems, context);
+    return count_rules(&nitems, spec->stats, context);
 }
 
 #define KERN(x) ((x)->rule == GM_START || (x)->pos)
@@ -229,23 +236,27 @@ static void sort_itemset(struct lr_itemset *itemset) {
     qsort(itemset->items, itemset->nitems, sizeof (struct lr_item), compare_items);
 }
 
-static void closure(struct lr_itemset *kernel, struct states_context *context) {
+static void closure(struct lr_itemset *kernel, struct gram_stats const stats, struct states_context *context) {
     struct lr_item *item = &kernel->items[kernel->nitems];
 
     debug("kernel: "); debug_itemset(kernel); debug("\n");
 
     struct lr_item nitem = { 0 };
-    gram_rule_no r;
-    struct bsiter it = bsiter(context->ruleset);
-    while (bsnext(&r, &it)) {
-        nitem.rule = r;
-        *item++ = nitem;
-        kernel->nitems++;
+    for (gram_rule_no r = 1; r < offs(stats.rules); r++) {
+        gram_sym_no nt = 0;
+        if ((nt = context->rulemap[r])) {
+            nitem.rule = r;
+            // non-traditional approach to keeping track of which non-terminals
+            // we're working on in this state
+            nitem.nt = nt;
+            *item++ = nitem;
+            kernel->nitems++;
+        }
     }
 
     debug("closure: "); debug_itemset(kernel); debug("\n");
 
-    bszero(context->ruleset);
+    clear_rulemap(context->rulemap, stats);
     sort_itemset(kernel);
 }
 
@@ -283,11 +294,11 @@ _discover_states(
 
     if ((snode = rbfind(kernel, compare_itemsets, context->states))) {
         free(kernel);
-        bszero(context->ruleset);
+        clear_rulemap(context->rulemap, spec->stats);
         return rbval(snode);
     }
 
-    closure(kernel, context);
+    closure(kernel, spec->stats, context);
     struct lr_itemset *itemset = kernel;
 
     unsigned nstates = count_transitions(itemset, spec, context);
@@ -320,7 +331,7 @@ discover_lr_states(unsigned *nstates, struct gram_parser_spec const *spec) {
     bszero(context.symset);
 
     unsigned nitems = 1;
-    nitems = count_rules(&nitems, &context);
+    nitems = count_rules(&nitems, spec->stats, &context);
 
     struct lr_itemset *kernel = make_itemset(nitems, 1, &item0);
     if (!kernel) return free_states_context(&context), NULL;
@@ -406,7 +417,7 @@ static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct
         struct lr_itemset *itemset = state->itemset;
         for (unsigned i = 0; i < itemset->nitems; i++) {
             struct lr_item item = itemset->items[i];
-            n = sprintf(bufp, "<tr><td align=\"left\" border=\"1\" color=\"#cccccc\">(%u, %u) </td></tr>", item.rule, item.pos);
+            n = sprintf(bufp, "<tr><td align=\"left\" border=\"1\" color=\"#cccccc\">(%u, %u, %u) </td></tr>", item.rule, item.pos, item.nt);
             bufp += n;
         }
 

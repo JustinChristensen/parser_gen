@@ -370,6 +370,7 @@ void free_gram_symbol_analysis(struct gram_symbol_analysis *an) {
     if (an->nullable) free(an->nullable);
     if (an->firsts) free_sets(an->firsts, an->nsymbols);
     if (an->follows) free_sets(an->follows, an->nsymbols);
+
     *an = (struct gram_symbol_analysis) { 0 };
 }
 
@@ -699,6 +700,8 @@ void free_gram_analysis(struct gram_analysis *an) {
             free(conf->derivations);
         free(conf);
     }
+
+    *an = (struct gram_analysis) { 0 };
 }
 
 #define GRAMMAR_TITLE_FMT "grammar:\n"

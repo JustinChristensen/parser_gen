@@ -85,7 +85,7 @@ static gram_sym_no TI(gram_sym_no t) {
 }
 
 #define PTABLE_STACK 7
-static gram_rule_no **parse_table(struct gram_symbol_analysis *an, struct gram_parser_spec const *spec) {
+static gram_rule_no **parse_table(struct gram_symbol_analysis const *an, struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
 
     gram_rule_no **ptable = alloc_parse_table(stats);
@@ -132,12 +132,6 @@ static gram_sym_no **alloc_rule_table(struct gram_stats stats) {
     );
 }
 
-static unsigned rsize(gram_sym_no *s) {
-    unsigned size = 0;
-    while (*s++) size++;
-    return size;
-}
-
 static gram_sym_no **rule_table(struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
     gram_sym_no **rtable = alloc_rule_table(stats);
@@ -155,7 +149,7 @@ static gram_sym_no **rule_table(struct gram_parser_spec const *spec) {
     while (*r) {
         *trule++ = tsym;
 
-        gram_sym_no *s = *r + rsize(*r);
+        gram_sym_no *s = *r + rulesize(*r);
         while (s != *r) *tsym++ = *--s;
         *tsym++ = 0;
 
@@ -221,6 +215,7 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
     return true;
 free:
     free_gram_symbol_analysis(&san);
+    free_gram_analysis(&gan);
     free_nfa_context(&scanner);
     free(ptable);
     free(rtable);
@@ -231,7 +226,7 @@ free:
 void print_ll_parser(FILE *handle, struct ll_parser *parser) {
     assert(parser != NULL);
 
-    struct gram_stats stats = parser->stats;
+    struct gram_stats const stats = parser->stats;
 
     fprintf(handle, "rule table:\n\n");
     gram_sym_no **rtable = parser->rtable;

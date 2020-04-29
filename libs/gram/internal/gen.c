@@ -19,4 +19,10 @@ static bool init_scanner(struct nfa_context *scanner, struct regex_pattern *patt
     return false;
 }
 
+static unsigned rulesize(gram_sym_no *s) {
+    unsigned size = 0;
+    while (*s++) size++;
+    return size;
+}
+
 #endif // GRAM_GEN_C_

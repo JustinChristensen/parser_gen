@@ -23,6 +23,7 @@ enum slr_action_type {
 struct slr_action {
     enum slr_action_type action;
     unsigned n;
+    gram_sym_no nt;
 };
 
 struct slr_error {
@@ -57,6 +58,10 @@ bool gen_slr(
 );
 void print_slr_parser(FILE *handle, struct slr_parser *parser);
 void free_slr_parser(struct slr_parser *parser);
+
+struct slr_parser_state slr_parser_state(struct slr_parser *parser);
+bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *state);
+void free_slr_parser_state(struct slr_parser_state *state);
 
 void print_slr_error(FILE *handle, struct slr_error error);
 

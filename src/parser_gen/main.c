@@ -165,8 +165,29 @@ int gen_parser(struct args args) {
         }
 
         free_gram_parser_spec(&spec);
-        print_slr_parser(stdout, &parser);
+
+        struct slr_parser_state pstate = slr_parser_state(&parser);
+
+        for (int i = 0; i < args.posc; i++) {
+            if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
+                fprintf(stderr, "reading file %s failed\n", files[i]);
+                free_slr_parser(&parser);
+                free_slr_parser_state(&pstate);
+                return EXIT_FAILURE;
+            }
+
+            if (!slr_parse(&generr, contents, &pstate)) {
+                print_slr_error(stderr, generr);
+                free_slr_parser(&parser);
+                free_slr_parser_state(&pstate);
+                return EXIT_FAILURE;
+            }
+
+            printf("parsed %s\n", files[i]);
+        }
+
         free_slr_parser(&parser);
+        free_slr_parser_state(&pstate);
     }
 
     return EXIT_SUCCESS;

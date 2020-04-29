@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <base/array.h>
 #include <base/base.h>
 #include <base/bitset.h>
 #include <base/assert.h>
@@ -42,6 +43,17 @@ static bool scanner_error(struct slr_error *error, struct regex_error scanerr) {
     return false;
 }
 
+static bool syntax_error(struct slr_error *error, gram_sym_no expected, struct slr_parser_state *state) {
+    prod(error, ((struct slr_error) {
+        .type = GM_SLR_SYNTAX_ERROR,
+        .loc = nfa_match_loc(&state->match),
+        .actual = state->lookahead,
+        .expected = expected
+    }));
+
+    return false;
+}
+
 struct slr_parser slr_parser(
     unsigned nstates, struct slr_action **atable, struct nfa_context scanner,
     struct gram_stats const stats
@@ -51,7 +63,7 @@ struct slr_parser slr_parser(
 
 #define ACCEPT() (struct slr_action) { GM_SLR_ACCEPT }
 #define SHIFT(num) (struct slr_action) { GM_SLR_SHIFT, (num) }
-#define REDUCE(num) (struct slr_action) { GM_SLR_REDUCE, (num) }
+#define REDUCE(num, nt) (struct slr_action) { GM_SLR_REDUCE, (num), (nt) }
 #define GOTO(num) (struct slr_action) { GM_SLR_GOTO, (num) }
 static struct slr_action **action_table(
     unsigned nstates, struct lr_state *state, struct gram_symbol_analysis const *san,
@@ -88,10 +100,9 @@ static struct slr_action **action_table(
             gram_sym_no *rule = spec->rules[item.rule];
 
             if (item.nt && !rule[item.pos]) {
-                unsigned rsize = rulesize(rule);
                 struct bsiter it = bsiter(san->follows[item.nt]);
                 gram_sym_no s;
-                while (bsnext(&s, &it)) row[s] = REDUCE(rsize);
+                while (bsnext(&s, &it)) row[s] = REDUCE(item.pos, item.nt);
             }
         }
 
@@ -181,7 +192,7 @@ free:
 
 static char action_sym(enum slr_action_type action) {
     switch (action) {
-        case GM_SLR_ERROR:  return ' ';
+        case GM_SLR_ERROR:  return 'E';
         case GM_SLR_SHIFT:  return 'S';
         case GM_SLR_REDUCE: return 'R';
         case GM_SLR_GOTO:   return 'G';
@@ -200,8 +211,17 @@ void print_slr_parser(FILE *handle, struct slr_parser *parser) {
     for (unsigned st = 0; st < parser->nstates; st++) {
         for (unsigned s = GM_SYMBOL0; s < nsymbols; s++) {
             struct slr_action act = atable[st][s];
-            if (act.action)
-                fprintf(handle, "  atable[%u][%u] = (%c, %u)\n", st, s, action_sym(act.action), act.n);
+
+            if (act.action) {
+                char *fmt = "  atable[%u][%u] = (%c, %u)\n";
+
+                if (act.action == GM_SLR_REDUCE)
+                    fmt = "  atable[%u][%u] = (%c, %u, %u)\n";
+                else if (act.action == GM_SLR_ACCEPT)
+                    fmt = "  atable[%u][%u] = %c\n";
+
+                fprintf(handle, fmt, st, s, action_sym(act.action), act.n, act.nt);
+            }
         }
     }
 
@@ -213,6 +233,86 @@ void free_slr_parser(struct slr_parser *parser) {
     free(parser->atable);
     free_nfa_context(&parser->scanner);
     *parser = (struct slr_parser) { 0 };
+}
+
+struct slr_parser_state slr_parser_state(struct slr_parser *parser) {
+    assert(parser != NULL);
+    return (struct slr_parser_state) { .parser = parser };
+}
+
+static bool start_scanning(char *input, struct slr_parser_state *state) {
+    if (nfa_start_match(input, &state->match, &state->parser->scanner)) {
+        state->lookahead = nfa_match(&state->match);
+        debug("initial lookahead: %u\n", state->lookahead);
+        return true;
+    }
+
+    return false;
+}
+
+static void scan(struct slr_parser_state *state) {
+    state->lookahead = nfa_match(&state->match);
+}
+
+static void debug_parser_state(struct array *states, struct slr_parser_state *state) {
+    gram_state_no st;
+    debug("(");
+    for (unsigned i = 0, ssize = asize(states); i < ssize; i++) {
+        at(&st, i, states);
+        debug("%u ", st);
+    }
+    debug(", ");
+    debug("%-30.s", state->match.input);
+    debug(")\n");
+}
+
+#define STATES_STACK_SIZE 7
+bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *state) {
+    assert(state != NULL);
+
+    if (!start_scanning(input, state)) return oom_error(error, NULL);
+
+    struct array *states = init_array(sizeof (gram_state_no), STATES_STACK_SIZE, 0, 0);
+    if (!states) return oom_error(error, NULL);
+
+    struct slr_parser const *parser = state->parser;
+    struct slr_action **atable = parser->atable;
+
+    bool success = true;
+    gram_state_no s = 0;
+    apush(&s, states);
+    while (success) {
+        apeek(&s, states);
+
+        debug_parser_state(states, state);
+
+        if (state->lookahead == RX_REJECTED) {
+            success = syntax_error(error, 0, state);
+            break;
+        }
+
+        struct slr_action act = atable[s][state->lookahead];
+
+        if (act.action == GM_SLR_SHIFT) {
+            apush(&act.n, states);
+            scan(state);
+        } else if (act.action == GM_SLR_REDUCE) {
+            while (act.n) apop(&s, states), act.n--;
+            apeek(&s, states);
+            act = atable[s][act.nt];
+            apush(&act.n, states);
+        } else if (act.action == GM_SLR_ACCEPT) {
+            break;
+        } else success = syntax_error(error, 0, state);
+    }
+
+    free_array(states);
+
+    return success;
+}
+
+void free_slr_parser_state(struct slr_parser_state *state) {
+    free_nfa_match(&state->match);
 }
 
 #define ERROR_FMT_END "\n|\n"

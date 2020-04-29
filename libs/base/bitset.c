@@ -61,11 +61,11 @@ void bs##name##_(struct bitset *s, ...) {                  \
     va_end(args);                                          \
 }
 
-SETOP(union, |= );
+SETOP(union, |= )
 
-SETOP(intersect, &= );
+SETOP(intersect, &= )
 
-SETOP(difference, &= ~);
+SETOP(difference, &= ~)
 
 bool bsdisjoint(struct bitset const *s, struct bitset const *t) {
     assert(s != NULL);

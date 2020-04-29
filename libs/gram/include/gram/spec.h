@@ -33,6 +33,7 @@ struct gram_symbol {
             gram_rule_no *derives;
         };
     };
+    char *str;
 };
 
 struct gram_stats {

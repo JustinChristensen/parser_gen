@@ -75,7 +75,7 @@ static void debug_itemset(struct lr_itemset const *itemset) {
 static struct lr_itemset *
 make_itemset(unsigned maxitems, unsigned nitems, struct lr_item *items) {
     struct lr_itemset *itemset = malloc(sizeof *itemset + sizeof (struct lr_item) * maxitems);
-    if (!itemset) return NULL;
+    if (!itemset) abort();
     itemset->nitems = nitems;
     if (items) memcpy(itemset->items, items, sizeof (struct lr_item) * nitems);
     return itemset;
@@ -84,7 +84,7 @@ make_itemset(unsigned maxitems, unsigned nitems, struct lr_item *items) {
 static struct lr_transitions *
 make_transitions(unsigned maxstates, unsigned nstates, struct lr_state *states) {
     struct lr_transitions *trans = malloc(sizeof *trans + sizeof (struct lr_state *) * maxstates);
-    if (!trans) return NULL;
+    if (!trans) abort();
     trans->nstates = nstates;
     if (states) memcpy(trans->states, states, sizeof (struct lr_item) * nstates);
     return trans;
@@ -96,7 +96,7 @@ make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struc
     assert(trans != NULL);
 
     struct lr_state *state = malloc(sizeof *state);
-    if (!state) return NULL;
+    if (!state) abort();
 
     *state = (struct lr_state) {
         .num = num, .sym = sym,
@@ -258,7 +258,6 @@ goto_(
     if (!nitems) return NULL;
 
     struct lr_itemset *kernel = make_itemset(nitems, 0, NULL);
-    // handle error
 
     struct lr_item *kitem = kernel->items;
     for (unsigned i = 0; i < itemset->nitems; i++) {
@@ -294,10 +293,7 @@ _discover_states(
     unsigned nstates = count_transitions(itemset, spec, context);
 
     struct lr_transitions *trans = make_transitions(nstates, 0, NULL);
-    // handle error
-
     struct lr_state *state = make_state(context->nstates++, sym, itemset, trans);
-    // handle error
 
     // this must happen prior to recursive calls to this function
     context->states = rbinsert(itemset, compare_itemsets, state, context->states);
@@ -338,6 +334,8 @@ discover_lr_states(unsigned *nstates, struct gram_parser_spec const *spec) {
 }
 
 void free_lr_states(unsigned nstates, struct lr_state *state) {
+    if (!state) return;
+
     struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
     if (!stack) return;
     struct lr_state **states = calloc(nstates, sizeof *states);

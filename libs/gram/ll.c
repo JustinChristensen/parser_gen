@@ -14,6 +14,7 @@
 #include "gram/analyze.h"
 
 #include "internal/assert.c"
+#include "internal/gen.c"
 #include "internal/macros.c"
 
 #define debug(...) debug_ns("gram_ll", __VA_ARGS__);
@@ -28,6 +29,8 @@ static bool _oom_error(struct ll_error *error, char *file, int col, void *p, ...
 
     return false;
 }
+
+#define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
 
 static bool not_ll_error(struct ll_error *error) {
     prod(error, ((struct ll_error) { .type = GM_LL_NOT_LL1_ERROR }));
@@ -49,8 +52,6 @@ static bool syntax_error(struct ll_error *error, gram_sym_no expected, struct ll
 
     return false;
 }
-
-#define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
 
 struct ll_parser ll_parser(
     struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
@@ -167,13 +168,6 @@ static gram_sym_no **rule_table(struct gram_parser_spec const *spec) {
     return rtable;
 }
 
-static struct regex_pattern const default_tagged_patterns[] = {
-    RX_ALPHA(RX_TAG_ONLY), RX_ALPHA_(RX_TAG_ONLY),
-    RX_ALNUM(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
-    RX_SPACE(RX_TAG_ONLY),
-    RX_END_PATTERNS
-};
-
 bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser_spec *spec) {
     gram_count(spec);
     invariant(assert_packed_spec, spec);
@@ -185,6 +179,7 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
     struct gram_stats stats = spec->stats;
 
     struct gram_symbol_analysis san = { 0 };
+    struct gram_analysis gan = { 0 };
     struct nfa_context scanner = { 0 };
     gram_rule_no **ptable = NULL;
     gram_sym_no **rtable = NULL;
@@ -192,24 +187,17 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
     if (!gram_analyze_symbols(&san, spec))
         return false;
 
-    // TODO: figure out what to do about heap allocated errors
-    struct gram_analysis gan = { 0 };
-    if (!gram_analyze(&gan, &san, spec)) {
-        oom_error(error, NULL);
-        goto free;
-    }
+    if (!gram_analyze(&gan, &san, spec))
+        return oom_error(error, NULL);
 
     if (gan.clas < GM_LL) {
         not_ll_error(error);
         goto free;
     }
 
-    if (!nfa_context(&scanner, default_tagged_patterns)) {
-        scanner_error(error, nfa_error(&scanner));
-        goto free;
-    }
+    free_gram_analysis(&gan);
 
-    if (!nfa_add_patterns(spec->patterns, &scanner)) {
+    if (!init_scanner(&scanner, spec->patterns)) {
         scanner_error(error, nfa_error(&scanner));
         goto free;
     }
@@ -232,7 +220,6 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
 
     return true;
 free:
-    free_gram_analysis(&gan);
     free_gram_symbol_analysis(&san);
     free_nfa_context(&scanner);
     free(ptable);

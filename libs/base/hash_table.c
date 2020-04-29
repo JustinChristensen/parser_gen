@@ -219,7 +219,7 @@ void htinsert(char const *key, void *val, struct hash_table *table) {
     check_load(table);
     key = strdup(key);
     assert(key != NULL);
-    return _htinsert(key, val, table);
+    _htinsert(key, val, table);
 }
 
 void htinsert_i(char const *key, int val, struct hash_table *table) {

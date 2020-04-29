@@ -1,5 +1,5 @@
-#ifndef GRAM_SPEC_C
-#define GRAM_SPEC_C 1
+#ifndef GRAM_SPEC_C_
+#define GRAM_SPEC_C_ 1
 
 #include <stdlib.h>
 #include <regex/base.h>
@@ -22,6 +22,7 @@ static void free_symbols(struct gram_symbol *symbols) {
     struct gram_symbol *sym = &symbols[1];
     while (sym->num) {
         if (sym->derives) free(sym->derives);
+        if (sym->str) free(sym->str);
         sym++;
     }
 
@@ -35,4 +36,4 @@ static void free_rules(gram_sym_no **rules) {
     free(rules);
 }
 
-#endif // GRAM_SPEC_C
+#endif // GRAM_SPEC_C_

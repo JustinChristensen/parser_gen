@@ -12,25 +12,6 @@ enum slr_error_type {
     GM_SLR_OOM_ERROR
 };
 
-struct slr_error {
-    enum slr_error_type type;
-    union {
-        struct { struct regex_loc loc; gram_sym_no actual; gram_sym_no expected; };
-        struct { char *file; int col; };
-        struct regex_error scanerr;
-    };
-};
-
-struct slr_parser {
-    struct nfa_context scanner;
-};
-
-struct slr_parser_state {
-    struct slr_parser *parser;
-    struct nfa_match match;
-    gram_sym_no lookahead;
-};
-
 enum slr_action_type {
     GM_SLR_ERROR,
     GM_SLR_SHIFT,
@@ -44,8 +25,30 @@ struct slr_action {
     unsigned n;
 };
 
+struct slr_error {
+    enum slr_error_type type;
+    union {
+        struct { struct regex_loc loc; gram_sym_no actual; gram_sym_no expected; };
+        struct { char *file; int col; };
+        struct regex_error scanerr;
+    };
+};
+
+struct slr_parser {
+    struct slr_action **atable;
+    struct nfa_context scanner;
+    struct gram_stats stats;
+};
+
+struct slr_parser_state {
+    struct slr_parser *parser;
+    struct nfa_match match;
+    gram_sym_no lookahead;
+};
+
 struct slr_parser slr_parser(
-    struct nfa_context scanner, struct gram_stats stats
+    struct nfa_context scanner, struct slr_action **atable,
+    struct gram_stats stats
 );
 bool gen_slr(
     struct slr_error *error, struct slr_parser *parser,

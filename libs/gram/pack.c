@@ -53,12 +53,18 @@ static struct gram_symbol *pack_symbols(gram_rule_no **dps, struct hash_table *s
     bool success = true;
     struct gram_symbol_entry *sym = NULL;
     struct hash_iterator it = hash_iterator(symtab);
-    while ((sym = htnext(NULL, &it))) {
+    char *key;
+    while ((sym = htnext(&key, &it))) {
         if (sym->type != GM_SYMBOL_ENTRY) continue;
 
         gram_sym_no i = detnum(sym, stats);
         symbols[i] = sym->s;
         symbols[i].num = i;
+
+        if (!(symbols[i].str = strdup(key))) {
+            success = false;
+            break;
+        }
 
         if (sym->s.type == GM_NONTERM && sym->nderives) {
             // allocate space for the symbol's derived rules +1 for 0 end marker

@@ -304,7 +304,7 @@ static void print_parsed_spec(FILE *handle, struct gram_parser_spec const *spec)
 #define PATTERNS_TITLE_FMT "patterns:\n"
 #define PATTERNS_HEADER_FMT "  %4s  %s\n"
 #define SYMBOLS_TITLE_FMT "symbols:\n"
-#define SYMBOLS_HEADER_FMT "  %4s  %-7s  %s\n"
+#define SYMBOLS_HEADER_FMT "  %4s  %-7s  %-16s  %s\n"
 #define RULES_TITLE_FMT "rules:\n"
 #define RULES_HEADER_FMT "  %4s  %s\n"
 static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec) {
@@ -326,7 +326,7 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
     // print packed symbols
     struct gram_symbol *sym = gram_symbol0(spec);
     fprintf(handle, SYMBOLS_TITLE_FMT);
-    fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "derives");
+    fprintf(handle, SYMBOLS_HEADER_FMT, "num", "type", "sym", "derives");
     if (!gram_symbol_null(sym)) {
         fprintf(handle, "  %4d  %-7s\n", sym->num, "eof");
         sym++;
@@ -336,7 +336,7 @@ static void print_packed_spec(FILE *handle, struct gram_parser_spec const *spec)
         char *type = "nonterm";
         if (sym->type == GM_TERM) type = "term";
 
-        fprintf(handle, "  %4d  %-7s", sym->num, type);
+        fprintf(handle, "  %4d  %-7s  %-16s", sym->num, type, sym->str);
 
         if (sym->type == GM_NONTERM) {
             gram_rule_no *r = sym->derives;

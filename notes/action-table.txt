@@ -1,6 +1,7 @@
 action table:
 
   atable[0][1] = (R, 0, 14)
+  atable[0][2] = (R, 0, 17)
   atable[0][6] = (S, 1)
   atable[0][7] = (S, 2)
   atable[0][8] = (R, 0, 14)
@@ -10,7 +11,7 @@ action table:
   atable[0][17] = (G, 27)
   atable[1][2] = (R, 1, 17)
   atable[2][2] = (R, 1, 17)
-  atable[3][1] = (A, 0)
+  atable[3][1] = A
   atable[5][1] = (R, 0, 15)
   atable[5][8] = (S, 6)
   atable[5][15] = (G, 24)
@@ -87,6 +88,7 @@ action table:
   atable[23][1] = (R, 2, 18)
   atable[24][1] = (R, 2, 13)
   atable[25][1] = (R, 0, 14)
+  atable[25][2] = (R, 0, 17)
   atable[25][6] = (S, 1)
   atable[25][7] = (S, 2)
   atable[25][8] = (R, 0, 14)

@@ -61,6 +61,24 @@ struct slr_parser slr_parser(
     return (struct slr_parser) { nstates, atable, scanner, stats };
 }
 
+static bool derived_by_table(gram_sym_no **derived_by, struct gram_parser_spec const *spec) {
+    assert(derived_by != NULL);
+
+    if (!gram_exists(spec)) return true;
+
+    *derived_by = calloc(offs(spec->stats.rules), sizeof **derived_by);
+    if (!*derived_by) return false;
+
+    struct gram_symbol *nt = gram_nonterm0(spec);
+    while (!gram_symbol_null(nt)) {
+        gram_rule_no *r = nt->derives;
+        while (*r) (*derived_by)[*r] = nt->num, r++;
+        nt++;
+    }
+
+    return true;
+}
+
 #define ACCEPT() (struct slr_action) { GM_SLR_ACCEPT }
 #define SHIFT(num) (struct slr_action) { GM_SLR_SHIFT, (num) }
 #define REDUCE(num, nt) (struct slr_action) { GM_SLR_REDUCE, (num), (nt) }
@@ -78,6 +96,9 @@ static struct slr_action **action_table(
 
     struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
     if (!stack) return free(atable), NULL;
+
+    gram_sym_no *derived_by = NULL;
+    if (!derived_by_table(&derived_by, spec)) return free(atable), free_array(stack), NULL;
 
     memset(atable, 0, atsize);
     struct slr_action *rows = (struct slr_action *) (atable + nstates);
@@ -99,10 +120,11 @@ static struct slr_action **action_table(
             struct lr_item item = itemset->items[i];
             gram_sym_no *rule = spec->rules[item.rule];
 
-            if (item.nt && !rule[item.pos]) {
-                struct bsiter it = bsiter(san->follows[item.nt]);
+            if (item.rule != GM_START && !rule[item.pos]) {
+                gram_sym_no nt = derived_by[item.rule];
+                struct bsiter it = bsiter(san->follows[nt]);
                 gram_sym_no s;
-                while (bsnext(&s, &it)) row[s] = REDUCE(item.pos, item.nt);
+                while (bsnext(&s, &it)) row[s] = REDUCE(item.pos, nt);
             }
         }
 
@@ -123,6 +145,7 @@ static struct slr_action **action_table(
     }
 
     free_array(stack);
+    free(derived_by);
 
     return atable;
 }
@@ -168,8 +191,7 @@ bool gen_slr(
     if ((states = discover_lr_states(&nstates, spec)) == NULL)
         goto free;
 
-    atable = action_table(nstates, states, &san, spec);
-    if (!atable) {
+    if ((atable = action_table(nstates, states, &san, spec)) == NULL) {
         oom_error(error, NULL);
         goto free;
     }
@@ -208,8 +230,8 @@ void print_slr_parser(FILE *handle, struct slr_parser *parser) {
 
     fprintf(handle, "action table:\n\n");
 
-    for (unsigned st = 0; st < parser->nstates; st++) {
-        for (unsigned s = GM_SYMBOL0; s < nsymbols; s++) {
+    for (gram_state_no st = 0; st < parser->nstates; st++) {
+        for (gram_sym_no s = GM_SYMBOL0; s < nsymbols; s++) {
             struct slr_action act = atable[st][s];
 
             if (act.action) {
@@ -261,8 +283,8 @@ static void debug_parser_state(struct array *states, struct slr_parser_state *st
         at(&st, i, states);
         debug("%u ", st);
     }
-    debug(", ");
-    debug("%-30.s", state->match.input);
+    debug(", %u, ", state->lookahead);
+    debug("%-.30s", state->match.input);
     debug(")\n");
 }
 
@@ -292,6 +314,8 @@ bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *st
         }
 
         struct slr_action act = atable[s][state->lookahead];
+
+        debug("action: %c\n+++\n", action_sym(act.action));
 
         if (act.action == GM_SLR_SHIFT) {
             apush(&act.n, states);

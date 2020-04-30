@@ -139,6 +139,22 @@ gram_sym_no *alloc_rule(size_t n) {
     return calloc(n, sizeof (gram_sym_no));
 }
 
+gram_sym_no *start_rule(bool exists, struct gram_stats const stats) {
+    gram_sym_no *rule = alloc_rule(exists ? 3 : 2);
+    if (!rule) return NULL;
+
+    gram_sym_no const nonterm0 = offs(stats.terms);
+
+    if (exists) {
+        rule[0] = nonterm0;
+        rule[1] = GM_EOF;
+    } else {
+        rule[0] = GM_EOF;
+    }
+
+    return rule;
+}
+
 static gram_sym_no **pack_rules(
     gram_rule_no **dps, int ntpatterns, struct regex_pattern *patterns,
     struct hash_table *symtab, struct gram_stats stats, struct gram_parser_spec *spec
@@ -146,42 +162,25 @@ static gram_sym_no **pack_rules(
     gram_sym_no **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
     if (!rules) return NULL;
 
-    gram_rule_no const empty_rule = stats.rules;
-
-    if (gram_exists(spec)) {
-        if ((rules[empty_rule] = alloc_rule(1)) == NULL)
-            return free(rules), NULL;
-
-        // create the start rule
-        if ((rules[GM_START] = alloc_rule(3)) == NULL)
-            goto oom;
-
-        gram_sym_no const nonterm0 = offs(stats.terms);
-        rules[GM_START][0] = nonterm0;
-        rules[GM_START][1] = GM_EOF;
-    } else {
-        if ((rules[GM_START] = alloc_rule(2)) == NULL)
-            goto oom;
-        rules[GM_START][0] = GM_EOF;
-    }
+    rules[GM_START] = start_rule(gram_exists(spec), stats);
 
     // fill in the rules lists and nonterm derives lists
-    gram_rule_no rn = 2;
+    gram_rule_no rn = GM_START + 1;
     gram_sym_no **r = &rules[rn];
     struct gram_rule *rule = spec->prules;
     for (; rule; rule = rule->next) {
         struct gram_symbol_entry *ntsym = htlookup(rule->id, symtab);
         struct gram_alt *alt = rule->alts;
 
-        for (; alt; alt = alt->next) {
+        for (; alt; r++, rn++, alt = alt->next) {
             struct gram_rhs *rhs = alt->rhses;
 
+            *dps[ntsym->s.num]++ = rn;
+
             if (gram_rhses_empty(rhs)) {
-                *dps[ntsym->s.num]++ = empty_rule;
+                if ((*r = alloc_rule(1)) == NULL) goto oom;
                 continue;
             }
-
-            *dps[ntsym->s.num]++ = rn++;
 
             if ((*r = alloc_rule(nullterm(rhs->n))) == NULL)
                 goto oom;
@@ -202,14 +201,11 @@ static gram_sym_no **pack_rules(
                         goto oom;
                 }
             }
-
-            r++;
         }
     }
 
     return rules;
 oom:
-    if (gram_exists(spec)) free(rules[empty_rule]);
     free_rules(rules);
     return NULL;
 }
@@ -232,8 +228,8 @@ bool gram_pack(
     stats.terms++;
     stats.symbols++;
 
-    // account for start and empty rule
-    stats.rules += stats.rules ? 2 : 1;
+    // account for the start rule
+    stats.rules++;
 
     // nonterm derives positions
     gram_rule_no **dps = calloc(stats.nonterms, sizeof *dps);

@@ -3,7 +3,9 @@
 
 #include <assert.h>
 #include <base/assert.h>
+#include <base/bitset.h>
 #include "gram/parser.h"
+#include "gram/spec.h"
 
 #pragma clang diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -19,7 +21,7 @@ INVARIANT(assert_packed_spec, struct gram_parser_spec const *spec) {
     check(spec != NULL);
     check(spec->type == GM_PACKED_SPEC);
 
-    struct gram_stats stats = spec->stats;
+    struct gram_stats const stats = spec->stats;
 
     // try to enforce null-termination
     if (stats.patterns) {
@@ -38,8 +40,32 @@ INVARIANT(assert_packed_spec, struct gram_parser_spec const *spec) {
     check(spec->rules[0] == NULL);
     check(spec->rules[stats.rules + 1] == NULL);
 
-    if (stats.nonterms) check(spec->rules[1][1] == GM_EOF);
-    else                check(spec->rules[1][0] == GM_EOF);
+    if (!gram_exists(spec)) check(spec->rules[1][0] == GM_EOF);
+    else {
+        check(spec->rules[1][1] == GM_EOF);
+
+        struct bitset *ruleset = bitset(stats.rules + 1);
+        if (ruleset) {
+            struct gram_symbol *nt = gram_nonterm0(spec);
+            while (!gram_symbol_null(nt)) {
+                gram_rule_no *r = nt->derives;
+
+                while (*r) {
+                    if (bselem(*r, ruleset)) {
+                        fprintf(stderr, "rule %u derived by %u is already being derived by a prior non-terminal\n", *r, nt->num);
+                        abort();
+                    }
+
+                    bsins(*r, ruleset);
+                    r++;
+                }
+
+                nt++;
+            }
+
+            free(ruleset);
+        }
+    }
 }
 
 INVARIANT(assert_symbol_index, gram_sym_no i, struct gram_parser_spec const *spec) {

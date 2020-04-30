@@ -763,9 +763,7 @@ parse_alt(
         if (next_set(RHSES_NS, parser) && parse_rhses(error, &rest, parser)) {
             link(rhses, rest);
             addn(rhses, rest);
-
-            if (!gram_rhses_empty(rhses))
-                parser->stats.rules++;
+            parser->stats.rules++;
 
             if (tryinit(error, alt, init_gram_alt, loc, rhses, NULL))
                 return true;

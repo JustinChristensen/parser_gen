@@ -4,6 +4,18 @@
 #include <stdlib.h>
 #include <regex/base.h>
 #include "gram/parser.h"
+#include "gram/spec.h"
+
+#include "macros.c"
+
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
+#define FOR_SYMBOL(stats, s) \
+    for (gram_sym_no s = GM_SYMBOL0; s < offs((stats).symbols); s++)
+
+#define FOR_RULE(stats, r) \
+    for (gram_rule_no r = GM_START; r < offs((stats).rules); r++)
 
 static void free_patterns(struct regex_pattern *patterns) {
     if (!patterns) return;
@@ -35,5 +47,7 @@ static void free_rules(gram_sym_no **rules) {
     while (*r) free(*r), r++;
     free(rules);
 }
+
+#pragma clang diagnostic pop
 
 #endif // GRAM_SPEC_C_

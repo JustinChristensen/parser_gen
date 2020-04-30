@@ -25,7 +25,7 @@ enum arg_key {
 
 enum parser_type {
     LL,
-    LR
+    SLR
 };
 
 struct args {
@@ -45,8 +45,8 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                 case PARSER_TYPE:
                     if (streq("ll", argval())) {
                         args->type = LL;
-                    } else if (streq("lr", argval())) {
-                        args->type = LR;
+                    } else if (streq("slr", argval())) {
+                        args->type = SLR;
                     } else {
                         print_usage(stderr, context);
                         exit(EXIT_FAILURE);
@@ -154,7 +154,7 @@ int gen_parser(struct args args) {
 
         free_ll_parser(&parser);
         free_ll_parser_state(&pstate);
-    } else if (args.type == LR) {
+    } else if (args.type == SLR) {
         struct slr_parser parser = { 0 };
         struct slr_error generr = { 0 };
 
@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
         .spec = ""
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, lr" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {

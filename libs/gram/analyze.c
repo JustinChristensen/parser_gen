@@ -10,6 +10,7 @@
 #include "gram/analyze.h"
 
 #include "internal/assert.c"
+#include "internal/spec.c"
 #include "internal/macros.c"
 
 #define debug(...) debug_ns("gram_analyze", __VA_ARGS__);
@@ -299,8 +300,8 @@ RULE_FOLLOWS(rule_follows) {
 static size_t all_sets_size(struct bitset **follows, struct gram_parser_spec const *spec) {
     size_t size = 0;
 
-    for (int i = 1; i < offs(spec->stats.symbols); i++) {
-        size += bssize(follows[i]);
+    FOR_SYMBOL(spec->stats, s) {
+        size += bssize(follows[s]);
     }
 
     return size;

@@ -16,6 +16,7 @@
 
 #include "internal/assert.c"
 #include "internal/macros.c"
+#include "internal/spec.c"
 
 #define debug(...) debug_ns("gram_states", __VA_ARGS__);
 
@@ -299,7 +300,7 @@ _discover_states(
     context->states = rbinsert(itemset, compare_itemsets, state, context->states);
 
     struct lr_state **states = trans->states;
-    for (gram_sym_no s = GM_SYMBOL0; s < offs(spec->stats.symbols); s++) {
+    FOR_SYMBOL(spec->stats, s) {
         if ((kernel = goto_(s, itemset, spec, context))) {
             *states++ = _discover_states(s, kernel, spec, context);
             trans->nstates++;

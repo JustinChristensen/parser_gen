@@ -276,7 +276,11 @@ static void scan(struct slr_parser_state *state) {
     state->lookahead = nfa_match(&state->match);
 }
 
+#define DEBUG_BUF 31
 static void debug_parser_state(struct array *states, struct slr_parser_state *state) {
+    if (!debug_is("gram_slr")) return;
+
+    char input[DEBUG_BUF];
     gram_state_no st;
     debug("(");
     for (unsigned i = 0, ssize = asize(states); i < ssize; i++) {
@@ -284,9 +288,18 @@ static void debug_parser_state(struct array *states, struct slr_parser_state *st
         debug("%u ", st);
     }
     debug(", %u, ", state->lookahead);
-    debug("%-.30s", state->match.input);
+
+    char *in = state->match.match_start;
+    int i;
+    for (i = 0; i < DEBUG_BUF && in[i]; i++) {
+        if (in[i] == '\n') input[i] = ' ';
+        else input[i] = in[i];
+    }
+    input[i] = '\0';
+    debug("%s", input);
     debug(")\n");
 }
+#undef DEBUG_BUF
 
 #define STATES_STACK_SIZE 7
 bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *state) {
@@ -315,7 +328,7 @@ bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *st
 
         struct slr_action act = atable[s][state->lookahead];
 
-        debug("action: %c\n+++\n", action_sym(act.action));
+        debug("action: %c(%u)\n", action_sym(act.action), act.n);
 
         if (act.action == GM_SLR_SHIFT) {
             apush(&act.n, states);
@@ -324,11 +337,15 @@ bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *st
             while (act.n) apop(&s, states), act.n--;
             apeek(&s, states);
             act = atable[s][act.nt];
+            debug("action: %c(%u)\n", action_sym(act.action), act.n);
             apush(&act.n, states);
         } else if (act.action == GM_SLR_ACCEPT) {
             break;
         } else success = syntax_error(error, 0, state);
+
+        debug("\n");
     }
+
 
     free_array(states);
 

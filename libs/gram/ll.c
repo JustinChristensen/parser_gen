@@ -16,6 +16,7 @@
 #include "internal/assert.c"
 #include "internal/gen.c"
 #include "internal/macros.c"
+#include "internal/spec.c"
 
 #define debug(...) debug_ns("gram_ll", __VA_ARGS__);
 
@@ -236,7 +237,7 @@ void print_ll_parser(FILE *handle, struct ll_parser *parser) {
 
     fprintf(handle, "rule table:\n\n");
     gram_sym_no **rtable = parser->rtable;
-    for (int r = 0; r < nullterm(offs(stats.rules)); r++) {
+    FOR_RULE(stats, r) {
         gram_sym_no *s = rtable[r];
         fprintf(handle, "  %d. ", r);
         if (s) while (*s) fprintf(handle, "%u ", *s), s++;

@@ -1,0 +1,905 @@
+initial lookahead: 7
+(0 , 7, "-line_comment   /\/\/[^\n]*\n/ ")
+action: S(2)
+
+(0 2 , 2, "line_comment   /\/\/[^\n]*\n/ -")
+action: R(1)
+action: G(29)
+
+(0 29 , 2, "line_comment   /\/\/[^\n]*\n/ -")
+action: S(30)
+
+(0 29 30 , 3, "/\/\/[^\n]*\n/ -whitespace     ")
+action: S(31)
+
+(0 29 30 31 , 7, "-whitespace     /{space}+/ id  ")
+action: R(3)
+action: G(27)
+
+(0 27 , 7, "-whitespace     /{space}+/ id  ")
+action: S(2)
+
+(0 27 2 , 2, "whitespace     /{space}+/ id   ")
+action: R(1)
+action: G(29)
+
+(0 27 29 , 2, "whitespace     /{space}+/ id   ")
+action: S(30)
+
+(0 27 29 30 , 3, "/{space}+/ id              /{al")
+action: S(31)
+
+(0 27 29 30 31 , 2, "id              /{alpha_}({alnu")
+action: R(3)
+action: G(27)
+
+(0 27 27 , 2, "id              /{alpha_}({alnu")
+action: R(0)
+action: G(29)
+
+(0 27 27 29 , 2, "id              /{alpha_}({alnu")
+action: S(30)
+
+(0 27 27 29 30 , 3, "/{alpha_}({alnum_}|')*/ regex  ")
+action: S(31)
+
+(0 27 27 29 30 31 , 2, "regex           /\/(\\.|[^\n\/]")
+action: R(3)
+action: G(27)
+
+(0 27 27 27 , 2, "regex           /\/(\\.|[^\n\/]")
+action: R(0)
+action: G(29)
+
+(0 27 27 27 29 , 2, "regex           /\/(\\.|[^\n\/]")
+action: S(30)
+
+(0 27 27 27 29 30 , 3, "/\/(\\.|[^\n\/])*\// char      ")
+action: S(31)
+
+(0 27 27 27 29 30 31 , 2, "char            /'(\\.|[^'])'/ ")
+action: R(3)
+action: G(27)
+
+(0 27 27 27 27 , 2, "char            /'(\\.|[^'])'/ ")
+action: R(0)
+action: G(29)
+
+(0 27 27 27 27 29 , 2, "char            /'(\\.|[^'])'/ ")
+action: S(30)
+
+(0 27 27 27 27 29 30 , 3, "/'(\\.|[^'])'/ string          ")
+action: S(31)
+
+(0 27 27 27 27 29 30 31 , 2, "string          /"(\\.|[^"])*"/")
+action: R(3)
+action: G(27)
+
+(0 27 27 27 27 27 , 2, "string          /"(\\.|[^"])*"/")
+action: R(0)
+action: G(29)
+
+(0 27 27 27 27 27 29 , 2, "string          /"(\\.|[^"])*"/")
+action: S(30)
+
+(0 27 27 27 27 27 29 30 , 3, "/"(\\.|[^"])*"/  --- parser_spe")
+action: S(31)
+
+(0 27 27 27 27 27 29 30 31 , 8, "--- parser_spec:  pattern_defs ")
+action: R(3)
+action: G(27)
+
+(0 27 27 27 27 27 27 , 8, "--- parser_spec:  pattern_defs ")
+action: R(0)
+action: G(28)
+
+(0 27 27 27 27 27 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(28)
+
+(0 27 27 27 27 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(28)
+
+(0 27 27 27 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(28)
+
+(0 27 27 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(28)
+
+(0 27 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(28)
+
+(0 27 28 , 8, "--- parser_spec:  pattern_defs ")
+action: R(2)
+action: G(5)
+
+(0 5 , 8, "--- parser_spec:  pattern_defs ")
+action: S(6)
+
+(0 5 6 , 2, "parser_spec:  pattern_defs gram")
+action: S(7)
+
+(0 5 6 7 , 9, ":  pattern_defs grammar; patter")
+action: S(8)
+
+(0 5 6 7 8 , 2, "pattern_defs grammar; pattern_d")
+action: S(9)
+
+(0 5 6 7 8 9 , 2, "grammar; pattern_defs: pattern_")
+action: R(1)
+action: G(17)
+
+(0 5 6 7 8 17 , 2, "grammar; pattern_defs: pattern_")
+action: S(9)
+
+(0 5 6 7 8 17 9 , 10, "; pattern_defs: pattern_def pat")
+action: R(1)
+action: G(18)
+
+(0 5 6 7 8 17 18 , 10, "; pattern_defs: pattern_def pat")
+action: R(0)
+action: G(19)
+
+(0 5 6 7 8 17 18 19 , 10, "; pattern_defs: pattern_def pat")
+action: R(2)
+action: G(20)
+
+(0 5 6 7 8 17 20 , 10, "; pattern_defs: pattern_def pat")
+action: R(2)
+action: G(13)
+
+(0 5 6 7 8 13 , 10, "; pattern_defs: pattern_def pat")
+action: R(0)
+action: G(21)
+
+(0 5 6 7 8 13 21 , 10, "; pattern_defs: pattern_def pat")
+action: S(22)
+
+(0 5 6 7 8 13 21 22 , 2, "pattern_defs: pattern_def patte")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 , 2, "pattern_defs: pattern_def patte")
+action: S(7)
+
+(0 5 6 24 7 , 9, ": pattern_def pattern_defs | $e")
+action: S(8)
+
+(0 5 6 24 7 8 , 2, "pattern_def pattern_defs | $emp")
+action: S(9)
+
+(0 5 6 24 7 8 9 , 2, "pattern_defs | $empty; pattern_")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 7 8 17 , 2, "pattern_defs | $empty; pattern_")
+action: S(9)
+
+(0 5 6 24 7 8 17 9 , 11, "| $empty; pattern_def:  pdef_mo")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 7 8 17 18 , 11, "| $empty; pattern_def:  pdef_mo")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 7 8 17 18 19 , 11, "| $empty; pattern_def:  pdef_mo")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 7 8 17 20 , 11, "| $empty; pattern_def:  pdef_mo")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 7 8 13 , 11, "| $empty; pattern_def:  pdef_mo")
+action: S(14)
+
+(0 5 6 24 7 8 13 14 , 12, "$empty; pattern_def:  pdef_mod ")
+action: S(12)
+
+(0 5 6 24 7 8 13 14 12 , 10, "; pattern_def:  pdef_mod id reg")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 7 8 13 14 17 , 10, "; pattern_def:  pdef_mod id reg")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 7 8 13 14 17 20 , 10, "; pattern_def:  pdef_mod id reg")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 7 8 13 14 15 , 10, "; pattern_def:  pdef_mod id reg")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 7 8 13 14 15 16 , 10, "; pattern_def:  pdef_mod id reg")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 7 8 13 21 , 10, "; pattern_def:  pdef_mod id reg")
+action: S(22)
+
+(0 5 6 24 7 8 13 21 22 , 2, "pattern_def:  pdef_mod id regex")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 , 2, "pattern_def:  pdef_mod id regex")
+action: S(7)
+
+(0 5 6 24 24 7 , 9, ":  pdef_mod id regex; pdef_mod:")
+action: S(8)
+
+(0 5 6 24 24 7 8 , 2, "pdef_mod id regex; pdef_mod:   ")
+action: S(9)
+
+(0 5 6 24 24 7 8 9 , 2, "id regex; pdef_mod:     '@' | '")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 7 8 17 , 2, "id regex; pdef_mod:     '@' | '")
+action: S(9)
+
+(0 5 6 24 24 7 8 17 9 , 2, "regex; pdef_mod:     '@' | '-' ")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 7 8 17 18 , 2, "regex; pdef_mod:     '@' | '-' ")
+action: S(9)
+
+(0 5 6 24 24 7 8 17 18 9 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 7 8 17 18 18 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 7 8 17 18 18 19 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(2)
+action: G(19)
+
+(0 5 6 24 24 7 8 17 18 19 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 7 8 17 20 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 7 8 13 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: R(0)
+action: G(21)
+
+(0 5 6 24 24 7 8 13 21 , 10, "; pdef_mod:     '@' | '-' | $em")
+action: S(22)
+
+(0 5 6 24 24 7 8 13 21 22 , 2, "pdef_mod:     '@' | '-' | $empt")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 , 2, "pdef_mod:     '@' | '-' | $empt")
+action: S(7)
+
+(0 5 6 24 24 24 7 , 9, ":     '@' | '-' | $empty; gramm")
+action: S(8)
+
+(0 5 6 24 24 24 7 8 , 4, "'@' | '-' | $empty; grammar:   ")
+action: S(10)
+
+(0 5 6 24 24 24 7 8 10 , 11, "| '-' | $empty; grammar:      "")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 7 8 17 , 11, "| '-' | $empty; grammar:      "")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 7 8 17 20 , 11, "| '-' | $empty; grammar:      "")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 7 8 13 , 11, "| '-' | $empty; grammar:      "")
+action: S(14)
+
+(0 5 6 24 24 24 7 8 13 14 , 4, "'-' | $empty; grammar:      "--")
+action: S(10)
+
+(0 5 6 24 24 24 7 8 13 14 10 , 11, "| $empty; grammar:      "---\n"")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 7 8 13 14 17 , 11, "| $empty; grammar:      "---\n"")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 7 8 13 14 17 20 , 11, "| $empty; grammar:      "---\n"")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 7 8 13 14 15 , 11, "| $empty; grammar:      "---\n"")
+action: S(14)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 , 12, "$empty; grammar:      "---\n" r")
+action: S(12)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 12 , 10, "; grammar:      "---\n" rules |")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 17 , 10, "; grammar:      "---\n" rules |")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 17 20 , 10, "; grammar:      "---\n" rules |")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 15 , 10, "; grammar:      "---\n" rules |")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 7 8 13 14 15 14 15 16 , 10, "; grammar:      "---\n" rules |")
+action: R(3)
+action: G(16)
+
+(0 5 6 24 24 24 7 8 13 14 15 16 , 10, "; grammar:      "---\n" rules |")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 7 8 13 21 , 10, "; grammar:      "---\n" rules |")
+action: S(22)
+
+(0 5 6 24 24 24 7 8 13 21 22 , 2, "grammar:      "---\n" rules | $")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 , 2, "grammar:      "---\n" rules | $")
+action: S(7)
+
+(0 5 6 24 24 24 24 7 , 9, ":      "---\n" rules | $empty; ")
+action: S(8)
+
+(0 5 6 24 24 24 24 7 8 , 5, ""---\n" rules | $empty; rules: ")
+action: S(11)
+
+(0 5 6 24 24 24 24 7 8 11 , 2, "rules | $empty; rules:        r")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 7 8 17 , 2, "rules | $empty; rules:        r")
+action: S(9)
+
+(0 5 6 24 24 24 24 7 8 17 9 , 11, "| $empty; rules:        rule ru")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 7 8 17 18 , 11, "| $empty; rules:        rule ru")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 7 8 17 18 19 , 11, "| $empty; rules:        rule ru")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 7 8 17 20 , 11, "| $empty; rules:        rule ru")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 7 8 13 , 11, "| $empty; rules:        rule ru")
+action: S(14)
+
+(0 5 6 24 24 24 24 7 8 13 14 , 12, "$empty; rules:        rule rule")
+action: S(12)
+
+(0 5 6 24 24 24 24 7 8 13 14 12 , 10, "; rules:        rule rules | $e")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 7 8 13 14 17 , 10, "; rules:        rule rules | $e")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 7 8 13 14 17 20 , 10, "; rules:        rule rules | $e")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 7 8 13 14 15 , 10, "; rules:        rule rules | $e")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 24 7 8 13 14 15 16 , 10, "; rules:        rule rules | $e")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 24 7 8 13 21 , 10, "; rules:        rule rules | $e")
+action: S(22)
+
+(0 5 6 24 24 24 24 7 8 13 21 22 , 2, "rules:        rule rules | $emp")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 , 2, "rules:        rule rules | $emp")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 7 , 9, ":        rule rules | $empty; r")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 7 8 , 2, "rule rules | $empty; rule:     ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 7 8 9 , 2, "rules | $empty; rule:         i")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 7 8 17 , 2, "rules | $empty; rule:         i")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 7 8 17 9 , 11, "| $empty; rule:         id ':' ")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 7 8 17 18 , 11, "| $empty; rule:         id ':' ")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 7 8 17 18 19 , 11, "| $empty; rule:         id ':' ")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 7 8 17 20 , 11, "| $empty; rule:         id ':' ")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 7 8 13 , 11, "| $empty; rule:         id ':' ")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 , 12, "$empty; rule:         id ':' al")
+action: S(12)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 12 , 10, "; rule:         id ':' alt alts")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 17 , 10, "; rule:         id ':' alt alts")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 17 20 , 10, "; rule:         id ':' alt alts")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 15 , 10, "; rule:         id ':' alt alts")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 7 8 13 14 15 16 , 10, "; rule:         id ':' alt alts")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 7 8 13 21 , 10, "; rule:         id ':' alt alts")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 7 8 13 21 22 , 2, "rule:         id ':' alt alts '")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 , 2, "rule:         id ':' alt alts '")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 24 7 , 9, ":         id ':' alt alts ';'; ")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 24 7 8 , 2, "id ':' alt alts ';'; alts:     ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 7 8 9 , 4, "':' alt alts ';'; alts:        ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 , 4, "':' alt alts ';'; alts:        ")
+action: S(10)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 10 , 2, "alt alts ';'; alts:         '\|")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 , 2, "alt alts ';'; alts:         '\|")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 9 , 2, "alts ';'; alts:         '\|' al")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 , 2, "alts ';'; alts:         '\|' al")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 9 , 4, "';'; alts:         '\|' alt alt")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 18 , 4, "';'; alts:         '\|' alt alt")
+action: S(10)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 18 10 , 10, "; alts:         '\|' alt alts |")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 18 18 , 10, "; alts:         '\|' alt alts |")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 18 18 19 , 10, "; alts:         '\|' alt alts |")
+action: R(2)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 18 19 , 10, "; alts:         '\|' alt alts |")
+action: R(2)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 18 19 , 10, "; alts:         '\|' alt alts |")
+action: R(2)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 18 19 , 10, "; alts:         '\|' alt alts |")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 7 8 17 20 , 10, "; alts:         '\|' alt alts |")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 24 7 8 13 , 10, "; alts:         '\|' alt alts |")
+action: R(0)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 24 7 8 13 21 , 10, "; alts:         '\|' alt alts |")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 24 7 8 13 21 22 , 2, "alts:         '\|' alt alts | $")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 24 , 2, "alts:         '\|' alt alts | $")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 24 24 7 , 9, ":         '\|' alt alts | $empt")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 , 4, "'\|' alt alts | $empty; alt:   ")
+action: S(10)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 10 , 2, "alt alts | $empty; alt:        ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 , 2, "alt alts | $empty; alt:        ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 9 , 2, "alts | $empty; alt:          rh")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 18 , 2, "alts | $empty; alt:          rh")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 18 9 , 11, "| $empty; alt:          rhs rhs")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 18 18 , 11, "| $empty; alt:          rhs rhs")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 18 18 19 , 11, "| $empty; alt:          rhs rhs")
+action: R(2)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 18 19 , 11, "| $empty; alt:          rhs rhs")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 17 20 , 11, "| $empty; alt:          rhs rhs")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 , 11, "| $empty; alt:          rhs rhs")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 , 12, "$empty; alt:          rhs rhses")
+action: S(12)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 12 , 10, "; alt:          rhs rhses; rhse")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 17 , 10, "; alt:          rhs rhses; rhse")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 17 20 , 10, "; alt:          rhs rhses; rhse")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 15 , 10, "; alt:          rhs rhses; rhse")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 14 15 16 , 10, "; alt:          rhs rhses; rhse")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 21 , 10, "; alt:          rhs rhses; rhse")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 24 24 7 8 13 21 22 , 2, "alt:          rhs rhses; rhses:")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 24 24 , 2, "alt:          rhs rhses; rhses:")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 , 9, ":          rhs rhses; rhses:   ")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 , 2, "rhs rhses; rhses:        rhs rh")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 9 , 2, "rhses; rhses:        rhs rhses ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 17 , 2, "rhses; rhses:        rhs rhses ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 17 9 , 10, "; rhses:        rhs rhses | $em")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 17 18 , 10, "; rhses:        rhs rhses | $em")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 17 18 19 , 10, "; rhses:        rhs rhses | $em")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 17 20 , 10, "; rhses:        rhs rhses | $em")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 13 , 10, "; rhses:        rhs rhses | $em")
+action: R(0)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 13 21 , 10, "; rhses:        rhs rhses | $em")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 24 24 24 7 8 13 21 22 , 2, "rhses:        rhs rhses | $empt")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 , 2, "rhses:        rhs rhses | $empt")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 , 9, ":        rhs rhses | $empty; rh")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 , 2, "rhs rhses | $empty; rhs:       ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 9 , 2, "rhses | $empty; rhs:          i")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 17 , 2, "rhses | $empty; rhs:          i")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 17 9 , 11, "| $empty; rhs:          id | ch")
+action: R(1)
+action: G(18)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 17 18 , 11, "| $empty; rhs:          id | ch")
+action: R(0)
+action: G(19)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 17 18 19 , 11, "| $empty; rhs:          id | ch")
+action: R(2)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 17 20 , 11, "| $empty; rhs:          id | ch")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 , 11, "| $empty; rhs:          id | ch")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 , 12, "$empty; rhs:          id | char")
+action: S(12)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 12 , 10, "; rhs:          id | char | str")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 17 , 10, "; rhs:          id | char | str")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 17 20 , 10, "; rhs:          id | char | str")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 15 , 10, "; rhs:          id | char | str")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 14 15 16 , 10, "; rhs:          id | char | str")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 21 , 10, "; rhs:          id | char | str")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 7 8 13 21 22 , 2, "rhs:          id | char | strin")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 , 2, "rhs:          id | char | strin")
+action: S(7)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 , 9, ":          id | char | string |")
+action: S(8)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 , 2, "id | char | string | "$empty"; ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 9 , 11, "| char | string | "$empty"; ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 17 , 11, "| char | string | "$empty"; ")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 17 20 , 11, "| char | string | "$empty"; ")
+action: R(2)
+action: G(13)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 , 11, "| char | string | "$empty"; ")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 , 2, "char | string | "$empty"; ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 9 , 11, "| string | "$empty"; ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 17 , 11, "| string | "$empty"; ")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 17 20 , 11, "| string | "$empty"; ")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 , 11, "| string | "$empty"; ")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 , 2, "string | "$empty"; ")
+action: S(9)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 9 , 11, "| "$empty"; ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 17 , 11, "| "$empty"; ")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 17 20 , 11, "| "$empty"; ")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 , 11, "| "$empty"; ")
+action: S(14)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 , 5, ""$empty"; ")
+action: S(11)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 11 , 10, "; ")
+action: R(1)
+action: G(17)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 17 , 10, "; ")
+action: R(0)
+action: G(20)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 17 20 , 10, "; ")
+action: R(2)
+action: G(15)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 15 , 10, "; ")
+action: R(0)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 14 15 16 , 10, "; ")
+action: R(3)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 14 15 16 , 10, "; ")
+action: R(3)
+action: G(16)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 14 15 16 , 10, "; ")
+action: R(3)
+action: G(21)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 21 , 10, "; ")
+action: S(22)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 7 8 13 21 22 , 1, " ")
+action: R(5)
+action: G(24)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 24 , 1, " ")
+action: R(0)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 24 25 , 1, " ")
+action: R(2)
+action: G(25)
+
+(0 5 6 24 25 , 1, " ")
+action: R(2)
+action: G(23)
+
+(0 5 6 23 , 1, " ")
+action: R(2)
+action: G(26)
+
+(0 5 26 , 1, " ")
+action: R(2)
+action: G(3)
+
+(0 3 , 1, " ")

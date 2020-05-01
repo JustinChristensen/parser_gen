@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <regex/nfa.h>
-#include <gram/ll.h>
 
 static struct regex_pattern const default_tagged_patterns[] = {
     RX_ALPHA(RX_TAG_ONLY), RX_ALPHA_(RX_TAG_ONLY),

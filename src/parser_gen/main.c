@@ -20,7 +20,8 @@ enum command_key {
 
 enum arg_key {
     PARSER_TYPE,
-    SPEC_FILE
+    SPEC_FILE,
+    TABLES
 };
 
 enum parser_type {
@@ -31,6 +32,7 @@ enum parser_type {
 struct args {
     enum command_key cmd;
     enum parser_type type;
+    bool tables;
     char spec[BUFSIZ];
     int posc;
     char **pos;
@@ -54,6 +56,9 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                     break;
                 case SPEC_FILE:
                     strcpy(args->spec, argval());
+                    break;
+                case TABLES:
+                    args->tables = true;
                     break;
             }
         }
@@ -132,6 +137,12 @@ int gen_parser(struct args args) {
 
         free_gram_parser_spec(&spec);
 
+        if (args.tables) {
+            print_ll_parser(stdout, &parser);
+            free_ll_parser(&parser);
+            return EXIT_SUCCESS;
+        }
+
         struct ll_parser_state pstate = ll_parser_state(&parser);
 
         for (int i = 0; i < args.posc; i++) {
@@ -165,6 +176,12 @@ int gen_parser(struct args args) {
         }
 
         free_gram_parser_spec(&spec);
+
+        if (args.tables) {
+            print_slr_parser(stdout, &parser);
+            free_slr_parser(&parser);
+            return EXIT_SUCCESS;
+        }
 
         struct slr_parser_state pstate = slr_parser_state(&parser);
 
@@ -275,16 +292,18 @@ int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = GEN_PARSER,
         .type = LL,
-        .spec = ""
+        .spec = "",
+        .tables = false
     };
 
     struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
+    struct arg tables_arg = { TABLES, NULL, 'T', no_argument, "Print action table as CSV" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
         NULL,
-        ARGS { parser_type_arg, spec_file_arg, help_and_version_args, END_ARGS },
+        ARGS { parser_type_arg, spec_file_arg, tables_arg, help_and_version_args, END_ARGS },
         NULL,
         CMDS {
             { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },

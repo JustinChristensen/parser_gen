@@ -354,6 +354,7 @@ bool ll_parse(struct ll_error *error, char *input, struct ll_parser_state *state
             debug(" = %u\n", rule);
 
             if (rule) {
+                printf("parsing... %u\n", sym);
                 apop(&sym, syms);
                 push_rule(rule, rtable, syms);
             } else {

@@ -17,6 +17,7 @@
 #include "internal/assert.c"
 #include "internal/gen.c"
 #include "internal/macros.c"
+#include "internal/spec.c"
 
 #define debug(...) debug_ns("gram_slr", __VA_ARGS__);
 
@@ -222,32 +223,37 @@ static char action_sym(enum slr_action_type action) {
     }
 }
 
+static void print_action(FILE *handle, struct slr_action act) {
+    if (!act.action) return;
+
+    char *fmt = "\"%c(%u)\"";
+
+    if (act.action == GM_SLR_REDUCE)
+        fmt = "\"%c(%u, %u)\"";
+    else if (act.action == GM_SLR_ACCEPT)
+        fmt = "\"%c\"";
+
+    fprintf(handle, fmt, action_sym(act.action), act.n, act.nt);
+}
+
 void print_slr_parser(FILE *handle, struct slr_parser *parser) {
     assert(parser != NULL);
 
-    unsigned const nsymbols = offs(parser->stats.symbols);
     struct slr_action **atable = parser->atable;
 
-    fprintf(handle, "action table:\n\n");
+    FOR_SYMBOL(parser->stats, s) fprintf(handle, ",%u", s);
+    fprintf(handle, "\n");
 
     for (gram_state_no st = 0; st < parser->nstates; st++) {
-        for (gram_sym_no s = GM_SYMBOL0; s < nsymbols; s++) {
-            struct slr_action act = atable[st][s];
+        fprintf(handle, "%u", st);
 
-            if (act.action) {
-                char *fmt = "  atable[%u][%u] = (%c, %u)\n";
-
-                if (act.action == GM_SLR_REDUCE)
-                    fmt = "  atable[%u][%u] = (%c, %u, %u)\n";
-                else if (act.action == GM_SLR_ACCEPT)
-                    fmt = "  atable[%u][%u] = %c\n";
-
-                fprintf(handle, fmt, st, s, action_sym(act.action), act.n, act.nt);
-            }
+        FOR_SYMBOL(parser->stats, s) {
+            fprintf(handle, ",");
+            print_action(handle, atable[st][s]);
         }
-    }
 
-    fprintf(handle, "\n");
+        fprintf(handle, "\n");
+    }
 }
 
 void free_slr_parser(struct slr_parser *parser) {
@@ -276,8 +282,8 @@ static void scan(struct slr_parser_state *state) {
     state->lookahead = nfa_match(&state->match);
 }
 
-#define DEBUG_BUF 31
 static void debug_parser_state(struct array *states, struct slr_parser_state *state) {
+#define DEBUG_BUF 31
     if (!debug_is("gram_slr")) return;
 
     char input[DEBUG_BUF];
@@ -296,10 +302,10 @@ static void debug_parser_state(struct array *states, struct slr_parser_state *st
         else input[i] = in[i];
     }
     input[i] = '\0';
-    debug("%s", input);
+    debug("\"%s\"", input);
     debug(")\n");
-}
 #undef DEBUG_BUF
+}
 
 #define STATES_STACK_SIZE 7
 bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *state) {
@@ -336,12 +342,14 @@ bool slr_parse(struct slr_error *error, char *input, struct slr_parser_state *st
         } else if (act.action == GM_SLR_REDUCE) {
             while (act.n) apop(&s, states), act.n--;
             apeek(&s, states);
+            printf("parsed %u\n", act.nt);
             act = atable[s][act.nt];
             debug("action: %c(%u)\n", action_sym(act.action), act.n);
             apush(&act.n, states);
         } else if (act.action == GM_SLR_ACCEPT) {
             break;
         } else success = syntax_error(error, 0, state);
+            // FIXME: get the set of expected symbols at this point
 
         debug("\n");
     }

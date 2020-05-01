@@ -125,7 +125,11 @@ static struct slr_action **action_table(
                 gram_sym_no nt = derived_by[item.rule];
                 struct bsiter it = bsiter(san->follows[nt]);
                 gram_sym_no s;
-                while (bsnext(&s, &it)) row[s] = REDUCE(item.pos, nt);
+                while (bsnext(&s, &it)) {
+                    struct slr_action act = REDUCE(item.pos, nt);
+                    invariant(action_table_conflict, row, act, s, state->num);
+                    row[s] = act;
+                }
             }
         }
 
@@ -134,12 +138,13 @@ static struct slr_action **action_table(
         for (unsigned i = 0; i < trans->nstates; i++) {
             struct lr_state *next = trans->states[i];
 
-            struct slr_action action;
-            if (next->sym == GM_EOF)       action = ACCEPT();
-            else if (next->sym < nonterm0) action = SHIFT(next->num);
-            else                           action = GOTO(next->num);
+            struct slr_action act;
+            if (next->sym == GM_EOF)       act = ACCEPT();
+            else if (next->sym < nonterm0) act = SHIFT(next->num);
+            else                           act = GOTO(next->num);
 
-            row[next->sym] = action;
+            invariant(action_table_conflict, row, act, next->sym, state->num);
+            row[next->sym] = act;
 
             apush(&next, stack);
         }

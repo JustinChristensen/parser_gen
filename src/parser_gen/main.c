@@ -26,7 +26,8 @@ enum arg_key {
 
 enum parser_type {
     LL,
-    SLR
+    SLR,
+    LR1
 };
 
 struct args {
@@ -44,22 +45,31 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     while ((key = readarg(context)) != END) {
         if (cmd == GEN_PARSER) {
             switch (key) {
-                case PARSER_TYPE:
-                    if (streq("ll", argval())) {
-                        args->type = LL;
-                    } else if (streq("slr", argval())) {
-                        args->type = SLR;
-                    } else {
-                        print_usage(stderr, context);
-                        exit(EXIT_FAILURE);
-                    }
-                    break;
                 case SPEC_FILE:
                     strcpy(args->spec, argval());
                     break;
                 case TABLES:
                     args->tables = true;
                     break;
+                default: break;
+            }
+        }
+
+        if (cmd == GEN_PARSER || cmd == AUTOMATA) {
+            switch (key) {
+                case PARSER_TYPE:
+                    if (streq("ll", argval())) {
+                        args->type = LL;
+                    } else if (streq("slr", argval()) || streq("lr0", argval())) {
+                        args->type = SLR;
+                    } else if (streq("lr1", argval())) {
+                        args->type = LR1;
+                    } else {
+                        print_usage(stderr, context);
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+                default: break;
             }
         }
     }
@@ -214,6 +224,9 @@ int automata(struct args args) {
     if (!args.posc)
         return fprintf(stderr, "no spec file\n"), EXIT_FAILURE;
 
+    if (args.type == LL)
+        return fprintf(stderr, "no state machine available\n"), EXIT_FAILURE;
+
     char *specfile = args.pos[0];
     int const bufsize = BUFSIZ * 32;
     char spec_contents[bufsize] = "";
@@ -228,8 +241,16 @@ int automata(struct args args) {
     if (gram_spec_parser(&spec_parse_error, &spec_parser) && gram_parse(&spec_parse_error, &spec, spec_contents, &spec_parser)) {
         free_gram_spec_parser(&spec_parser);
 
+        struct gram_symbol_analysis san = { 0 };
+        if (!gram_analyze_symbols(&san, &spec)) {
+            free_gram_parser_spec(&spec);
+            return EXIT_FAILURE;
+        }
+
         unsigned nstates;
-        struct lr_state *states = discover_lr_states(&nstates, &spec);
+        enum lr_item_type type = args.type == LR1 ? GM_LR1_ITEMS : GM_LR0_ITEMS;
+        struct lr_state *states = discover_lr_states(&nstates, type, &san, &spec);
+        free_gram_symbol_analysis(&san);
         free_gram_parser_spec(&spec);
         int result = print_lr_states_dot(stdout, nstates, states);
         // print_lr_states(stdout, nstates, states);
@@ -296,7 +317,7 @@ int main(int argc, char *argv[]) {
         .tables = false
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr0, lr1" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
     struct arg tables_arg = { TABLES, NULL, 'T', no_argument, "Print action table as CSV" };
 
@@ -307,7 +328,7 @@ int main(int argc, char *argv[]) {
         NULL,
         CMDS {
             { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },
-            { AUTOMATA, "automata", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Print the LR(0) automaton in dot format " },
+            { AUTOMATA, "automata", ARGS { parser_type_arg, help_and_version_args, END_ARGS }, NULL, NULL, "Print the LR(0) automaton in dot format " },
             { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
             { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
             END_CMDS

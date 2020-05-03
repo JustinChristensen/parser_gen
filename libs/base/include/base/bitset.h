@@ -32,6 +32,7 @@ bool bsdisjoint(struct bitset const *s, struct bitset const *t);
 bool bseq(struct bitset const *s, struct bitset const *t);
 bool bsnull(struct bitset const *s);
 void bszero(struct bitset *s);
+void bszeron(unsigned n, struct bitset *s);
 unsigned bssize(struct bitset const *s);
 void print_bitset(FILE *handle, struct bitset const *s);
 void print_bitset_bits(FILE *handle, struct bitset const *s);

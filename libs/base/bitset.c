@@ -95,8 +95,17 @@ bool bsnull(struct bitset const *s) {
 
 void bszero(struct bitset *s) {
     assert(s != NULL);
-    for (int w = 0; w < s->nwords; w++)
-        s->words[w] = 0;
+    memset(s->words, 0, s->nwords * sizeof *s->words);
+}
+
+void bszeron(unsigned n, struct bitset *s) {
+    assert(s != NULL);
+
+    unsigned nwords = WINDEX(n), rem = BINDEX(n);
+    assert(nwords < s->nwords || nwords == s->nwords && !rem);
+
+    memset(s->words, 0, nwords * sizeof *s->words);
+    if (rem) s->words[nwords] &= ~((BIT << rem) - 1);
 }
 
 unsigned bssize(struct bitset const *s) {

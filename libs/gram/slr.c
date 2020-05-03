@@ -194,7 +194,7 @@ bool gen_slr(
         goto free;
     }
 
-    if ((states = discover_lr_states(&nstates, spec)) == NULL)
+    if ((states = discover_lr_states(&nstates, GM_LR0_ITEMS, &san, spec)) == NULL)
         goto free;
 
     if ((atable = action_table(nstates, states, &san, spec)) == NULL) {

@@ -55,4 +55,9 @@ If the node does not exist
     5. set the resulting state in the current state's transitions list
 
 
+LR(1) Items
+Problem: I should only recurse if I haven't seen a particular non-terminal and lookahead pair
+I then need a set data structure that lets me perform efficient item lookups
+
+
 

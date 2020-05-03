@@ -17,6 +17,8 @@
 #define FOR_RULE(stats, r) \
     for (gram_rule_no r = GM_START; r < offs((stats).rules); r++)
 
+#define NONTERM0(stats) (offs((stats).terms))
+
 static void free_patterns(struct regex_pattern *patterns) {
     if (!patterns) return;
     struct regex_pattern *p = patterns;

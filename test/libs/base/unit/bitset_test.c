@@ -208,6 +208,26 @@ START_TEST(test_bsiter) {
 }
 END_TEST
 
+START_TEST(test_bszero) {
+    debug("bszero:\n");
+
+    unsigned xs[] = { 1, 9, 64, 65 };
+
+    bsinsarr(set, SIZEOF(xs), xs);
+
+    _print_bitset(set);
+
+    ck_assert_int_eq(SIZEOF(xs), bssize(set));
+    bszeron(65, set);
+    ck_assert_int_eq(1, bssize(set));
+    ck_assert(bselem(65, set));
+    _print_bitset(set);
+
+    bszero(set);
+    ck_assert_int_eq(0, bssize(set));
+}
+END_TEST
+
 Suite *bitset_suite()
 {
     Suite *s = suite_create("bitset");
@@ -221,6 +241,7 @@ Suite *bitset_suite()
     tcase_add_test(tc_core, test_bsdifference);
     tcase_add_test(tc_core, test_bsdisjoint);
     tcase_add_test(tc_core, test_bsiter);
+    tcase_add_test(tc_core, test_bszero);
 
     suite_add_tcase(s, tc_core);
 

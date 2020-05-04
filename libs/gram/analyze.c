@@ -721,7 +721,8 @@ void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
     char *clas = NULL;
     switch (an->clas) {
         case GM_LL: clas = "LL"; break;
-        case GM_LR: clas = "LR"; break;
+        case GM_SLR: clas = "SLR"; break;
+        case GM_LR1: clas = "LR1"; break;
         default: break;
     }
 

@@ -51,8 +51,9 @@ struct gram_conflict {
 
 enum gram_class {
     GM_NONE,
-    GM_LR,
-    GM_SLR,
+    GM_LR1,
+    GM_LR0,
+    GM_SLR = GM_LR0,
     GM_LL
 };
 

@@ -9,7 +9,7 @@
 enum lr_error_type {
     GM_LR_SYNTAX_ERROR,
     GM_LR_NOT_SLR_ERROR,
-//     GM_LR_NOT_LR1_ERROR,
+    GM_LR_NOT_LR1_ERROR,
     GM_LR_SCANNER_ERROR,
     GM_LR_OOM_ERROR
 };
@@ -53,6 +53,16 @@ struct lr_parser_state {
 struct lr_parser lr_parser(
     unsigned nstates, struct lr_action **atable, struct nfa_context scanner,
     struct gram_stats const stats
+);
+struct lr_action **slr_table(
+    struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
+);
+struct lr_action **lr1_table(
+    struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
 );
 bool gen_lr(
     struct lr_error *error, struct lr_parser *parser,

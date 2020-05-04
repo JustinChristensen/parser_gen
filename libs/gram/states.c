@@ -167,11 +167,15 @@ static int compare_itemsets(void const *a, void const *b) {
     struct lr_item const *sitem = s->items, *titem = t->items;
     int cmp = 0;
 
-    unsigned i, j;
-    for (i = s->nitems, j = t->nitems; !cmp && i && j; sitem++, titem++, i--, j--) {
+    unsigned i = s->nitems, j = t->nitems;
+    while (!cmp && i && j) {
         while (i && NONKERN(sitem)) sitem++, i--;
         while (j && NONKERN(titem)) titem++, j--;
-        if (i && j) cmp = compare_items(sitem, titem);
+        if (i && j) {
+            cmp = compare_items(sitem, titem);
+            i--, j--;
+            sitem++, titem++;
+        }
     }
     while (i && NONKERN(sitem)) sitem++, i--;
     while (j && NONKERN(titem)) titem++, j--;

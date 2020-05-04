@@ -1,22 +1,48 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdarg.h>
 #include <assert.h>
 #include <base/array.h>
 #include <base/base.h>
 #include <base/assert.h>
 #include <base/debug.h>
 #include <regex/nfa.h>
-#include "gram/spec.h"
 #include "gram/analyze.h"
+#include "gram/lr.h"
+#include "gram/states.h"
+#include "gram/spec.h"
 
 #include "internal/assert.c"
 #include "internal/gen.c"
-#include "internal/lr.c"
 #include "internal/macros.c"
 #include "internal/spec.c"
 
 #define debug(...) debug_ns("gram_lr", __VA_ARGS__);
+
+static bool _oom_error(struct lr_error *error, char *file, int col, void *p, ...) {
+    va_list args;
+    va_start(args, p);
+    vfreel(p, args);
+    va_end(args);
+
+    prod(error, ((struct lr_error) { .type = GM_LR_OOM_ERROR, .file = file, .col = col }));
+
+    return false;
+}
+
+#define oom_error(error, ...) _oom_error((error), __FILE__, __LINE__, __VA_ARGS__, NULL)
+
+static bool not_slr_error(struct lr_error *error) {
+    prod(error, ((struct lr_error) { .type = GM_LR_NOT_SLR_ERROR }));
+    return false;
+}
+
+static bool not_lr1_error(struct lr_error *error) {
+    prod(error, ((struct lr_error) { .type = GM_LR_NOT_LR1_ERROR }));
+    return false;
+}
 
 static bool scanner_error(struct lr_error *error, struct regex_error scanerr) {
     prod(error, ((struct lr_error) { .type = GM_LR_SCANNER_ERROR, .scanerr = scanerr }));
@@ -57,6 +83,119 @@ static bool derived_by_table(gram_sym_no **derived_by, struct gram_parser_spec c
     }
 
     return true;
+}
+
+#define ACCEPT() (struct lr_action) { GM_LR_ACCEPT }
+#define SHIFT(num) (struct lr_action) { GM_LR_SHIFT, (num) }
+#define REDUCE(num, nt) (struct lr_action) { GM_LR_REDUCE, (num), (nt) }
+#define GOTO(num) (struct lr_action) { GM_LR_GOTO, (num) }
+static struct lr_action **action_table(
+    enum gram_class clas, struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
+) {
+    enum lr_item_type item_type = GM_LR0_ITEMS;
+    bool (*errfn)(struct lr_error *error) = not_slr_error;
+
+    if (clas == GM_LR1) {
+        item_type = GM_LR1_ITEMS;
+        errfn = not_lr1_error;
+    }
+
+    if (gan->clas < clas) return errfn(error), NULL;
+
+    unsigned _nstates = 0;
+    struct lr_state *states = NULL;
+    if ((states = discover_lr_states(&_nstates, item_type, san, spec)) == NULL)
+        return oom_error(error, NULL), NULL;
+
+    struct gram_stats const stats = spec->stats;
+    unsigned nsymbols = offs(stats.symbols);
+    size_t atsize = _nstates * sizeof (struct lr_action *) + _nstates * nsymbols * sizeof (struct lr_action);
+    struct lr_action **atable = malloc(atsize);
+    if (!atable) return oom_error(error, NULL), free_lr_states(_nstates, states), NULL;
+
+    struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
+    if (!stack) return oom_error(error, atable), free_lr_states(_nstates, states), NULL;
+
+    memset(atable, 0, atsize);
+    struct lr_action *rows = (struct lr_action *) (atable + _nstates);
+
+    gram_sym_no const nonterm0 = offs(stats.terms);
+    struct lr_state *state = states;
+
+    apush(&state, stack);
+    while (!aempty(stack)) {
+        apop(&state, stack);
+
+        if (atable[state->num]) continue;
+
+        struct lr_action *row = rows + state->num * nsymbols;
+        atable[state->num] = row;
+
+        // reductions
+        struct lr_itemset *itemset = state->itemset;
+        for (unsigned i = 0; i < itemset->nitems; i++) {
+            struct lr_item item = itemset->items[i];
+            gram_sym_no *rule = spec->rules[item.rule];
+
+            if (item.rule != GM_START && !rule[item.pos]) {
+                gram_sym_no nt = derived_by[item.rule];
+                struct lr_action act = REDUCE(item.pos, nt);
+
+                if (clas == GM_SLR) {
+                    struct bsiter it = bsiter(san->follows[nt]);
+                    gram_sym_no s;
+                    while (bsnext(&s, &it)) {
+                        invariant(action_table_conflict, row, act, s, state->num);
+                        row[s] = act;
+                    }
+                } else if (clas == GM_LR1) {
+                    invariant(action_table_conflict, row, act, item.sym, state->num);
+                    row[item.sym] = act;
+                }
+            }
+        }
+
+        // shifts, gotos, accept
+        struct lr_transitions *trans = state->trans;
+        for (unsigned i = 0; i < trans->nstates; i++) {
+            struct lr_state *next = trans->states[i];
+
+            struct lr_action act;
+            if (next->sym == GM_EOF)       act = ACCEPT();
+            else if (next->sym < nonterm0) act = SHIFT(next->num);
+            else                           act = GOTO(next->num);
+
+            invariant(action_table_conflict, row, act, next->sym, state->num);
+            row[next->sym] = act;
+
+            apush(&next, stack);
+        }
+    }
+
+    free_lr_states(_nstates, states);
+    free_array(stack);
+
+    *nstates = _nstates;
+
+    return atable;
+}
+
+struct lr_action **slr_table(
+    struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
+) {
+    return action_table(GM_SLR, error, nstates, gan, san, derived_by, spec);
+}
+
+struct lr_action **lr1_table(
+    struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
+) {
+    return action_table(GM_LR1, error, nstates, gan, san, derived_by, spec);
 }
 
 bool gen_lr(
@@ -277,7 +416,8 @@ void free_lr_parser_state(struct lr_parser_state *state) {
 #define ERROR_FMT_END "\n|\n"
 #define OOM_ERROR_FMT_START "| LR Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
-#define NOT_LR_FMT "| Grammar Not LR\n|\n"
+#define NOT_SLR_FMT "| Grammar Not SLR\n|\n"
+#define NOT_LR1_FMT "| Grammar Not LR1\n|\n"
 #define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %u\n| Expected: %u"
 #define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
 void print_lr_error(FILE *handle, struct lr_error error) {
@@ -289,7 +429,10 @@ void print_lr_error(FILE *handle, struct lr_error error) {
             fprintf(handle, ERROR_FMT_END);
             break;
         case GM_LR_NOT_SLR_ERROR:
-            fprintf(handle, NOT_LR_FMT);
+            fprintf(handle, NOT_SLR_FMT);
+            break;
+        case GM_LR_NOT_LR1_ERROR:
+            fprintf(handle, NOT_LR1_FMT);
             break;
         case GM_LR_SCANNER_ERROR:
             print_regex_error(handle, error.scanerr);

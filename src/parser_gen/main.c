@@ -7,7 +7,6 @@
 #include <gram/analyze.h>
 #include <gram/ll.h>
 #include <gram/lr.h>
-#include <gram/slr.h>
 #include <gram/states.h>
 #include <gram/parser.h>
 
@@ -176,11 +175,11 @@ int gen_parser(struct args args) {
 
         free_ll_parser(&parser);
         free_ll_parser_state(&pstate);
-    } else if (args.type == SLR) {
+    } else if (args.type == SLR || args.type == LR1) {
         struct lr_parser parser = { 0 };
         struct lr_error generr = { 0 };
 
-        if (!gen_lr(&generr, &parser, slr_table, &spec)) {
+        if (!gen_lr(&generr, &parser, args.type == SLR ? slr_table : lr1_table, &spec)) {
             print_lr_error(stderr, generr);
             free_gram_parser_spec(&spec);
             return EXIT_FAILURE;

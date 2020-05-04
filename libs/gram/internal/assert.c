@@ -6,7 +6,7 @@
 #include <base/bitset.h>
 #include "gram/parser.h"
 #include "gram/spec.h"
-#include "gram/slr.h"
+#include "gram/lr.h"
 #include "gram/states.h"
 
 #pragma clang diagnostic push
@@ -78,16 +78,16 @@ INVARIANT(assert_rule_index, gram_rule_no i, struct gram_parser_spec const *spec
     check(i >= 1 && i <= spec->stats.rules);
 }
 
-INVARIANT(action_table_conflict, struct slr_action *row, struct slr_action act, gram_sym_no s, gram_state_no st) {
-    if (row[s].action == GM_SLR_ERROR) return;
+INVARIANT(action_table_conflict, struct lr_action *row, struct lr_action act, gram_sym_no s, gram_state_no st) {
+    if (row[s].action == GM_LR_ERROR) return;
 
     // a shift/reduce conflict occurs when the follow set for the non-terminal we'd be reducing conflicts
     // with a shift symbol on the state
-    if ((row[s].action == GM_SLR_SHIFT && act.action == GM_SLR_REDUCE) ||
-        (row[s].action == GM_SLR_REDUCE && act.action == GM_SLR_SHIFT))
+    if ((row[s].action == GM_LR_SHIFT && act.action == GM_LR_REDUCE) ||
+        (row[s].action == GM_LR_REDUCE && act.action == GM_LR_SHIFT))
         fprintf(stderr, "shift/reduce conflict on state %u symbol %u\n", st, s);
 
-    if (row[s].action == GM_SLR_REDUCE && act.action == GM_SLR_REDUCE)
+    if (row[s].action == GM_LR_REDUCE && act.action == GM_LR_REDUCE)
         fprintf(stderr, "reduce/reduce conflict on state %u symbol %u\n", st, s);
 
     abort();

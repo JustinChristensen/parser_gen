@@ -6,6 +6,7 @@
 #include <base/string.h>
 #include <gram/analyze.h>
 #include <gram/ll.h>
+#include <gram/lr.h>
 #include <gram/slr.h>
 #include <gram/states.h>
 #include <gram/parser.h>
@@ -176,11 +177,11 @@ int gen_parser(struct args args) {
         free_ll_parser(&parser);
         free_ll_parser_state(&pstate);
     } else if (args.type == SLR) {
-        struct slr_parser parser = { 0 };
-        struct slr_error generr = { 0 };
+        struct lr_parser parser = { 0 };
+        struct lr_error generr = { 0 };
 
-        if (!gen_slr(&generr, &parser, &spec)) {
-            print_slr_error(stderr, generr);
+        if (!gen_lr(&generr, &parser, slr_table, &spec)) {
+            print_lr_error(stderr, generr);
             free_gram_parser_spec(&spec);
             return EXIT_FAILURE;
         }
@@ -188,33 +189,33 @@ int gen_parser(struct args args) {
         free_gram_parser_spec(&spec);
 
         if (args.tables) {
-            print_slr_parser(stdout, &parser);
-            free_slr_parser(&parser);
+            print_lr_parser(stdout, &parser);
+            free_lr_parser(&parser);
             return EXIT_SUCCESS;
         }
 
-        struct slr_parser_state pstate = slr_parser_state(&parser);
+        struct lr_parser_state pstate = lr_parser_state(&parser);
 
         for (int i = 0; i < args.posc; i++) {
             if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
                 fprintf(stderr, "reading file %s failed\n", files[i]);
-                free_slr_parser(&parser);
-                free_slr_parser_state(&pstate);
+                free_lr_parser(&parser);
+                free_lr_parser_state(&pstate);
                 return EXIT_FAILURE;
             }
 
-            if (!slr_parse(&generr, contents, &pstate)) {
-                print_slr_error(stderr, generr);
-                free_slr_parser(&parser);
-                free_slr_parser_state(&pstate);
+            if (!lr_parse(&generr, contents, &pstate)) {
+                print_lr_error(stderr, generr);
+                free_lr_parser(&parser);
+                free_lr_parser_state(&pstate);
                 return EXIT_FAILURE;
             }
 
             printf("parsed %s\n", files[i]);
         }
 
-        free_slr_parser(&parser);
-        free_slr_parser_state(&pstate);
+        free_lr_parser(&parser);
+        free_lr_parser_state(&pstate);
     }
 
     return EXIT_SUCCESS;

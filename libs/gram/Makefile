@@ -6,7 +6,7 @@ LIBS += -lm -lregex -lcgraph
 
 include $(TOPDIR)/make/common_targets.mk
 
-$(PROG): analyze.c check.c ll.c parser.c pack.c slr.c spec.c states.c
+$(PROG): analyze.c check.c ll.c lr.c parser.c pack.c slr.c spec.c states.c
 	$(CC) $(INCLUDEPATHS) -shared $(CFLAGS) -o $@ $+ $(LIBPATHS) $(LIBS) $(LDFLAGS) -fpic
 	mkdir -p ~/lib
 	ln -sf "$$(pwd)/$(PROG)" ~/lib/

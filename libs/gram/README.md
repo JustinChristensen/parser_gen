@@ -10,8 +10,9 @@
   for example, deciding whether or not to return certain whitespace tokens to the parser
 * add filename to regex_loc, and support seeding the libregex parser with the current file and location
 * add filename to the parser_spec AST
-* decide what to do with error handling in the generated parser
 * detect the reachability of symbols in the grammar, and the symbols' productiveness
     - right now some of the analyze routines do not do this
 * add a string field to gram_symbol to make error messaging prettier
 * typedef symbol numbers and rule numbers just to make changing the underlying type easier should I choose to do so
+* decide what to do with error handling in the generated parser
+* make analyze detect shift/reduce and reduce/reduce conflicts (and classify the grammar accordingly)

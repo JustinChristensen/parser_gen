@@ -30,7 +30,7 @@ struct states_context {
 static void print_item(FILE *handle, struct lr_item item) {
     char *fmt = "(%u, %u)";
     if (item.sym) fmt = "(%u, %u, %u)";
-    fprintf(handle, fmt, item.rule, item.pos);
+    fprintf(handle, fmt, item.rule, item.pos, item.sym);
 }
 
 static void print_itemset_compact(FILE *handle, void const *a) {
@@ -189,7 +189,7 @@ static void sort_itemset(struct lr_itemset *itemset) {
 }
 
 static unsigned const items_key(gram_sym_no const nonterm, gram_sym_no const term, struct gram_stats const stats) {
-    return ((nonterm - stats.terms - 1) * stats.terms) + ((term || 1) - 1);
+    return ((nonterm - stats.terms - 1) * stats.terms) + ((term ? term : 1) - 1);
 }
 
 #define CLOSE(name) \
@@ -217,9 +217,9 @@ static struct lr_item *with_lookahead(
     gram_sym_no *n = nt + 1;
 
     while (*n) {
-        gram_sym_no l;
         struct bsiter it = bsiter(san->firsts[*n]);
 
+        gram_sym_no l;
         while (bsnext(&l, &it))
             items = close(nitems, items, *nt, l, san, spec, context);
 
@@ -246,7 +246,9 @@ CLOSE(close) {
     while (*r) {
         gram_sym_no *s = spec->rules[*r];
 
-        if (items) *items++ = (struct lr_item) { *r, 0, la };
+        if (items) {
+            *items++ = (struct lr_item) { *r, 0, la };
+        }
         (*nitems)++;
 
         if (*s < NONTERM0(spec->stats)) {
@@ -280,9 +282,9 @@ static unsigned closure(
     unsigned nitems = 0;
 
     if (item) {
-        gram_sym_no s = spec->rules[item->rule][item->pos];
-        if (s >= NONTERM0(spec->stats))
-            close_item(&nitems, NULL, &s, item->sym, san, spec, context);
+        gram_sym_no *s = &spec->rules[item->rule][item->pos];
+        if (*s >= NONTERM0(spec->stats))
+            close_item(&nitems, NULL, s, item->sym, san, spec, context);
         return nitems + 1;
     }
 
@@ -291,17 +293,17 @@ static unsigned closure(
     struct lr_item *items = &kernel->items[kernel->nitems];
 
     for (unsigned i = 0; i < kernel->nitems; i++) {
-        item = &kernel->items[i];
-        gram_sym_no *s = &spec->rules[item->rule][item->pos];
-        if (*s < NONTERM0(spec->stats)) continue;
-        items = close_item(&nitems, items, s, item->sym, san, spec, context);
+        struct lr_item kitem = kernel->items[i];
+        gram_sym_no *s = &spec->rules[kitem.rule][kitem.pos];
+        if (*s >= NONTERM0(spec->stats))
+            items = close_item(&nitems, items, s, kitem.sym, san, spec, context);
     }
 
     kernel->nitems += nitems;
 
     sort_itemset(kernel);
 
-    debug("closure: "); debug_itemset(kernel); debug("\n");
+    debug("nitems: %u, closure: ", kernel->nitems); debug_itemset(kernel); debug("\n");
 
     return kernel->nitems;
 }
@@ -317,6 +319,7 @@ static unsigned count_goto_items(
         struct lr_item item = itemset->items[i];
         if (spec->rules[item.rule][item.pos] == s) {
             item.pos++;
+            // count
             nitems += closure(NULL, &item, san, spec, context);
         }
     }

@@ -1,6 +1,8 @@
 #ifndef GRAM_ASSERT_C_
 #define GRAM_ASSERT_C_ 1
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include <base/assert.h>
 #include <base/bitset.h>
@@ -91,6 +93,23 @@ INVARIANT(action_table_conflict, struct lr_action *row, struct lr_action act, gr
         fprintf(stderr, "reduce/reduce conflict on state %u symbol %u\n", st, s);
 
     abort();
+}
+
+INVARIANT(assert_itemsets_sorted, struct lr_itemset *kernel, struct lr_itemset *itemset) {
+    check(kernel != NULL);
+    check(itemset != NULL);
+    check(kernel->nitems > 0);
+    check(itemset->nitems > 0);
+
+    if (!lr_itemset_sorted(kernel)) {
+        fprintf(stderr, "kernel not sorted\n");
+        abort();
+    }
+
+    if (!lr_itemset_sorted(itemset)) {
+        fprintf(stderr, "itemset not sorted\n");
+        abort();
+    }
 }
 
 #endif

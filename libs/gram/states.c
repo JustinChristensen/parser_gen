@@ -77,19 +77,19 @@ static void debug_itemset(struct lr_itemset const *itemset) {
 
 static struct lr_itemset *
 make_itemset(unsigned maxitems, unsigned nitems, struct lr_item *items) {
-    struct lr_itemset *itemset = malloc(sizeof *itemset + sizeof (struct lr_item) * maxitems);
+    struct lr_itemset *itemset = malloc(sizeof *itemset + sizeof *items * maxitems);
     if (!itemset) abort();
     itemset->nitems = nitems;
-    if (items) memcpy(itemset->items, items, sizeof (struct lr_item) * nitems);
+    if (items) memcpy(itemset->items, items, sizeof *items * nitems);
     return itemset;
 }
 
 static struct lr_transitions *
-make_transitions(unsigned maxstates, unsigned nstates, struct lr_state *states) {
-    struct lr_transitions *trans = malloc(sizeof *trans + sizeof (struct lr_state *) * maxstates);
+make_transitions(unsigned maxstates, unsigned nstates, struct lr_state **states) {
+    struct lr_transitions *trans = malloc(sizeof *trans + sizeof *states * maxstates);
     if (!trans) abort();
     trans->nstates = nstates;
-    if (states) memcpy(trans->states, states, sizeof (struct lr_item) * nstates);
+    if (states) memcpy(trans->states, states, sizeof *states * nstates);
     return trans;
 }
 
@@ -112,7 +112,7 @@ make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struc
 
 static bool states_context(struct states_context *context, enum lr_item_type item_type, struct gram_stats const stats) {
     size_t setsize = stats.nonterms;
-    if (item_type == GM_LR1_ITEMS) setsize *= stats.terms;
+    if (item_type != GM_LR0_ITEMS) setsize *= stats.terms;
 
     struct bitset *symset = bitset(setsize);
     if (!symset) return false;
@@ -147,53 +147,116 @@ static unsigned count_transitions(struct lr_itemset *itemset, struct gram_parser
 
 #define KERN(x) ((x)->rule == GM_START || (x)->pos)
 #define NONKERN(x) ((x)->rule > GM_START && !(x)->pos)
-static int compare_items(void const *a, void const *b) {
+static int compare_lr0_items(void const *a, void const *b) {
     struct lr_item const *x = a, *y = b;
-    int cmp;
 
-    if (KERN(x) && NONKERN(y)) cmp = 1;
-    else if (NONKERN(x) && KERN(y)) cmp = -1;
+    int cmp;
+    if (KERN(x) && NONKERN(y)) cmp = -1;
+    else if (NONKERN(x) && KERN(y)) cmp = 1;
     else {
-        cmp = y->rule - x->rule;
-        cmp = cmp ? cmp : y->pos - x->pos;
-        cmp = cmp ? cmp : y->sym - x->sym;
+        cmp = x->rule - y->rule;
+        cmp = cmp ? cmp : x->pos - y->pos;
     }
 
-    return -cmp;
+    return cmp;
 }
 
-static int compare_itemsets(void const *a, void const *b) {
-    struct lr_itemset const *s = a, *t = b;
-    struct lr_item const *sitem = s->items, *titem = t->items;
-    int cmp = 0;
+static int compare_lr1_items(void const *a, void const *b) {
+    int cmp = compare_lr0_items(a, b);
+    if (cmp) return cmp;
+    else {
+        struct lr_item const *x = a, *y = b;
+        return x->sym - y->sym;
+    }
+}
 
-    unsigned i = s->nitems, j = t->nitems;
-    while (!cmp && i && j) {
-        while (i && NONKERN(sitem)) sitem++, i--;
-        while (j && NONKERN(titem)) titem++, j--;
-        if (i && j) {
-            cmp = compare_items(sitem, titem);
-            i--, j--;
-            sitem++, titem++;
+static int compare_itemsets(
+    int (*cmp_items)(void const *a, void const *b), bool const lalr,
+    struct lr_itemset const *kernel, struct lr_itemset const *itemset
+) {
+    invariant(assert_itemsets_sorted, kernel, itemset);
+
+    struct lr_item const *kitem = kernel->items, *citem = itemset->items;
+    unsigned i = kernel->nitems, j = itemset->nitems;
+
+    int cmp = (*cmp_items)(kitem++, citem++);
+    i--, j--;
+
+    while (!cmp && i && j && KERN(citem)) {
+        cmp = (*cmp_items)(kitem++, citem++);
+        i--, j--;
+
+        if (cmp && lalr) {
+            struct lr_item *last;
+
+            if (cmp < 0 && i) {
+                last = kitem - 1;
+                do ((cmp = (*cmp_items)(last, kitem++)), i--); while (!cmp && i);
+                citem--, j++;
+            } else if (cmp > 0 && j && KERN(citem)) {
+                last = citem - 1;
+                do ((cmp = (*cmp_items)(last, citem++)), j--); while (!cmp && j && KERN(citem));
+                kitem--, i++;
+            }
+
+            if (i && j && KERN(citem)) cmp = (*cmp_items)(kitem++, citem++);
         }
     }
-    while (i && NONKERN(sitem)) sitem++, i--;
-    while (j && NONKERN(titem)) titem++, j--;
 
-    if (!i && j) cmp = -1;
-    if (i && !j) cmp = 1;
+    if (!i && j && KERN(citem)) cmp = -1;
+    if (i && (!j || j && NONKERN(citem))) cmp = 1;
 
     return cmp;
 }
 #undef KERN
 #undef NONKERN
 
-static void sort_itemset(struct lr_itemset *itemset) {
-    qsort(itemset->items, itemset->nitems, sizeof (struct lr_item), compare_items);
+static int compare_lr0_itemsets(void const *a, void const *b) {
+    return compare_itemsets(compare_lr0_items, false, a, b);
 }
 
-static unsigned const items_key(gram_sym_no const nonterm, gram_sym_no const term, struct gram_stats const stats) {
-    return ((nonterm - stats.terms - 1) * stats.terms) + ((term ? term : 1) - 1);
+static int compare_lalr_itemsets(void const *a, void const *b) {
+    return compare_itemsets(compare_lr0_items, true, a, b);
+}
+
+static int compare_lr1_itemsets(void const *a, void const *b) {
+    return compare_itemsets(compare_lr1_items, false, a, b);
+}
+
+static void sort_itemset(struct lr_itemset *itemset) {
+    qsort(itemset->items, itemset->nitems, sizeof (struct lr_item), compare_lr1_items);
+}
+
+bool lr_itemset_sorted(struct lr_itemset *itemset) {
+    for (unsigned i = 1; i < itemset->nitems; i++) {
+        if (compare_lr1_items(itemset->items[i - 1], itemset->items[i]) != 1)
+            return false;
+    }
+
+    return true;
+}
+
+static void merge_itemsets(struct lr_state *state, struct lr_itemset *kernel, struct states_context *context) {
+    struct lr_itemset *itemset = state->itemset;
+
+    struct lr_item const *sitem = s->items, *titem = t->items;
+    unsigned i = itemset->nitems, j = kernel->nitems;
+
+    while (KERN(sitem) && i && j) {
+        i--, j--;
+    }
+
+    if (j) {
+        unsigned nitems = itemset->nitems + j;
+        struct lr_itemset *newset = make_itemset(nitems, );
+    }
+
+    while
+}
+
+static unsigned const items_key(gram_sym_no nonterm, gram_sym_no const term, struct gram_stats const stats) {
+    nonterm = nonterm - stats.terms - 1;
+    return term ? nonterm * stats.terms + term - 1 : nonterm;
 }
 
 #define CLOSE(name) \
@@ -267,7 +330,7 @@ CLOSE(close) {
 }
 
 CLOSE_ITEM(close_item) {
-    if (context->item_type == GM_LR1_ITEMS) {
+    if (context->item_type != GM_LR0_ITEMS) {
         return with_lookahead(nitems, items, nt, la, san, spec, context);
     } else {
         return close(nitems, items, *nt, la, san, spec, context);
@@ -365,11 +428,21 @@ discover_states(
     struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
     struct states_context *context
 ) {
+    int (*cmpfn)(void const *, void const *) = compare_lr0_itemsets;
     struct rb_node *snode = NULL;
 
-    if ((snode = rbfind(kernel, compare_itemsets, context->states))) {
-        free(kernel);
-        return rbval(snode);
+    if (context->item_type == GM_LR1_ITEMS) cmpfn = compare_lr1_itemsets;
+
+    if ((snode = rbfind(kernel, cmpfn, context->states))) {
+        struct lr_state *state = rbval(snode);
+
+        if (context->item_type == GM_LALR_ITEMS) {
+            merge_itemsets(state, kernel);
+        } else {
+            free(kernel);
+        }
+
+        return state;
     }
 
     // close
@@ -404,7 +477,7 @@ discover_lr_states(unsigned *nstates, enum lr_item_type item_type, struct gram_s
     if (!states_context(&context, item_type, spec->stats)) return NULL;
 
     struct lr_item item0 = { GM_START };
-    if (item_type == GM_LR1_ITEMS) item0.sym = GM_EOF;
+    if (item_type != GM_LR0_ITEMS) item0.sym = GM_EOF;
 
     // count
     unsigned nitems = closure(NULL, &item0, san, spec, &context);

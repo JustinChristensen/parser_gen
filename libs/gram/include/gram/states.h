@@ -16,6 +16,7 @@ struct lr_item {
 
 enum lr_item_type {
     GM_LR0_ITEMS,
+    GM_LALR_ITEMS,
     GM_LR1_ITEMS
 };
 
@@ -43,5 +44,8 @@ struct lr_state *discover_lr_states(
 void free_lr_states(unsigned nstates, struct lr_state *state);
 void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state);
 int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state);
+
+int compare_lr0_items(void const *a, void const *b);
+int compare_lr1_items(void const *a, void const *b);
 
 #endif // GRAM_STATES_H_

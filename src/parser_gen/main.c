@@ -60,7 +60,7 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                 case PARSER_TYPE:
                     if (streq("ll", argval())) {
                         args->type = LL;
-                    } else if (streq("slr", argval()) || streq("lr0", argval())) {
+                    } else if (streq("slr", argval())) {
                         args->type = SLR;
                     } else if (streq("lr1", argval())) {
                         args->type = LR1;
@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
         .tables = false
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr0, lr1" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr1" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
     struct arg tables_arg = { TABLES, NULL, 'T', no_argument, "Print action table as CSV" };
 

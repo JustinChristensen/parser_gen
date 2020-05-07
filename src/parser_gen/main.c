@@ -252,7 +252,7 @@ int automata(struct args args) {
         struct lr_state *states = discover_lr_states(&nstates, type, &san, &spec);
         free_gram_symbol_analysis(&san);
         free_gram_parser_spec(&spec);
-        int result = print_lr_states_dot(stdout, nstates, states);
+        int result = print_lr_states_dot(stdout, nstates, states, &spec);
         // print_lr_states(stdout, nstates, states);
         // int result = 0;
         free_lr_states(nstates, states);

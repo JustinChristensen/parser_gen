@@ -46,6 +46,10 @@ void print_lr_itemset_compact(FILE *handle, struct lr_itemset const *itemset) {
     fprintf(handle, "}");
 }
 
+static void _print_itemset_compact(FILE *handle, void const *a) {
+    return print_lr_itemset_compact(handle, a);
+}
+
 static void print_itemset(FILE *handle, struct lr_itemset *itemset) {
     fprintf(handle, "  itemset:\n");
     for (unsigned i = 0; i < itemset->nitems; i++) {
@@ -175,16 +179,12 @@ static int compare_itemsets(
 ) {
     invariant(assert_itemsets_sorted, kernel, itemset);
 
-    if (!lalr) {
-        if (kernel->kitems < itemset->kitems) return -1;
-        else if (kernel->kitems > itemset->kitems) return 1;
-    }
-
     int cmp = 0;
 
     struct lr_item const *kitems = kernel->items, *citems = itemset->items;
-    unsigned const ni = kernel->nitems, nj = itemset->nitems;
-    for (unsigned i = 0, j = 0; i < ni && j < nj; i++, j++) {
+    unsigned const ni = kernel->kitems, nj = itemset->kitems;
+    unsigned i = 0, j = 0;
+    for (; i < ni && j < nj; i++, j++) {
         cmp = (*cmp_items)(kitems + i, citems + j);
 
         if (!cmp) continue;
@@ -196,6 +196,11 @@ static int compare_itemsets(
                 while (j < nj - 1 && !(*cmp_items)(citems + j, citems + j + 1)) j++;
             }
         } else break;
+    }
+
+    if (!cmp) {
+        if (i < ni && j >= nj) return 1;
+        else if (i >= ni && j < nj) return -1;
     }
 
     return cmp;
@@ -483,6 +488,11 @@ discover_lr_states(unsigned *nstates, enum lr_item_type item_type, struct gram_s
     struct lr_state *states = discover_states(0, kernel, san, spec, &context);
     *nstates = context.nstates;
 
+    if (debug_is("gram_states")) {
+        fprintf(stderr, "state tree:\n");
+        print_rbtree(stderr, _print_itemset_compact, context.states);
+    }
+
     free_states_context(&context);
 
     return states;
@@ -547,7 +557,7 @@ void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state) {
     free(visited);
 }
 
-static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct lr_state *state, Agnode_t *parent) {
+static void state_to_gvnode(char *buf, struct gram_parser_spec const *spec, Agnode_t **nodes, Agraph_t *graph, struct lr_state *state, Agnode_t *parent) {
     Agnode_t *node = nodes[state->num];
 
     if (!node) {
@@ -560,11 +570,14 @@ static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct
         struct lr_itemset *itemset = state->itemset;
         for (unsigned i = 0; i < itemset->nitems; i++) {
             struct lr_item item = itemset->items[i];
-            bufp += sprintf(bufp, "<tr><td align=\"left\" border=\"1\" color=\"#cccccc\">");
+            bool reduction = !spec->rules[item.rule][item.pos];
+            bufp += sprintf(bufp, "<tr><td align=\"left\" border=\"1\" bgcolor=\"%s\">%s",
+                    reduction ? "#c72804" : "#ffffff",
+                    reduction ? "<font color=\"#ffffff\">" : "");
             char *fmt = "(%u, %u) ";
             if (item.sym) fmt = "(%u, %u, %u) ";
             bufp += sprintf(bufp, fmt, item.rule, item.pos, item.sym);
-            bufp += sprintf(bufp, "</td></tr>");
+            bufp += sprintf(bufp, "%s</td></tr>", reduction ? "</font>" : "");
         }
 
         sprintf(bufp, "</table>");
@@ -574,7 +587,7 @@ static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct
 
         struct lr_transitions *trans = state->trans;
         for (unsigned i = trans->nstates; i > 0; i--) {
-            state_to_gvnode(buf, nodes, graph, trans->states[i - 1], node);
+            state_to_gvnode(buf, spec, nodes, graph, trans->states[i - 1], node);
         }
     }
 
@@ -586,7 +599,7 @@ static void state_to_gvnode(char *buf, Agnode_t **nodes, Agraph_t *graph, struct
     }
 }
 
-int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state) {
+int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
     Agnode_t **nodes = calloc(nstates, sizeof *nodes);
     if (!nodes) return EXIT_FAILURE;
     char buf[BUFSIZ * 16] = "";
@@ -597,7 +610,7 @@ int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state) 
     agattr(graph, AGNODE, "shape", "none");
     agattr(graph, AGNODE, "margin", "0");
 
-    state_to_gvnode(buf, nodes, graph, state, NULL);
+    state_to_gvnode(buf, spec, nodes, graph, state, NULL);
 
     if (agwrite(graph, handle) == EOF) {
         return fprintf(stderr, "writing dot file failed\n"), EXIT_FAILURE;

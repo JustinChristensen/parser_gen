@@ -121,6 +121,7 @@ enum cfile_symbol {
     C_INCLUDE = RX_START,
     C_DEFINE,
     C_UNDEF,
+    C_PRAGMA,
     C_LINE_COMMENT,
     C_IF,
     C_ELSE,
@@ -184,6 +185,7 @@ static char *str_for_csym(enum cfile_symbol sym) {
         case C_INCLUDE:      return "#include";
         case C_DEFINE:       return "#define";
         case C_UNDEF:        return "#undef";
+        case C_PRAGMA:        return "#pragma";
         case C_LINE_COMMENT: return "//...";
         case C_IF:           return "if";
         case C_ELSE:         return "else";
@@ -425,6 +427,7 @@ int main(int argc, char *argv[]) {
             { C_INCLUDE, NULL, "#include *(\"[^\"]*\"|<[^>]*>)\n" },
             { C_DEFINE, NULL, "#define *[^\n]*\n" },
             { C_UNDEF, NULL, "#undef *[^\n]*\n" },
+            { C_PRAGMA, NULL, "#pragma *[^\n]*\n" },
             RX_LINE_COMMENT(C_LINE_COMMENT),
             { C_IF, NULL, "if" },
             { C_ELSE, NULL, "else" },
@@ -541,11 +544,15 @@ int main(int argc, char *argv[]) {
 
                 while ((sym = nfa_match(&match)) != RX_EOF) {
                     symcount[sym]++;
-                    if (sym == RX_REJECTED) nrejected++;
-
                     nfa_match_lexeme(lexeme, &match);
                     loc = nfa_match_loc(&match);
-                    printf("%3d\t%4d\t%3d\t%s\n", sym, loc.line, loc.col, lexeme);
+
+                    if (sym == RX_REJECTED) {
+                        nrejected++;
+                        printf("  rejected token: %s, at %d:%d\n", lexeme, loc.line, loc.col);
+                    } else {
+                        printf("%3d\t%4d\t%3d\t%s\n", sym, loc.line, loc.col, lexeme);
+                    }
                 }
 
                 if (nrejected) {

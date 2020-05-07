@@ -71,7 +71,7 @@ static gram_rule_no **alloc_parse_table(struct gram_stats stats) {
 
     memset(srules, 0, xsyms);
 
-    for (int i = 0; i < stats.nonterms; i++)
+    for (unsigned i = 0; i < stats.nonterms; i++)
         ptable[i] = srules + (i * stats.terms);
 
     return ptable;
@@ -247,8 +247,8 @@ void print_ll_parser(FILE *handle, struct ll_parser *parser) {
 
     fprintf(handle, "parse table:\n\n");
     gram_rule_no **ptable = parser->ptable;
-    for (int n = 0; n < stats.nonterms; n++) {
-        for (int t = 0; t < stats.terms; t++) {
+    for (unsigned n = 0; n < stats.nonterms; n++) {
+        for (unsigned t = 0; t < stats.terms; t++) {
             if (ptable[n][t]) {
                 fprintf(handle, "  ptable[%u][%u] = %u\n", n + stats.terms + 1, t + 1, ptable[n][t]);
             }

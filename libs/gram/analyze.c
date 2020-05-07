@@ -67,7 +67,7 @@ void print_gram_stats(FILE *handle, struct gram_stats const stats) {
 static void free_sets(struct bitset **sets, unsigned n) {
     if (!sets) return;
 
-    for (int i = 1; i < n; i++) {
+    for (unsigned i = 1; i < n; i++) {
         free(sets[i]);
     }
     free(sets);
@@ -78,7 +78,7 @@ static void free_sets(struct bitset **sets, unsigned n) {
 static void print_nullable(FILE *handle, bool const *nullable, unsigned n) {
     if (!nullable) return;
     fprintf(handle, NULLABLE_HEADER_FMT, "num", "nullable");
-    for (int i = 1; i < n; i++) {
+    for (unsigned i = 1; i < n; i++) {
         fprintf(handle, NULLABLE_ROW_FMT, i, yesno(nullable[i]));
     }
     fprintf(handle, "\n");
@@ -88,7 +88,7 @@ static void print_sets(FILE *handle, struct bitset **sets, unsigned n) {
     if (!sets) return;
 
     fprintf(handle, "  %4s  %-s\n", "num", "set");
-    for (int i = 1; i < n; i++) {
+    for (unsigned i = 1; i < n; i++) {
         fprintf(handle, "  %4d  ", i);
         print_bitset(handle, sets[i]);
         fprintf(handle, "\n");
@@ -100,7 +100,7 @@ struct bitset **alloc_sets(unsigned nsets, unsigned size) {
     struct bitset **sets = calloc(nsets, sizeof *sets);
     if (!sets) return NULL;
 
-    for (int i = 1; i < nsets; i++) {
+    for (unsigned i = 1; i < nsets; i++) {
         if (!(sets[i] = bitset(size)))
             return free_sets(sets, i), NULL;
     }
@@ -393,7 +393,7 @@ static bool *rules_nullable(struct gram_symbol_analysis *san, struct gram_parser
     bool *rnullable = calloc(nrules, sizeof *rnullable);
     if (!rnullable) return NULL;
 
-    for (int r = 1; r < nrules; r++)
+    for (unsigned r = 1; r < nrules; r++)
         rnullable[r] = rule_nullable(NULL, san->nullable, r, spec);
 
     return rnullable;
@@ -404,7 +404,7 @@ static struct bitset **rules_firsts(struct gram_symbol_analysis *san, struct gra
     struct bitset **firsts = calloc(nrules, sizeof *firsts);
     if (!firsts) return NULL;
 
-    for (int r = 1; r < nrules; r++)
+    for (unsigned r = 1; r < nrules; r++)
         firsts[r] = rule_first(NULL, 0, san->firsts, san->nullable, r, spec);
 
     return firsts;
@@ -516,7 +516,7 @@ static struct gram_conflict *left_recursion_conflict(
     if (!dlist) return free(conf), NULL;
 
     // shift everything back over
-    for (int i = 0; i < asize(derivs); i++)
+    for (unsigned i = 0; i < asize(derivs); i++)
         dlist[i] -= stats.terms;
 
     *conf = (struct gram_conflict) {
@@ -640,13 +640,13 @@ bool gram_analyze(
             unsigned n = nderives(rules);
             unsigned nnulls = 0;
 
-            for (int i = 0; i < n; i++) {
+            for (unsigned i = 0; i < n; i++) {
                 gram_rule_no r = rules[i];
 
                 if (rnullable[r]) nnulls++;
 
                 // first-first conflicts
-                for (int j = i + 1; j < n; j++) {
+                for (unsigned j = i + 1; j < n; j++) {
                     gram_rule_no t = rules[j];
 
                     if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
@@ -757,7 +757,7 @@ void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
             case GM_LEFT_RECURSION:
                 fprintf(handle, LEFT_RECURSION_FMT, conf->derivations[0]);
                 fprintf(handle, "%u", conf->derivations[0]);
-                for (int i = 1; i < conf->n; i++) {
+                for (unsigned i = 1; i < conf->n; i++) {
                     fprintf(handle, " -> %u", conf->derivations[i]);
                 }
                 fprintf(handle, "\n");

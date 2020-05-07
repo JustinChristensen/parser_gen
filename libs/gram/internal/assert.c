@@ -13,6 +13,7 @@
 
 #pragma clang diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 #ifdef INVARIANTS
 
@@ -95,18 +96,22 @@ INVARIANT(action_table_conflict, struct lr_action *row, struct lr_action act, gr
     abort();
 }
 
-INVARIANT(assert_itemsets_sorted, struct lr_itemset *kernel, struct lr_itemset *itemset) {
+INVARIANT(assert_itemsets_sorted, struct lr_itemset const *kernel, struct lr_itemset const *itemset) {
     check(kernel != NULL);
     check(itemset != NULL);
     check(kernel->nitems > 0);
     check(itemset->nitems > 0);
 
     if (!lr_itemset_sorted(kernel)) {
+        print_lr_itemset_compact(stderr, kernel);
+        fprintf(stderr, "\n");
         fprintf(stderr, "kernel not sorted\n");
         abort();
     }
 
     if (!lr_itemset_sorted(itemset)) {
+        print_lr_itemset_compact(stderr, itemset);
+        fprintf(stderr, "\n");
         fprintf(stderr, "itemset not sorted\n");
         abort();
     }

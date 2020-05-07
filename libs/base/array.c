@@ -51,12 +51,12 @@ bool arrayeq(
     struct array const *a,
     struct array const *b
 ) {
-    int alen = asize(a);
+    unsigned alen = asize(a);
     bool equal = alen == asize(b);
 
     if (equal) {
         for (
-            int i = 0;
+            unsigned i = 0;
             i < alen && (equal = (*eleq)(aptr(i, a), aptr(i, b)));
             i++
         );
@@ -93,14 +93,13 @@ void aresize(unsigned size, struct array *arr) {
     arr->size = size;
 }
 
+// 0 1 2
+// 0   2
 void adel(void *elem, struct array *arr) {
     if (aempty(arr)) return;
 
-    int ei = (elem - arr->buf) / arr->elem_size;
 
-    for (int i = ei; i < arr->i - 1; i++) {
-        memcpy(aptr(i, arr), aptr(i + 1, arr), arr->elem_size);
-    }
+    memmove(elem, elem + arr->elem_size, arr->buf + arr->i * arr->elem_size - (elem + arr->elem_size));
 
     arr->i--;
     ensure_memory(arr);

@@ -19,7 +19,7 @@ struct array {
     void *buf;                // the buffer
     enum growth growth;       // 1, 2, 4, ... vs 1, 2, 3, ...
     float factor;             // (* 2) or (+ 1)
-    int i;                    // current position
+    unsigned i;               // current position
     unsigned init_size;       // initial size (will not shrink below this)
     unsigned size;            // current allocated size
     unsigned elem_size;       // size of an element

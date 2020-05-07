@@ -67,9 +67,9 @@ START_TEST(test_keys) {
     char **keys = htkeys(table);
 
     debug("htkeys:\n");
-    unsigned int entries = htentries(table);
+    unsigned entries = htentries(table);
 
-    for (int i = 0; i < entries; i++) {
+    for (unsigned i = 0; i < entries; i++) {
         debug("%s ", keys[i]);
         ck_assert(htdelete(keys[i], table));
     }
@@ -100,10 +100,15 @@ END_TEST
 struct coords { double lat; double lng; char notes[128]; };
 struct coords_pair { char *key; struct coords val; };
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 static void print_coords(FILE *_, void const *coords) {
     struct coords const *x = coords;
     debug("%lf, %lf, %s", x->lat, x->lng, x->notes);
 }
+
+#pragma clang diagnostic pop
 
 START_TEST(test_struct_insert) {
     table = hash_table(sizeof (struct coords));
@@ -178,7 +183,7 @@ START_TEST(test_random_inserts_and_deletes) {
     size_t entries = htentries(table);
 
     int deleted = 0;
-    for (int i = 0; i < entries; i++) {
+    for (size_t i = 0; i < entries; i++) {
         if (!randr(0, 7)) continue;
         deleted++;
         ck_assert_msg(htdelete(keys[i], table), keys[i]);

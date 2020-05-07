@@ -437,12 +437,17 @@ static bool tag_exists_error(
     return pattern_defined_error(error, tag, gram_location(parser), entry->first_loc);
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 static bool pattern_exists_error(
     struct gram_parse_error *error, char *tag,
     struct gram_symbol_entry *entry, struct gram_spec_parser *parser
 ) {
     return duplicate_pattern_error(error, tag, gram_location(parser));
 }
+
+#pragma clang diagnostic pop
 
 static bool nonterm_term_error(
     struct gram_parse_error *error, char *id,

@@ -283,7 +283,7 @@ size_t rbdepth(struct rb_node const *node) {
 struct rb_node *rbfromlist(struct rb_assoc *assocs, size_t n, int (*keycmp) (void const *a, void const *b)) {
     struct rb_node *node = NULL;
 
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         struct rb_assoc a = assocs[i];
         node = rbinsert(a.key, keycmp, a.val, node);
     }

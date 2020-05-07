@@ -7,8 +7,8 @@
 #include "base/string.h"
 
 // http://www.cse.yorku.ca/~oz/hash.html
-static unsigned int hash(unsigned char const *str) {
-    unsigned int hash = 5381;
+static unsigned hash(unsigned char const *str) {
+    unsigned hash = 5381;
     int c;
 
     while ((c = *str++))
@@ -17,7 +17,7 @@ static unsigned int hash(unsigned char const *str) {
     return hash;
 }
 
-static unsigned int ind(unsigned char const *key, unsigned int size) {
+static unsigned ind(unsigned char const *key, unsigned size) {
     return hash(key) % size;
 }
 
@@ -25,11 +25,11 @@ static size_t _valsize(struct hash_table const *table) {
     return table->valsize;
 }
 
-static unsigned int _size(struct hash_table const *table) {
+static unsigned _size(struct hash_table const *table) {
     return *table->size;
 }
 
-static unsigned int _used(struct hash_table const *table) {
+static unsigned _used(struct hash_table const *table) {
     return table->used;
 }
 
@@ -79,7 +79,7 @@ static void free_hash_entry(struct hash_entry *entry) {
 
 static void free_buckets(struct hash_table *table) {
     struct hash_entry **buckets = table->buckets;
-    for (int i = 0; i < _size(table); i++) {
+    for (unsigned i = 0; i < _size(table); i++) {
         for (struct hash_entry *entry = buckets[i], *next = NULL; entry; entry = next) {
             next = entry->next;
             free_hash_entry(entry);
@@ -89,14 +89,14 @@ static void free_buckets(struct hash_table *table) {
     table->buckets = NULL;
 }
 
-static struct hash_entry **allocate_buckets(unsigned int size) {
+static struct hash_entry **allocate_buckets(unsigned size) {
     struct hash_entry **buckets = calloc(sizeof *buckets, size);
     assert(buckets != NULL);
     return buckets;
 }
 
 static double htload(struct hash_table const *table) {
-    unsigned int used = _used(table);
+    unsigned used = _used(table);
     return used ? htentries(table) / (double) used : 0;
 }
 
@@ -139,16 +139,16 @@ static void _htinsert(char const *key, void *val, struct hash_table *table) {
     }
 }
 
-static void rehash(struct hash_table *table, unsigned int *size) {
+static void rehash(struct hash_table *table, unsigned *size) {
     struct hash_entry **buckets = table->buckets;
-    unsigned int prev_size = _size(table);
+    unsigned prev_size = _size(table);
 
     table->buckets = allocate_buckets(*size);
     table->used = 0;
     table->entries = 0;
     table->size = size;
 
-    for (int i = 0; i < prev_size; i++) {
+    for (unsigned i = 0; i < prev_size; i++) {
         for (struct hash_entry *entry = buckets[i], *next = NULL; entry; entry = next) {
             next = entry->next;
             _htinsert(entry->key, entry->val, table);
@@ -174,8 +174,8 @@ static void check_load(struct hash_table *table) {
     else if (should_shrink(table))  rehash(table, table->size - 1);
 }
 
-static void init_hash_table(struct hash_table *table, size_t valsize, unsigned int *size) {
-    size = size ? size : (unsigned int *) start_prime;
+static void init_hash_table(struct hash_table *table, size_t valsize, unsigned *size) {
+    size = size ? size : (unsigned *) start_prime;
     struct hash_entry **buckets = allocate_buckets(*size);
     assert(buckets != NULL);
 
@@ -188,7 +188,7 @@ static void init_hash_table(struct hash_table *table, size_t valsize, unsigned i
     };
 }
 
-static struct hash_table *_hash_table(size_t valsize, unsigned int *size) {
+static struct hash_table *_hash_table(size_t valsize, unsigned *size) {
     struct hash_table *table = malloc(sizeof *table);
     assert(table != NULL);
     init_hash_table(table, valsize, size);
@@ -206,7 +206,7 @@ struct hash_table *htclone(struct hash_table const *table) {
     new_table->entries = htentries(table);
     new_table->size = table->size;
 
-    for (int i = 0; i < _size(table); i++) {
+    for (unsigned i = 0; i < _size(table); i++) {
         new_table->buckets[i] = clone_entry(table->buckets[i], table);
     }
 
@@ -283,7 +283,7 @@ static bool htnextentry(struct hash_entry **out, struct hash_iterator *it) {
 
     struct hash_table const *table = it->table;
     struct hash_entry **buckets = table->buckets;
-    unsigned int size = _size(table);
+    unsigned size = _size(table);
 
     while (true) {
         struct hash_entry *entry = it->entry;
@@ -382,17 +382,17 @@ void *htsortedpairs(struct hash_table const *table) {
     return pairs;
 }
 
-void htfrompairs(struct hash_table *table, unsigned int n, void *pairs) {
+void htfrompairs(struct hash_table *table, unsigned n, void *pairs) {
     size_t pairsize = _pairsize(_valsize(table));
 
-    for (unsigned int i = 0; i < n; i++) {
+    for (unsigned i = 0; i < n; i++) {
         struct pair *p = pairs;
         htinsert(p->key, p->val, table);
         pairs += pairsize;
     }
 }
 
-unsigned int htentries(struct hash_table const *table) {
+unsigned htentries(struct hash_table const *table) {
     return table->entries;
 }
 
@@ -429,7 +429,7 @@ void print_hash_table(
 
     struct hash_entry **buckets = table->buckets;
 
-    for (int i = 0; i < _size(table); i++) {
+    for (unsigned i = 0; i < _size(table); i++) {
         struct hash_entry *entry = buckets[i];
 
         fprintf(handle, "%d: ", i);
@@ -463,7 +463,7 @@ void print_hash_entries(
 
 void print_table_stats(FILE *handle, struct hash_table const *table) {
     if (!table) return;
-    unsigned int used = _used(table), size = _size(table);
+    unsigned used = _used(table), size = _size(table);
     fprintf(handle, "table: %p\nsize: %u\nentries: %u\nused buckets: %u\nload: %lf\nbucket load: %lf\n",
         table, size, htentries(table), used, htload(table), used / (double) size);
 }

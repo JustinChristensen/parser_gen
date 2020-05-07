@@ -62,8 +62,8 @@ START_TEST(test_insert_steps) {
     struct rb_node *node2 = NULL;
     char *keys[] = { A, B, C, D, E, F, G, H, I };
 
-    for (int i = 1; i < SIZEOF(keys) + 1; i++) {
-        for (int j = 0; j < i; j++) {
+    for (unsigned long i = 1; i < SIZEOF(keys) + 1; i++) {
+        for (unsigned long j = 0; j < i; j++) {
             node2 = rbinsert(keys[j], CMPFN strcmp, NULL, node2);
         }
 

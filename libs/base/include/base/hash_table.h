@@ -20,14 +20,14 @@ struct hash_entry {
 struct hash_table {
     size_t valsize;
     struct hash_entry **buckets;
-    unsigned int *size;
-    unsigned int used;
-    unsigned int entries;
+    unsigned *size;
+    unsigned used;
+    unsigned entries;
 };
 
 struct hash_iterator {
     struct hash_table const *table;
-    int i; // current bucket
+    unsigned i; // current bucket
     struct hash_entry *entry; // current entry
 };
 
@@ -47,8 +47,8 @@ char **htkeys(struct hash_table const *table);
 void *htvals(struct hash_table const *table);
 void *htpairs(struct hash_table const *table);
 void *htsortedpairs(struct hash_table const *table);
-void htfrompairs(struct hash_table *table, unsigned int n, void *pairs);
-unsigned int htentries(struct hash_table const *table);
+void htfrompairs(struct hash_table *table, unsigned n, void *pairs);
+unsigned htentries(struct hash_table const *table);
 void htclear(struct hash_table *table);
 void print_entry_int(FILE *handle, void const *val);
 void print_entry_string(FILE *handle, void const *val);

@@ -22,6 +22,7 @@ enum lr_item_type {
 
 struct lr_itemset {
     unsigned nitems;
+    unsigned kitems;
     struct lr_item items[];
 };
 
@@ -45,7 +46,7 @@ void free_lr_states(unsigned nstates, struct lr_state *state);
 void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state);
 int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state);
 
-int compare_lr0_items(void const *a, void const *b);
-int compare_lr1_items(void const *a, void const *b);
+bool lr_itemset_sorted(struct lr_itemset const *itemset);
+void print_lr_itemset_compact(FILE *handle, struct lr_itemset const *itemset);
 
 #endif // GRAM_STATES_H_

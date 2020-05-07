@@ -221,6 +221,9 @@ char *subexpr_factor_to_source(char *srcbuf, int indent_level, struct subexpr_fa
     return srcbuf;
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 char *num_factor_to_source(char *srcbuf, int indent_level, struct num_factor *factor) {
     return put(srcbuf, factor->num);
 }
@@ -228,3 +231,5 @@ char *num_factor_to_source(char *srcbuf, int indent_level, struct num_factor *fa
 char *id_factor_to_source(char *srcbuf, int indent_level, struct id_factor *factor) {
     return put(srcbuf, factor->id);
 }
+
+#pragma clang diagnostic pop

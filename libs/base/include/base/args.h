@@ -92,7 +92,7 @@ static struct arg const help_arg = { HELP, "help", 0, no_argument, "Print help" 
 static struct arg const version_arg = { VERSION, "version", 0, no_argument, "Print version" };
 #define help_and_version_args help_arg, version_arg
 static struct arg const END_ARGS = { END, NULL, 0, no_argument, NULL };
-static struct cmd const END_CMDS = { END, NULL, 0, NULL, NULL };
+static struct cmd const END_CMDS = { END, NULL, 0, NULL, NULL, NULL };
 static struct env_var const END_ENV_VARS = { NULL, NULL };
 
 void run_args(

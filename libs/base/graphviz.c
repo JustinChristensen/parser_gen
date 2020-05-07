@@ -62,7 +62,7 @@ void print_dot(FILE *handle, void *ast, char *input, void (*to_graph) (Agraph_t 
         free(input_label);
     }
 
-    if (agwrite(topg, stdout) == EOF) {
+    if (agwrite(topg, handle) == EOF) {
         fprintf(stderr, "printing dot file failed\n");
     }
 

@@ -43,7 +43,7 @@ START_TEST(test_bsins_bsdel) {
 
     unsigned elems[] = { 0, 1, 14, 63, 64 };
 
-    for (int i = 0; i < SIZEOF(elems); i++) {
+    for (unsigned long i = 0; i < SIZEOF(elems); i++) {
         _print_bitset_bits(set);
         ck_assert_int_eq(bssize(set), i);
         bsins(elems[i], set);

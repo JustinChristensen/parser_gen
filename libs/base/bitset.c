@@ -35,7 +35,7 @@ void bsins(unsigned i, struct bitset *s) {
 
 void bsinsarr(struct bitset *s, unsigned n, unsigned *arr) {
     assert(s != NULL);
-    for (int i = 0; i < n; i++) bsins(arr[i], s);
+    for (unsigned i = 0; i < n; i++) bsins(arr[i], s);
 }
 
 void bsdel(unsigned i, struct bitset *s) {
@@ -113,8 +113,8 @@ unsigned bssize(struct bitset const *s) {
 
     unsigned n = 0;
 
-    for (int w = 0; w < s->nwords; w++)
-        for (int i = 0; i < WORDBITS; i++)
+    for (unsigned w = 0; w < s->nwords; w++)
+        for (unsigned i = 0; i < WORDBITS; i++)
             if (s->words[w] & (BIT << i)) n++;
 
     return n;
@@ -123,8 +123,8 @@ unsigned bssize(struct bitset const *s) {
 void print_bitset(FILE *handle, struct bitset const *s) {
     assert(s != NULL);
 
-    for (int w = 0; w < s->nwords; w++)
-        for (int i = 0; i < WORDBITS; i++)
+    for (unsigned w = 0; w < s->nwords; w++)
+        for (unsigned i = 0; i < WORDBITS; i++)
             if (s->words[w] & (BIT << i))
                 fprintf(handle, "%u ", (unsigned) (w * WORDBITS + i));
 }

@@ -88,9 +88,14 @@ static void debug_nfa(struct nfa mach) {
     }
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 static void debug_nfa_p(FILE *_, void const *mach) {
     debug_nfa(*((struct nfa *) mach));
 }
+
+#pragma clang diagnostic pop
 
 static void debug_tagged_nfas(struct hash_table *tagged_nfas) {
     debug("tagged nfas\n");
@@ -466,6 +471,9 @@ static bool runnable(struct nfa machine) {
     return machine.start != NULL;
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 static bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
 
 static bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
@@ -578,6 +586,8 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
 
     return set_repeat_zero_error(context);
 }
+
+#pragma clang diagnostic pop
 
 static struct nfa nullmach() {
     return (struct nfa) { NULL, NULL, NULL };

@@ -179,7 +179,7 @@ static void debug_sym_stack(struct array *stack) {
     int sym;
 
     pdebug("symbol stack: ");
-    for (int i = 0; i < asize(stack); i++) {
+    for (unsigned i = 0; i < asize(stack); i++) {
         at(&sym, i, stack);
         pdebug("%s ", str_for_regex_sym(sym));
     }

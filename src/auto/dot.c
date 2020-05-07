@@ -7,9 +7,14 @@
 #include <regex/nfa.h>
 #include "dot.h"
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 void regex_to_graph(Agraph_t *graph, Agnode_t *_, struct regex_expr *expr) {
     expr_to_graph(graph, NULL, expr);
 }
+
+#pragma clang diagnostic pop
 
 void expr_to_graph(Agraph_t *graph, Agnode_t *parent, struct regex_expr *expr) {
     if (!expr) return;

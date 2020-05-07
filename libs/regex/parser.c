@@ -60,7 +60,7 @@ static enum regex_symbol const * const first_sets[] = {
 };
 #undef FIRST
 
-static enum regex_symbol const * const first_set(enum regex_symbol sym) {
+static enum regex_symbol const *first_set(enum regex_symbol sym) {
     return first_sets[sym];
 }
 

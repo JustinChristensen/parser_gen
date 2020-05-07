@@ -108,6 +108,9 @@ static union regex_result expr_to_result(struct regex_expr_context *context) {
     return (union regex_result) { .expr = gexpr(context) };
 }
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 static bool noop_expr(union regex_result _, struct regex_expr_context *context) { return true; }
 
 static bool do_empty_expr(union regex_result _, struct regex_expr_context *context) {
@@ -190,6 +193,8 @@ static bool do_range(union regex_result range, struct regex_expr_context *contex
     prev_range->expr = gexpr(context);
     return true;
 }
+
+#pragma clang diagnostic pop
 
 static bool (*const expr_actions[])(union regex_result val, struct regex_expr_context *context) = {
     [AI(RX_DO_REGEX)] =        noop_expr,

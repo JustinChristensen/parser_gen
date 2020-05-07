@@ -75,7 +75,7 @@ START_TEST(test_selem) {
     size_t n = sizeof key_starts / sizeof key_starts[0];
     char msgbuf[BUFSIZ] = "";
 
-    int i;
+    size_t i;
     for (i = 0; i < n; i++) {
         int ks = key_starts[i];
         for (int j = ks; j < ks + 128; j+=3) {

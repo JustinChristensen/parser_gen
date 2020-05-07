@@ -98,15 +98,15 @@ void graph_int_tree() {
         assert(keys != NULL);
 
         if (random) {
-            for (int i = 0; i < size; i++)
+            for (size_t i = 0; i < size; i++)
                 keys[i] = randr(0, size * 5);
         } else {
-            for (int i = 0; i < size; i += 3)
+            for (size_t i = 0; i < size; i += 3)
                 keys[i] = i;
         }
     }
 
-    for (int i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; i++) {
         node = rbinsert(&keys[i], CMPFN intcmp, NULL, node);
     }
 

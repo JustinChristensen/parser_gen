@@ -261,7 +261,7 @@ struct intset *sinsert(int k, struct intset *set) {
 }
 
 struct intset *slistinsert(int *k, size_t n, struct intset *set) {
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         set = sinsert(k[i], set);
     }
 

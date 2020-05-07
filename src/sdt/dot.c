@@ -4,9 +4,14 @@
 #include <base/graphviz.h>
 #include "dot.h"
 
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 void program_to_graph(Agraph_t *graph, Agnode_t *parent, struct program *program) {
     block_to_graph(graph, append_node(graph, NULL, "program", NULL), program->block);
 }
+
+#pragma clang diagnostic pop
 
 void block_to_graph(Agraph_t *graph, Agnode_t *parent, struct block *block) {
     Agnode_t *block_node = append_node(graph, parent, "block", NULL);

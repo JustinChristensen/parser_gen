@@ -190,6 +190,7 @@ static int compare_itemsets(
         if (!cmp) continue;
 
         if (lalr) {
+            // {(3, 1, 1)} `cmp` {(3, 1, 2),(3, 1, 3),(3, 0, 2),(3, 0, 3),(4, 0, 2),(4, 0, 3)} = -1
             if (cmp < 0) {
                 while (i < ni - 1 && !(*cmp_items)(kitems + i, kitems + i + 1)) i++;
             } else if (cmp > 0) {
@@ -198,9 +199,25 @@ static int compare_itemsets(
         } else break;
     }
 
-    if (!cmp) {
-        if (i < ni && j >= nj) return 1;
-        else if (i >= ni && j < nj) return -1;
+    if (lalr && !cmp) {
+        struct lr_item const *last;
+        if (i < ni && j >= nj) {
+            last = citems + j - 1;
+            while (!(cmp = (*cmp_items)(kitems + i++, last)) && i < ni);
+        } else if (i >= ni && j < nj) {
+            last = kitems + i - 1;
+            while (!(cmp = (*cmp_items)(last, citems + j++)) && j < nj);
+        }
+    } else if (!cmp) {
+        if (i < ni && j >= nj) cmp = 1;
+        else if (i >= ni && j < nj) cmp = -1;
+    }
+
+    if (debug_is("gram_states")) {
+        print_lr_itemset_compact(stderr, kernel);
+        fprintf(stderr, " `cmp` ");
+        print_lr_itemset_compact(stderr, itemset);
+        fprintf(stderr, " = %d\n", cmp);
     }
 
     return cmp;
@@ -212,9 +229,9 @@ static int compare_lr0_itemsets(void const *a, void const *b) {
     return compare_itemsets(compare_lr0_items, false, a, b);
 }
 
-// static int compare_lalr_itemsets(void const *a, void const *b) {
-//     return compare_itemsets(compare_lr0_items, true, a, b);
-// }
+static int compare_lalr_itemsets(void const *a, void const *b) {
+    return compare_itemsets(compare_lr0_items, true, a, b);
+}
 
 static int compare_lr1_itemsets(void const *a, void const *b) {
     return compare_itemsets(compare_lr1_items, false, a, b);
@@ -232,24 +249,6 @@ bool lr_itemset_sorted(struct lr_itemset const *itemset) {
 
     return true;
 }
-
-// static void merge_itemsets(struct lr_state *state, struct lr_itemset *kernel, struct states_context *context) {
-//     struct lr_itemset *itemset = state->itemset;
-//
-//     struct lr_item const *sitem = s->items, *titem = t->items;
-//     unsigned i = itemset->nitems, j = kernel->nitems;
-//
-//     while (KERN(sitem) && i && j) {
-//         i--, j--;
-//     }
-//
-//     if (j) {
-//         unsigned nitems = itemset->nitems + j;
-//         // struct lr_itemset *newset = make_itemset(nitems, );
-//     }
-//
-//     while
-// }
 
 static unsigned items_key(gram_sym_no nonterm, gram_sym_no const term, struct gram_stats const stats) {
     nonterm = nonterm - stats.terms - 1;
@@ -336,7 +335,7 @@ CLOSE_ITEM(close_item) {
 }
 
 static unsigned closure(
-    struct lr_itemset *kernel, struct lr_item *item,
+    struct lr_itemset *kernel, struct lr_item const *item,
     struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
     struct states_context *context
 ) {
@@ -355,9 +354,9 @@ static unsigned closure(
 
     debug("kernel: "); debug_itemset(kernel); debug("\n");
 
-    struct lr_item *items = &kernel->items[kernel->nitems];
+    struct lr_item *items = &kernel->items[kernel->kitems];
 
-    for (unsigned i = 0; i < kernel->nitems; i++) {
+    for (unsigned i = 0; i < kernel->kitems; i++) {
         struct lr_item kitem = kernel->items[i];
         gram_sym_no *s = &spec->rules[kitem.rule][kitem.pos];
         if (*s >= NONTERM0(spec->stats))
@@ -368,7 +367,7 @@ static unsigned closure(
 
     sort_itemset(kernel);
 
-    debug("nitems: %u, closure: ", kernel->nitems); debug_itemset(kernel); debug("\n");
+    debug("nitems: %u, kitems: %u, closure: ", kernel->nitems, kernel->kitems); debug_itemset(kernel); debug("\n");
 
     return kernel->nitems;
 }
@@ -392,6 +391,95 @@ static unsigned count_goto_items(
     bszero(context->symset);
 
     return nitems;
+}
+
+static unsigned unify(
+    unsigned *nitems, struct lr_itemset *newset, struct lr_itemset *kernel, struct lr_itemset *itemset,
+    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
+    struct states_context *context
+) {
+    struct lr_item *nitem = newset ? newset->items : NULL;
+    bool new_items = false;
+    unsigned nkitems = 0;
+
+    struct lr_item const *kitems = kernel->items, *citems = itemset->items;
+    unsigned ni = kernel->kitems, nj = itemset->kitems;
+    unsigned i = 0, j = 0;
+    for (; i < ni && j < nj; nkitems++) {
+        struct lr_item const *kitem = kitems + i, *citem = citems + j;
+        int cmp = compare_lr1_items(kitem, citem);
+
+        if (cmp < 0) {
+            if (nitems) *nitems += closure(NULL, kitem, san, spec, context);
+            else if (nitem) *nitem++ = *kitem;
+            new_items = true;
+            i++;
+        } else if (cmp > 0) {
+            if (nitems) *nitems += closure(NULL, citem, san, spec, context);
+            else if (nitem) *nitem++ = *citem;
+            new_items = true;
+            j++;
+        } else {
+            if (nitems) *nitems += closure(NULL, kitem, san, spec, context);
+            else if (nitem) *nitem++ = *kitem;
+            i++, j++;
+        }
+    }
+
+    if (j < nj) {
+        i = j;
+        ni = nj;
+        kitems = citems;
+    }
+
+    while (i < ni) {
+        struct lr_item const *item = kitems + i;
+        if (nitems) *nitems += closure(NULL, item, san, spec, context);
+        else if (nitem) *nitem++ = *item;
+        new_items = true;
+        nkitems++;
+        i++;
+    }
+
+    bszero(context->symset);
+
+    return new_items ? nkitems : 0;
+}
+
+static void merge_itemsets(
+    struct rb_node *snode, struct lr_itemset *kernel,
+    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
+    struct states_context *context
+) {
+    struct lr_state *state = rbval(snode);
+    struct lr_itemset *itemset = state->itemset;
+
+    unsigned nitems = 0;
+    unsigned kitems = unify(&nitems, NULL, kernel, state->itemset, san, spec, context);
+
+    if (!kitems) {
+        free(kernel);
+        return;
+    }
+
+    if (debug_is("gram_states")) {
+        debug("merging itemsets:\n");
+        print_lr_itemset_compact(stderr, kernel); fprintf(stderr, "\n");
+        print_lr_itemset_compact(stderr, itemset); fprintf(stderr, "\n");
+    }
+
+    struct lr_itemset *newset = make_itemset(nitems, kitems, NULL);
+
+    unify(NULL, newset, kernel, state->itemset, san, spec, context);
+
+    closure(newset, NULL, san, spec, context);
+    bszero(context->symset);
+
+    // normally this would be ill-advised, but all three of these sets are considered to be "equal"
+    snode->assoc.key = newset;
+    state->itemset = newset;
+    free(itemset);
+    free(kernel);
 }
 
 static struct lr_itemset *
@@ -431,17 +519,16 @@ discover_states(
     struct rb_node *snode = NULL;
 
     if (context->item_type == GM_LR1_ITEMS) cmpfn = compare_lr1_itemsets;
+    else if (context->item_type == GM_LALR_ITEMS) cmpfn = compare_lalr_itemsets;
 
     if ((snode = rbfind(kernel, cmpfn, context->states))) {
-        struct lr_state *state = rbval(snode);
-
-        // if (context->item_type == GM_LALR_ITEMS) {
-        //     merge_itemsets(state, kernel);
-        // } else {
+        if (context->item_type == GM_LALR_ITEMS) {
+            merge_itemsets(snode, kernel, san, spec, context);
+        } else {
             free(kernel);
-        // }
+        }
 
-        return state;
+        return rbval(snode);
     }
 
     // close
@@ -489,6 +576,7 @@ discover_lr_states(unsigned *nstates, enum lr_item_type item_type, struct gram_s
     *nstates = context.nstates;
 
     if (debug_is("gram_states")) {
+        fprintf(stderr, "nstates: %u\n", *nstates);
         fprintf(stderr, "state tree:\n");
         print_rbtree(stderr, _print_itemset_compact, context.states);
     }

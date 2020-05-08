@@ -27,6 +27,7 @@ enum arg_key {
 enum parser_type {
     LL,
     SLR,
+    LALR,
     LR1
 };
 
@@ -62,6 +63,8 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
                         args->type = LL;
                     } else if (streq("slr", argval())) {
                         args->type = SLR;
+                    } else if (streq("lalr", argval())) {
+                        args->type = LALR;
                     } else if (streq("lr1", argval())) {
                         args->type = LR1;
                     } else {
@@ -175,11 +178,16 @@ int gen_parser(struct args args) {
 
         free_ll_parser(&parser);
         free_ll_parser_state(&pstate);
-    } else if (args.type == SLR || args.type == LR1) {
+    } else if (args.type == SLR || args.type == LALR || args.type == LR1) {
         struct lr_parser parser = { 0 };
         struct lr_error generr = { 0 };
 
-        if (!gen_lr(&generr, &parser, args.type == SLR ? slr_table : lr1_table, &spec)) {
+        action_table *table = slr_table;
+
+        if (args.type == LALR) table = lalr_table;
+        else if (args.type == LR1) table = lr1_table;
+
+        if (!gen_lr(&generr, &parser, table, &spec)) {
             print_lr_error(stderr, generr);
             free_gram_parser_spec(&spec);
             return EXIT_FAILURE;
@@ -248,13 +256,13 @@ int automata(struct args args) {
         }
 
         unsigned nstates;
-        enum lr_item_type type = args.type == LR1 ? GM_LR1_ITEMS : GM_LR0_ITEMS;
+        enum lr_item_type type = GM_LR0_ITEMS;
+        if (args.type == LR1) type = GM_LR1_ITEMS;
+        else if (args.type == LALR) type = GM_LALR_ITEMS;
         struct lr_state *states = discover_lr_states(&nstates, type, &san, &spec);
         free_gram_symbol_analysis(&san);
-        free_gram_parser_spec(&spec);
         int result = print_lr_states_dot(stdout, nstates, states, &spec);
-        // print_lr_states(stdout, nstates, states);
-        // int result = 0;
+        free_gram_parser_spec(&spec);
         free_lr_states(nstates, states);
         return result;
     }

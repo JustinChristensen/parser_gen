@@ -39,6 +39,11 @@ static bool not_slr_error(struct lr_error *error) {
     return false;
 }
 
+static bool not_lalr_error(struct lr_error *error) {
+    prod(error, ((struct lr_error) { .type = GM_LR_NOT_LALR_ERROR }));
+    return false;
+}
+
 static bool not_lr1_error(struct lr_error *error) {
     prod(error, ((struct lr_error) { .type = GM_LR_NOT_LR1_ERROR }));
     return false;
@@ -89,7 +94,7 @@ static bool derived_by_table(gram_sym_no **derived_by, struct gram_parser_spec c
 #define SHIFT(num) (struct lr_action) { GM_LR_SHIFT, (num) }
 #define REDUCE(num, nt) (struct lr_action) { GM_LR_REDUCE, (num), (nt) }
 #define GOTO(num) (struct lr_action) { GM_LR_GOTO, (num) }
-static struct lr_action **action_table(
+static struct lr_action **make_action_table(
     enum gram_class clas, struct lr_error *error, unsigned *nstates,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
     struct gram_parser_spec const *spec
@@ -100,6 +105,9 @@ static struct lr_action **action_table(
     if (clas == GM_LR1) {
         item_type = GM_LR1_ITEMS;
         errfn = not_lr1_error;
+    } else if (clas == GM_LALR) {
+        item_type = GM_LALR_ITEMS;
+        errfn = not_lalr_error;
     }
 
     if (gan->clas < clas) return errfn(error), NULL;
@@ -187,7 +195,17 @@ struct lr_action **slr_table(
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
     struct gram_parser_spec const *spec
 ) {
-    return action_table(GM_SLR, error, nstates, gan, san, derived_by, spec);
+    debug("making slr table\n");
+    return make_action_table(GM_SLR, error, nstates, gan, san, derived_by, spec);
+}
+
+struct lr_action **lalr_table(
+    struct lr_error *error, unsigned *nstates,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct gram_parser_spec const *spec
+) {
+    debug("making lalr table\n");
+    return make_action_table(GM_LALR, error, nstates, gan, san, derived_by, spec);
 }
 
 struct lr_action **lr1_table(
@@ -195,22 +213,18 @@ struct lr_action **lr1_table(
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
     struct gram_parser_spec const *spec
 ) {
-    return action_table(GM_LR1, error, nstates, gan, san, derived_by, spec);
+    debug("making lr1 table\n");
+    return make_action_table(GM_LR1, error, nstates, gan, san, derived_by, spec);
 }
 
 bool gen_lr(
-    struct lr_error *error, struct lr_parser *parser,
-    struct lr_action **(*action_table)(
-        struct lr_error *error, unsigned *nstates,
-        struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
-        struct gram_parser_spec const *spec
-    ),
+    struct lr_error *error, struct lr_parser *parser, action_table *table,
     struct gram_parser_spec *spec
 ) {
     gram_count(spec);
     invariant(assert_packed_spec, spec);
     assert(parser != NULL);
-    assert(action_table != NULL);
+    assert(table != NULL);
 
     prod(error, ((struct lr_error) { 0 }));
     *parser = (struct lr_parser) { 0 };
@@ -242,7 +256,7 @@ bool gen_lr(
     }
 
     unsigned nstates = 0;
-    if ((atable = (*action_table)(error, &nstates, &gan, &san, derived_by, spec)) == NULL)
+    if ((atable = (*table)(error, &nstates, &gan, &san, derived_by, spec)) == NULL)
         goto free;
 
     free_gram_analysis(&gan);
@@ -417,6 +431,7 @@ void free_lr_parser_state(struct lr_parser_state *state) {
 #define OOM_ERROR_FMT_START "| LR Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
 #define NOT_SLR_FMT "| Grammar Not SLR\n|\n"
+#define NOT_LALR_FMT "| Grammar Not LALR\n|\n"
 #define NOT_LR1_FMT "| Grammar Not LR1\n|\n"
 #define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %u\n| Expected: %u"
 #define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
@@ -430,6 +445,9 @@ void print_lr_error(FILE *handle, struct lr_error error) {
             break;
         case GM_LR_NOT_SLR_ERROR:
             fprintf(handle, NOT_SLR_FMT);
+            break;
+        case GM_LR_NOT_LALR_ERROR:
+            fprintf(handle, NOT_LALR_FMT);
             break;
         case GM_LR_NOT_LR1_ERROR:
             fprintf(handle, NOT_LR1_FMT);

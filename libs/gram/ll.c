@@ -133,12 +133,6 @@ static gram_sym_no **alloc_rule_table(struct gram_stats stats) {
     );
 }
 
-static unsigned rulesize(gram_sym_no *s) {
-    unsigned size = 0;
-    while (*s++) size++;
-    return size;
-}
-
 static gram_sym_no **rule_table(struct gram_parser_spec const *spec) {
     struct gram_stats stats = spec->stats;
     gram_sym_no **rtable = alloc_rule_table(stats);

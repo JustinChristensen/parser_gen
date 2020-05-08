@@ -26,7 +26,11 @@ enum lr_action_type {
 struct lr_action {
     enum lr_action_type action;
     unsigned n;
+};
+
+struct lr_rule {
     gram_sym_no nt;
+    unsigned n;
 };
 
 struct lr_error {
@@ -41,6 +45,7 @@ struct lr_error {
 struct lr_parser {
     unsigned nstates;
     struct lr_action **atable;
+    struct lr_rule *rtable;
     struct nfa_context scanner;
     struct gram_stats stats;
 };
@@ -52,8 +57,8 @@ struct lr_parser_state {
 };
 
 typedef struct lr_action **action_table(
-    struct lr_error *error, unsigned *nstates,
-    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
 );
 
@@ -62,8 +67,8 @@ action_table lalr_table;
 action_table lr1_table;
 
 struct lr_parser lr_parser(
-    unsigned nstates, struct lr_action **atable, struct nfa_context scanner,
-    struct gram_stats const stats
+    unsigned nstates, struct lr_action **atable, struct lr_rule *rtable,
+    struct nfa_context scanner, struct gram_stats const stats
 );
 bool gen_lr(
     struct lr_error *error, struct lr_parser *parser, action_table *table,

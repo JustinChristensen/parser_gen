@@ -66,37 +66,36 @@ static bool syntax_error(struct lr_error *error, gram_sym_no expected, struct lr
 }
 
 struct lr_parser lr_parser(
-    unsigned nstates, struct lr_action **atable, struct nfa_context scanner,
-    struct gram_stats const stats
+    unsigned nstates, struct lr_action **atable, struct lr_rule *rtable,
+    struct nfa_context scanner, struct gram_stats const stats
 ) {
-    return (struct lr_parser) { nstates, atable, scanner, stats };
+    return (struct lr_parser) { nstates, atable, rtable, scanner, stats };
 }
 
-static bool derived_by_table(gram_sym_no **derived_by, struct gram_parser_spec const *spec) {
-    assert(derived_by != NULL);
-
-    if (!gram_exists(spec)) return true;
-
-    *derived_by = calloc(offs(spec->stats.rules), sizeof **derived_by);
-    if (!*derived_by) return false;
+static struct lr_rule *rule_table(struct gram_parser_spec const *spec) {
+    struct lr_rule *rtable = calloc(offs(spec->stats.rules), sizeof *rtable);
+    if (!rtable) return NULL;
 
     struct gram_symbol *nt = gram_nonterm0(spec);
     while (!gram_symbol_null(nt)) {
         gram_rule_no *r = nt->derives;
-        while (*r) (*derived_by)[*r] = nt->num, r++;
+        while (*r) {
+            rtable[*r] = (struct lr_rule) { nt->num, rulesize(spec->rules[*r]) };
+            r++;
+        }
         nt++;
     }
 
-    return true;
+    return rtable;
 }
 
 #define ACCEPT() (struct lr_action) { GM_LR_ACCEPT }
 #define SHIFT(num) (struct lr_action) { GM_LR_SHIFT, (num) }
-#define REDUCE(num, nt) (struct lr_action) { GM_LR_REDUCE, (num), (nt) }
+#define REDUCE(num) (struct lr_action) { GM_LR_REDUCE, (num) }
 #define GOTO(num) (struct lr_action) { GM_LR_GOTO, (num) }
 static struct lr_action **make_action_table(
-    enum gram_class clas, struct lr_error *error, unsigned *nstates,
-    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    enum gram_class clas, struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
 ) {
     enum lr_item_type item_type = GM_LR0_ITEMS;
@@ -148,11 +147,10 @@ static struct lr_action **make_action_table(
             gram_sym_no *rule = spec->rules[item.rule];
 
             if (item.rule != GM_START && !rule[item.pos]) {
-                gram_sym_no nt = derived_by[item.rule];
-                struct lr_action act = REDUCE(item.pos, nt);
+                struct lr_action act = REDUCE(item.rule);
 
                 if (clas == GM_SLR) {
-                    struct bsiter it = bsiter(san->follows[nt]);
+                    struct bsiter it = bsiter(san->follows[rtable[item.rule].nt]);
                     gram_sym_no s;
                     while (bsnext(&s, &it)) {
                         invariant(action_table_conflict, row, act, s, state->num);
@@ -191,30 +189,30 @@ static struct lr_action **make_action_table(
 }
 
 struct lr_action **slr_table(
-    struct lr_error *error, unsigned *nstates,
-    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
 ) {
     debug("making slr table\n");
-    return make_action_table(GM_SLR, error, nstates, gan, san, derived_by, spec);
+    return make_action_table(GM_SLR, error, nstates, rtable, gan, san, spec);
 }
 
 struct lr_action **lalr_table(
-    struct lr_error *error, unsigned *nstates,
-    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
 ) {
     debug("making lalr table\n");
-    return make_action_table(GM_LALR, error, nstates, gan, san, derived_by, spec);
+    return make_action_table(GM_LALR, error, nstates, rtable, gan, san, spec);
 }
 
 struct lr_action **lr1_table(
-    struct lr_error *error, unsigned *nstates,
-    struct gram_analysis const *gan, struct gram_symbol_analysis const *san, gram_sym_no const *derived_by,
+    struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
+    struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
 ) {
     debug("making lr1 table\n");
-    return make_action_table(GM_LR1, error, nstates, gan, san, derived_by, spec);
+    return make_action_table(GM_LR1, error, nstates, rtable, gan, san, spec);
 }
 
 bool gen_lr(
@@ -233,8 +231,8 @@ bool gen_lr(
 
     struct gram_symbol_analysis san = { 0 };
     struct gram_analysis gan = { 0 };
-    gram_sym_no *derived_by = NULL;
     struct nfa_context scanner = { 0 };
+    struct lr_rule *rtable = NULL;
     struct lr_action **atable = NULL;
 
     if (!gram_analyze_symbols(&san, spec))
@@ -245,33 +243,32 @@ bool gen_lr(
         goto free;
     }
 
-    if (!derived_by_table(&derived_by, spec)) {
-        oom_error(error, atable);
-        goto free;
-    }
-
     if (!init_scanner(&scanner, spec->patterns)) {
         scanner_error(error, nfa_error(&scanner));
         goto free;
     }
 
+    if ((rtable = rule_table(spec)) == NULL) {
+        oom_error(error, NULL);
+        goto free;
+    }
+
     unsigned nstates = 0;
-    if ((atable = (*table)(error, &nstates, &gan, &san, derived_by, spec)) == NULL)
+    if ((atable = (*table)(error, &nstates, rtable, &gan, &san, spec)) == NULL)
         goto free;
 
     free_gram_analysis(&gan);
     free_gram_symbol_analysis(&san);
-    free(derived_by);
 
-    *parser = lr_parser(nstates, atable, scanner, stats);
+    *parser = lr_parser(nstates, atable, rtable, scanner, stats);
 
     return true;
 free:
     free_gram_symbol_analysis(&san);
     free_gram_analysis(&gan);
-    free(derived_by);
     free_nfa_context(&scanner);
     free(atable);
+    free(rtable);
 
     return false;
 }
@@ -288,15 +285,9 @@ static char action_sym(enum lr_action_type action) {
 
 static void print_action(FILE *handle, struct lr_action act) {
     if (!act.action) return;
-
     char *fmt = "\"%c(%u)\"";
-
-    if (act.action == GM_LR_REDUCE)
-        fmt = "\"%c(%u, %u)\"";
-    else if (act.action == GM_LR_ACCEPT)
-        fmt = "\"%c\"";
-
-    fprintf(handle, fmt, action_sym(act.action), act.n, act.nt);
+    if (act.action == GM_LR_ACCEPT) fmt = "\"%c\"";
+    fprintf(handle, fmt, action_sym(act.action), act.n);
 }
 
 void print_lr_parser(FILE *handle, struct lr_parser *parser) {
@@ -322,6 +313,7 @@ void print_lr_parser(FILE *handle, struct lr_parser *parser) {
 void free_lr_parser(struct lr_parser *parser) {
     if (!parser) return;
     free(parser->atable);
+    free(parser->rtable);
     free_nfa_context(&parser->scanner);
     *parser = (struct lr_parser) { 0 };
 }
@@ -381,6 +373,7 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
 
     struct lr_parser const *parser = state->parser;
     struct lr_action **atable = parser->atable;
+    struct lr_rule *rtable = parser->rtable;
 
     bool success = true;
     gram_state_no s = 0;
@@ -403,10 +396,11 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
             apush(&act.n, states);
             scan(state);
         } else if (act.action == GM_LR_REDUCE) {
-            while (act.n) apop(&s, states), act.n--;
+            struct lr_rule rule = rtable[act.n];
+            while (rule.n) apop(&s, states), rule.n--;
             apeek(&s, states);
-            printf("parsed %u\n", act.nt);
-            act = atable[s][act.nt];
+            printf("parsed %u\n", rule.nt);
+            act = atable[s][rule.nt];
             debug("action: %c(%u)\n", action_sym(act.action), act.n);
             apush(&act.n, states);
         } else if (act.action == GM_LR_ACCEPT) {

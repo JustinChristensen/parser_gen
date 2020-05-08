@@ -50,6 +50,12 @@ static void free_rules(gram_sym_no **rules) {
     free(rules);
 }
 
+static unsigned rulesize(gram_sym_no *s) {
+    unsigned size = 0;
+    while (*s++) size++;
+    return size;
+}
+
 #pragma clang diagnostic pop
 
 #endif // GRAM_SPEC_C_

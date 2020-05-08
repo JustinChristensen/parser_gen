@@ -158,7 +158,7 @@ static struct lr_action **make_action_table(
                         invariant(action_table_conflict, row, act, s, state->num);
                         row[s] = act;
                     }
-                } else if (clas == GM_LR1) {
+                } else {
                     invariant(action_table_conflict, row, act, item.sym, state->num);
                     row[item.sym] = act;
                 }

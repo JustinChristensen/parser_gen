@@ -80,6 +80,7 @@ static void debug_itemset(struct lr_itemset const *itemset) {
 
 static struct lr_itemset *
 make_itemset(unsigned maxitems, unsigned kitems, struct lr_item *items) {
+    debug("making itemset\n");
     struct lr_itemset *itemset = malloc(sizeof *itemset + sizeof *items * maxitems);
     if (!itemset) abort();
     itemset->nitems = itemset->kitems = kitems;
@@ -89,6 +90,7 @@ make_itemset(unsigned maxitems, unsigned kitems, struct lr_item *items) {
 
 static struct lr_transitions *
 make_transitions(unsigned maxstates, unsigned nstates, struct lr_state **states) {
+    debug("making transitions\n");
     struct lr_transitions *trans = malloc(sizeof *trans + sizeof *states * maxstates);
     if (!trans) abort();
     trans->nstates = nstates;
@@ -98,6 +100,7 @@ make_transitions(unsigned maxstates, unsigned nstates, struct lr_state **states)
 
 static struct lr_state *
 make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struct lr_transitions *trans) {
+    debug("making state\n");
     assert(itemset != NULL);
     assert(trans != NULL);
 
@@ -173,6 +176,7 @@ static int compare_lr1_items(void const *a, void const *b) {
     }
 }
 
+// this is dubious at best
 static int compare_itemsets(
     int (*cmp_items)(void const *a, void const *b), bool const lalr,
     struct lr_itemset const *kernel, struct lr_itemset const *itemset
@@ -190,7 +194,6 @@ static int compare_itemsets(
         if (!cmp) continue;
 
         if (lalr) {
-            // {(3, 1, 1)} `cmp` {(3, 1, 2),(3, 1, 3),(3, 0, 2),(3, 0, 3),(4, 0, 2),(4, 0, 3)} = -1
             if (cmp < 0) {
                 while (i < ni - 1 && !(*cmp_items)(kitems + i, kitems + i + 1)) i++;
             } else if (cmp > 0) {
@@ -393,58 +396,51 @@ static unsigned count_goto_items(
     return nitems;
 }
 
-static unsigned unify(
-    unsigned *nitems, struct lr_itemset *newset, struct lr_itemset *kernel, struct lr_itemset *itemset,
-    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
-    struct states_context *context
-) {
-    struct lr_item *nitem = newset ? newset->items : NULL;
-    bool new_items = false;
-    unsigned nkitems = 0;
+static void unify(struct lr_itemset *newset, struct lr_itemset *kernel, struct lr_itemset *itemset) {
+    struct lr_item *nitem = newset->items;
 
-    struct lr_item const *kitems = kernel->items, *citems = itemset->items;
-    unsigned ni = kernel->kitems, nj = itemset->kitems;
-    unsigned i = 0, j = 0;
-    for (; i < ni && j < nj; nkitems++) {
-        struct lr_item const *kitem = kitems + i, *citem = citems + j;
+    unsigned i;
+    i = 0; while (i < itemset->kitems) *nitem++ = itemset->items[i++];
+    i = 0; while (i < kernel->kitems) *nitem++ = kernel->items[i++];
+
+    sort_itemset(newset);
+}
+
+static unsigned diff_itemset(struct lr_itemset *kernel, struct lr_itemset *itemset) {
+    for (unsigned m = 0, s = 0; m < kernel->kitems && s < itemset->kitems;) {
+        struct lr_item *kitem = kernel->items + m, *citem = itemset->items + s;
+
         int cmp = compare_lr1_items(kitem, citem);
 
-        if (cmp < 0) {
-            if (nitems) *nitems += closure(NULL, kitem, san, spec, context);
-            else if (nitem) *nitem++ = *kitem;
-            new_items = true;
-            i++;
-        } else if (cmp > 0) {
-            if (nitems) *nitems += closure(NULL, citem, san, spec, context);
-            else if (nitem) *nitem++ = *citem;
-            new_items = true;
-            j++;
-        } else {
-            if (nitems) *nitems += closure(NULL, kitem, san, spec, context);
-            else if (nitem) *nitem++ = *kitem;
-            i++, j++;
+        if (cmp < 0) m++;
+        else if (cmp > 0) s++;
+        else {
+            *kitem = (struct lr_item) { 0 };
+            memmove(kitem, kitem + 1, (kernel->kitems - (m + 1)) * sizeof *kitem);
+            kernel->nitems--;
+            kernel->kitems--;
+            s++;
         }
     }
 
-    if (j < nj) {
-        i = j;
-        ni = nj;
-        kitems = citems;
-    }
-
-    while (i < ni) {
-        struct lr_item const *item = kitems + i;
-        if (nitems) *nitems += closure(NULL, item, san, spec, context);
-        else if (nitem) *nitem++ = *item;
-        new_items = true;
-        nkitems++;
-        i++;
-    }
-
-    bszero(context->symset);
-
-    return new_items ? nkitems : 0;
+    return kernel->kitems;
 }
+
+#define DISCOVER_TRANSITIONS(name) \
+static void name( \
+    struct lr_transitions *trans, struct lr_itemset *itemset, \
+    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec, \
+    struct states_context *context \
+)
+#define DISCOVER_STATES(name) \
+static struct lr_state *name( \
+    gram_sym_no sym, struct lr_itemset *kernel, \
+    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec, \
+    struct states_context *context \
+)
+
+DISCOVER_TRANSITIONS(discover_transitions);
+DISCOVER_STATES(discover_states);
 
 static void merge_itemsets(
     struct rb_node *snode, struct lr_itemset *kernel,
@@ -454,10 +450,7 @@ static void merge_itemsets(
     struct lr_state *state = rbval(snode);
     struct lr_itemset *itemset = state->itemset;
 
-    unsigned nitems = 0;
-    unsigned kitems = unify(&nitems, NULL, kernel, state->itemset, san, spec, context);
-
-    if (!kitems) {
+    if (!diff_itemset(kernel, itemset)) {
         free(kernel);
         return;
     }
@@ -468,9 +461,15 @@ static void merge_itemsets(
         print_lr_itemset_compact(stderr, itemset); fprintf(stderr, "\n");
     }
 
+    closure(kernel, NULL, san, spec, context);
+    bszero(context->symset);
+
+    unsigned nitems = itemset->nitems + kernel->nitems,
+             kitems = itemset->kitems + kernel->kitems;
+
     struct lr_itemset *newset = make_itemset(nitems, kitems, NULL);
 
-    unify(NULL, newset, kernel, state->itemset, san, spec, context);
+    unify(newset, kernel, itemset);
 
     closure(newset, NULL, san, spec, context);
     bszero(context->symset);
@@ -478,8 +477,11 @@ static void merge_itemsets(
     // normally this would be ill-advised, but all three of these sets are considered to be "equal"
     snode->assoc.key = newset;
     state->itemset = newset;
-    free(itemset);
+
+    discover_transitions(NULL, kernel, san, spec, context);
+
     free(kernel);
+    free(itemset);
 }
 
 static struct lr_itemset *
@@ -509,12 +511,18 @@ goto_(
     return kernel;
 }
 
-static struct lr_state *
-discover_states(
-    gram_sym_no sym, struct lr_itemset *kernel,
-    struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec,
-    struct states_context *context
-) {
+DISCOVER_TRANSITIONS(discover_transitions) {
+    struct lr_itemset *kernel = NULL;
+
+    FOR_SYMBOL(spec->stats, s) {
+        if ((kernel = goto_(s, itemset, san, spec, context))) {
+            struct lr_state *state = discover_states(s, kernel, san, spec, context);
+            if (trans) trans->states[trans->nstates++] = state;
+        }
+    }
+}
+
+DISCOVER_STATES(discover_states) {
     int (*cmpfn)(void const *, void const *) = compare_lr0_itemsets;
     struct rb_node *snode = NULL;
 
@@ -545,13 +553,7 @@ discover_states(
     // this must happen prior to recursive calls to this function
     context->states = rbinsert(itemset, cmpfn, state, context->states);
 
-    struct lr_state **states = trans->states;
-    FOR_SYMBOL(spec->stats, s) {
-        if ((kernel = goto_(s, itemset, san, spec, context))) {
-            *states++ = discover_states(s, kernel, san, spec, context);
-            trans->nstates++;
-        }
-    }
+    discover_transitions(trans, itemset, san, spec, context);
 
     return state;
 }

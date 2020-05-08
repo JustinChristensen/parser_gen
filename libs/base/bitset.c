@@ -8,8 +8,8 @@
 #include "base/bitset.h"
 
 #define WORDBITS (sizeof (size_t) * CHAR_BIT)
-#define WINDEX(i) (i / WORDBITS)
-#define BINDEX(i) (i % WORDBITS)
+#define WINDEX(i) ((i) / WORDBITS)
+#define BINDEX(i) ((i) % WORDBITS)
 #define BIT (1UL)
 #define MASK(i) (BIT << BINDEX(i))
 

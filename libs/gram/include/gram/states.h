@@ -44,7 +44,7 @@ struct lr_state *discover_lr_states(
 );
 void free_lr_states(unsigned nstates, struct lr_state *state);
 void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state);
-int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec);
+bool print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec);
 
 bool lr_itemset_sorted(struct lr_itemset const *itemset);
 void print_lr_itemset_compact(FILE *handle, struct lr_itemset const *itemset);

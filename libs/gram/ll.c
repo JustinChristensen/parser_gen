@@ -224,7 +224,7 @@ free:
     return false;
 }
 
-void print_ll_parser(FILE *handle, struct ll_parser *parser) {
+void print_ll_parser(FILE *handle, struct ll_parser const *parser) {
     assert(parser != NULL);
 
     struct gram_stats const stats = parser->stats;
@@ -259,9 +259,9 @@ void free_ll_parser(struct ll_parser *parser) {
     *parser = (struct ll_parser) { 0 };
 }
 
-struct ll_parser_state ll_parser_state(struct ll_parser *parser) {
+struct ll_parser_state ll_parser_state(struct ll_parser const *parser) {
     assert(parser != NULL);
-    return (struct ll_parser_state) { .parser = parser };
+    return (struct ll_parser_state) { .parser = (struct ll_parser *) parser };
 }
 
 static void push_rule(gram_rule_no r, gram_sym_no **rtable, struct array *syms) {

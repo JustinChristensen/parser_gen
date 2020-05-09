@@ -290,7 +290,7 @@ static void print_action(FILE *handle, struct lr_action act) {
     fprintf(handle, fmt, action_sym(act.action), act.n);
 }
 
-void print_lr_parser(FILE *handle, struct lr_parser *parser) {
+void print_lr_parser(FILE *handle, struct lr_parser const *parser) {
     assert(parser != NULL);
 
     struct lr_action **atable = parser->atable;
@@ -318,9 +318,9 @@ void free_lr_parser(struct lr_parser *parser) {
     *parser = (struct lr_parser) { 0 };
 }
 
-struct lr_parser_state lr_parser_state(struct lr_parser *parser) {
+struct lr_parser_state lr_parser_state(struct lr_parser const *parser) {
     assert(parser != NULL);
-    return (struct lr_parser_state) { .parser = parser };
+    return (struct lr_parser_state) { .parser = (struct lr_parser *) parser };
 }
 
 static bool start_scanning(char *input, struct lr_parser_state *state) {

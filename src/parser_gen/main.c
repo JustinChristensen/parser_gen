@@ -10,18 +10,21 @@
 #include <gram/states.h>
 #include <gram/parser.h>
 
+#define ONEKB (1 << 10)
+#define BUFFER_SIZE (ONEKB * 50)
+
 enum command_key {
-    GEN_PARSER,
     ANALYZE,
+    AUTOMATA,
+    GEN_PARSER,
     SCAN,
-    PARSE,
-    AUTOMATA
+    TABLES
 };
 
 enum arg_key {
     PARSER_TYPE,
-    SPEC_FILE,
-    TABLES
+    LR_TYPE,
+    SPEC_FILE
 };
 
 enum parser_type {
@@ -34,8 +37,7 @@ enum parser_type {
 struct args {
     enum command_key cmd;
     enum parser_type type;
-    bool tables;
-    char spec[BUFSIZ];
+    char spec[ONEKB];
     int posc;
     char **pos;
 };
@@ -44,36 +46,31 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
 
     while ((key = readarg(context)) != END) {
-        if (cmd == GEN_PARSER) {
-            switch (key) {
-                case SPEC_FILE:
-                    strcpy(args->spec, argval());
-                    break;
-                case TABLES:
-                    args->tables = true;
-                    break;
-                default: break;
-            }
-        }
+        if (cmd == SCAN) continue;
 
-        if (cmd == GEN_PARSER || cmd == AUTOMATA) {
-            switch (key) {
-                case PARSER_TYPE:
-                    if (streq("ll", argval())) {
-                        args->type = LL;
-                    } else if (streq("slr", argval())) {
-                        args->type = SLR;
-                    } else if (streq("lalr", argval())) {
-                        args->type = LALR;
-                    } else if (streq("lr1", argval())) {
-                        args->type = LR1;
-                    } else {
-                        print_usage(stderr, context);
-                        exit(EXIT_FAILURE);
-                    }
-                    break;
-                default: break;
+        if (key == SPEC_FILE) {
+            strcpy(args->spec, argval());
+        } else if (key == PARSER_TYPE || key == LR_TYPE) {
+            if (key == PARSER_TYPE && streq("ll", argval())) {
+                args->type = LL;
+                continue;
             }
+
+            if (key == LR_TYPE) args->type = SLR;
+
+            if (streq("slr", argval())) {
+                args->type = SLR;
+            } else if (streq("lalr", argval())) {
+                args->type = LALR;
+            } else if (streq("lr1", argval())) {
+                args->type = LR1;
+            } else {
+                print_usage(stderr, context);
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            print_usage(stderr, context);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -104,268 +101,314 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
     return nread;
 }
 
-int gen_parser(struct args args) {
-    int const bufsize = BUFSIZ * 32;
-    char specfile[bufsize] = "";
-    char **files = args.pos;
-    char contents[bufsize] = "";
+#pragma clang diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
-    if (!args.spec[0]) {
-        fprintf(stderr, "spec file required\n");
-        return EXIT_FAILURE;
-    }
-
+bool read_files(struct args const args, void *context, bool (*with_file)(void *context, char *filename, char *contents)) {
     if (args.posc == 0) {
         fprintf(stderr, "no input files\n");
-        return EXIT_FAILURE;
+        return false;
     }
 
-    int nread = 0;
-    if ((nread = slurp_file(bufsize, specfile, args.spec)) == -1) {
-        fprintf(stderr, "reading spec file %s failed\n", args.spec);
-        return EXIT_FAILURE;
+    char contents[BUFFER_SIZE] = "";
+
+    for (int i = 0; i < args.posc; i++) {
+        char *filename = args.pos[i];
+        int nread = 0;
+        if ((nread = slurp_file(BUFFER_SIZE, contents, filename)) == -1) {
+            fprintf(stderr, "reading file %s failed\n", filename);
+            return false;
+        }
+
+        printf("filename: %s, size: %d\n", filename, nread);
+        if (!(*with_file)(context, filename, contents)) return false;
     }
 
-    struct gram_spec_parser spec_parser = { 0 };
-    struct gram_parse_error parserr = { 0 };
-    struct gram_parser_spec spec = { 0 };
-
-    if (!gram_spec_parser(&parserr, &spec_parser) || !gram_parse(&parserr, &spec, specfile, &spec_parser)) {
-        print_gram_parse_error(stderr, parserr);
-        free_gram_spec_parser(&spec_parser);
-        return EXIT_FAILURE;
-    }
-
-    free_gram_spec_parser(&spec_parser);
-
-    if (args.type == LL) {
-        struct ll_parser parser = { 0 };
-        struct ll_error generr = { 0 };
-
-        if (!gen_ll(&generr, &parser, &spec)) {
-            print_ll_error(stderr, generr);
-            free_gram_parser_spec(&spec);
-            return EXIT_FAILURE;
-        }
-
-        free_gram_parser_spec(&spec);
-
-        if (args.tables) {
-            print_ll_parser(stdout, &parser);
-            free_ll_parser(&parser);
-            return EXIT_SUCCESS;
-        }
-
-        struct ll_parser_state pstate = ll_parser_state(&parser);
-
-        for (int i = 0; i < args.posc; i++) {
-            if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
-                fprintf(stderr, "reading file %s failed\n", files[i]);
-                free_ll_parser(&parser);
-                free_ll_parser_state(&pstate);
-                return EXIT_FAILURE;
-            }
-
-            if (!ll_parse(&generr, contents, &pstate)) {
-                print_ll_error(stderr, generr);
-                free_ll_parser(&parser);
-                free_ll_parser_state(&pstate);
-                return EXIT_FAILURE;
-            }
-
-            printf("parsed %s\n", files[i]);
-        }
-
-        free_ll_parser(&parser);
-        free_ll_parser_state(&pstate);
-    } else if (args.type == SLR || args.type == LALR || args.type == LR1) {
-        struct lr_parser parser = { 0 };
-        struct lr_error generr = { 0 };
-
-        action_table *table = slr_table;
-
-        if (args.type == LALR) table = lalr_table;
-        else if (args.type == LR1) table = lr1_table;
-
-        if (!gen_lr(&generr, &parser, table, &spec)) {
-            print_lr_error(stderr, generr);
-            free_gram_parser_spec(&spec);
-            return EXIT_FAILURE;
-        }
-
-        free_gram_parser_spec(&spec);
-
-        if (args.tables) {
-            print_lr_parser(stdout, &parser);
-            free_lr_parser(&parser);
-            return EXIT_SUCCESS;
-        }
-
-        struct lr_parser_state pstate = lr_parser_state(&parser);
-
-        for (int i = 0; i < args.posc; i++) {
-            if ((nread = slurp_file(bufsize, contents, files[i])) == -1) {
-                fprintf(stderr, "reading file %s failed\n", files[i]);
-                free_lr_parser(&parser);
-                free_lr_parser_state(&pstate);
-                return EXIT_FAILURE;
-            }
-
-            if (!lr_parse(&generr, contents, &pstate)) {
-                print_lr_error(stderr, generr);
-                free_lr_parser(&parser);
-                free_lr_parser_state(&pstate);
-                return EXIT_FAILURE;
-            }
-
-            printf("parsed %s\n", files[i]);
-        }
-
-        free_lr_parser(&parser);
-        free_lr_parser_state(&pstate);
-    }
-
-    return EXIT_SUCCESS;
+    return true;
 }
 
-int automata(struct args args) {
-    if (!args.posc)
-        return fprintf(stderr, "no spec file\n"), EXIT_FAILURE;
+bool parse_spec(struct args args, bool (*with_spec)(struct args const args, struct gram_parser_spec *spec)) {
+    if (!args.spec[0]) {
+        fprintf(stderr, "spec file required\n");
+        return false;
+    }
 
-    if (args.type == LL)
-        return fprintf(stderr, "no state machine available\n"), EXIT_FAILURE;
+    char specfile[BUFFER_SIZE] = "";
 
-    char *specfile = args.pos[0];
-    int const bufsize = BUFSIZ * 32;
-    char spec_contents[bufsize] = "";
     int nread = 0;
-    if ((nread = slurp_file(bufsize, spec_contents, specfile)) == -1)
-        return fprintf(stderr, "reading spec %s failed", specfile), EXIT_FAILURE;
+    if ((nread = slurp_file(BUFFER_SIZE, specfile, args.spec)) == -1) {
+        fprintf(stderr, "reading spec file %s failed\n", args.spec);
+        return false;
+    }
 
-    struct gram_spec_parser spec_parser = { 0 };
-    struct gram_parse_error spec_parse_error = { 0 };
+    struct gram_spec_parser parser = { 0 };
+    struct gram_parse_error parser_error = { 0 };
     struct gram_parser_spec spec = { 0 };
 
-    if (gram_spec_parser(&spec_parse_error, &spec_parser) && gram_parse(&spec_parse_error, &spec, spec_contents, &spec_parser)) {
-        free_gram_spec_parser(&spec_parser);
-
-        struct gram_symbol_analysis san = { 0 };
-        if (!gram_analyze_symbols(&san, &spec)) {
-            free_gram_parser_spec(&spec);
-            return EXIT_FAILURE;
-        }
-
-        unsigned nstates;
-        enum lr_item_type type = GM_LR0_ITEMS;
-        if (args.type == LR1) type = GM_LR1_ITEMS;
-        else if (args.type == LALR) type = GM_LALR_ITEMS;
-        struct lr_state *states = discover_lr_states(&nstates, type, &san, &spec);
-        free_gram_symbol_analysis(&san);
-        int result = print_lr_states_dot(stdout, nstates, states, &spec);
+    if (gram_spec_parser(&parser_error, &parser) && gram_parse(&parser_error, &spec, specfile, &parser)) {
+        free_gram_spec_parser(&parser);
+        bool result = (*with_spec)(args, &spec);
         free_gram_parser_spec(&spec);
-        free_lr_states(nstates, states);
         return result;
     }
 
-    free_gram_spec_parser(&spec_parser);
-    print_gram_parse_error(stderr, spec_parse_error);
-
-    return EXIT_FAILURE;
-}
-
-int analyze(struct args args, char *contents) {
-    struct gram_spec_parser spec_parser = { 0 };
-    struct gram_parse_error error = { 0 };
-    struct gram_parser_spec spec = { 0 };
-
-    if (gram_spec_parser(&error, &spec_parser) && gram_parse(&error, &spec, contents, &spec_parser)) {
-        free_gram_spec_parser(&spec_parser);
-        print_gram_parser_spec(stdout, &spec);
-
-        if (args.cmd == ANALYZE) {
-            print_gram_stats(stdout, spec.stats);
-
-            struct gram_symbol_analysis san = { 0 };
-            if (gram_analyze_symbols(&san, &spec)) {
-                print_gram_symbol_analysis(stdout, &san);
-
-                struct gram_rule_analysis ran = { 0 };
-                if (gram_analyze_rules(&ran, &san, &spec)) {
-                    print_gram_rule_analysis(stdout, &ran);
-                    free_gram_rule_analysis(&ran);
-                }
-
-                struct gram_analysis gan = { 0 };
-                if (gram_analyze(&gan, &san, &spec)) {
-                    print_gram_analysis(stdout, &gan);
-                    free_gram_analysis(&gan);
-                }
-
-                free_gram_symbol_analysis(&san);
-            }
-        }
-
-        free_gram_parser_spec(&spec);
-
-        return EXIT_SUCCESS;
-    }
-
-    print_gram_parse_error(stderr, error);
-    free_gram_spec_parser(&spec_parser);
+    print_gram_parse_error(stderr, parser_error);
+    free_gram_spec_parser(&parser);
     free_gram_parser_spec(&spec);
 
-    return EXIT_FAILURE;
+    return false;
+}
+
+bool make_ll_parser(
+    struct args const args, struct gram_parser_spec *spec,
+    bool (*with_parser)(struct args const args, struct ll_parser const *parser)
+) {
+    struct ll_parser parser = { 0 };
+    struct ll_error generr = { 0 };
+
+    if (!gen_ll(&generr, &parser, spec)) {
+        print_ll_error(stderr, generr);
+        return false;
+    }
+
+    bool result = (*with_parser)(args, &parser);
+    free_ll_parser(&parser);
+
+    return result;
+}
+
+bool make_ll_parser_state(
+    struct args const args, struct ll_parser const *parser,
+    bool (*with_parser_state)(struct args const args, struct ll_parser_state *parser_state)
+) {
+    struct ll_parser_state pstate = ll_parser_state(parser);
+    bool result = (*with_parser_state)(args, &pstate);
+    free_ll_parser_state(&pstate);
+    return result;
+}
+
+bool parse_file_ll(void *parser_state, char *filename, char *contents) {
+    struct ll_error parse_error = { 0 };
+
+    if (ll_parse(&parse_error, contents, parser_state)) {
+        printf("parsed %s\n", filename);
+        return true;
+    }
+
+    print_ll_error(stderr, parse_error);
+
+    return false;
+}
+
+bool print_ll_tables(struct args const _, struct ll_parser const *parser) {
+    print_ll_parser(stdout, parser);
+    return true;
+}
+
+bool make_lr_parser(
+    struct args const args, struct gram_parser_spec *spec,
+    bool (*with_parser)(struct args const args, struct lr_parser const *parser)
+) {
+    struct lr_parser parser = { 0 };
+    struct lr_error generr = { 0 };
+
+    action_table *table = slr_table;
+    if (args.type == LALR) table = lalr_table;
+    else if (args.type == LR1) table = lr1_table;
+
+    if (!gen_lr(&generr, &parser, table, spec)) {
+        print_lr_error(stderr, generr);
+        return false;
+    }
+
+    bool result = (*with_parser)(args, &parser);
+    free_lr_parser(&parser);
+
+    return result;
+}
+
+bool print_lr_tables(struct args const _, struct lr_parser const *parser) {
+    print_lr_parser(stdout, parser);
+    return true;
+}
+
+bool make_lr_parser_state(
+    struct args const args, struct lr_parser const *parser,
+    bool (*with_parser_state)(struct args const args, struct lr_parser_state *parser_state)
+) {
+    struct lr_parser_state pstate = lr_parser_state(parser);
+    bool result = (*with_parser_state)(args, &pstate);
+    free_lr_parser_state(&pstate);
+    return result;
+}
+
+bool parse_file_lr(void *parser_state, char *filename, char *contents) {
+    struct lr_error parse_error = { 0 };
+
+    if (lr_parse(&parse_error, contents, parser_state)) {
+        printf("parsed %s\n", filename);
+        return true;
+    }
+
+    print_lr_error(stderr, parse_error);
+
+    return false;
+}
+
+bool automata(struct args const args, struct gram_parser_spec *spec) {
+    struct gram_symbol_analysis san = { 0 };
+
+    if (!gram_analyze_symbols(&san, spec))
+        return false;
+
+    enum lr_item_type type = GM_LR0_ITEMS;
+    if (args.type == LR1) type = GM_LR1_ITEMS;
+    else if (args.type == LALR) type = GM_LALR_ITEMS;
+
+    bool result = false;
+
+    unsigned nstates = 0;
+    struct lr_state *states = NULL;
+    if ((states = discover_lr_states(&nstates, type, &san, spec)) &&
+        print_lr_states_dot(stdout, nstates, states, spec)) result = true;
+
+    free_lr_states(nstates, states);
+    free_gram_symbol_analysis(&san);
+
+    return result;
+}
+
+bool analyze(struct args const _, struct gram_parser_spec *spec) {
+    print_gram_stats(stdout, spec->stats);
+
+    struct gram_symbol_analysis san = { 0 };
+    if (!gram_analyze_symbols(&san, spec))
+        return false;
+
+    print_gram_symbol_analysis(stdout, &san);
+
+    struct gram_rule_analysis ran = { 0 };
+    if (!gram_analyze_rules(&ran, &san, spec))
+        return free_gram_symbol_analysis(&san), false;
+
+    print_gram_rule_analysis(stdout, &ran);
+    free_gram_rule_analysis(&ran);
+
+    struct gram_analysis gan = { 0 };
+    if (!gram_analyze(&gan, &san, spec))
+        return free_gram_symbol_analysis(&san), false;
+
+    print_gram_analysis(stdout, &gan);
+    free_gram_analysis(&gan);
+    free_gram_symbol_analysis(&san);
+
+    return true;
+}
+
+bool scan(void *_1, char *_2, char *contents) {
+    print_gram_tokens(stdout, contents);
+    return true;
+}
+
+#pragma clang diagnostic pop
+
+bool run_ll_parse(struct args const args, struct ll_parser_state *parser_state) {
+    return read_files(args, parser_state, parse_file_ll);
+}
+
+bool run_ll_parser_state(struct args const args, struct ll_parser const *parser) {
+    return make_ll_parser_state(args, parser, run_ll_parse);
+}
+
+bool run_ll_tables(struct args const args, struct gram_parser_spec *spec) {
+    return make_ll_parser(args, spec, print_ll_tables);
+}
+
+bool run_ll_parser(struct args const args, struct gram_parser_spec *spec) {
+    return make_ll_parser(args, spec, run_ll_parser_state);
+}
+
+bool run_lr_parse(struct args const args, struct lr_parser_state *parser_state) {
+    return read_files(args, parser_state, parse_file_lr);
+}
+
+bool run_lr_parser_state(struct args const args, struct lr_parser const *parser) {
+    return make_lr_parser_state(args, parser, run_lr_parse);
+}
+
+bool run_lr_tables(struct args const args, struct gram_parser_spec *spec) {
+    return make_lr_parser(args, spec, print_lr_tables);
+}
+
+bool run_lr_parser(struct args const args, struct gram_parser_spec *spec) {
+    return make_lr_parser(args, spec, run_lr_parser_state);
 }
 
 int main(int argc, char *argv[]) {
     struct args args = {
         .cmd = GEN_PARSER,
         .type = LL,
-        .spec = "",
-        .tables = false
+        .spec = ""
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr1" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lalr, lr1" };
+    struct arg lr_type_arg = { LR_TYPE, "type", 0, required_argument, "Parser type: slr, lalr, lr1" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
-    struct arg tables_arg = { TABLES, NULL, 'T', no_argument, "Print action table as CSV" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
         NULL,
-        ARGS { parser_type_arg, spec_file_arg, tables_arg, help_and_version_args, END_ARGS },
+        ARGS { spec_file_arg, parser_type_arg, help_and_version_args, END_ARGS },
         NULL,
         CMDS {
-            { ANALYZE, "analyze", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Analyze spec files" },
-            { AUTOMATA, "automata", ARGS { parser_type_arg, help_and_version_args, END_ARGS }, NULL, NULL, "Print the LR(0) automaton in dot format " },
-            { PARSE, "parse", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Parse spec files" },
-            { SCAN, "scan", ARGS { help_and_version_args, END_ARGS }, NULL, NULL, "Scan spec files" },
+            {
+                ANALYZE, "analyze",
+                ARGS { spec_file_arg, help_and_version_args, END_ARGS },
+                NULL,
+                NULL,
+                "Analyze spec files"
+            },
+            {
+                AUTOMATA, "automata",
+                ARGS { spec_file_arg, lr_type_arg, help_and_version_args, END_ARGS },
+                NULL,
+                NULL,
+                "Print the LR automaton in dot format"
+            },
+            {
+                SCAN, "scan",
+                ARGS { help_and_version_args, END_ARGS },
+                NULL,
+                NULL,
+                "Scan spec file"
+            },
+            {
+                TABLES, "tables",
+                ARGS { spec_file_arg, parser_type_arg, help_and_version_args, END_ARGS },
+                NULL,
+                NULL,
+                "Print parser tables as CSV"
+            },
             END_CMDS
         },
         "Generate a parser"
     });
 
-    int const bufsize = BUFSIZ * 32;
-    char contents[bufsize] = "";
-    char **files = args.pos;
+    bool result = true;
 
-    if (args.cmd == GEN_PARSER) {
-        return gen_parser(args);
+    if (args.cmd == ANALYZE) {
+        result = parse_spec(args, analyze);
     } else if (args.cmd == AUTOMATA) {
-        return automata(args);
-    } else {
-        for (int i = 0; i < args.posc; i++) {
-            int nread = 0;
-            if ((nread = slurp_file(bufsize, contents, files[i])) == -1)
-                return EXIT_FAILURE;
-
-            printf("filename: %s, size: %d\n", files[i], nread);
-
-            if (args.cmd == SCAN) {
-                print_gram_tokens(stdout, contents);
-            } else if (!analyze(args, contents))
-                return EXIT_FAILURE;
-        }
+        result = parse_spec(args, automata);
+    } else if (args.cmd == GEN_PARSER) {
+        if (args.type == LL) result = parse_spec(args, run_ll_parser);
+        else result = parse_spec(args, run_lr_parser);
+    } else if (args.cmd == SCAN) {
+        return read_files(args, NULL, scan);
+    } else if (args.cmd == TABLES) {
+        if (args.type == LL) result = parse_spec(args, run_ll_tables);
+        else result = parse_spec(args, run_lr_tables);
     }
 
-    return EXIT_SUCCESS;
+    return result ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -74,10 +74,10 @@ bool gen_lr(
     struct lr_error *error, struct lr_parser *parser, action_table *table,
     struct gram_parser_spec *spec
 );
-void print_lr_parser(FILE *handle, struct lr_parser *parser);
+void print_lr_parser(FILE *handle, struct lr_parser const *parser);
 void free_lr_parser(struct lr_parser *parser);
 
-struct lr_parser_state lr_parser_state(struct lr_parser *parser);
+struct lr_parser_state lr_parser_state(struct lr_parser const *parser);
 bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state);
 void free_lr_parser_state(struct lr_parser_state *state);
 

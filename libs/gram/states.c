@@ -689,9 +689,9 @@ static void state_to_gvnode(char *buf, struct gram_parser_spec const *spec, Agno
     }
 }
 
-int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
+bool print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
     Agnode_t **nodes = calloc(nstates, sizeof *nodes);
-    if (!nodes) return EXIT_FAILURE;
+    if (!nodes) return false;
     char buf[BUFSIZ * 16] = "";
 
     Agraph_t *graph = agopen("top", Agdirected, NULL);
@@ -703,11 +703,11 @@ int print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, 
     state_to_gvnode(buf, spec, nodes, graph, state, NULL);
 
     if (agwrite(graph, handle) == EOF) {
-        return fprintf(stderr, "writing dot file failed\n"), EXIT_FAILURE;
+        return fprintf(stderr, "writing dot file failed\n"), false;
     }
 
     agclose(graph);
     free(nodes);
 
-    return EXIT_SUCCESS;
+    return true;
 }

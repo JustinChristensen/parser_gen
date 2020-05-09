@@ -93,14 +93,9 @@ void aresize(unsigned size, struct array *arr) {
     arr->size = size;
 }
 
-// 0 1 2
-// 0   2
 void adel(void *elem, struct array *arr) {
     if (aempty(arr)) return;
-
-
     memmove(elem, elem + arr->elem_size, arr->buf + arr->i * arr->elem_size - (elem + arr->elem_size));
-
     arr->i--;
     ensure_memory(arr);
 }

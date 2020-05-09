@@ -227,11 +227,6 @@ bool make_lr_parser(
     return result;
 }
 
-bool print_lr_tables(struct args const _, struct lr_parser const *parser) {
-    print_lr_parser(stdout, parser);
-    return true;
-}
-
 bool make_lr_parser_state(
     struct args const args, struct lr_parser const *parser,
     bool (*with_parser_state)(struct args const args, struct lr_parser_state *parser_state)
@@ -253,6 +248,11 @@ bool parse_file_lr(void *parser_state, char *filename, char *contents) {
     print_lr_error(stderr, parse_error);
 
     return false;
+}
+
+bool print_lr_tables(struct args const _, struct lr_parser const *parser) {
+    print_lr_parser(stdout, parser);
+    return true;
 }
 
 bool automata(struct args const args, struct gram_parser_spec *spec) {

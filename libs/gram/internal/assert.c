@@ -11,10 +11,6 @@
 #include "gram/lr.h"
 #include "gram/states.h"
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 #ifdef INVARIANTS
 
 INVARIANT(assert_parsed_spec, struct gram_parser_spec const *spec) {
@@ -118,7 +114,5 @@ INVARIANT(assert_itemsets_sorted, struct lr_itemset const *kernel, struct lr_ite
 }
 
 #endif
-
-#pragma clang diagnostic pop
 
 #endif // GRAM_ASSERT_C_

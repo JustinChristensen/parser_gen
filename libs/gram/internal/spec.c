@@ -8,9 +8,6 @@
 
 #include "macros.c"
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 #define FOR_SYMBOL(stats, s) \
     for (gram_sym_no s = GM_SYMBOL0; s < offs((stats).symbols); s++)
 
@@ -19,7 +16,7 @@
 
 #define NONTERM0(stats) (offs((stats).terms))
 
-static void free_patterns(struct regex_pattern *patterns) {
+__attribute__((unused)) static void free_patterns(struct regex_pattern *patterns) {
     if (!patterns) return;
     struct regex_pattern *p = patterns;
     while (p->sym) {
@@ -30,7 +27,7 @@ static void free_patterns(struct regex_pattern *patterns) {
     free(patterns);
 }
 
-static void free_symbols(struct gram_symbol *symbols) {
+__attribute__((unused)) static void free_symbols(struct gram_symbol *symbols) {
     if (!symbols) return;
 
     struct gram_symbol *sym = &symbols[1];
@@ -43,19 +40,17 @@ static void free_symbols(struct gram_symbol *symbols) {
     free(symbols);
 }
 
-static void free_rules(gram_sym_no **rules) {
+__attribute__((unused)) static void free_rules(gram_sym_no **rules) {
     if (!rules) return;
     gram_sym_no **r = &rules[1];
     while (*r) free(*r), r++;
     free(rules);
 }
 
-static unsigned rulesize(gram_sym_no *s) {
+__attribute__((unused)) static unsigned rulesize(gram_sym_no *s) {
     unsigned size = 0;
     while (*s++) size++;
     return size;
 }
-
-#pragma clang diagnostic pop
 
 #endif // GRAM_SPEC_C_

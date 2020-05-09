@@ -6,6 +6,7 @@
 #include <string.h>
 #include <base/debug.h>
 #include <base/string.h>
+#include <base/macros.h>
 #include <base/hash_table.h>
 #include "regex/base.h"
 #include "regex/nfa.h"
@@ -88,14 +89,10 @@ static void debug_nfa(struct nfa mach) {
     }
 }
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 static void debug_nfa_p(FILE *_, void const *mach) {
+    UNUSED(_);
     debug_nfa(*((struct nfa *) mach));
 }
-
-#pragma clang diagnostic pop
 
 static void debug_tagged_nfas(struct hash_table *tagged_nfas) {
     debug("tagged nfas\n");
@@ -471,10 +468,7 @@ static bool runnable(struct nfa machine) {
     return machine.start != NULL;
 }
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static bool noop_nfa(union regex_result _, struct nfa_context *context) { return true; }
+static bool noop_nfa(union regex_result _1, struct nfa_context *_2) { UNUSED(_1); UNUSED(_2); return true; }
 
 static bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
     struct nfa *nfa = find_machine(tag.tag, context);
@@ -488,6 +482,7 @@ static bool do_tag_nfa(union regex_result tag, struct nfa_context *context) {
 }
 
 static bool do_empty_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     smachine(empty_machine(context), context);
     return true;
 }
@@ -503,6 +498,7 @@ static bool do_cat_nfa(union regex_result lhs, struct nfa_context *context) {
 }
 
 static bool do_dotall_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     smachine(dotall_machine(context), context);
     return true;
 }
@@ -526,6 +522,7 @@ static bool do_range_nfa(union regex_result range, struct nfa_context *context) 
 }
 
 static bool do_class_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     bool *char_class;
 
     if ((char_class = get_classy(context))) {
@@ -538,6 +535,7 @@ static bool do_class_nfa(union regex_result _, struct nfa_context *context) {
 }
 
 static bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     bool *char_class = nfa_gmachine(context).start->char_class;
     if (char_class) {
         for (int i = 0; i < CLASS_SIZE; i++) char_class[i] = !char_class[i];
@@ -546,16 +544,19 @@ static bool do_neg_class_nfa(union regex_result _, struct nfa_context *context) 
 }
 
 static bool do_star_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     smachine(closure_machine(nfa_gmachine(context), context), context);
     return true;
 }
 
 static bool do_plus_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     smachine(posclosure_machine(nfa_gmachine(context), context), context);
     return true;
 }
 
 static bool do_optional_nfa(union regex_result _, struct nfa_context *context) {
+    UNUSED(_);
     smachine(optional_machine(nfa_gmachine(context), context), context);
     return true;
 }
@@ -586,8 +587,6 @@ static bool do_repeat_exact_nfa(union regex_result num, struct nfa_context *cont
 
     return set_repeat_zero_error(context);
 }
-
-#pragma clang diagnostic pop
 
 static struct nfa nullmach() {
     return (struct nfa) { NULL, NULL, NULL };

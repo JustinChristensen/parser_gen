@@ -3,8 +3,7 @@ module CRBTree (
     CRbNode(..),
     rbFind,
     rbInsert,
-    rbDelete,
-    rbreeEq,
+    rbTreeEq,
     rbSize,
     rbDepth,
     rbFromList,
@@ -19,12 +18,10 @@ module CRBTree (
     cprintstr,
     cKeys,
     freeKeys,
-    bTreeFromKeys,
-    deleteKeys
+    bTreeFromKeys
 ) where
 
 import Data.List (genericLength)
-import Control.Monad (foldM)
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String
@@ -77,8 +74,8 @@ foreign import ccall "&printstr" cprintstr :: FunPtr (CString -> IO ())
 
 foreign import ccall "rbfind" rbFind :: Ptr k -> CmpFn k k -> CRbNodePtr k v -> IO (CRbNodePtr k v)
 foreign import ccall "rbinsert" rbInsert :: Ptr k -> CmpFn k k -> Ptr v -> CRbNodePtr k v -> IO (CRbNodePtr k v)
-foreign import ccall "rbdelete" rbDelete :: Ptr k -> CmpFn k k -> CRbNodePtr k v -> IO (CRbNodePtr k v)
-foreign import ccall "rbree_eq" rbreeEq :: EqFn k k -> EqFn v v -> CRbNodePtr k v -> CRbNodePtr k v -> IO Bool
+-- foreign import ccall "rbdelete" rbDelete :: Ptr k -> CmpFn k k -> CRbNodePtr k v -> IO (CRbNodePtr k v)
+foreign import ccall "rbtree_eq" rbTreeEq :: EqFn k k -> EqFn v v -> CRbNodePtr k v -> CRbNodePtr k v -> IO Bool
 foreign import ccall "rbsize" rbSize :: CRbNodePtr k v -> IO Word64
 foreign import ccall "rbdepth" rbDepth :: CRbNodePtr k v -> IO Word64
 foreign import ccall "rbfromlist" rbFromList :: Ptr (CRbAssoc k v) -> Word64 -> CmpFn k k -> IO (CRbNodePtr k v)
@@ -104,7 +101,7 @@ bTreeFromKeys ks = do
     free arr
     pure tree
 
-deleteKeys :: [CString] -> CRbNodePtr CChar () -> IO (CRbNodePtr CChar ())
-deleteKeys ks node = foldM (\prev key -> rbDelete key cstrcmp prev) node ks
+-- deleteKeys :: [CString] -> CRbNodePtr CChar () -> IO (CRbNodePtr CChar ())
+-- deleteKeys ks node = foldM (\prev key -> rbDelete key cstrcmp prev) node ks
 
 

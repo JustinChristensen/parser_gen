@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <base/list.h>
 #include <base/string.h>
+#include <base/macros.h>
 #include "ast.h"
 #include "source.h"
 
@@ -221,15 +222,13 @@ char *subexpr_factor_to_source(char *srcbuf, int indent_level, struct subexpr_fa
     return srcbuf;
 }
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-char *num_factor_to_source(char *srcbuf, int indent_level, struct num_factor *factor) {
+char *num_factor_to_source(char *srcbuf, int _, struct num_factor *factor) {
+    UNUSED(_);
     return put(srcbuf, factor->num);
 }
 
-char *id_factor_to_source(char *srcbuf, int indent_level, struct id_factor *factor) {
+char *id_factor_to_source(char *srcbuf, int _, struct id_factor *factor) {
+    UNUSED(_);
     return put(srcbuf, factor->id);
 }
 
-#pragma clang diagnostic pop

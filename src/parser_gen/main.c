@@ -4,6 +4,7 @@
 #include <base/args.h>
 #include <base/bitset.h>
 #include <base/string.h>
+#include <base/macros.h>
 #include <gram/analyze.h>
 #include <gram/ll.h>
 #include <gram/lr.h>
@@ -100,9 +101,6 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 
     return nread;
 }
-
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 bool read_files(struct args const args, void *context, bool (*with_file)(void *context, char *filename, char *contents)) {
     if (args.posc == 0) {
@@ -201,6 +199,7 @@ bool parse_file_ll(void *parser_state, char *filename, char *contents) {
 }
 
 bool print_ll_tables(struct args const _, struct ll_parser const *parser) {
+    UNUSED(_);
     print_ll_parser(stdout, parser);
     return true;
 }
@@ -251,66 +250,10 @@ bool parse_file_lr(void *parser_state, char *filename, char *contents) {
 }
 
 bool print_lr_tables(struct args const _, struct lr_parser const *parser) {
+    UNUSED(_);
     print_lr_parser(stdout, parser);
     return true;
 }
-
-bool automata(struct args const args, struct gram_parser_spec *spec) {
-    struct gram_symbol_analysis san = { 0 };
-
-    if (!gram_analyze_symbols(&san, spec))
-        return false;
-
-    enum lr_item_type type = GM_LR0_ITEMS;
-    if (args.type == LR1) type = GM_LR1_ITEMS;
-    else if (args.type == LALR) type = GM_LALR_ITEMS;
-
-    bool result = false;
-
-    unsigned nstates = 0;
-    struct lr_state *states = NULL;
-    if ((states = discover_lr_states(&nstates, type, &san, spec)) &&
-        print_lr_states_dot(stdout, nstates, states, spec)) result = true;
-
-    free_lr_states(nstates, states);
-    free_gram_symbol_analysis(&san);
-
-    return result;
-}
-
-bool analyze(struct args const _, struct gram_parser_spec *spec) {
-    print_gram_stats(stdout, spec->stats);
-
-    struct gram_symbol_analysis san = { 0 };
-    if (!gram_analyze_symbols(&san, spec))
-        return false;
-
-    print_gram_symbol_analysis(stdout, &san);
-
-    struct gram_rule_analysis ran = { 0 };
-    if (!gram_analyze_rules(&ran, &san, spec))
-        return free_gram_symbol_analysis(&san), false;
-
-    print_gram_rule_analysis(stdout, &ran);
-    free_gram_rule_analysis(&ran);
-
-    struct gram_analysis gan = { 0 };
-    if (!gram_analyze(&gan, &san, spec))
-        return free_gram_symbol_analysis(&san), false;
-
-    print_gram_analysis(stdout, &gan);
-    free_gram_analysis(&gan);
-    free_gram_symbol_analysis(&san);
-
-    return true;
-}
-
-bool scan(void *_1, char *_2, char *contents) {
-    print_gram_tokens(stdout, contents);
-    return true;
-}
-
-#pragma clang diagnostic pop
 
 bool run_ll_parse(struct args const args, struct ll_parser_state *parser_state) {
     return read_files(args, parser_state, parse_file_ll);
@@ -342,6 +285,77 @@ bool run_lr_tables(struct args const args, struct gram_parser_spec *spec) {
 
 bool run_lr_parser(struct args const args, struct gram_parser_spec *spec) {
     return make_lr_parser(args, spec, run_lr_parser_state);
+}
+
+bool automata(struct args const args, struct gram_parser_spec *spec) {
+    struct gram_symbol_analysis san = { 0 };
+
+    if (!gram_analyze_symbols(&san, spec))
+        return false;
+
+    enum lr_item_type type = GM_LR0_ITEMS;
+    if (args.type == LR1) type = GM_LR1_ITEMS;
+    else if (args.type == LALR) type = GM_LALR_ITEMS;
+
+    bool result = false;
+
+    unsigned nstates = 0;
+    struct lr_state *states = NULL;
+    if ((states = discover_lr_states(&nstates, type, &san, spec)) &&
+        print_lr_states_dot(stdout, nstates, states, spec)) result = true;
+
+    free_lr_states(nstates, states);
+    free_gram_symbol_analysis(&san);
+
+    return result;
+}
+
+bool analyze(struct args const _, struct gram_parser_spec *spec) {
+    UNUSED(_);
+    print_gram_stats(stdout, spec->stats);
+
+    struct gram_symbol_analysis san = { 0 };
+    if (!gram_analyze_symbols(&san, spec))
+        return false;
+
+    print_gram_symbol_analysis(stdout, &san);
+
+    struct gram_rule_analysis ran = { 0 };
+    if (!gram_analyze_rules(&ran, &san, spec))
+        return free_gram_symbol_analysis(&san), false;
+
+    print_gram_rule_analysis(stdout, &ran);
+    free_gram_rule_analysis(&ran);
+
+    struct gram_analysis gan = { 0 };
+    if (!gram_analyze(&gan, &san, spec))
+        return free_gram_symbol_analysis(&san), false;
+
+    print_gram_analysis(stdout, &gan);
+    free_gram_analysis(&gan);
+    free_gram_symbol_analysis(&san);
+
+    return true;
+}
+
+bool scan(void *_1, char *_2, char *contents) {
+    UNUSED(_1); UNUSED(_2);
+    print_gram_tokens(stdout, contents);
+    return true;
+}
+
+bool tables(struct args const args) {
+    bool result = true;
+    if (args.type == LL) result = parse_spec(args, run_ll_tables);
+    else result = parse_spec(args, run_lr_tables);
+    return result;
+}
+
+bool gen_parser(struct args const args) {
+    bool result = true;
+    if (args.type == LL) result = parse_spec(args, run_ll_parser);
+    else result = parse_spec(args, run_lr_parser);
+    return result;
 }
 
 int main(int argc, char *argv[]) {
@@ -396,19 +410,11 @@ int main(int argc, char *argv[]) {
 
     bool result = true;
 
-    if (args.cmd == ANALYZE) {
-        result = parse_spec(args, analyze);
-    } else if (args.cmd == AUTOMATA) {
-        result = parse_spec(args, automata);
-    } else if (args.cmd == GEN_PARSER) {
-        if (args.type == LL) result = parse_spec(args, run_ll_parser);
-        else result = parse_spec(args, run_lr_parser);
-    } else if (args.cmd == SCAN) {
-        return read_files(args, NULL, scan);
-    } else if (args.cmd == TABLES) {
-        if (args.type == LL) result = parse_spec(args, run_ll_tables);
-        else result = parse_spec(args, run_lr_tables);
-    }
+    if (args.cmd == ANALYZE)         result = parse_spec(args, analyze);
+    else if (args.cmd == AUTOMATA)   result = parse_spec(args, automata);
+    else if (args.cmd == GEN_PARSER) result = gen_parser(args);
+    else if (args.cmd == SCAN)       result = read_files(args, NULL, scan);
+    else if (args.cmd == TABLES)     result = tables(args);
 
     return result ? EXIT_SUCCESS : EXIT_FAILURE;
 }

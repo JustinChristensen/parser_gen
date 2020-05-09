@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <base/string.h>
+#include <base/macros.h>
 #include "regex/ast.h"
 #include "parser.h"
 
@@ -108,12 +109,10 @@ static union regex_result expr_to_result(struct regex_expr_context *context) {
     return (union regex_result) { .expr = gexpr(context) };
 }
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static bool noop_expr(union regex_result _, struct regex_expr_context *context) { return true; }
+static bool noop_expr(union regex_result _1, struct regex_expr_context *_2) { UNUSED(_1); UNUSED(_2); return true; }
 
 static bool do_empty_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, empty_expr());
     return true;
 }
@@ -129,6 +128,7 @@ static bool do_cat_expr(union regex_result expr, struct regex_expr_context *cont
 }
 
 static bool do_sub_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, sub_expr(gexpr(context)));
     return true;
 }
@@ -152,12 +152,14 @@ static bool do_char_class(union regex_result expr, struct regex_expr_context *co
     return true;
 }
 
-static bool do_neg_class(union regex_result expr, struct regex_expr_context *context) {
+static bool do_neg_class(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     gexpr(context)->type = RX_NEG_CLASS_EXPR;
     return true;
 }
 
 static bool do_dotall_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, dotall_expr());
     return true;
 }
@@ -168,16 +170,19 @@ static bool do_char_expr(union regex_result ch, struct regex_expr_context *conte
 }
 
 static bool do_star_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, star_expr(gexpr(context)));
     return true;
 }
 
 static bool do_plus_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, plus_expr(gexpr(context)));
     return true;
 }
 
 static bool do_optional_expr(union regex_result _, struct regex_expr_context *context) {
+    UNUSED(_);
     sexpr(context, optional_expr(gexpr(context)));
     return true;
 }
@@ -193,8 +198,6 @@ static bool do_range(union regex_result range, struct regex_expr_context *contex
     prev_range->expr = gexpr(context);
     return true;
 }
-
-#pragma clang diagnostic pop
 
 static bool (*const expr_actions[])(union regex_result val, struct regex_expr_context *context) = {
     [AI(RX_DO_REGEX)] =        noop_expr,

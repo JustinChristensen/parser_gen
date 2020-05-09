@@ -100,15 +100,11 @@ END_TEST
 struct coords { double lat; double lng; char notes[128]; };
 struct coords_pair { char *key; struct coords val; };
 
-#pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 static void print_coords(FILE *_, void const *coords) {
+    UNUSED(_);
     struct coords const *x = coords;
     debug("%lf, %lf, %s", x->lat, x->lng, x->notes);
 }
-
-#pragma clang diagnostic pop
 
 START_TEST(test_struct_insert) {
     table = hash_table(sizeof (struct coords));

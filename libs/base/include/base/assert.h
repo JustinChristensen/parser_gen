@@ -13,6 +13,9 @@
 #define check(e) ((void) 0)
 #endif
 
-#define INVARIANT(name, ...) static void name(char const *_file, unsigned int _line, __VA_ARGS__)
+#define INVARIANT(name, ...) \
+__attribute__((unused)) static void name( \
+__attribute__((unused)) char const *_file, __attribute((unused)) unsigned int _line, \
+__VA_ARGS__)
 
 #endif // BASE_ASSERT_H_

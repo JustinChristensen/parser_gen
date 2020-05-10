@@ -239,9 +239,9 @@ char **gram_symbol_strings(struct gram_parser_spec const *spec) {
     char **symtab = calloc(offs(stats.symbols), sizeof *symtab);
     if (!symtab) return NULL;
 
-    struct gram_symbol *sym = spec->symbols;
+    struct gram_symbol *sym = gram_symbol0(spec);
     while (!gram_symbol_null(sym)) {
-        if (!(symtab[sym->num] = strdup(sym->str))) {
+        if (sym->str && !(symtab[sym->num] = strdup(sym->str))) {
             free_symtab(symtab, stats);
             return NULL;
         }

@@ -18,4 +18,13 @@ static bool init_scanner(struct nfa_context *scanner, struct regex_pattern *patt
     return false;
 }
 
+static char *sym_str(gram_sym_no s, char **symtab) {
+    if (!s) return "unrecognized token";
+    if (s == GM_EOF) return "eof";
+    if (symtab && symtab[s]) return symtab[s];
+    static char buf[13];
+    sprintf(buf, "%u", s);
+    return buf;
+}
+
 #endif // GRAM_GEN_C_

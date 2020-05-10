@@ -2,6 +2,7 @@
 #define GRAM_LL_H_ 1
 
 #include <stdbool.h>
+#include <base/bitset.h>
 #include <regex/nfa.h>
 #include "gram/analyze.h"
 #include "gram/spec.h"
@@ -16,7 +17,7 @@ enum ll_error_type {
 struct ll_error {
     enum ll_error_type type;
     union {
-        struct { struct regex_loc loc; gram_sym_no actual; gram_sym_no expected; };
+        struct { struct regex_loc loc; char **symtab; gram_sym_no actual; struct bitset *expected; };
         struct { char *file; int col; };
         struct regex_error scanerr;
     };
@@ -25,6 +26,8 @@ struct ll_error {
 struct ll_parser {
     gram_sym_no **rtable;
     gram_rule_no **ptable;
+    char **symtab;
+    struct gram_symbol_analysis san;
     struct nfa_context scanner;
     struct gram_stats stats;
 };
@@ -37,7 +40,7 @@ struct ll_parser_state {
 
 struct ll_parser ll_parser(
     struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
-    struct gram_stats stats
+    char **symtab, struct gram_symbol_analysis san, struct gram_stats stats
 );
 bool gen_ll(
     struct ll_error *error, struct ll_parser *parser,

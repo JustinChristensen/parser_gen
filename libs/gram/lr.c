@@ -281,11 +281,15 @@ bool gen_lr(
     if ((atable = (*table)(error, &nstates, rtable, &gan, &san, spec)) == NULL)
         goto free;
 
-    if ((symtab = gram_symbol_strings(spec)) == NULL)
+    if ((symtab = gram_symbol_strings(spec)) == NULL) {
+        oom_error(error, NULL);
         goto free;
+    }
 
-    if ((next_sets = alloc_next_sets(nstates)) == NULL)
+    if ((next_sets = alloc_next_sets(nstates)) == NULL) {
+        oom_error(error, NULL);
         goto free;
+    }
 
     free_gram_analysis(&gan);
     free_gram_symbol_analysis(&san);
@@ -425,7 +429,7 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
         debug_parser_state(states, state);
 
         if (state->lookahead == RX_REJECTED) {
-            success = syntax_error(error, 0, state);
+            success = syntax_error(error, s, state);
             break;
         }
 
@@ -446,8 +450,7 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
             apush(&act.n, states);
         } else if (act.action == GM_LR_ACCEPT) {
             break;
-        } else success = syntax_error(error, 0, state);
-            // FIXME: get the set of expected symbols at this point
+        } else success = syntax_error(error, s, state);
 
         debug("\n");
     }
@@ -461,24 +464,22 @@ void free_lr_parser_state(struct lr_parser_state *state) {
     free_nfa_match(&state->match);
 }
 
-static void print_next_set(FILE *handle, char **symtab, gram_sym_no *next_set) {
-    gram_sym_no *s = next_set;
+static void print_sym_set(FILE *handle, char **symtab, gram_sym_no *sym_set) {
+    gram_sym_no *s = sym_set;
     if (*s) {
-        if (symtab) fprintf(handle, "%s", symtab[*s++]);
-        else fprintf(handle, "%u", *s++);
+        fprintf(handle, "%s", sym_str(*s++, symtab));
         while (*s) {
-            if (symtab) fprintf(handle, ", %s", symtab[*s++]);
-            else fprintf(handle, ", %u", *s++);
+            fprintf(handle, ", %s", sym_str(*s++, symtab));
         }
     }
 }
 
 #define ERROR_FMT_END "\n|\n"
-#define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %u\n| Expected: "
-#define SYNTAX_ERROR_FMT_LOC "\n\n|\n| At: "
+#define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %s\n| Expected: "
+#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
 static void print_syntax_error(FILE *handle, struct lr_error error) {
-    fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual);
-    print_next_set(handle, error.symtab, error.expected);
+    fprintf(handle, SYNTAX_ERROR_FMT_START, sym_str(error.actual, error.symtab));
+    print_sym_set(handle, error.symtab, error.expected);
     fprintf(handle, SYNTAX_ERROR_FMT_LOC);
     print_regex_loc(handle, error.loc);
     fprintf(handle, ERROR_FMT_END);

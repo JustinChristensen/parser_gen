@@ -4,10 +4,10 @@
 #include <assert.h>
 #include <string.h>
 #include <base/base.h>
+#include <base/bitset.h>
 #include <base/array.h>
 #include <base/assert.h>
 #include <base/debug.h>
-#include <base/bitset.h>
 #include <regex/nfa.h>
 #include "gram/ll.h"
 #include "gram/spec.h"
@@ -43,12 +43,18 @@ static bool scanner_error(struct ll_error *error, struct regex_error scanerr) {
     return false;
 }
 
+struct bitset *next_set(gram_sym_no expected, struct ll_parser *parser) {
+    struct gram_symbol_analysis san = parser->san;
+    return san.firsts[expected];
+}
+
 static bool syntax_error(struct ll_error *error, gram_sym_no expected, struct ll_parser_state *state) {
     prod(error, ((struct ll_error) {
         .type = GM_LL_SYNTAX_ERROR,
         .loc = nfa_match_loc(&state->match),
+        .symtab = state->parser->symtab,
         .actual = state->lookahead,
-        .expected = expected
+        .expected = next_set(expected, state->parser)
     }));
 
     return false;
@@ -56,9 +62,9 @@ static bool syntax_error(struct ll_error *error, gram_sym_no expected, struct ll
 
 struct ll_parser ll_parser(
     struct nfa_context scanner, gram_sym_no **rtable, gram_rule_no **ptable,
-    struct gram_stats stats
+    char **symtab, struct gram_symbol_analysis san, struct gram_stats stats
 ) {
-    return (struct ll_parser) { rtable, ptable, scanner, stats };
+    return (struct ll_parser) { rtable, ptable, symtab, san, scanner, stats };
 }
 
 static gram_rule_no **alloc_parse_table(struct gram_stats stats) {
@@ -178,6 +184,7 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
     struct nfa_context scanner = { 0 };
     gram_rule_no **ptable = NULL;
     gram_sym_no **rtable = NULL;
+    char **symtab = NULL;
 
     if (!gram_analyze_symbols(&san, spec))
         return false;
@@ -209,9 +216,12 @@ bool gen_ll(struct ll_error *error, struct ll_parser *parser, struct gram_parser
         goto free;
     }
 
-    free_gram_symbol_analysis(&san);
+    if ((symtab = gram_symbol_strings(spec)) == NULL) {
+        oom_error(error, NULL);
+        goto free;
+    }
 
-    *parser = ll_parser(scanner, rtable, ptable, stats);
+    *parser = ll_parser(scanner, rtable, ptable, symtab, san, stats);
 
     return true;
 free:
@@ -220,6 +230,7 @@ free:
     free_nfa_context(&scanner);
     free(ptable);
     free(rtable);
+    free(symtab);
 
     return false;
 }
@@ -255,6 +266,8 @@ void free_ll_parser(struct ll_parser *parser) {
     if (!parser) return;
     free(parser->rtable);
     free(parser->ptable);
+    free(parser->symtab);
+    free_gram_symbol_analysis(&parser->san);
     free_nfa_context(&parser->scanner);
     *parser = (struct ll_parser) { 0 };
 }
@@ -366,19 +379,34 @@ void free_ll_parser_state(struct ll_parser_state *state) {
     free_nfa_match(&state->match);
 }
 
+static void print_sym_set(FILE *handle, char **symtab, struct bitset *sym_set) {
+    struct bsiter it = bsiter(sym_set);
+    gram_sym_no s;
+    if (bsnext(&s, &it)) {
+        fprintf(handle, "%s", sym_str(s, symtab));
+        while (bsnext(&s, &it))
+            fprintf(handle, ", %s", sym_str(s, symtab));
+    }
+}
+
 #define ERROR_FMT_END "\n|\n"
+#define SYNTAX_ERROR_FMT_START "| LL Syntax Error\n|\n| Got: %s\n| Expected: "
+#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
+static void print_syntax_error(FILE *handle, struct ll_error error) {
+    fprintf(handle, SYNTAX_ERROR_FMT_START, sym_str(error.actual, error.symtab));
+    print_sym_set(handle, error.symtab, error.expected);
+    fprintf(handle, SYNTAX_ERROR_FMT_LOC);
+    print_regex_loc(handle, error.loc);
+    fprintf(handle, ERROR_FMT_END);
+}
+
 #define OOM_ERROR_FMT_START "| LL Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
 #define NOT_LL1_FMT "| Grammar Not LL(1)\n|\n"
-#define SYNTAX_ERROR_FMT_START "| LL Syntax Error\n|\n| Got: %u\n| Expected: %u"
-#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
 void print_ll_error(FILE *handle, struct ll_error error) {
     switch (error.type) {
         case GM_LL_SYNTAX_ERROR:
-            fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
-            fprintf(handle, SYNTAX_ERROR_FMT_LOC);
-            print_regex_loc(handle, error.loc);
-            fprintf(handle, ERROR_FMT_END);
+            print_syntax_error(handle, error);
             break;
         case GM_LL_NOT_LL1_ERROR:
             fprintf(handle, NOT_LL1_FMT);

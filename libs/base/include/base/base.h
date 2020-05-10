@@ -9,5 +9,6 @@
 void vfreel(void *p, va_list ptrs);
 #define freel(...) freel_(__VA_ARGS__, NULL);
 void freel_(void *p, ...);
+#define freec(x) free((void *) (x));
 
 #endif // BASE_BASE_H_

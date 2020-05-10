@@ -234,6 +234,23 @@ struct gram_symbol *gram_start_sym(struct gram_parser_spec const *spec) {
     return gram_exists(spec) ? gram_nonterm0(spec) : gram_term0(spec);
 }
 
+char **gram_symbol_strings(struct gram_parser_spec const *spec) {
+    struct gram_stats const stats = spec->stats;
+    char **symtab = calloc(offs(stats.symbols), sizeof *symtab);
+    if (!symtab) return NULL;
+
+    struct gram_symbol *sym = spec->symbols;
+    while (!gram_symbol_null(sym)) {
+        if (!(symtab[sym->num] = strdup(sym->str))) {
+            free_symtab(symtab, stats);
+            return NULL;
+        }
+        sym++;
+    }
+
+    return symtab;
+}
+
 #define PATTERN_DEF_FMT "%s %s\n"
 static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
     for (; def; def = def->next) {

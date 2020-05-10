@@ -36,7 +36,7 @@ struct lr_rule {
 struct lr_error {
     enum lr_error_type type;
     union {
-        struct { struct regex_loc loc; gram_sym_no actual; gram_sym_no expected; };
+        struct { struct regex_loc loc; char **symtab; gram_sym_no actual; gram_sym_no *expected; };
         struct { char *file; int col; };
         struct regex_error scanerr;
     };
@@ -44,8 +44,10 @@ struct lr_error {
 
 struct lr_parser {
     unsigned nstates;
-    struct lr_action **atable;
-    struct lr_rule *rtable;
+    struct lr_action const **atable;
+    struct lr_rule const *rtable;
+    char **symtab;
+    gram_sym_no **next_sets;
     struct nfa_context scanner;
     struct gram_stats stats;
 };
@@ -56,7 +58,7 @@ struct lr_parser_state {
     gram_sym_no lookahead;
 };
 
-typedef struct lr_action **action_table(
+typedef struct lr_action const **action_table(
     struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
@@ -67,7 +69,8 @@ action_table lalr_table;
 action_table lr1_table;
 
 struct lr_parser lr_parser(
-    unsigned nstates, struct lr_action **atable, struct lr_rule *rtable,
+    unsigned const nstates, struct lr_action const **atable, struct lr_rule const *rtable,
+    char **symtab, gram_sym_no **next_sets,
     struct nfa_context scanner, struct gram_stats const stats
 );
 bool gen_lr(

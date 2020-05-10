@@ -54,22 +54,44 @@ static bool scanner_error(struct lr_error *error, struct regex_error scanerr) {
     return false;
 }
 
-static bool syntax_error(struct lr_error *error, gram_sym_no expected, struct lr_parser_state *state) {
+static gram_sym_no *next_set(gram_state_no current_state, struct lr_parser const *parser) {
+    gram_sym_no **next_sets = parser->next_sets;
+
+    if (!next_sets[current_state]) {
+        unsigned nterms = 0;
+        struct lr_action const *row = parser->atable[current_state];
+        FOR_TERM(parser->stats, s) nterms += row[s].action ? 1 : 0;
+        gram_sym_no *next = calloc(nullterm(nterms), sizeof *next), *n = next;
+        if (!next) abort();
+        FOR_TERM(parser->stats, s) if (row[s].action) *n++ = s;
+        next_sets[current_state] = next;
+    }
+
+    return next_sets[current_state];
+}
+
+static bool syntax_error(struct lr_error *error, gram_state_no current_state, struct lr_parser_state *state) {
     prod(error, ((struct lr_error) {
         .type = GM_LR_SYNTAX_ERROR,
         .loc = nfa_match_loc(&state->match),
+        .symtab = state->parser->symtab,
         .actual = state->lookahead,
-        .expected = expected
+        .expected = next_set(current_state, state->parser)
     }));
 
     return false;
 }
 
 struct lr_parser lr_parser(
-    unsigned nstates, struct lr_action **atable, struct lr_rule *rtable,
+    unsigned const nstates, struct lr_action const **atable, struct lr_rule const *rtable,
+    char **symtab, gram_sym_no **next_sets,
     struct nfa_context scanner, struct gram_stats const stats
 ) {
-    return (struct lr_parser) { nstates, atable, rtable, scanner, stats };
+    return (struct lr_parser) { nstates, atable, rtable, symtab, next_sets, scanner, stats };
+}
+
+static gram_sym_no **alloc_next_sets(unsigned nstates) {
+    return calloc(nstates, sizeof (gram_sym_no *));
 }
 
 static struct lr_rule *rule_table(struct gram_parser_spec const *spec) {
@@ -93,7 +115,7 @@ static struct lr_rule *rule_table(struct gram_parser_spec const *spec) {
 #define SHIFT(num) (struct lr_action) { GM_LR_SHIFT, (num) }
 #define REDUCE(num) (struct lr_action) { GM_LR_REDUCE, (num) }
 #define GOTO(num) (struct lr_action) { GM_LR_GOTO, (num) }
-static struct lr_action **make_action_table(
+static struct lr_action const **make_action_table(
     enum gram_class clas, struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
@@ -185,10 +207,10 @@ static struct lr_action **make_action_table(
 
     *nstates = _nstates;
 
-    return atable;
+    return (struct lr_action const **) atable;
 }
 
-struct lr_action **slr_table(
+struct lr_action const **slr_table(
     struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
@@ -197,7 +219,7 @@ struct lr_action **slr_table(
     return make_action_table(GM_SLR, error, nstates, rtable, gan, san, spec);
 }
 
-struct lr_action **lalr_table(
+struct lr_action const **lalr_table(
     struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
@@ -206,7 +228,7 @@ struct lr_action **lalr_table(
     return make_action_table(GM_LALR, error, nstates, rtable, gan, san, spec);
 }
 
-struct lr_action **lr1_table(
+struct lr_action const **lr1_table(
     struct lr_error *error, unsigned *nstates, struct lr_rule const *rtable,
     struct gram_analysis const *gan, struct gram_symbol_analysis const *san,
     struct gram_parser_spec const *spec
@@ -232,8 +254,10 @@ bool gen_lr(
     struct gram_symbol_analysis san = { 0 };
     struct gram_analysis gan = { 0 };
     struct nfa_context scanner = { 0 };
-    struct lr_rule *rtable = NULL;
-    struct lr_action **atable = NULL;
+    struct lr_rule const *rtable = NULL;
+    struct lr_action const **atable = NULL;
+    char **symtab = NULL;
+    gram_sym_no **next_sets = NULL;
 
     if (!gram_analyze_symbols(&san, spec))
         return oom_error(error, NULL);
@@ -257,18 +281,26 @@ bool gen_lr(
     if ((atable = (*table)(error, &nstates, rtable, &gan, &san, spec)) == NULL)
         goto free;
 
+    if ((symtab = gram_symbol_strings(spec)) == NULL)
+        goto free;
+
+    if ((next_sets = alloc_next_sets(nstates)) == NULL)
+        goto free;
+
     free_gram_analysis(&gan);
     free_gram_symbol_analysis(&san);
 
-    *parser = lr_parser(nstates, atable, rtable, scanner, stats);
+    *parser = lr_parser(nstates, atable, rtable, symtab, next_sets, scanner, stats);
 
     return true;
 free:
     free_gram_symbol_analysis(&san);
     free_gram_analysis(&gan);
     free_nfa_context(&scanner);
-    free(atable);
-    free(rtable);
+    freec(atable);
+    freec(rtable);
+    free(symtab);
+    free(next_sets);
 
     return false;
 }
@@ -293,7 +325,7 @@ static void print_action(FILE *handle, struct lr_action act) {
 void print_lr_parser(FILE *handle, struct lr_parser const *parser) {
     assert(parser != NULL);
 
-    struct lr_action **atable = parser->atable;
+    struct lr_action const **atable = parser->atable;
 
     FOR_SYMBOL(parser->stats, s) fprintf(handle, ",%u", s);
     fprintf(handle, "\n");
@@ -310,10 +342,19 @@ void print_lr_parser(FILE *handle, struct lr_parser const *parser) {
     }
 }
 
+static void free_next_sets(unsigned nstates, gram_sym_no **next_sets) {
+    if (!next_sets) return;
+    for (unsigned st = 0; st < nstates; st++)
+        if (next_sets[st]) free(next_sets[st]);
+    free(next_sets);
+}
+
 void free_lr_parser(struct lr_parser *parser) {
     if (!parser) return;
-    free(parser->atable);
-    free(parser->rtable);
+    freec(parser->atable);
+    freec(parser->rtable);
+    free_symtab(parser->symtab, parser->stats);
+    free_next_sets(parser->nstates, parser->next_sets);
     free_nfa_context(&parser->scanner);
     *parser = (struct lr_parser) { 0 };
 }
@@ -372,8 +413,8 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
     if (!states) return oom_error(error, NULL);
 
     struct lr_parser const *parser = state->parser;
-    struct lr_action **atable = parser->atable;
-    struct lr_rule *rtable = parser->rtable;
+    struct lr_action const **atable = parser->atable;
+    struct lr_rule const *rtable = parser->rtable;
 
     bool success = true;
     gram_state_no s = 0;
@@ -411,7 +452,6 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
         debug("\n");
     }
 
-
     free_array(states);
 
     return success;
@@ -421,21 +461,38 @@ void free_lr_parser_state(struct lr_parser_state *state) {
     free_nfa_match(&state->match);
 }
 
+static void print_next_set(FILE *handle, char **symtab, gram_sym_no *next_set) {
+    gram_sym_no *s = next_set;
+    if (*s) {
+        if (symtab) fprintf(handle, "%s", symtab[*s++]);
+        else fprintf(handle, "%u", *s++);
+        while (*s) {
+            if (symtab) fprintf(handle, ", %s", symtab[*s++]);
+            else fprintf(handle, ", %u", *s++);
+        }
+    }
+}
+
 #define ERROR_FMT_END "\n|\n"
+#define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %u\n| Expected: "
+#define SYNTAX_ERROR_FMT_LOC "\n\n|\n| At: "
+static void print_syntax_error(FILE *handle, struct lr_error error) {
+    fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual);
+    print_next_set(handle, error.symtab, error.expected);
+    fprintf(handle, SYNTAX_ERROR_FMT_LOC);
+    print_regex_loc(handle, error.loc);
+    fprintf(handle, ERROR_FMT_END);
+}
+
 #define OOM_ERROR_FMT_START "| LR Out of Memory\n|\n"
 #define OOM_ERROR_FMT_FILE "| At: %s:%d\n|\n"
 #define NOT_SLR_FMT "| Grammar Not SLR\n|\n"
 #define NOT_LALR_FMT "| Grammar Not LALR\n|\n"
 #define NOT_LR1_FMT "| Grammar Not LR1\n|\n"
-#define SYNTAX_ERROR_FMT_START "| LR Syntax Error\n|\n| Got: %u\n| Expected: %u"
-#define SYNTAX_ERROR_FMT_LOC "\n|\n| At: "
 void print_lr_error(FILE *handle, struct lr_error error) {
     switch (error.type) {
         case GM_LR_SYNTAX_ERROR:
-            fprintf(handle, SYNTAX_ERROR_FMT_START, error.actual, error.expected);
-            fprintf(handle, SYNTAX_ERROR_FMT_LOC);
-            print_regex_loc(handle, error.loc);
-            fprintf(handle, ERROR_FMT_END);
+            print_syntax_error(handle, error);
             break;
         case GM_LR_NOT_SLR_ERROR:
             fprintf(handle, NOT_SLR_FMT);

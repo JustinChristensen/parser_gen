@@ -197,8 +197,10 @@ static int compare_itemsets(
         } else break;
     }
 
-    if (i < ni && j >= nj) cmp = 1;
-    else if (i >= ni && j < nj) cmp = -1;
+    if (!cmp) {
+        if (i < ni && j >= nj) cmp = 1;
+        else if (i >= ni && j < nj) cmp = -1;
+    }
 
     if (debug_is("gram_states")) {
         print_lr_itemset_compact(stderr, kernel);

@@ -313,6 +313,7 @@ bool automata(struct args const args, struct gram_parser_spec *spec) {
 bool analyze(struct args const _, struct gram_parser_spec *spec) {
     UNUSED(_);
     print_gram_stats(stdout, spec->stats);
+    print_gram_parser_spec(stdout, spec);
 
     struct gram_symbol_analysis san = { 0 };
     if (!gram_analyze_symbols(&san, spec))

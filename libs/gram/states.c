@@ -176,7 +176,6 @@ static int compare_lr1_items(void const *a, void const *b) {
     }
 }
 
-// this is dubious at best
 static int compare_itemsets(
     int (*cmp_items)(void const *a, void const *b), bool const lalr,
     struct lr_itemset const *kernel, struct lr_itemset const *itemset
@@ -191,30 +190,15 @@ static int compare_itemsets(
     for (; i < ni && j < nj; i++, j++) {
         cmp = (*cmp_items)(kitems + i, citems + j);
 
-        if (!cmp) continue;
-
-        if (lalr) {
-            if (cmp < 0) {
-                while (i < ni - 1 && !(*cmp_items)(kitems + i, kitems + i + 1)) i++;
-            } else if (cmp > 0) {
-                while (j < nj - 1 && !(*cmp_items)(citems + j, citems + j + 1)) j++;
-            }
+        if (lalr && !cmp) {
+            struct lr_item const *last = kitems + i;
+            while (i < ni - 1 && !(*cmp_items)(last, kitems + i + 1)) i++;
+            while (j < nj - 1 && !(*cmp_items)(last, citems + j + 1)) j++;
         } else break;
     }
 
-    if (lalr && !cmp) {
-        struct lr_item const *last;
-        if (i < ni && j >= nj) {
-            last = citems + j - 1;
-            while (!(cmp = (*cmp_items)(kitems + i++, last)) && i < ni);
-        } else if (i >= ni && j < nj) {
-            last = kitems + i - 1;
-            while (!(cmp = (*cmp_items)(last, citems + j++)) && j < nj);
-        }
-    } else if (!cmp) {
-        if (i < ni && j >= nj) cmp = 1;
-        else if (i >= ni && j < nj) cmp = -1;
-    }
+    if (i < ni && j >= nj) cmp = 1;
+    else if (i >= ni && j < nj) cmp = -1;
 
     if (debug_is("gram_states")) {
         print_lr_itemset_compact(stderr, kernel);

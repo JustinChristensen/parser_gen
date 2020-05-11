@@ -95,7 +95,9 @@ INVARIANT(action_table_conflict, struct lr_action *row, struct lr_action act, gr
 INVARIANT(assert_itemsets_sorted, struct lr_itemset const *kernel, struct lr_itemset const *itemset) {
     check(kernel != NULL);
     check(itemset != NULL);
+    check(kernel->kitems > 0);
     check(kernel->nitems > 0);
+    check(itemset->kitems > 0);
     check(itemset->nitems > 0);
 
     if (!lr_itemset_sorted(kernel)) {

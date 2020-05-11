@@ -117,8 +117,8 @@ make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struc
 }
 
 static bool states_context(struct states_context *context, enum lr_item_type item_type, struct gram_stats const stats) {
-    size_t setsize = stats.nonterms;
-    if (item_type != GM_LR0_ITEMS) setsize *= stats.terms;
+    size_t setsize = stats.terms;
+    if (item_type != GM_LR0_ITEMS) setsize *= stats.nonterms;
 
     struct bitset *symset = bitset(setsize);
     if (!symset) return false;

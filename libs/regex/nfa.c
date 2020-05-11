@@ -862,6 +862,9 @@ static int _nfa_match(struct nfa_match *match) {
     char *input = match->input;
     struct regex_loc loc = match->input_loc;
 
+    match->match_start = input;
+    match->match_loc = loc;
+
     if (*input == '\0') {
         match->eof_seen = true;
         return RX_EOF;
@@ -869,9 +872,6 @@ static int _nfa_match(struct nfa_match *match) {
 
     if (!runnable(mach))
         return RX_REJECTED;
-
-    match->match_start = input;
-    match->match_loc = loc;
 
     bool *already_on = match->already_on;
     struct nfa_state **cstart, **cend, **nstart, **nend;

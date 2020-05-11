@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <base/args.h>
 #include <base/bitset.h>
 #include <base/string.h>
@@ -103,12 +104,18 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 }
 
 bool read_files(struct args const args, void *context, bool (*with_file)(void *context, char *filename, char *contents)) {
+    char contents[BUFFER_SIZE] = "";
+
     if (args.posc == 0) {
-        fprintf(stderr, "no input files\n");
+        if (!isatty(STDIN_FILENO)) {
+            int nread = fread(contents, sizeof *contents, BUFFER_SIZE, stdin);
+            contents[nread] = '\0';
+            return (*with_file)(context, "stdin", contents);
+        }
+
+        fprintf(stderr, "no input\n");
         return false;
     }
-
-    char contents[BUFFER_SIZE] = "";
 
     for (int i = 0; i < args.posc; i++) {
         char *filename = args.pos[i];

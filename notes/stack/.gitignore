@@ -1,0 +1,4 @@
+*.o
+*.dSYM
+.DS_Store
+stacktest

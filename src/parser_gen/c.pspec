@@ -1,0 +1,209 @@
+# keywords
+auto                    /auto/
+break                   /break/
+case                    /case/
+char                    /char/
+const                   /const/
+continue                /continue/
+default                 /default/
+do                      /do/
+double                  /double/
+else                    /else/
+enum                    /enum/
+extern                  /extern/
+float                   /float/
+for                     /for/
+goto                    /goto/
+if                      /if/
+inline                  /inline/
+int                     /int/
+long                    /long/
+register                /register/
+restrict                /restrict/
+return                  /return/
+short                   /short/
+signed                  /signed/
+sizeof                  /sizeof/
+static                  /static/
+struct                  /struct/
+switch                  /switch/
+typedef                 /typedef/
+union                   /union/
+unsigned                /unsigned/
+void                    /void/
+volatile                /volatile/
+while                   /while/
+_Alignas                /_Alignas/
+_Alignof                /_Alignof/
+_Atomic                 /_Atomic/
+_Bool                   /_Bool/
+_Complex                /_Complex/
+_Generic                /_Generic/
+_Imaginary              /_Imaginary/
+_Noreturn               /_Noreturn/
+_Static_assert          /_Static_assert/
+_Thread_local           /_Thread_local/
+
+# identifier
+identifier              /{alpha_}{alnum}+/
+
+# number constants
+decimal_constant        /[1-9][0-9]*/
+octal_constant          /0[0-7]*/
+hexadecimal_constant    /(0(x|X))[0-9a-fA-F]+/
+
+# char constant
+char_sequence           /'(\\.|[^'])'/
+string_sequence         /"(\\.|[^"])*"/
+
+---
+
+token:
+      keyword
+    | identifier
+    | constant
+    | string_literal
+    | punctuator ;
+
+keyword:
+      auto
+    | break
+    | case
+    | char
+    | const
+    | continue
+    | default
+    | do
+    | double
+    | else
+    | enum
+    | extern
+    | float
+    | for
+    | goto
+    | if
+    | inline
+    | int
+    | long
+    | register
+    | restrict
+    | return
+    | short
+    | signed
+    | sizeof
+    | static
+    | struct
+    | switch
+    | typedef
+    | union
+    | unsigned
+    | void
+    | volatile
+    | while
+    | _Alignas
+    | _Alignof
+    | _Atomic
+    | _Bool
+    | _Complex
+    | _Generic
+    | _Imaginary
+    | _Noreturn
+    | _Static_assert
+    | _Thread_local
+    ;
+
+constant:
+      integer_constant
+#    | floating_constant
+    | enumeration_constant
+    | character_constant
+    ;
+
+enumeration_constant: identifier 'x';
+
+integer_constant:
+      decimal_constant opt_integer_suffix
+    | octal_constant opt_integer_suffix
+    | hexadecimal_constant opt_integer_suffix
+    ;
+
+integer_suffix:
+      'u'
+    | 'U'
+    | 'l'
+    | 'L'
+    | "ll"
+    | "LL"
+    | "ull"
+    | "ULL";
+
+opt_integer_suffix: integer_suffix | $empty;
+
+character_constant:
+      char_sequence
+    | 'L' char_sequence
+    | "u|U" char_sequence
+    ;
+
+string_literal:
+    opt_string_encoding_prefix string_sequence;
+
+opt_string_encoding_prefix: "u8" | 'u' | 'U' | 'L' | $empty;
+
+punctuator:
+      '\['
+    | '\]'
+    | '\('
+    | '\)'
+    | '\{'
+    | '\}'
+    | '\.'
+    | "->"
+    | "\+\+"
+    | "--"
+    | '&'
+    | '\*'
+    | '\+'
+    | '-'
+    | '~'
+    | '!'
+    | '/'
+    | '%'
+    | "<<"
+    | ">>"
+    | '<'
+    | '>'
+    | "<="
+    | ">="
+    | "=="
+    | "!="
+    | '^'
+    | '\|'
+    | "&&"
+    | "\|\|"
+    | '\?'
+    | ':'
+    | ';'
+    | "\.\.\."
+    | '='
+    | "\*="
+    | "/="
+    | "%="
+    | "\+="
+    | "-="
+    | "<<="
+    | ">>="
+    | "&="
+    | "^="
+    | "\|="
+    | ','
+    | '#'
+    | "##"
+    | "<:"
+    | ":>"
+    | "<%"
+    | "%>"
+    | "%:"
+    | "%:%:"
+    ;
+

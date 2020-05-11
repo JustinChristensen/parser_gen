@@ -419,6 +419,7 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
     struct lr_parser const *parser = state->parser;
     struct lr_action const **atable = parser->atable;
     struct lr_rule const *rtable = parser->rtable;
+    char **symtab = parser->symtab;
 
     bool success = true;
     gram_state_no s = 0;
@@ -444,7 +445,7 @@ bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state
             struct lr_rule rule = rtable[act.n];
             while (rule.n) apop(&s, states), rule.n--;
             apeek(&s, states);
-            printf("parsed %u\n", rule.nt);
+            printf("parsed %s\n", sym_str(rule.nt, symtab));
             act = atable[s][rule.nt];
             debug("action: %c(%u)\n", action_sym(act.action), act.n);
             apush(&act.n, states);

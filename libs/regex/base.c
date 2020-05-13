@@ -47,6 +47,36 @@ struct regex_error regex_nullerror() {
     return (struct regex_error) { 0 };
 }
 
+void regex_escape(char *pattern) {
+    char *c = pattern;
+
+    while (*c) {
+        char *n; char s; char t;
+
+        switch (*c) {
+            case '*':
+            case '+':
+            case '?':
+            case '.':
+            case '|':
+            case '(':
+            case ')':
+            case '{':
+            case '[':
+                s = '\\';
+                for (n = c; s; n++) {
+                    t = *n;
+                    *n = s;
+                    s = t;
+                }
+                c++;
+                break;
+            default: break;
+        }
+        c++;
+    }
+}
+
 struct regex_loc bump_regex_loc(char c, struct regex_loc loc) {
     if (c == '\n') {
         loc.line++;

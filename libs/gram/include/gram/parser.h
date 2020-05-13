@@ -26,14 +26,12 @@ struct gram_symbol_entry {
 enum gram_parser_symbol {
     // terminals
     GM_EOF_T = RX_EOF,
-    GM_TAG_ONLY_T = RX_START,
-    GM_SKIP_T,
+    GM_SKIP_T = RX_START,
     GM_REGEX_T,
     GM_SECTION_T,
     GM_COLON_T,
     GM_ALT_T,
     GM_SEMICOLON_T,
-    GM_CHAR_T,
     GM_STRING_T,
     GM_EMPTY_T,
     GM_ID_T,
@@ -98,7 +96,7 @@ bool gram_start_scanning(struct gram_parse_error *error, char *input, struct gra
 enum gram_parser_symbol gram_scan(struct gram_spec_parser *parser);
 enum gram_parser_symbol gram_lookahead(struct gram_spec_parser *parser);
 struct regex_loc gram_location(struct gram_spec_parser *parser);
-bool gram_lexeme(char *lexeme, struct gram_spec_parser *parser);
+void gram_lexeme(char *lexeme, struct gram_spec_parser *parser);
 bool gram_parse(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
     char *input, struct gram_spec_parser *parser

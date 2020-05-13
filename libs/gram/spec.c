@@ -33,8 +33,7 @@ struct gram_parser_spec gram_packed_spec(
 
 struct gram_pattern_def *init_gram_pattern_def(
     struct regex_loc loc,
-    char *id, char *regex,
-    bool tag_only, bool skip,
+    char *id, char *regex, bool skip,
     struct gram_pattern_def *next
 ) {
     struct gram_pattern_def *pdef = malloc(sizeof *pdef);
@@ -54,7 +53,6 @@ struct gram_pattern_def *init_gram_pattern_def(
 
     *pdef = (struct gram_pattern_def) {
         loc, id, regex,
-        .tag_only = tag_only,
         .skip = skip,
         next, N_(next)
     };
@@ -106,10 +104,6 @@ struct gram_rhs *init_id_gram_rhs(struct regex_loc loc, char *str, struct gram_r
     return init_rhs(loc, GM_ID_RHS, str, next);
 }
 
-struct gram_rhs *init_char_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next) {
-    return init_rhs(loc, GM_CHAR_RHS, str, next);
-}
-
 struct gram_rhs *init_string_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next) {
     return init_rhs(loc, GM_STRING_RHS, str, next);
 }
@@ -157,7 +151,6 @@ void free_gram_rhs(struct gram_rhs *rhs) {
         next = rhs->next;
         switch (rhs->type) {
             case GM_ID_RHS:
-            case GM_CHAR_RHS:
             case GM_STRING_RHS:
                 free(rhs->str);
                 break;
@@ -254,7 +247,6 @@ char **gram_symbol_strings(struct gram_parser_spec const *spec) {
 #define PATTERN_DEF_FMT "%s %s\n"
 static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
     for (; def; def = def->next) {
-        if (def->tag_only) fprintf(handle, "@");
         if (def->skip) fprintf(handle, "-");
         fprintf(handle, PATTERN_DEF_FMT, def->id, def->regex);
     }
@@ -266,7 +258,6 @@ static void print_gram_pattern_def(FILE *handle, struct gram_pattern_def *def) {
 static void _print_gram_rhs(FILE *handle, struct gram_rhs *rhs) {
     switch (rhs->type) {
         case GM_ID_RHS:
-        case GM_CHAR_RHS:
         case GM_STRING_RHS:
             fprintf(handle, RHS_FMT, rhs->str);
             break;

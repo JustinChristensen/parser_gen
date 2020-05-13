@@ -15,3 +15,4 @@
 * decide what to do with error handling in the generated parser
 * make analyze detect shift/reduce and reduce/reduce conflicts (and classify the grammar accordingly)
 * make the char and string literals actually behave like literals (instead of passing them along verbatim to the scanner generator)
+* check bounds or stack buffers (buffer overflows as far as the eye can see)

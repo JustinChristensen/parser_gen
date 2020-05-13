@@ -71,7 +71,6 @@ struct gram_pattern_def {
     struct regex_loc loc;
     char *id;
     char *regex;
-    bool tag_only;
     bool skip;
     struct gram_pattern_def *next;
     size_t n;
@@ -94,7 +93,6 @@ struct gram_alt {
 
 enum gram_rhs_type {
     GM_ID_RHS,
-    GM_CHAR_RHS,
     GM_STRING_RHS,
     GM_EMPTY_RHS
 };
@@ -119,14 +117,12 @@ struct gram_parser_spec gram_packed_spec(
 );
 struct gram_pattern_def *init_gram_pattern_def(
     struct regex_loc loc,
-    char *id, char *regex,
-    bool tag_only, bool skip,
+    char *id, char *regex, bool skip,
     struct gram_pattern_def *next
 );
 struct gram_rule *init_gram_rule(struct regex_loc loc, char *id, struct gram_alt *alts, struct gram_rule *next);
 struct gram_alt *init_gram_alt(struct regex_loc loc, struct gram_rhs *rhses, struct gram_alt *next);
 struct gram_rhs *init_id_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
-struct gram_rhs *init_char_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_string_gram_rhs(struct regex_loc loc, char *str, struct gram_rhs *next);
 struct gram_rhs *init_empty_gram_rhs(struct regex_loc loc, struct gram_rhs *next);
 

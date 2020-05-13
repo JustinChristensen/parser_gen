@@ -52,6 +52,8 @@ char *safedup(char const *s) {
     return strdup(s);
 }
 
+// "" ->
+// "i" -> i
 void strip_quotes(char *s) {
     if (!s || s[0] == '\0' || s[1] == '\0') return;
 
@@ -59,7 +61,7 @@ void strip_quotes(char *s) {
     for (; s[i + 2] != '\0'; i++) {
         s[i] = s[i + 1];
     }
-    s[i] = '\0';
+    s[i] = s[i + 1] = '\0';
 }
 
 char const *yesno(bool x) {

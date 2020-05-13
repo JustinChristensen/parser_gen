@@ -47,7 +47,6 @@ bool gram_check(struct gram_parse_error *error,
             for (rhs = alt->rhses; rhs; rhs = rhs->next) {
                 switch (rhs->type) {
                     case GM_ID_RHS:
-                    case GM_CHAR_RHS:
                     case GM_STRING_RHS:
                         if (entry_not_defined(htlookup(rhs->str, symtab)))
                             return symbol_not_defined_error(error, rhs->str, rhs->loc);

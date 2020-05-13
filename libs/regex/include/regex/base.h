@@ -212,6 +212,7 @@ struct regex_error regex_missing_tag_error(char *tag);
 struct regex_error regex_tag_exists_error(char *tag);
 struct regex_error regex_duplicate_pattern_error(char *pattern);
 struct regex_error regex_nullerror();
+void regex_escape(char *pattern);
 struct regex_loc regex_loc(int line, int col);
 struct regex_pattern regex_pattern(int sym, char *tag, char *pattern);
 bool regex_null_pattern(struct regex_pattern const *pattern);

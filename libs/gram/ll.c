@@ -266,7 +266,7 @@ void free_ll_parser(struct ll_parser *parser) {
     if (!parser) return;
     free(parser->rtable);
     free(parser->ptable);
-    free(parser->symtab);
+    free_symtab(parser->symtab, parser->stats);
     free_gram_symbol_analysis(&parser->san);
     free_nfa_context(&parser->scanner);
     *parser = (struct ll_parser) { 0 };

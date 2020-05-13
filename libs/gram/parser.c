@@ -36,24 +36,22 @@ static enum gram_parser_symbol *next_sets[] = {
     [NULL_NS]         = NULL,
 
     [GM_EOF_T]        = NEXT { GM_EOF_T, 0 },
-    [GM_TAG_ONLY_T]   = NEXT { GM_TAG_ONLY_T, 0 },
     [GM_SKIP_T]       = NEXT { GM_SKIP_T, 0 },
     [GM_REGEX_T]      = NEXT { GM_REGEX_T, 0 },
     [GM_SECTION_T]    = NEXT { GM_SECTION_T, 0 },
     [GM_COLON_T]      = NEXT { GM_COLON_T, 0 },
     [GM_ALT_T]        = NEXT { GM_ALT_T, 0 },
     [GM_SEMICOLON_T]  = NEXT { GM_SEMICOLON_T, 0 },
-    [GM_CHAR_T]       = NEXT { GM_CHAR_T, 0 },
     [GM_STRING_T]     = NEXT { GM_STRING_T, 0 },
     [GM_EMPTY_T]      = NEXT { GM_EMPTY_T, 0 },
     [GM_ID_T]         = NEXT { GM_ID_T, 0 },
 
-    [PATTERN_DEFS_NS] = NEXT { GM_TAG_ONLY_T, GM_SKIP_T, GM_ID_T, GM_SECTION_T, GM_EOF_T,  0 },
+    [PATTERN_DEFS_NS] = NEXT { GM_SKIP_T, GM_ID_T, GM_SECTION_T, GM_EOF_T,  0 },
     [GRAMMAR_NS]      = NEXT { GM_SECTION_T, GM_EOF_T,  0 },
     [RULES_NS]        = NEXT { GM_ID_T, GM_EOF_T, 0  },
     [ALTS_NS]         = NEXT { GM_ALT_T, GM_SEMICOLON_T, 0  },
-    [RHSES_NS]        = NEXT { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, GM_ALT_T, GM_SEMICOLON_T, 0 },
-    [RHS_NS]          = NEXT { GM_ID_T, GM_CHAR_T, GM_STRING_T, GM_EMPTY_T, 0 }
+    [RHSES_NS]        = NEXT { GM_ID_T, GM_STRING_T, GM_EMPTY_T, GM_ALT_T, GM_SEMICOLON_T, 0 },
+    [RHS_NS]          = NEXT { GM_ID_T, GM_STRING_T, GM_EMPTY_T, 0 }
 };
 #undef NEXT
 
@@ -66,14 +64,13 @@ next_set(enum next_set next, struct gram_spec_parser *parser) {
 static char const *
 str_for_sym(enum gram_parser_symbol sym) {
     switch (sym) {
-        case GM_TAG_ONLY_T:            return "@";
+        case GM_EOF_T:                 return "eof";
         case GM_SKIP_T:                return "-";
         case GM_REGEX_T:               return "/abc/";
         case GM_SECTION_T:             return "---";
         case GM_COLON_T:               return ":";
         case GM_ALT_T:                 return "|";
         case GM_SEMICOLON_T:           return ";";
-        case GM_CHAR_T:                return "'a'";
         case GM_STRING_T:              return "\"abc\"";
         case GM_EMPTY_T:               return "$empty";
         case GM_ID_T:                  return "id";
@@ -142,6 +139,9 @@ static bool duplicate_pattern_error(
     struct gram_parse_error *error,
     char *pattern, struct regex_loc loc
 ) {
+    pattern = permastr(pattern);
+    strip_quotes(pattern);
+
     *error = (struct gram_parse_error) {
         GM_PARSER_DUPLICATE_PATTERN_ERROR,
         .id = pattern,
@@ -205,7 +205,6 @@ gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser
         RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
         RX_SPACE(RX_TAG_ONLY), RX_LINE_COMMENT(RX_SKIP),
         RX_REGEX(GM_REGEX_T),
-        { GM_TAG_ONLY_T, NULL, "@" },
         { GM_SKIP_T, NULL, "-" },
         // FIXME: really, this should be handled by composing scanners,
         // i.e. root scanner: (patterns scanner, grammar scanner)
@@ -217,7 +216,6 @@ gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser
         { GM_ALT_T, NULL, "\\|" },
         { GM_SEMICOLON_T, NULL, ";" },
         { GM_EMPTY_T, NULL, GM_EMPTY_TOKEN },
-        { GM_CHAR_T, NULL, "'(\\\\.|[^'])'" },
         { GM_STRING_T, NULL, "\"(\\\\.|[^\"])*\"" },
         { GM_ID_T, NULL, "{alpha_}({alnum_}|')*" },
         { RX_SKIP, NULL, "{space}+" },
@@ -340,10 +338,9 @@ gram_location(struct gram_spec_parser *parser) {
     return nfa_match_loc(&parser->match);
 }
 
-bool
-gram_lexeme(char *lexeme, struct gram_spec_parser *parser) {
+// yay for buffer overflows
+void gram_lexeme(char *lexeme, struct gram_spec_parser *parser) {
     nfa_match_lexeme(lexeme, &parser->match);
-    return true;
 }
 
 void
@@ -390,9 +387,8 @@ debug_symbols(struct gram_spec_parser *parser) {
         print_hash_entries(stderr, debug_symbol_entry, parser->symtab);
 }
 
-static struct gram_symbol_entry term(struct gram_spec_parser *parser) {
-    parser->stats.patterns++;
-
+static struct gram_symbol_entry
+term(struct gram_spec_parser *parser) {
     return (struct gram_symbol_entry) {
         GM_SYMBOL_ENTRY,
         { GM_TERM, .num = parser->stats.terms++ },
@@ -401,7 +397,8 @@ static struct gram_symbol_entry term(struct gram_spec_parser *parser) {
     };
 }
 
-static struct gram_symbol_entry nonterm(struct gram_spec_parser *parser) {
+static struct gram_symbol_entry
+nonterm(struct gram_spec_parser *parser) {
     return (struct gram_symbol_entry) {
         GM_SYMBOL_ENTRY,
         { GM_NONTERM, .num = parser->stats.nonterms++ },
@@ -409,26 +406,52 @@ static struct gram_symbol_entry nonterm(struct gram_spec_parser *parser) {
     };
 }
 
-static struct gram_symbol_entry defined_nonterm(struct gram_spec_parser *parser) {
+static struct gram_symbol_entry
+defined_nonterm(struct gram_spec_parser *parser) {
     struct gram_symbol_entry entry = nonterm(parser);
     entry.defined = true;
     return entry;
 }
 
-static struct gram_symbol_entry pattern(struct gram_spec_parser *parser) {
+static struct gram_symbol_entry
+pattern(struct gram_spec_parser *parser) {
+    parser->stats.patterns++;
+
     return (struct gram_symbol_entry) {
         GM_PATTERN_ENTRY,
         .first_loc = gram_location(parser)
     };
 }
 
-static struct gram_symbol_entry tag_only(struct gram_spec_parser *parser) {
-    parser->stats.patterns++;
+static struct gram_symbol_entry
+defined_pattern(struct gram_spec_parser *parser) {
+    struct gram_symbol_entry entry = pattern(parser);
+    entry.defined = true;
+    return entry;
+}
 
+static struct gram_symbol_entry
+tag(struct gram_spec_parser *parser) {
     return (struct gram_symbol_entry) {
         GM_TAG_ENTRY,
         .first_loc = gram_location(parser)
     };
+}
+
+static bool promote_tag(
+    struct gram_parse_error *error, char *str,
+    struct gram_symbol_entry *entry, struct gram_spec_parser *parser
+) {
+    UNUSED(error);
+    UNUSED(str);
+
+    if (entry->type == GM_TAG_ENTRY) {
+        struct gram_symbol_entry new_entry = term(parser);
+        new_entry.first_loc = entry->first_loc;
+        *entry = new_entry;
+    }
+
+    return true;
 }
 
 static bool tag_exists_error(
@@ -439,11 +462,11 @@ static bool tag_exists_error(
 }
 
 static bool pattern_exists_error(
-    struct gram_parse_error *error, char *tag,
+    struct gram_parse_error *error, char *pat,
     struct gram_symbol_entry *entry, struct gram_spec_parser *parser
 ) {
-    UNUSED(entry);
-    return duplicate_pattern_error(error, tag, gram_location(parser));
+    if (entry->defined) return duplicate_pattern_error(error, pat, gram_location(parser));
+    else return true;
 }
 
 static bool nonterm_term_error(
@@ -481,24 +504,36 @@ static bool insert_symbol(
 
 static bool insert_tag(
     struct gram_parse_error *error,
-    bool not_term, char *tag, struct gram_spec_parser *parser
+    char *id, struct gram_spec_parser *parser
 ) {
-    gram_lexeme(tag, parser);
-
-    if (not_term)
-        return insert_symbol(error, tag, tag_only, tag_exists_error, parser);
-
-    debug("inserting pattern %s\n", tag);
-
-    return insert_symbol(error, tag, term, tag_exists_error, parser);
+    debug("inserting tag %s\n", id);
+    return insert_symbol(error, id, tag, tag_exists_error, parser);
 }
 
 static bool insert_pattern(
-    struct gram_parse_error *error,
-    char *pat, struct gram_spec_parser *parser
+    struct gram_parse_error *error, char *pat, bool literal, struct gram_spec_parser *parser
 ) {
-    gram_lexeme(pat, parser);
-    return insert_symbol(error, pat, pattern, pattern_exists_error, parser);
+    debug("inserting pattern %s\n", pat);
+    return insert_symbol(error, pat, literal ? pattern : defined_pattern, pattern_exists_error, parser);
+}
+
+static void lit_to_regex(char *buf) {
+    size_t len = strlen(buf);
+    buf[0] = '/';
+    buf[len - 1] = '/';
+    regex_escape(buf);
+}
+
+static bool insert_literal(
+    struct gram_parse_error *error, char *str, struct gram_spec_parser *parser
+) {
+    char buf[BUFSIZ * 2] = "";
+    strcpy(buf, str);
+
+    lit_to_regex(buf);
+
+    return insert_pattern(error, buf, true, parser) &&
+        insert_symbol(error, str, term, NULL, parser);
 }
 
 static bool
@@ -618,29 +653,28 @@ parse_pattern_def(
 ) {
     prod(pdef, NULL);
 
-    bool tag_only = false;
     bool skip = false;
-    if (peek(GM_TAG_ONLY_T, parser) && expect(error, GM_TAG_ONLY_T, parser))
-        tag_only = true;
-    else if (peek(GM_SKIP_T, parser) && expect(error, GM_SKIP_T, parser))
+    if (peek(GM_SKIP_T, parser) && expect(error, GM_SKIP_T, parser))
         skip = true;
 
-    char idbuf[BUFSIZ] = "";
     struct regex_loc loc = gram_location(parser);
+    char idbuf[BUFSIZ] = "";
 
-    if (peek(GM_ID_T, parser) && !insert_tag(error, tag_only || skip, idbuf, parser))
-        return false;
+    if (peek(GM_ID_T, parser)) {
+        gram_lexeme(idbuf, parser);
+        if (!insert_tag(error, idbuf, parser)) return false;
+    }
 
     if (expect(error, GM_ID_T, parser)) {
         char patbuf[BUFSIZ] = "";
 
-        if (peek(GM_REGEX_T, parser) && !insert_pattern(error, patbuf, parser))
-            return false;
-
-        if (expect(error, GM_REGEX_T, parser)) {
-            return tryinit(error, pdef,
-                init_gram_pattern_def, loc, idbuf, patbuf, tag_only, skip, NULL);
+        if (peek(GM_REGEX_T, parser)) {
+            gram_lexeme(patbuf, parser);
+            if (!insert_pattern(error, patbuf, false, parser)) return false;
         }
+
+        return expect(error, GM_REGEX_T, parser) &&
+            tryinit(error, pdef, init_gram_pattern_def, loc, idbuf, patbuf, skip, NULL);
     }
 
     return false;
@@ -815,18 +849,16 @@ parse_rhs(
 
     gram_lexeme(symbuf, parser);
 
-    if (peek(GM_ID_T, parser) && expect(error, GM_ID_T, parser)) {
-        insert_symbol(NULL, symbuf, nonterm, NULL, parser);
+    if (peek(GM_ID_T, parser)) {
         parser->stats.rsymbols++;
-        return tryinit(error, rhs, init_id_gram_rhs, loc, symbuf, NULL);
-    } else if (peek(GM_CHAR_T, parser) && expect(error, GM_CHAR_T, parser)) {
-        insert_symbol(NULL, symbuf, term, NULL, parser);
+        return insert_symbol(NULL, symbuf, nonterm, promote_tag, parser) &&
+            expect(error, GM_ID_T, parser) &&
+            tryinit(error, rhs, init_id_gram_rhs, loc, symbuf, NULL);
+    } else if (peek(GM_STRING_T, parser)) {
         parser->stats.rsymbols++;
-        return tryinit(error, rhs, init_char_gram_rhs, loc, symbuf, NULL);
-    } else if (peek(GM_STRING_T, parser) && expect(error, GM_STRING_T, parser)) {
-        insert_symbol(NULL, symbuf, term, NULL, parser);
-        parser->stats.rsymbols++;
-        return tryinit(error, rhs, init_string_gram_rhs, loc, symbuf, NULL);
+        return insert_literal(error, symbuf, parser) &&
+            expect(error, GM_STRING_T, parser) &&
+            tryinit(error, rhs, init_string_gram_rhs, loc, symbuf, NULL);
     }
 
     return expect(error, GM_EMPTY_T, parser) && tryinit(error, rhs, init_empty_gram_rhs, loc, NULL);

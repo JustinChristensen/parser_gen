@@ -56,61 +56,72 @@ hexadecimal_constant    /(0(x|X))[0-9a-fA-F]+/
 char_sequence           /'(\\.|[^'])'/
 string_sequence         /"(\\.|[^"])*"/
 
+header_name             /<[^\n>]>|"[^\n"]"/
+pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(+-))*/
+
 ---
 
-token:
-      keyword
-    | identifier
-    | constant
-    | string_literal
-    | punctuator ;
+# A.1.1 Lexical Elements
 
-keyword:
-      auto
-    | break
-    | case
-    | char
-    | const
-    | continue
-    | default
-    | do
-    | double
-    | else
-    | enum
-    | extern
-    | float
-    | for
-    | goto
-    | if
-    | inline
-    | int
-    | long
-    | register
-    | restrict
-    | return
-    | short
-    | signed
-    | sizeof
-    | static
-    | struct
-    | switch
-    | typedef
-    | union
-    | unsigned
-    | void
-    | volatile
-    | while
-    | _Alignas
-    | _Alignof
-    | _Atomic
-    | _Bool
-    | _Complex
-    | _Generic
-    | _Imaginary
-    | _Noreturn
-    | _Static_assert
-    | _Thread_local
-    ;
+# token:
+#       keyword
+#     | identifier
+#     | constant
+#     | string_literal
+#     | punctuator ;
+
+# A.1.2 Keywords
+
+# keyword:
+#       auto
+#     | break
+#     | case
+#     | char
+#     | const
+#     | continue
+#     | default
+#     | do
+#     | double
+#     | else
+#     | enum
+#     | extern
+#     | float
+#     | for
+#     | goto
+#     | if
+#     | inline
+#     | int
+#     | long
+#     | register
+#     | restrict
+#     | return
+#     | short
+#     | signed
+#     | sizeof
+#     | static
+#     | struct
+#     | switch
+#     | typedef
+#     | union
+#     | unsigned
+#     | void
+#     | volatile
+#     | while
+#     | _Alignas
+#     | _Alignof
+#     | _Atomic
+#     | _Bool
+#     | _Complex
+#     | _Generic
+#     | _Imaginary
+#     | _Noreturn
+#     | _Static_assert
+#     | _Thread_local
+#     ;
+
+opt_identifier: identifier | $empty;
+
+# A.1.5 Constants
 
 constant:
       integer_constant
@@ -119,7 +130,7 @@ constant:
     | character_constant
     ;
 
-enumeration_constant: identifier 'x';
+enumeration_constant: identifier "x";
 
 integer_constant:
       decimal_constant opt_integer_suffix
@@ -128,10 +139,10 @@ integer_constant:
     ;
 
 integer_suffix:
-      'u'
-    | 'U'
-    | 'l'
-    | 'L'
+      "u"
+    | "U"
+    | "l"
+    | "L"
     | "ll"
     | "LL"
     | "ull"
@@ -141,63 +152,67 @@ opt_integer_suffix: integer_suffix | $empty;
 
 character_constant:
       char_sequence
-    | 'L' char_sequence
+    | "L" char_sequence
     | "u|U" char_sequence
     ;
+
+# A.1.6 String Literals
 
 string_literal:
     opt_string_encoding_prefix string_sequence;
 
-opt_string_encoding_prefix: "u8" | 'u' | 'U' | 'L' | $empty;
+opt_string_encoding_prefix: "u8" | "u" | "U" | "L" | $empty;
+
+# A.1.7 Punctuators
 
 punctuator:
-      '\['
-    | '\]'
-    | '\('
-    | '\)'
-    | '\{'
-    | '\}'
-    | '\.'
+      "["
+    | "]"
+    | "("
+    | ")"
+    | "{"
+    | "}"
+    | "."
     | "->"
-    | "\+\+"
+    | "++"
     | "--"
-    | '&'
-    | '\*'
-    | '\+'
-    | '-'
-    | '~'
-    | '!'
-    | '/'
-    | '%'
+    | "&"
+    | "*"
+    | "+"
+    | "-"
+    | "~"
+    | "!"
+    | "/"
+    | "%"
     | "<<"
     | ">>"
-    | '<'
-    | '>'
+    | "<"
+    | ">"
     | "<="
     | ">="
     | "=="
     | "!="
-    | '^'
-    | '\|'
+    | "^"
+    | "|"
     | "&&"
-    | "\|\|"
-    | '\?'
-    | ':'
-    | ';'
-    | "\.\.\."
-    | '='
-    | "\*="
+    | "||"
+    | "?"
+    | ":"
+    | ";"
+    | "..."
+    | "="
+    | "*="
     | "/="
     | "%="
-    | "\+="
+    | "+="
     | "-="
     | "<<="
     | ">>="
     | "&="
     | "^="
-    | "\|="
-    | ','
-    | '#'
+    | "|="
+    | ","
+    | "#"
     | "##"
     | "<:"
     | ":>"
@@ -206,4 +221,380 @@ punctuator:
     | "%:"
     | "%:%:"
     ;
+
+# A.2.1 Expressions
+
+primary_expression:
+      identifier
+    | constant
+    | string_literal
+    | "(" expression ")"
+    | generic_selection
+    ;
+
+generic_selection:
+      _Generic "(" assignment_expression "," generic_assoc_list ")";
+
+generic_assoc_list:
+      generic_association
+    | generic_assoc_list "," generic_association;
+
+generic_association:
+      type_name ":" assignment_expression
+    | default ":" assignment_expression
+    ;
+
+postfix_expression:
+      primary_expression
+    | postfix_expression "[" expression "]"
+    | postfix_expression "(" opt_argument_expression_list ")"
+    | postfix_expression "." identifier
+    | postfix_expression "->" identifier
+    | postfix_expression "++"
+    | postfix_expression "-"
+    | "(" type_name ")" "{" initializer_list "}"
+    | "(" type_name ")" "{" initializer_list "," "}"
+    ;
+
+argument_expression_list:
+      assignment_expression
+    | argument_expression_list "," assignment_expression
+    ;
+
+opt_argument_expression_list: argument_expression_list | $empty ;
+
+unary_expression:
+      postfix_expression
+    | "++" unary_expression
+    | "-" unary_expression
+    | unary_operator cast_expression
+    | sizeof unary_expression
+    | sizeof "(" type_name ")"
+    | _Alignof "(" type_name ")"
+    ;
+
+unary_operator: "&" | "*" | "+" | "-" | "˜" | "!";
+
+cast_expression:
+      unary_expression
+    | "(" type_name ")" cast_expression
+    ;
+
+multiplicative_expression:
+      cast_expression
+    | multiplicative_expression "*" cast_expression
+    | multiplicative_expression "/" cast_expression
+    | multiplicative_expression "%" cast_expression
+    ;
+
+additive_expression:
+      multiplicative_expression
+    | additive_expression "+" multiplicative_expression
+    | additive_expression "-" multiplicative_expression
+    ;
+
+shift_expression:
+      additive_expression
+    | shift_expression "<<" additive_expression
+    | shift_expression ">>" additive_expression
+    ;
+
+relational_expression:
+      shift_expression
+    | relational_expression "<" shift_expression
+    | relational_expression ">" shift_expression
+    | relational_expression "<=" shift_expression
+    | relational_expression ">=" shift_expression
+    ;
+
+equality_expression:
+      relational_expression
+    | equality_expression "==" relational_expression
+    | equality_expression "!=" relational_expression
+    ;
+
+and_expression:
+      equality_expression
+    | and_expression "&" equality_expression
+    ;
+
+exclusive_or_expression:
+      and_expression
+    | exclusive_or_expression "^" and_expression
+    ;
+
+inclusive_or_expression:
+      exclusive_or_expression
+    | inclusive_or_expression "|" exclusive_or_expression
+    ;
+
+logical_and_expression:
+      inclusive_or_expression
+    | logical_and_expression "&&" inclusive_or_expression
+    ;
+
+logical_or_expression:
+      logical_and_expression
+    | logical_or_expression "||" logical_and_expression
+    ;
+
+conditional_expression:
+      logical_or_expression
+    | logical_or_expression "?" expression ":" conditional_expression
+    ;
+
+assignment_expression:
+      conditional_expression
+    | unary_expression assignment_operator assignment_expression
+    ;
+
+opt_assignment_expression: assignment_expression | $empty;
+
+assignment_operator:
+      "=" | "*=" | "/=" | "%="
+    | "+=" | "-=" | "<<=" | ">>="
+    | "&=" | "^=" | "|="
+    ;
+
+expression:
+      assignment_expression
+    | expression "," assignment_expression
+    ;
+
+constant_expression: conditional_expression;
+
+# A.2.2 Declarations
+
+declaration:
+      declaration_specifiers opt_init_declarator_list ";"
+    | static_assert_declaration
+    ;
+
+declaration_specifiers:
+      storage_class_specifier opt_declaration_specifiers
+    | type_specifier opt_declaration_specifiers
+    | type_qualifier opt_declaration_specifiers
+    | function_specifier opt_declaration_specifiers
+    | alignment_specifier opt_declaration_specifiers
+    ;
+
+opt_declaration_specifiers: declaration_specifiers | $empty;
+
+init_declarator_list:
+      init_declarator
+    | init_declarator_list "," init_declarator
+    ;
+
+opt_init_declarator_list: init_declarator_list | $empty;
+
+init_declarator:
+      declarator
+    | declarator "=" initializer
+    ;
+
+storage_class_specifier:
+      typedef
+    | extern
+    | static
+    | _Thread_local
+    | auto
+    | register
+    ;
+
+type_specifier:
+      void
+    | char
+    | short
+    | int
+    | long
+    | float
+    | double
+    | signed
+    | unsigned
+    | _Bool
+    | _Complex
+    | atomic_type_specifier
+    | struct_or_union_specifier
+    | enum_specifier
+    | typedef_name
+    ;
+
+struct_or_union_specifier:
+      struct_or_union opt_identifier "{" struct_declaration_list "}"
+    | struct_or_union identifier
+    ;
+
+struct_or_union: struct | union;
+
+struct_declaration_list:
+      struct_declaration
+    | struct_declaration_list struct_declaration
+    ;
+
+struct_declaration:
+      specifier_qualifier_list opt_struct_declarator_list ";"
+    | static_assert_declaration
+    ;
+
+specifier_qualifier_list:
+      type_specifier opt_specifier_qualifier_list
+    | type_qualifier opt_specifier_qualifier_list
+    | alignment_specifier opt_specifier_qualifier_list
+    ;
+
+opt_specifier_qualifier_list: specifier_qualifier_list | $empty;
+
+struct_declarator_list:
+      struct_declarator
+    | struct_declarator_list "," struct_declarator
+    ;
+
+opt_struct_declarator_list: struct_declarator_list | $empty;
+
+struct_declarator:
+      declarator
+    | opt_declarator ":" constant_expression
+    ;
+
+enum_specifier:
+      enum opt_identifier "{" enumerator_list "}"
+    | enum opt_identifier "{" enumerator_list "," "}"
+    | enum identifier
+    ;
+
+enumerator_list:
+      enumerator
+    | enumerator_list "," enumerator
+    ;
+
+enumerator:
+      enumeration_constant
+    | enumeration_constant "=" constant_expression
+    ;
+
+atomic_type_specifier: _Atomic "(" type_name ")";
+
+type_qualifier:
+      const
+    | restrict
+    | volatile
+    | _Atomic
+    ;
+
+function_specifier:
+      inline
+    | _Noreturn
+    ;
+
+alignment_specifier:
+      _Alignas "(" type_name ")"
+    | _Alignas "(" constant_expression ")"
+    ;
+
+declarator: opt_pointer direct_declarator;
+
+opt_declarator: declarator | $empty;
+
+direct_declarator:
+      identifier
+    | "(" declarator ")"
+    | direct_declarator "[" opt_type_qualifier_list opt_assignment_expression "]"
+    | direct_declarator "[" static opt_type_qualifier_list assignment_expression "]"
+    | direct_declarator "[" type_qualifier_list static assignment_expression "]"
+    | direct_declarator "[" opt_type_qualifier_list "*" "]"
+    | direct_declarator "(" parameter_type_list ")"
+    | direct_declarator "(" opt_identifier_list ")"
+    ;
+
+pointer:
+      "*" opt_type_qualifier_list
+    | "*" opt_type_qualifier_list pointer
+    ;
+
+opt_pointer: pointer | $empty;
+
+type_qualifier_list:
+      type_qualifier
+    | type_qualifier_list type_qualifier
+    ;
+
+opt_type_qualifier_list: type_qualifier_list | $empty;
+
+parameter_type_list:
+      parameter_list
+    | parameter_list "," "..."
+    ;
+
+opt_parameter_type_list: parameter_type_list | $empty;
+
+parameter_list:
+      parameter_declaration
+    | parameter_list "," parameter_declaration
+    ;
+
+parameter_declaration:
+      declaration_specifiers declarator
+    | declaration_specifiers opt_abstract_declarator
+    ;
+
+identifier_list:
+      identifier
+    | identifier_list "," identifier
+    ;
+
+opt_identifier_list: identifier_list | $empty;
+
+type_name: specifier_qualifier_list opt_abstract_declarator;
+
+abstract_declarator:
+      pointer
+    | opt_pointer direct_abstract_declarator
+    ;
+
+opt_abstract_declarator: abstract_declarator | $empty;
+
+direct_abstract_declarator:
+      "(" abstract_declarator ")"
+    | opt_direct_abstract_declarator "[" opt_type_qualifier_list "]"
+    | opt_assignment_expression "]"
+    | opt_direct_abstract_declarator "[" static opt_type_qualifier_list
+    | assignment_expression "]"
+    | opt_direct_abstract_declarator "[" type_qualifier_list static
+    | assignment_expression "]"
+    | opt_direct_abstract_declarator "[" "*" "]"
+    | opt_direct_abstract_declarator "(" opt_parameter_type_list ")"
+    ;
+
+opt_direct_abstract_declarator: direct_abstract_declarator | $empty;
+
+typedef_name: identifier;
+
+initializer:
+      assignment_expression
+    | "{" initializer_list "}"
+    | "{" initializer_list "," "}"
+    ;
+
+initializer_list:
+      opt_designation initializer
+    | initializer_list "," opt_designation initializer
+    ;
+
+designation: designator_list "=";
+
+opt_designation: designation | $empty;
+
+designator_list:
+      designator
+    | designator_list designator
+    ;
+
+designator:
+    "[" constant_expression "]"
+    | "." identifier
+    ;
+
+static_assert_declaration:
+    _Static_assert "(" constant_expression "," string_literal ")" ";";
+
 

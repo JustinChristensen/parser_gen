@@ -13,58 +13,60 @@
 #include "parser.h"
 
 #define debug(...) debug_ns("regex_nfa", __VA_ARGS__);
+#define sdebug(...) debug_ns("regex_states", __VA_ARGS__);
 #define CLASS_SIZE (UCHAR_MAX + 1)
 
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
-    debug("[");
+    sdebug("[");
     for (int i = 0; i < CLASS_SIZE; i++)
-        debug(char_class[i] ? "1" : "0");
-    debug("]");
+        sdebug(char_class[i] ? "1" : "0");
+    sdebug("]");
 }
 
 static void debug_state(struct nfa_state *state) {
-    debug("(%d, ", state->id);
+    sdebug("(%d, ", state->id);
     switch (state->type) {
         case RX_ACCEPTING_STATE:
-            debug("accept, %d", state->sym);
+            sdebug("accept, %d", state->sym);
             break;
         case RX_EPSILON_STATE:
-            debug("eps, %p", state->next);
+            sdebug("eps, %p", state->next);
             break;
         case RX_DOTALL_STATE:
-            debug("dotall, %p", state->next);
+            sdebug("dotall, %p", state->next);
             break;
         case RX_BRANCH_STATE:
-            debug("branch, %p, %p", state->left, state->right);
+            sdebug("branch, %p, %p", state->left, state->right);
             break;
         case RX_CLASS_STATE:
-            debug("class, %p, ", state->next);
+            sdebug("class, %p, ", state->next);
             debug_class_state(state);
             break;
         case RX_CHAR_STATE:
-            debug("char, %p, %c", state->next, state->ch);
+            sdebug("char, %p, %c", state->next, state->ch);
             break;
     }
-    debug(")");
+    sdebug(")");
 }
 
+__attribute((unused))
 static void debug_nfa_states(struct nfa_state **start, struct nfa_state **end) {
     if (start != end) {
         struct nfa_state *state = *start++;
-        debug("{");
+        sdebug("{");
         debug_state(state);
         while (start != end && (state = *start)) {
-            debug(", ");
+            sdebug(", ");
             debug_state(state);
             start++;
         }
-        debug("}");
+        sdebug("}");
     } else {
-        debug("empty");
+        sdebug("empty");
     }
 
-    debug("\n");
+    sdebug("\n");
 }
 
 static void debug_state_table(struct nfa_state_pool *pool) {
@@ -880,10 +882,11 @@ static int _nfa_match(struct nfa_match *match) {
 
     cend = eps_closure(NULL, cend, already_on, mach.start);
 
-    debug("simulation, input: %s\n", input);
+    debug("simulation, input: %-.50s\n", input);
     debug_nfa_states(cstart, cend);
 
     // always consume at least one character
+    char *start = input;
     char c = *input++;
     match->input = input;
     loc = match->input_loc = bump_regex_loc(c, loc);
@@ -915,9 +918,11 @@ static int _nfa_match(struct nfa_match *match) {
         c = *input++;
         loc = bump_regex_loc(c, loc);
 
-        debug("c = '%c', ", c);
+        sdebug("c = '%c', ", c);
         debug_nfa_states(cstart, cend);
     }
+
+    debug("sym: %d, nscanned: %ld\n", retsym, input - start);
 
     reset_already_on(match);
 

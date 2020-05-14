@@ -39,7 +39,7 @@ _Atomic                 /_Atomic/
 _Bool                   /_Bool/
 _Complex                /_Complex/
 _Generic                /_Generic/
-_Imaginary              /_Imaginary/
+# _Imaginary              /_Imaginary/
 _Noreturn               /_Noreturn/
 _Static_assert          /_Static_assert/
 _Thread_local           /_Thread_local/
@@ -69,10 +69,15 @@ char_sequence           /'(\\.|[^'])'/
 string_sequence         /"(\\.|[^"])*"/
 
 header_name             /<[^\n>]>|"[^\n"]"/
-pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(+-))*/
+pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(\+|-))*/
 
 lparen                  /[^\t\n\v\f\r ]\(/
 new_line                /\n/
+any                     /./
+
+-line_comment           /\/\/[^\n]*\n/
+-multi_comment          /\/\*.*\*\//
+-whitespace             /{space}+/
 
 ---
 
@@ -94,7 +99,8 @@ preprocessing_token:
     | character_constant
     | string_literal
     | punctuator
-    | each non-white-space character that cannot be one of the above
+    | any
+    ;
 
 # keyword:
 #       auto
@@ -154,7 +160,7 @@ constant:
     | character_constant
     ;
 
-enumeration_constant: identifier "x";
+enumeration_constant: identifier;
 
 integer_constant:
       decimal_constant opt_integer_suffix

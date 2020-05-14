@@ -1,6 +1,6 @@
 id  /{alpha_}{alnum_}*/
 ---
-S: L '=' R | R ;
-L: '\*' R | id ;
+S: L "=" R | R ;
+L: "*" R | id ;
 R: L ;
 

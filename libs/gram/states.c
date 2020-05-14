@@ -117,7 +117,7 @@ make_state(gram_state_no num, gram_sym_no sym, struct lr_itemset *itemset, struc
 }
 
 static bool states_context(struct states_context *context, enum lr_item_type item_type, struct gram_stats const stats) {
-    size_t setsize = stats.terms;
+    size_t setsize = stats.symbols;
     if (item_type != GM_LR0_ITEMS) setsize *= stats.nonterms;
 
     struct bitset *symset = bitset(setsize);
@@ -202,7 +202,7 @@ static int compare_itemsets(
         else if (i >= ni && j < nj) cmp = -1;
     }
 
-    if (debug_is("gram_states")) {
+    if (debug_is("gram_states_cmp")) {
         print_lr_itemset_compact(stderr, kernel);
         fprintf(stderr, " `cmp` ");
         print_lr_itemset_compact(stderr, itemset);
@@ -414,7 +414,7 @@ static unsigned diff_itemset(struct lr_itemset *kernel, struct lr_itemset *items
 
 #define DISCOVER_TRANSITIONS(name) \
 static void name( \
-    struct lr_transitions *trans, struct lr_itemset *itemset, \
+    struct lr_transitions *trans, struct lr_itemset **itemset, \
     struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec, \
     struct states_context *context \
 )
@@ -441,8 +441,8 @@ static void merge_itemsets(
         return;
     }
 
-    if (debug_is("gram_states")) {
-        debug("merging itemsets:\n");
+    if (debug_is("gram_states_merging")) {
+        fprintf(stderr, "merging itemsets:\n");
         print_lr_itemset_compact(stderr, kernel); fprintf(stderr, "\n");
         print_lr_itemset_compact(stderr, itemset); fprintf(stderr, "\n");
     }
@@ -464,7 +464,7 @@ static void merge_itemsets(
     snode->assoc.key = newset;
     state->itemset = newset;
 
-    discover_transitions(NULL, kernel, san, spec, context);
+    discover_transitions(NULL, &kernel, san, spec, context);
 
     free(kernel);
     free(itemset);
@@ -501,7 +501,7 @@ DISCOVER_TRANSITIONS(discover_transitions) {
     struct lr_itemset *kernel = NULL;
 
     FOR_SYMBOL(spec->stats, s) {
-        if ((kernel = goto_(s, itemset, san, spec, context))) {
+        if ((kernel = goto_(s, *itemset, san, spec, context))) {
             struct lr_state *state = discover_states(s, kernel, san, spec, context);
             if (trans) trans->states[trans->nstates++] = state;
         }
@@ -539,7 +539,7 @@ DISCOVER_STATES(discover_states) {
     // this must happen prior to recursive calls to this function
     context->states = rbinsert(itemset, cmpfn, state, context->states);
 
-    discover_transitions(trans, itemset, san, spec, context);
+    discover_transitions(trans, &state->itemset, san, spec, context);
 
     return state;
 }

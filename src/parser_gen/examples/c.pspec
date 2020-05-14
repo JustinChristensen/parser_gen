@@ -73,13 +73,21 @@ pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(\+|-))*/
 
 lparen                  /[^\t\n\v\f\r ]\(/
 new_line                /\n/
-any                     /./
+# TODO: non_pp_token = all_tokens - pp_tokens
+non_pp_token            /./
 
 -line_comment           /\/\/[^\n]*\n/
 -multi_comment          /\/\*.*\*\//
 -whitespace             /{space}+/
 
 ---
+
+translation_unit:
+      external_declaration
+    | translation_unit external_declaration
+    ;
+
+preprocessing_file: opt_group;
 
 # A.1.1 Lexical Elements
 
@@ -99,7 +107,7 @@ preprocessing_token:
     | character_constant
     | string_literal
     | punctuator
-    | any
+    | non_pp_token
     ;
 
 # keyword:
@@ -684,11 +692,6 @@ jump_statement:
 
 # A.2.4 External Definitions
 
-translation_unit:
-      external_declaration
-    | translation_unit external_declaration
-    ;
-
 external_declaration:
       function_definition
     | declaration
@@ -705,8 +708,6 @@ declaration_list:
 opt_declaration_list: declaration_list | $empty;
 
 # A.3 Preprocessing Directives
-
-preprocessing_file: opt_group;
 
 group:
       group_part

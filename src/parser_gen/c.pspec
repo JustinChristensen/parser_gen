@@ -44,6 +44,18 @@ _Noreturn               /_Noreturn/
 _Static_assert          /_Static_assert/
 _Thread_local           /_Thread_local/
 
+# preprocessing
+ifdef                   /ifdef/
+ifndef                  /ifndef/
+elif                    /elif/
+endif                   /endif/
+include                 /include/
+define                  /define/
+undef                   /undef/
+line                    /line/
+error                   /error/
+pragma                  /pragma/
+
 # identifier
 identifier              /{alpha_}{alnum}+/
 
@@ -59,6 +71,9 @@ string_sequence         /"(\\.|[^"])*"/
 header_name             /<[^\n>]>|"[^\n"]"/
 pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(+-))*/
 
+lparen                  /[^\t\n\v\f\r ]\(/
+new_line                /\n/
+
 ---
 
 # A.1.1 Lexical Elements
@@ -71,6 +86,15 @@ pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(+-))*/
 #     | punctuator ;
 
 # A.1.2 Keywords
+
+preprocessing_token:
+      header_name
+    | identifier
+    | pp_number
+    | character_constant
+    | string_literal
+    | punctuator
+    | each non-white-space character that cannot be one of the above
 
 # keyword:
 #       auto
@@ -361,6 +385,8 @@ expression:
     | expression "," assignment_expression
     ;
 
+opt_expression: expression | $empty;
+
 constant_expression: conditional_expression;
 
 # A.2.2 Declarations
@@ -597,4 +623,152 @@ designator:
 static_assert_declaration:
     _Static_assert "(" constant_expression "," string_literal ")" ";";
 
+# A.2.3 Statements
+
+statement:
+      labeled_statement
+    | compound_statement
+    | expression_statement
+    | selection_statement
+    | iteration_statement
+    | jump_statement
+    ;
+
+labeled_statement:
+      identifier ":" statement
+    | case constant_expression ":" statement
+    | default ":" statement
+    ;
+
+compound_statement: "{" opt_block_item_list "}";
+
+block_item_list:
+      block_item
+    | block_item_list block_item
+    ;
+
+opt_block_item_list: block_item_list | $empty;
+
+block_item:
+      declaration
+    | statement
+    ;
+
+expression_statement: opt_expression ";" ;
+
+selection_statement:
+      if "(" expression ")" statement
+    | if "(" expression ")" statement else statement
+    | switch "(" expression ")" statement
+    ;
+
+iteration_statement:
+      while "(" expression ")" statement
+    | do statement while "(" expression ")" ";"
+    | for "(" opt_expression ";" opt_expression ";" opt_expression ")" statement
+    | for "(" declaration opt_expression ";" opt_expression ")" statement
+    ;
+
+jump_statement:
+      goto identifier ";"
+    | continue ";"
+    | break ";"
+    | return opt_expression ";"
+    ;
+
+# A.2.4 External Definitions
+
+translation_unit:
+      external_declaration
+    | translation_unit external_declaration
+    ;
+
+external_declaration:
+      function_definition
+    | declaration
+    ;
+
+function_definition:
+      declaration_specifiers declarator opt_declaration_list compound_statement;
+
+declaration_list:
+      declaration
+    | declaration_list declaration
+    ;
+
+opt_declaration_list: declaration_list | $empty;
+
+# A.3 Preprocessing Directives
+
+preprocessing_file: opt_group;
+
+group:
+      group_part
+    | group group_part
+    ;
+
+opt_group: group | $empty;
+
+group_part:
+      if_section
+    | control_line
+    | text_line
+    | "#" non_directive
+    ;
+
+if_section:
+      if_group opt_elif_groups opt_else_group endif_line;
+
+if_group:
+      "#" if constant_expression new_line opt_group
+    | "#" ifdef identifier new_line opt_group
+    | "#" ifndef identifier new_line opt_group;
+
+elif_groups:
+      elif_group
+    | elif_groups elif_group
+    ;
+
+opt_elif_groups: elif_groups | $empty;
+
+elif_group:
+      "#" elif constant_expression new_line opt_group;
+
+else_group:
+      "#" else new_line opt_group;
+
+opt_else_group: else_group | $empty;
+
+endif_line:
+      "#" endif new_line;
+
+control_line:
+      "#" include pp_tokens new_line
+    | "#" define identifier replacement_list new_line
+    | "#" define identifier lparen opt_identifier_list ")"
+    | replacement_list new_line
+    | "#" define identifier lparen "..." ")" replacement_list new_line
+    | "#" define identifier lparen identifier_list "," "..." ")"
+    | replacement_list new_line
+    | "#" undef identifier new_line
+    | "#" line pp_tokens new_line
+    | "#" error opt_pp_tokens new_line
+    | "#" pragma opt_pp_tokens new_line
+    | "#" new_line
+    ;
+
+text_line: opt_pp_tokens new_line;
+
+non_directive: pp_tokens new_line;
+
+replacement_list: opt_pp_tokens;
+
+pp_tokens:
+      preprocessing_token
+    | pp_tokens preprocessing_token
+    ;
+
+opt_pp_tokens: pp_tokens | $empty;
+
+on_off_switch: "ON" | "OFF" | "DEFAULT";
 

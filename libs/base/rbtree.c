@@ -385,16 +385,18 @@ void rbinvariants(struct rb_node const *node, bool root, int (*keycmp) (void con
     assert(height <= 2 * log2(size + 1));
 }
 
-static void _print_rbtree(FILE *handle, void (*print_key) (FILE *handle, void const *key), unsigned int depth, struct rb_node const *node) {
-    if (!node || !print_key) return;
+static void _print_rbtree(FILE *handle, void (*print_assoc) (FILE *handle, void const *key, void const *val), unsigned int depth, struct rb_node const *node) {
+    if (!node) return;
     indent(handle, depth);
-    fprintf(handle, "("); (*print_key)(handle, node->assoc.key); fprintf(handle, ", %s)", node->red ? "R" : "B"); fprintf(handle, "\n");
-    _print_rbtree(handle, print_key, depth + 1, node->left);
-    _print_rbtree(handle, print_key, depth + 1, node->right);
+    (*print_assoc)(handle, node->assoc.key, node->assoc.val);
+    fprintf(handle, "\n");
+    _print_rbtree(handle, print_assoc, depth + 1, node->left);
+    _print_rbtree(handle, print_assoc, depth + 1, node->right);
 }
 
-void print_rbtree(FILE *handle, void (*print_key) (FILE *handle, void const *key), struct rb_node const *node) {
-    _print_rbtree(handle, print_key, 0, node);
+void print_rbtree(FILE *handle, void (*print_assoc) (FILE *handle, void const *key, void const *val), struct rb_node const *node) {
+    assert(print_assoc != NULL);
+    _print_rbtree(handle, print_assoc, 0, node);
 }
 
 void free_rbtree(struct rb_node *node) {

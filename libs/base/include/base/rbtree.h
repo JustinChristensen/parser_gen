@@ -68,7 +68,7 @@ struct rb_assoc *rbtolist(struct rb_node const *node);
 void **rbkeys(struct rb_node const *node);
 void **rbvals(struct rb_node const *node);
 void rbinvariants(struct rb_node const *node, bool root, int (*keycmp) (void const *a, void const *b));
-void print_rbtree(FILE *handle, void (*print_key) (FILE *handle, void const *key), struct rb_node const *node);
+void print_rbtree(FILE *handle, void (*print_key) (FILE *handle, void const *key, void const *val), struct rb_node const *node);
 void free_rbtree(struct rb_node *node);
 
 #endif // BASE_rbtree_H_

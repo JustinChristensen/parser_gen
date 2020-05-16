@@ -32,7 +32,7 @@ enum arg_key {
 enum parser_type {
     LL,
     SLR,
-    LALR,
+    // LALR,
     LR1
 };
 
@@ -62,8 +62,8 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 
             if (streq("slr", argval())) {
                 args->type = SLR;
-            } else if (streq("lalr", argval())) {
-                args->type = LALR;
+            // } else if (streq("lalr", argval())) {
+            //     args->type = LALR;
             } else if (streq("lr1", argval())) {
                 args->type = LR1;
             } else {
@@ -219,8 +219,8 @@ bool make_lr_parser(
     struct lr_error generr = { 0 };
 
     action_table *table = slr_table;
-    if (args.type == LALR) table = lalr_table;
-    else if (args.type == LR1) table = lr1_table;
+    // if (args.type == LALR) table = lalr_table;
+    if (args.type == LR1) table = lr1_table;
 
     if (!gen_lr(&generr, &parser, table, spec)) {
         print_lr_error(stderr, generr);
@@ -302,7 +302,7 @@ bool automata(struct args const args, struct gram_parser_spec *spec) {
 
     enum lr_item_type type = GM_LR0_ITEMS;
     if (args.type == LR1) type = GM_LR1_ITEMS;
-    else if (args.type == LALR) type = GM_LALR_ITEMS;
+    // else if (args.type == LALR) type = GM_LALR_ITEMS;
 
     bool result = false;
 
@@ -373,8 +373,8 @@ int main(int argc, char *argv[]) {
         .spec = ""
     };
 
-    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lalr, lr1" };
-    struct arg lr_type_arg = { LR_TYPE, "type", 0, required_argument, "Parser type: slr, lalr, lr1" };
+    struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr1" };
+    struct arg lr_type_arg = { LR_TYPE, "type", 0, required_argument, "Parser type: slr, lr1" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {

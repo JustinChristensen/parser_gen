@@ -23,7 +23,8 @@ static void teardown() {
     node = NULL;
 }
 
-static void print_strkey(FILE *handle, void const *key) {
+static void print_strkey(FILE *handle, void const *key, void const *val) {
+    UNUSED(val);
     fprintf(handle, "%s", key);
 }
 

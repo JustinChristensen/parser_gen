@@ -175,11 +175,11 @@ static struct lr_action const **make_action_table(
                     struct bsiter it = bsiter(san->follows[rtable[item.rule].nt]);
                     gram_sym_no s;
                     while (bsnext(&s, &it)) {
-                        // invariant(action_table_conflict, row, act, s, state->num);
+                        invariant(action_table_conflict, row, act, s, state->num);
                         row[s] = act;
                     }
                 } else {
-                    // invariant(action_table_conflict, row, act, item.sym, state->num);
+                    invariant(action_table_conflict, row, act, item.sym, state->num);
                     row[item.sym] = act;
                 }
             }
@@ -195,7 +195,7 @@ static struct lr_action const **make_action_table(
             else if (next->sym < nonterm0) act = SHIFT(next->num);
             else                           act = GOTO(next->num);
 
-            // invariant(action_table_conflict, row, act, next->sym, state->num);
+            invariant(action_table_conflict, row, act, next->sym, state->num);
             row[next->sym] = act;
 
             apush(&next, stack);

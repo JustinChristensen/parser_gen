@@ -82,7 +82,7 @@ foreign import ccall "rbfromlist" rbFromList :: Ptr (CRbAssoc k v) -> Word64 -> 
 foreign import ccall "rbtolist" rbToList :: CRbNodePtr k v -> IO (Ptr (CRbAssoc k v))
 foreign import ccall "rbkeys" rbKeys :: CRbNodePtr k v -> IO (Ptr (Ptr k))
 foreign import ccall "rbinvariants" rbInvariants :: CRbNodePtr k v -> Bool -> CmpFn k k -> IO ()
-foreign import ccall "print_rbtree" printRbTree :: FunPtr (Ptr k -> IO ()) -> CRbNodePtr k v -> IO ()
+foreign import ccall "print_rbtree" printRbTree :: FunPtr (Ptr k -> Ptr v -> IO ()) -> CRbNodePtr k v -> IO ()
 foreign import ccall "free_rbtree" freeRbTree :: CRbNodePtr k v -> IO ()
 
 cKeys :: [String] -> IO [CString]

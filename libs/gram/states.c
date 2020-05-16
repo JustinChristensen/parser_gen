@@ -7,6 +7,7 @@
 #include <base/array.h>
 #include <base/base.h>
 #include <base/bitset.h>
+#include <base/macros.h>
 #include <base/debug.h>
 #include <base/graphviz.h>
 #include <base/rbtree.h>
@@ -72,7 +73,8 @@ void print_lr_itemset_compact(FILE *handle, struct lr_itemset const *itemset) {
     fprintf(handle, "}");
 }
 
-static void _print_itemset_compact(FILE *handle, void const *a) {
+static void _print_itemset_compact(FILE *handle, void const *a, void const *b) {
+    UNUSED(b);
     return print_lr_itemset_compact(handle, a);
 }
 
@@ -497,6 +499,7 @@ static void merge_itemsets(
 
     struct lr_transitions const *trans = state->trans;
 
+    // FIXME: would this work if I didn't modify the new kernel to remove existing items above?
     if (trans->nstates) {
         gram_sym_no maxsym = trans->states[trans->nstates - 1]->sym;
         discover_transitions(NULL, &kernel, maxsym, san, spec, context);

@@ -1,4 +1,4 @@
 -whitespace /{space}+/
 ---
 S: C C;
-C: 'c' C | 'd';
+C: "c" C | "d";

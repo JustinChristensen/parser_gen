@@ -77,21 +77,6 @@ INVARIANT(assert_rule_index, gram_rule_no i, struct gram_parser_spec const *spec
     check(i >= 1 && i <= spec->stats.rules);
 }
 
-INVARIANT(action_table_conflict, struct lr_action *row, struct lr_action act, gram_sym_no s, gram_state_no st) {
-    if (row[s].action == GM_LR_ERROR) return;
-
-    // a shift/reduce conflict occurs when the follow set for the non-terminal we'd be reducing conflicts
-    // with a shift symbol on the state
-    if ((row[s].action == GM_LR_SHIFT && act.action == GM_LR_REDUCE) ||
-        (row[s].action == GM_LR_REDUCE && act.action == GM_LR_SHIFT))
-        fprintf(stderr, "shift/reduce conflict on state %u symbol %u\n", st, s);
-
-    if (row[s].action == GM_LR_REDUCE && act.action == GM_LR_REDUCE)
-        fprintf(stderr, "reduce/reduce conflict on state %u symbol %u\n", st, s);
-
-    abort();
-}
-
 INVARIANT(assert_itemsets_sorted, struct lr_itemset const *kernel, struct lr_itemset const *itemset) {
     check(kernel != NULL);
     check(itemset != NULL);

@@ -1,35 +1,6 @@
-# id /{alpha_}+/
-# ---
-#
-# S: T 'a'
-#  | T
-#  | $empty;
-#
-# T: "foo"
-#  | "bar"
-#  | U "baz"
-#  | $empty;
-#
-# U: S | "baz" | $empty | $empty;
-#
-# E: E '+' E | E '*' E | '(' E ')' | id ;
-#
-# nonterm-precedence rules should handle this
-# E: '(' E ')' E' | id E';
-# E': '+' E E' | '*' E E' | $empty;
-#
-# num /[0-9]+/
-# ---
-#
-# Statement: "if" Condition "then" Statement |
-#            "if" Condition "then" Statement "else" Statement;
-#
-# Condition: num "==" num;
-
+# reduce/reduce conflict
 ---
-S: A 'a' | 'b' A 'c' | B 'c' | 'b' B 'a';
-A: 'd';
-B: 'd';
-
-
+A: B | C ;
+B: "a" ;
+C: "a" ;
 

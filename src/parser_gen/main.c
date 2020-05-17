@@ -26,7 +26,8 @@ enum command_key {
 enum arg_key {
     PARSER_TYPE,
     LR_TYPE,
-    SPEC_FILE
+    SPEC_FILE,
+    TEXT
 };
 
 enum parser_type {
@@ -40,6 +41,7 @@ struct args {
     enum command_key cmd;
     enum parser_type type;
     char spec[ONEKB];
+    bool text;
     int posc;
     char **pos;
 };
@@ -52,6 +54,8 @@ void read_args(struct args *args, int cmd, struct args_context *context) {
 
         if (key == SPEC_FILE) {
             strcpy(args->spec, argval());
+        } else if (key == TEXT) {
+            args->text = true;
         } else if (key == PARSER_TYPE || key == LR_TYPE) {
             if (key == PARSER_TYPE && streq("ll", argval())) {
                 args->type = LL;
@@ -308,8 +312,14 @@ bool automata(struct args const args, struct gram_parser_spec *spec) {
 
     unsigned nstates = 0;
     struct lr_state *states = NULL;
-    if ((states = discover_lr_states(&nstates, type, &san, spec)) &&
-        print_lr_states_dot(stdout, nstates, states, spec)) result = true;
+    if ((states = discover_lr_states(&nstates, type, &san, spec))) {
+        if (args.text) {
+            print_lr_states(stdout, nstates, states, spec);
+            result = true;
+        } else {
+            result = print_lr_states_dot(stdout, nstates, states, spec);
+        }
+    }
 
     free_lr_states(nstates, states);
     free_gram_symbol_analysis(&san);
@@ -376,6 +386,7 @@ int main(int argc, char *argv[]) {
     struct arg parser_type_arg = { PARSER_TYPE, "type", 0, required_argument, "Parser type: ll, slr, lr1" };
     struct arg lr_type_arg = { LR_TYPE, "type", 0, required_argument, "Parser type: slr, lr1" };
     struct arg spec_file_arg = { SPEC_FILE, "spec", 0, required_argument, "Spec file" };
+    struct arg text_arg = { TEXT, "text", 0, no_argument, "Print as text" };
 
     run_args(&args, ARG_FN read_args, "1.0.0", argc, argv, NULL, CMD {
         GEN_PARSER,
@@ -392,7 +403,7 @@ int main(int argc, char *argv[]) {
             },
             {
                 AUTOMATA, "automata",
-                ARGS { spec_file_arg, lr_type_arg, help_and_version_args, END_ARGS },
+                ARGS { spec_file_arg, lr_type_arg, text_arg, help_and_version_args, END_ARGS },
                 NULL,
                 NULL,
                 "Print the LR automaton in dot format"

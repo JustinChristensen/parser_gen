@@ -43,10 +43,11 @@ struct lr_state *discover_lr_states(
     struct gram_symbol_analysis const *san, struct gram_parser_spec const *spec
 );
 void free_lr_states(unsigned nstates, struct lr_state *state);
-void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state);
+void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec);
 bool print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec);
 
 bool lr_itemset_sorted(struct lr_itemset const *itemset);
 void print_lr_itemset_compact(FILE *handle, struct lr_itemset const *itemset);
+void print_lr_state(FILE *handle, struct lr_state const *state, struct gram_parser_spec const *spec);
 
 #endif // GRAM_STATES_H_

@@ -111,6 +111,25 @@ static struct lr_rule *rule_table(struct gram_parser_spec const *spec) {
     return rtable;
 }
 
+static bool has_conflict(struct lr_action *row, gram_sym_no s, struct lr_action act, struct lr_state *state, struct gram_parser_spec const *spec) {
+    if (row[s].action == GM_LR_ERROR) return false;
+
+    // a shift/reduce conflict occurs when the follow set for the non-terminal we'd be reducing conflicts
+    // with a shift symbol on the state
+    if ((row[s].action == GM_LR_SHIFT && act.action == GM_LR_REDUCE) ||
+        (row[s].action == GM_LR_REDUCE && act.action == GM_LR_SHIFT)) {
+        fprintf(stderr, "shift/reduce conflict on state %u symbol %u\n", state->num, s);
+        print_lr_state(stderr, state, spec);
+    }
+
+    if (row[s].action == GM_LR_REDUCE && act.action == GM_LR_REDUCE) {
+        fprintf(stderr, "reduce/reduce conflict on state %u symbol %u\n", state->num, s);
+        print_lr_state(stderr, state, spec);
+    }
+
+    return true;
+}
+
 #define ACCEPT() (struct lr_action) { GM_LR_ACCEPT }
 #define SHIFT(num) (struct lr_action) { GM_LR_SHIFT, (num) }
 #define REDUCE(num) (struct lr_action) { GM_LR_REDUCE, (num) }
@@ -153,6 +172,8 @@ static struct lr_action const **make_action_table(
     gram_sym_no const nonterm0 = offs(stats.terms);
     struct lr_state *state = states;
 
+    unsigned conflicts = 0;
+
     apush(&state, stack);
     while (!aempty(stack)) {
         apop(&state, stack);
@@ -175,11 +196,11 @@ static struct lr_action const **make_action_table(
                     struct bsiter it = bsiter(san->follows[rtable[item.rule].nt]);
                     gram_sym_no s;
                     while (bsnext(&s, &it)) {
-                        invariant(action_table_conflict, row, act, s, state->num);
+                        if (has_conflict(row, s, act, state, spec)) conflicts++;
                         row[s] = act;
                     }
                 } else {
-                    invariant(action_table_conflict, row, act, item.sym, state->num);
+                    if (has_conflict(row, item.sym, act, state, spec)) conflicts++;
                     row[item.sym] = act;
                 }
             }
@@ -195,7 +216,7 @@ static struct lr_action const **make_action_table(
             else if (next->sym < nonterm0) act = SHIFT(next->num);
             else                           act = GOTO(next->num);
 
-            invariant(action_table_conflict, row, act, next->sym, state->num);
+            if (has_conflict(row, next->sym, act, state, spec)) conflicts++;
             row[next->sym] = act;
 
             apush(&next, stack);
@@ -204,6 +225,11 @@ static struct lr_action const **make_action_table(
 
     free_lr_states(_nstates, states);
     free_array(stack);
+
+    if (conflicts) {
+        fprintf(stderr, "%u conflicts\n", conflicts);
+        abort();
+    }
 
     *nstates = _nstates;
 

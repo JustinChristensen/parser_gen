@@ -78,11 +78,14 @@ static void _print_itemset_compact(FILE *handle, void const *a, void const *b) {
     return print_lr_itemset_compact(handle, a);
 }
 
-static void print_itemset(FILE *handle, struct lr_itemset *itemset) {
+static void print_itemset(FILE *handle, struct lr_itemset *itemset, struct gram_parser_spec const *spec) {
     fprintf(handle, "  itemset:\n");
     for (unsigned i = 0; i < itemset->nitems; i++) {
+        struct lr_item item = itemset->items[i];
         fprintf(handle, "    ");
-        print_item(handle, itemset->items[i]);
+        print_item(handle, item);
+        // FIXME: reduction: item x rules -> bool
+        if (spec && !spec->rules[item.rule][item.pos]) fprintf(handle, " r");
         fprintf(handle, "\n");
     }
 }
@@ -91,14 +94,14 @@ static void print_transitions(FILE *handle, struct lr_transitions *trans) {
     if (trans->nstates) {
         fprintf(handle, "  transitions:\n");
         for (unsigned i = 0; i < trans->nstates; i++) {
-            fprintf(handle, "    %u\n", trans->states[i]->num);
+            fprintf(handle, "    %u -> %u\n", trans->states[i]->sym, trans->states[i]->num);
         }
     }
 }
 
-static void print_state(FILE *handle, struct lr_state *state) {
+void print_lr_state(FILE *handle, struct lr_state const *state, struct gram_parser_spec const *spec) {
     fprintf(handle, "  num: %u\n  sym: %u\n", state->num, state->sym);
-    print_itemset(handle, state->itemset);
+    print_itemset(handle, state->itemset, spec);
     print_transitions(handle, state->trans);
 }
 
@@ -501,6 +504,8 @@ static void merge_itemsets(
 
     // FIXME: would this work if I didn't modify the new kernel to remove existing items above?
     if (trans->nstates) {
+        // FIXME: maxsym probably isn't needed. I should just be able to initialize the new states
+        //        like normal
         gram_sym_no maxsym = trans->states[trans->nstates - 1]->sym;
         discover_transitions(NULL, &kernel, maxsym, san, spec, context);
     }
@@ -651,7 +656,7 @@ void free_lr_states(unsigned nstates, struct lr_state *state) {
     free(states);
 }
 
-void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state) {
+void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
     struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
     if (!stack) return;
     bool *visited = calloc(nstates, sizeof *visited);
@@ -667,7 +672,7 @@ void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state) {
         visited[state->num] = true;
 
         fprintf(handle, "\n");
-        print_state(handle, state);
+        print_lr_state(handle, state, spec);
 
         struct lr_transitions *trans = state->trans;
         for (unsigned i = trans->nstates; i > 0; i--) {
@@ -724,7 +729,7 @@ static void state_to_gvnode(char *buf, struct gram_parser_spec const *spec, Agno
 bool print_lr_states_dot(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
     Agnode_t **nodes = calloc(nstates, sizeof *nodes);
     if (!nodes) return false;
-    char buf[BUFSIZ * 16] = "";
+    char buf[1 << 19] = "";
 
     Agraph_t *graph = agopen("top", Agdirected, NULL);
 

@@ -1,6 +1,15 @@
 # reduce/reduce conflict
----
-A: B | C ;
-B: "a" ;
-C: "a" ;
+# ---
+# A: B | C ;
+# B: "a" ;
+# C: "a" ;
 
+
+# reduce/reduce conflict
+# enumeration_constant -> identifier
+# expression -> identfier
+
+# shift/reduce conflict
+# opt_designation -> [ constant_expr ] = | $empty
+# initializer_list -> opt_designator expression
+#                   | initializer_list "," opt_designator expression

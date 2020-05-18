@@ -1,5 +1,12 @@
--whitespace /{space}+/
----
-S: C C;
-C: "c" C | "d";
+# -whitespace /{space}+/
+# ---
+# S: C C;
+# C: "c" C | "d";
 
+---
+declarator:
+        "(" declarator ")"
+    | "(" declarator ")" declarator
+    ;
+
+opt_declarator: declarator | $empty;

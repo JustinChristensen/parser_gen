@@ -23,6 +23,7 @@
 
 struct states_stats {
     unsigned itemsets;
+    unsigned transitions;
     unsigned diffs;
     unsigned merges;
     unsigned finds;
@@ -39,12 +40,43 @@ struct states_context {
     struct states_stats stats;
 };
 
+struct print_context {
+    FILE *handle;
+    struct gram_parser_spec const *spec;
+};
+
+static void traverse(unsigned nstates, struct lr_state *state, void *context, void (*visit)(struct lr_state *state, void *context)) {
+    struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
+    if (!stack) return;
+    bool *visited = calloc(nstates, sizeof *visited);
+    if (!visited) return free_array(stack);
+
+    apush(&state, stack);
+    while (!aempty(stack)) {
+        apop(&state, stack);
+
+        if (visited[state->num]) continue;
+        visited[state->num] = true;
+
+        (*visit)(state, context);
+
+        struct lr_transitions *trans = state->trans;
+        for (unsigned i = trans->nstates; i > 0; i--) {
+            apush(&trans->states[i - 1], stack);
+        }
+    }
+
+    free_array(stack);
+    free(visited);
+}
+
 static void print_stats(FILE *handle, struct states_context *context) {
     struct states_stats stats = context->stats;
 
     fprintf(handle, "discover_states stats:\n");
-    fprintf(handle, "states: %u\nitemsets: %u\ndiffs: %u\nmerges: %u\nfinds: %u\ninserts: %u\ncompares: %u\n",
+    fprintf(handle, "states: %u\ntransitions: %u\nitemsets: %u\ndiffs: %u\nmerges: %u\nfinds: %u\ninserts: %u\ncompares: %u\n",
         context->nstates,
+        stats.transitions,
         stats.itemsets,
         stats.diffs,
         stats.merges,
@@ -80,6 +112,7 @@ static void _print_itemset_compact(FILE *handle, void const *a, void const *b) {
 
 static void print_itemset(FILE *handle, struct lr_itemset *itemset, struct gram_parser_spec const *spec) {
     fprintf(handle, "  itemset:\n");
+    fprintf(handle, "    nitems: %u\n", itemset->nitems);
     for (unsigned i = 0; i < itemset->nitems; i++) {
         struct lr_item item = itemset->items[i];
         fprintf(handle, "    ");
@@ -103,6 +136,11 @@ void print_lr_state(FILE *handle, struct lr_state const *state, struct gram_pars
     fprintf(handle, "  num: %u\n  sym: %u\n", state->num, state->sym);
     print_itemset(handle, state->itemset, spec);
     print_transitions(handle, state->trans);
+}
+
+static void print_state(struct lr_state *state, void *pcontext) {
+    struct print_context *context = pcontext;
+    print_lr_state(context->handle, state, context->spec);
 }
 
 static void debug_itemset(struct lr_itemset const *itemset) {
@@ -365,6 +403,9 @@ static unsigned closure(
 
     unsigned nitems = 0;
 
+    // this computes the closure of a particular item, but uses the symset on the context
+    // to ensure that each non-term x lookahead pair is added only once during repeated calls
+    // to this routine
     if (item) {
         gram_sym_no *s = &spec->rules[item->rule][item->pos];
         if (*s >= NONTERM0(spec->stats))
@@ -580,6 +621,7 @@ DISCOVER_STATES(discover_states) {
     struct lr_itemset *itemset = kernel;
 
     unsigned nstates = count_transitions(itemset, spec, context);
+    context->stats.transitions += nstates;
     struct lr_transitions *trans = make_transitions(nstates, 0, NULL);
     *state = make_state(context->nstates++, sym, itemset, trans);
 
@@ -625,26 +667,18 @@ discover_lr_states(unsigned *nstates, enum lr_item_type item_type, struct gram_s
     return states;
 }
 
+static void free_add_state(struct lr_state *state, void *context) {
+    struct lr_state **states = context;
+    states[state->num] = state;
+}
+
 void free_lr_states(unsigned nstates, struct lr_state *state) {
     if (!state) return;
 
-    struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
-    if (!stack) return;
     struct lr_state **states = calloc(nstates, sizeof *states);
-    if (!states) return free_array(stack);
+    if (!states) return;
 
-    apush(&state, stack);
-    while (!aempty(stack)) {
-        apop(&state, stack);
-
-        if (states[state->num]) continue;
-        states[state->num] = state;
-
-        struct lr_transitions *trans = state->trans;
-        for (unsigned i = trans->nstates; i > 0; i--) {
-            apush(&trans->states[i - 1], stack);
-        }
-    }
+    traverse(nstates, state, states, free_add_state);
 
     for (unsigned i = 0; i < nstates; i++) {
         free(states[i]->itemset);
@@ -652,36 +686,13 @@ void free_lr_states(unsigned nstates, struct lr_state *state) {
         free(states[i]);
     }
 
-    free_array(stack);
     free(states);
 }
 
 void print_lr_states(FILE *handle, unsigned nstates, struct lr_state *state, struct gram_parser_spec const *spec) {
-    struct array *stack = init_array(sizeof (struct lr_state *), 7, 0, 0);
-    if (!stack) return;
-    bool *visited = calloc(nstates, sizeof *visited);
-    if (!visited) return free_array(stack);
-
     fprintf(handle, "states:\n");
-
-    apush(&state, stack);
-    while (!aempty(stack)) {
-        apop(&state, stack);
-
-        if (visited[state->num]) continue;
-        visited[state->num] = true;
-
-        fprintf(handle, "\n");
-        print_lr_state(handle, state, spec);
-
-        struct lr_transitions *trans = state->trans;
-        for (unsigned i = trans->nstates; i > 0; i--) {
-            apush(&trans->states[i - 1], stack);
-        }
-    }
-
-    free_array(stack);
-    free(visited);
+    struct print_context context = { handle, spec };
+    traverse(nstates, state, &context, print_state);
 }
 
 static void state_to_gvnode(char *buf, struct gram_parser_spec const *spec, Agnode_t **nodes, Agraph_t *graph, struct lr_state *state, Agnode_t *parent) {

@@ -35,7 +35,8 @@ volatile                /volatile/
 while                   /while/
 _Alignas                /_Alignas/
 _Alignof                /_Alignof/
-_Atomic                 /_Atomic/
+# CHANGE: disable _Atomic
+# _Atomic                 /_Atomic/
 _Bool                   /_Bool/
 _Complex                /_Complex/
 _Generic                /_Generic/
@@ -68,13 +69,12 @@ hexadecimal_constant    /(0(x|X))[0-9a-fA-F]+/
 char_sequence           /'(\\.|[^'])'/
 string_sequence         /"(\\.|[^"])*"/
 
-header_name             /<[^\n>]>|"[^\n"]"/
-pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(\+|-))*/
-
-lparen                  /[^\t\n\v\f\r ]\(/
-new_line                /\n/
+# header_name             /<[^\n>]>|"[^\n"]"/
+# pp_number               /([0-9]|\.[0-9])(([0-9]|{alpha_})|(e|E|p|P)(\+|-))*/
+# lparen                  /[^\t\n\v\f\r ]\(/
+# new_line                /\n/
 # TODO: non_pp_token = all_tokens - pp_tokens
-non_pp_token            /./
+# non_pp_token            /./
 
 -line_comment           /\/\/[^\n]*\n/
 -multi_comment          /\/\*.*\*\//
@@ -87,7 +87,7 @@ translation_unit:
     | translation_unit external_declaration
     ;
 
-preprocessing_file: opt_group;
+# preprocessing_file: opt_group;
 
 # A.1.1 Lexical Elements
 
@@ -100,15 +100,15 @@ preprocessing_file: opt_group;
 
 # A.1.2 Keywords
 
-preprocessing_token:
-      header_name
-    | identifier
-    | pp_number
-    | character_constant
-    | string_literal
-    | punctuator
-    | non_pp_token
-    ;
+# preprocessing_token:
+#       header_name
+#     | identifier
+#     | pp_number
+#     | character_constant
+#     | string_literal
+#     | punctuator
+#     | non_pp_token
+#     ;
 
 # keyword:
 #       auto
@@ -164,7 +164,8 @@ opt_identifier: identifier | $empty;
 constant:
       integer_constant
 #    | floating_constant
-    | enumeration_constant
+# CHANGE: remove reduce/reducer conflicts on identifier
+#    | enumeration_constant
     | character_constant
     ;
 
@@ -203,62 +204,62 @@ opt_string_encoding_prefix: "u8" | "u" | "U" | "L" | $empty;
 
 # A.1.7 Punctuators
 
-punctuator:
-      "["
-    | "]"
-    | "("
-    | ")"
-    | "{"
-    | "}"
-    | "."
-    | "->"
-    | "++"
-    | "--"
-    | "&"
-    | "*"
-    | "+"
-    | "-"
-    | "~"
-    | "!"
-    | "/"
-    | "%"
-    | "<<"
-    | ">>"
-    | "<"
-    | ">"
-    | "<="
-    | ">="
-    | "=="
-    | "!="
-    | "^"
-    | "|"
-    | "&&"
-    | "||"
-    | "?"
-    | ":"
-    | ";"
-    | "..."
-    | "="
-    | "*="
-    | "/="
-    | "%="
-    | "+="
-    | "-="
-    | "<<="
-    | ">>="
-    | "&="
-    | "^="
-    | "|="
-    | ","
-    | "#"
-    | "##"
-    | "<:"
-    | ":>"
-    | "<%"
-    | "%>"
-    | "%:"
-    | "%:%:"
-    ;
+# punctuator:
+#       "["
+#     | "]"
+#     | "("
+#     | ")"
+#     | "{"
+#     | "}"
+#     | "."
+#     | "->"
+#     | "++"
+#     | "--"
+#     | "&"
+#     | "*"
+#     | "+"
+#     | "-"
+#     | "~"
+#     | "!"
+#     | "/"
+#     | "%"
+#     | "<<"
+#     | ">>"
+#     | "<"
+#     | ">"
+#     | "<="
+#     | ">="
+#     | "=="
+#     | "!="
+#     | "^"
+#     | "|"
+#     | "&&"
+#     | "||"
+#     | "?"
+#     | ":"
+#     | ";"
+#     | "..."
+#     | "="
+#     | "*="
+#     | "/="
+#     | "%="
+#     | "+="
+#     | "-="
+#     | "<<="
+#     | ">>="
+#     | "&="
+#     | "^="
+#     | "|="
+#     | ","
+#     | "#"
+#     | "##"
+#     | "<:"
+#     | ":>"
+#     | "<%"
+#     | "%>"
+#     | "%:"
+#     | "%:%:"
+#     ;
 
 # A.2.1 Expressions
 
@@ -289,7 +290,7 @@ postfix_expression:
     | postfix_expression "." identifier
     | postfix_expression "->" identifier
     | postfix_expression "++"
-    | postfix_expression "-"
+    | postfix_expression"--"
     | "(" type_name ")" "{" initializer_list "}"
     | "(" type_name ")" "{" initializer_list "," "}"
     ;
@@ -304,7 +305,7 @@ opt_argument_expression_list: argument_expression_list | $empty ;
 unary_expression:
       postfix_expression
     | "++" unary_expression
-    | "-" unary_expression
+    | "--" unary_expression
     | unary_operator cast_expression
     | sizeof unary_expression
     | sizeof "(" type_name ")"
@@ -396,7 +397,7 @@ assignment_operator:
 
 expression:
       assignment_expression
-    | expression "," assignment_expression
+#    | expression "," assignment_expression
     ;
 
 opt_expression: expression | $empty;
@@ -453,10 +454,11 @@ type_specifier:
     | unsigned
     | _Bool
     | _Complex
-    | atomic_type_specifier
+#     | atomic_type_specifier
     | struct_or_union_specifier
     | enum_specifier
-    | typedef_name
+# CHANGE disabled typedefs
+#     | typedef_name
     ;
 
 struct_or_union_specifier:
@@ -512,13 +514,13 @@ enumerator:
     | enumeration_constant "=" constant_expression
     ;
 
-atomic_type_specifier: _Atomic "(" type_name ")";
+# atomic_type_specifier: _Atomic "(" type_name ")";
 
 type_qualifier:
       const
     | restrict
     | volatile
-    | _Atomic
+#     | _Atomic
     ;
 
 function_specifier:
@@ -593,21 +595,20 @@ abstract_declarator:
 
 opt_abstract_declarator: abstract_declarator | $empty;
 
+# CHANGE: made right-recursive
 direct_abstract_declarator:
       "(" abstract_declarator ")"
-    | opt_direct_abstract_declarator "[" opt_type_qualifier_list "]"
-    | opt_assignment_expression "]"
-    | opt_direct_abstract_declarator "[" static opt_type_qualifier_list
-    | assignment_expression "]"
-    | opt_direct_abstract_declarator "[" type_qualifier_list static
-    | assignment_expression "]"
-    | opt_direct_abstract_declarator "[" "*" "]"
-    | opt_direct_abstract_declarator "(" opt_parameter_type_list ")"
+    | "[" opt_type_qualifier_list opt_assignment_expression "]" opt_direct_abstract_declarator
+    | "[" static opt_type_qualifier_list assignment_expression "]" opt_direct_abstract_declarator
+    | "[" type_qualifier_list static assignment_expression "]" opt_direct_abstract_declarator
+# CHANGE: "*" conflicts with reducing opt_type_qualifier_list
+#    | "[" "*" "]" opt_direct_abstract_declarator
+    | "(" opt_parameter_type_list ")" opt_direct_abstract_declarator
     ;
 
 opt_direct_abstract_declarator: direct_abstract_declarator | $empty;
 
-typedef_name: identifier;
+# typedef_name: identifier;
 
 initializer:
       assignment_expression
@@ -616,9 +617,9 @@ initializer:
     ;
 
 initializer_list:
-      opt_designation initializer
-    | initializer_list "," opt_designation initializer
-    ;
+    opt_designation initializer
+  | initializer_list "," opt_designation initializer
+  ;
 
 designation: designator_list "=";
 
@@ -709,73 +710,73 @@ opt_declaration_list: declaration_list | $empty;
 
 # A.3 Preprocessing Directives
 
-group:
-      group_part
-    | group group_part
-    ;
-
-opt_group: group | $empty;
-
-group_part:
-      if_section
-    | control_line
-    | text_line
-    | "#" non_directive
-    ;
-
-if_section:
-      if_group opt_elif_groups opt_else_group endif_line;
-
-if_group:
-      "#" if constant_expression new_line opt_group
-    | "#" ifdef identifier new_line opt_group
-    | "#" ifndef identifier new_line opt_group;
-
-elif_groups:
-      elif_group
-    | elif_groups elif_group
-    ;
-
-opt_elif_groups: elif_groups | $empty;
-
-elif_group:
-      "#" elif constant_expression new_line opt_group;
-
-else_group:
-      "#" else new_line opt_group;
-
-opt_else_group: else_group | $empty;
-
-endif_line:
-      "#" endif new_line;
-
-control_line:
-      "#" include pp_tokens new_line
-    | "#" define identifier replacement_list new_line
-    | "#" define identifier lparen opt_identifier_list ")"
-    | replacement_list new_line
-    | "#" define identifier lparen "..." ")" replacement_list new_line
-    | "#" define identifier lparen identifier_list "," "..." ")"
-    | replacement_list new_line
-    | "#" undef identifier new_line
-    | "#" line pp_tokens new_line
-    | "#" error opt_pp_tokens new_line
-    | "#" pragma opt_pp_tokens new_line
-    | "#" new_line
-    ;
-
-text_line: opt_pp_tokens new_line;
-
-non_directive: pp_tokens new_line;
-
-replacement_list: opt_pp_tokens;
-
-pp_tokens:
-      preprocessing_token
-    | pp_tokens preprocessing_token
-    ;
-
-opt_pp_tokens: pp_tokens | $empty;
-
-on_off_switch: "ON" | "OFF" | "DEFAULT";
+# group:
+#       group_part
+#     | group group_part
+#     ;
+#
+# opt_group: group | $empty;
+#
+# group_part:
+#       if_section
+#     | control_line
+#     | text_line
+#     | "#" non_directive
+#     ;
+#
+# if_section:
+#       if_group opt_elif_groups opt_else_group endif_line;
+#
+# if_group:
+#       "#" if constant_expression new_line opt_group
+#     | "#" ifdef identifier new_line opt_group
+#     | "#" ifndef identifier new_line opt_group;
+#
+# elif_groups:
+#       elif_group
+#     | elif_groups elif_group
+#     ;
+#
+# opt_elif_groups: elif_groups | $empty;
+#
+# elif_group:
+#       "#" elif constant_expression new_line opt_group;
+#
+# else_group:
+#       "#" else new_line opt_group;
+#
+# opt_else_group: else_group | $empty;
+#
+# endif_line:
+#       "#" endif new_line;
+#
+# control_line:
+#       "#" include pp_tokens new_line
+#     | "#" define identifier replacement_list new_line
+#     | "#" define identifier lparen opt_identifier_list ")"
+#     | replacement_list new_line
+#     | "#" define identifier lparen "..." ")" replacement_list new_line
+#     | "#" define identifier lparen identifier_list "," "..." ")"
+#     | replacement_list new_line
+#     | "#" undef identifier new_line
+#     | "#" line pp_tokens new_line
+#     | "#" error opt_pp_tokens new_line
+#     | "#" pragma opt_pp_tokens new_line
+#     | "#" new_line
+#     ;
+#
+# text_line: opt_pp_tokens new_line;
+#
+# non_directive: pp_tokens new_line;
+#
+# replacement_list: opt_pp_tokens;
+#
+# pp_tokens:
+#       preprocessing_token
+#     | pp_tokens preprocessing_token
+#     ;
+#
+# opt_pp_tokens: pp_tokens | $empty;
+#
+# on_off_switch: "ON" | "OFF" | "DEFAULT";
 

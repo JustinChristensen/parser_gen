@@ -228,7 +228,7 @@ static struct lr_action const **make_action_table(
 
     if (conflicts) {
         fprintf(stderr, "%u conflicts\n", conflicts);
-        abort();
+        // abort();
     }
 
     *nstates = _nstates;

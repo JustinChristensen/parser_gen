@@ -18,66 +18,70 @@
 
 static void debug_class_state(struct nfa_state *state) {
     bool *char_class = state->char_class;
-    sdebug("[");
+    fprintf(stderr, "[");
     for (int i = 0; i < CLASS_SIZE; i++)
-        sdebug(char_class[i] ? "1" : "0");
-    sdebug("]");
+        fprintf(stderr, char_class[i] ? "1" : "0");
+    fprintf(stderr, "]");
 }
 
 static void debug_state(struct nfa_state *state) {
-    sdebug("(%d, ", state->id);
+    fprintf(stderr, "(%d, ", state->id);
     switch (state->type) {
         case RX_ACCEPTING_STATE:
-            sdebug("accept, %d", state->sym);
+            fprintf(stderr, "accept, %d", state->sym);
             break;
         case RX_EPSILON_STATE:
-            sdebug("eps, %p", state->next);
+            fprintf(stderr, "eps, %p", state->next);
             break;
         case RX_DOTALL_STATE:
-            sdebug("dotall, %p", state->next);
+            fprintf(stderr, "dotall, %p", state->next);
             break;
         case RX_BRANCH_STATE:
-            sdebug("branch, %p, %p", state->left, state->right);
+            fprintf(stderr, "branch, %p, %p", state->left, state->right);
             break;
         case RX_CLASS_STATE:
-            sdebug("class, %p, ", state->next);
+            fprintf(stderr, "class, %p, ", state->next);
             debug_class_state(state);
             break;
         case RX_CHAR_STATE:
-            sdebug("char, %p, %c", state->next, state->ch);
+            fprintf(stderr, "char, %p, %c", state->next, state->ch);
             break;
     }
-    sdebug(")");
+    fprintf(stderr, ")");
 }
 
 __attribute((unused))
 static void debug_nfa_states(struct nfa_state **start, struct nfa_state **end) {
+    if (!debug_is("regex_states")) return;
+
     if (start != end) {
         struct nfa_state *state = *start++;
-        sdebug("{");
+        fprintf(stderr, "{");
         debug_state(state);
         while (start != end && (state = *start)) {
-            sdebug(", ");
+            fprintf(stderr, ", ");
             debug_state(state);
             start++;
         }
-        sdebug("}");
+        fprintf(stderr, "}");
     } else {
-        sdebug("empty");
+        fprintf(stderr, "empty");
     }
 
-    sdebug("\n");
+    fprintf(stderr, "\n");
 }
 
 static void debug_state_table(struct nfa_state_pool *pool) {
-    debug("state table\n");
+    if (!debug_is("regex_nfa")) return;
+
+    fprintf(stderr, "state table\n");
 
     for (; pool; pool = pool->next) {
         for (int i = 0; i < pool->n; i++) {
             struct nfa_state *state = &pool->states[i];
-            debug("%p: ", state);
+            fprintf(stderr, "%p: ", state);
             debug_state(state);
-            debug("\n");
+            fprintf(stderr, "\n");
         }
     }
 }

@@ -35,6 +35,7 @@ static unsigned ncompares = 0;
 struct states_context {
     gram_state_no nstates;
     enum lr_item_type item_type;
+    int (*cmpfn)(void const *, void const *);
     struct rb_node *states;
     struct bitset *symset;
     struct states_stats stats;
@@ -263,7 +264,7 @@ static int compare_itemsets(
             struct lr_item const *last = kitems + i;
             while (i < ni - 1 && !(*cmp_items)(last, kitems + i + 1)) i++;
             while (j < nj - 1 && !(*cmp_items)(last, citems + j + 1)) j++;
-        } else break;
+        } else if (cmp) break;
     }
 
     if (i < ni && j >= nj) cmp = 1;
@@ -595,14 +596,10 @@ DISCOVER_TRANSITIONS(discover_transitions) {
 }
 
 DISCOVER_STATES(discover_states) {
-    int (*cmpfn)(void const *, void const *) = compare_lr0_itemsets;
-    struct rb_node *snode = NULL;
-
-    if (context->item_type == GM_LR1_ITEMS) cmpfn = compare_lr1_itemsets;
-    else if (context->item_type == GM_LALR_ITEMS) cmpfn = compare_lalr_itemsets;
-
     context->stats.finds++;
-    if ((snode = rbfind(kernel, cmpfn, context->states))) {
+
+    struct rb_node *snode = NULL;
+    if ((snode = rbfind(kernel, context->cmpfn, context->states))) {
         *state = rbval(snode);
 
         if (context->item_type == GM_LALR_ITEMS) {
@@ -627,7 +624,7 @@ DISCOVER_STATES(discover_states) {
 
     // this must happen prior to recursive calls to this function
     context->stats.inserts++;
-    context->states = rbinsert(itemset, cmpfn, *state, context->states);
+    context->states = rbinsert(itemset, context->cmpfn, *state, context->states);
 
     discover_transitions(trans, &(*state)->itemset, spec->stats.symbols, san, spec, context);
 }
@@ -637,6 +634,10 @@ discover_lr_states(unsigned *nstates, enum lr_item_type item_type, struct gram_s
     struct states_context context = { 0 };
 
     if (!states_context(&context, item_type, spec->stats)) return NULL;
+
+    context.cmpfn = compare_lr0_itemsets;
+    if (item_type == GM_LR1_ITEMS) context.cmpfn = compare_lr1_itemsets;
+    else if (item_type == GM_LALR_ITEMS) context.cmpfn = compare_lalr_itemsets;
 
     struct lr_item item0 = { GM_START };
     if (item_type != GM_LR0_ITEMS) item0.sym = GM_EOF;

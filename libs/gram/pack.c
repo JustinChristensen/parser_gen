@@ -103,13 +103,7 @@ static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
     return true;
 }
 
-static struct regex_pattern *pack_patterns(struct regex_pattern **pp, struct hash_table *symtab, struct gram_stats stats, struct gram_parser_spec *spec) {
-    struct regex_pattern *patterns = calloc(nullterm(stats.patterns), sizeof *patterns);
-    if (!patterns) return NULL;
-
-    bool success = true;
-    struct regex_pattern *pat = patterns;
-
+static struct regex_pattern *pack_patterns(struct regex_pattern *pat, struct hash_table *symtab, struct gram_stats stats, struct gram_parser_spec *spec) {
     struct gram_pattern_def *pdef = NULL;
     for (pdef = spec->pdefs; pdef; pdef = pdef->next) {
         int sym = 0;
@@ -122,23 +116,14 @@ static struct regex_pattern *pack_patterns(struct regex_pattern **pp, struct has
             else sym = detnum(entry, stats);
         }
 
-        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex)) {
-            success = false;
-            break;
-        }
+        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
+            return NULL;
 
         strip_quotes(pat->pattern);
         pat++;
     }
 
-    if (!success) {
-        free_patterns(patterns);
-        return NULL;
-    }
-
-    *pp = pat;
-
-    return patterns;
+    return pat;
 }
 
 gram_sym_no *alloc_rule(size_t n) {
@@ -162,7 +147,7 @@ gram_sym_no *start_rule(bool exists, struct gram_stats const stats) {
 }
 
 static gram_sym_no **pack_rules(
-    gram_rule_no **dps, struct regex_pattern *pat,
+    gram_rule_no **dps, struct regex_pattern **patp,
     struct hash_table *symtab, struct gram_stats stats, struct gram_parser_spec *spec
 ) {
     gram_sym_no **rules = calloc(offs(nullterm(stats.rules)), sizeof *rules);
@@ -206,7 +191,7 @@ static gram_sym_no **pack_rules(
                 // add pattern
                 if (rhs->type == GM_STRING_RHS && !packed[sym]) {
                     packed[sym] = true;
-                    if (!pack_rhs_pattern(pat++, sym, rhs->str)) goto oom;
+                    if (!pack_rhs_pattern((*patp)++, sym, rhs->str)) goto oom;
                 }
             }
         }
@@ -246,21 +231,27 @@ bool gram_pack(
     gram_rule_no **dps = calloc(stats.nonterms, sizeof *dps);
     if (!dps) return oom_error(error, NULL);
 
-    struct gram_symbol *symbols = NULL;
-    if ((symbols = pack_symbols(dps, symtab, stats)) == NULL)
-        return oom_error(error, dps);
+    struct regex_pattern *patterns = calloc(nullterm(stats.patterns), sizeof *patterns);
+    if (!patterns) return oom_error(error, dps);
 
-    // NTPATTERNS count the number of non-pattern terms to add as an offset when indexing the patterns table in the below AST loop
-    struct regex_pattern *patterns = NULL, *pp = NULL;
-    if ((patterns = pack_patterns(&pp, symtab, stats, spec)) == NULL) {
-        free_symbols(symbols);
+    struct gram_symbol *symbols = NULL;
+    if ((symbols = pack_symbols(dps, symtab, stats)) == NULL) {
+        free_patterns(patterns);
         return oom_error(error, dps);
     }
 
+    struct regex_pattern *patp = patterns;
     gram_sym_no **rules = NULL;
-    if ((rules = pack_rules(dps, pp, symtab, stats, spec)) == NULL) {
+    if ((rules = pack_rules(dps, &patp, symtab, stats, spec)) == NULL) {
         free_symbols(symbols);
         free_patterns(patterns);
+        return oom_error(error, dps);
+    }
+
+    if (pack_patterns(patp, symtab, stats, spec) == NULL) {
+        free_patterns(patterns);
+        free_symbols(symbols);
+        free_rules(rules);
         return oom_error(error, dps);
     }
 

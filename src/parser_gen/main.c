@@ -108,7 +108,7 @@ static size_t slurp_file(int bufsize, char *buf, char *filename) {
 }
 
 bool read_files(struct args const args, void *context, bool (*with_file)(void *context, char *filename, char *contents)) {
-    char contents[BUFFER_SIZE] = "";
+    char contents[ONEKB * 200] = "";
 
     if (args.posc == 0) {
         if (!isatty(STDIN_FILENO)) {

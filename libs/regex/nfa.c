@@ -665,14 +665,14 @@ bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *conte
     bool success = true;
 
     while (!regex_null_pattern(pat) && success) {
-        success = nfa_regex(pat->sym, pat->tag, pat->pattern, context);
+        success = nfa_loc_regex(pat->sym, pat->tag, pat->pattern, pat->loc, context);
         pat++;
     }
 
     return success;
 }
 
-bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
+bool nfa_loc_regex(int sym, char *tag, char *pattern, struct regex_loc loc, struct nfa_context *context) {
     if (nfa_has_error(context)) return false;
 
     if (htcontains(pattern, context->defpats))
@@ -683,7 +683,7 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     struct regex_parse_context pcontext = regex_parse_context(context, nfa_parse_iface);
     struct nfa lastmach = nfa_gmachine(context);
 
-    if (parse_regex(pattern, &pcontext)) {
+    if (parse_regex(pattern, loc, &pcontext)) {
         struct nfa nextmach = nfa_gmachine(context);
 
         if (tag && !tag_machine(tag, context)) return false;
@@ -706,6 +706,10 @@ bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
     }
 
     return true;
+}
+
+bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context) {
+    return nfa_loc_regex(sym, tag, pattern, regex_loc(NULL, 1, 1), context);
 }
 
 bool nfa_has_error(struct nfa_context *context) {
@@ -821,7 +825,8 @@ static struct nfa_state **move(
 
 static void reset_match(struct nfa_match *match) {
     match->match_start = match->input = match->orig_input;
-    match->match_loc = match->input_loc = regex_loc(1, 1);
+    match->input_loc.line = match->input_loc.col = 1;
+    match->match_loc = match->input_loc;
     match->eof_seen = false;
 }
 
@@ -829,7 +834,7 @@ static void reset_already_on(struct nfa_match *match) {
     memset(match->already_on, false, match->num_states);
 }
 
-bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *context) {
+bool nfa_start_match(char *input, char *path, struct nfa_match *match, struct nfa_context *context) {
     int num_states = context->num_states;
     bool *already_on = match->already_on;
     struct nfa_state **cstates = match->currstates,
@@ -848,7 +853,8 @@ bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *c
             .already_on = already_on,
             .currstates = cstates,
             .nextstates = nstates,
-            .orig_input = input
+            .orig_input = input,
+            .input_loc = regex_loc(path, 1, 1)
         };
 
         reset_match(match);
@@ -957,7 +963,7 @@ void free_nfa_match(struct nfa_match *match) {
 
     *match = (struct nfa_match) {
         .mach = nullmach(),
-        .input_loc = regex_loc(1, 1)
+        .input_loc = regex_loc(NULL, 1, 1)
     };
 }
 

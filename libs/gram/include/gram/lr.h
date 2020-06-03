@@ -81,7 +81,7 @@ void print_lr_parser(FILE *handle, struct lr_parser const *parser);
 void free_lr_parser(struct lr_parser *parser);
 
 struct lr_parser_state lr_parser_state(struct lr_parser const *parser);
-bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state);
+bool lr_parse(struct lr_error *error, char *input, char *path, struct lr_parser_state *state);
 void free_lr_parser_state(struct lr_parser_state *state);
 
 void print_lr_error(FILE *handle, struct lr_error error);

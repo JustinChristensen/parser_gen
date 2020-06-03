@@ -3,10 +3,24 @@
 # S: C C;
 # C: "c" C | "d";
 
+# ---
+# declarator:
+#         "(" declarator ")"
+#     | "(" declarator ")" declarator
+#     ;
+#
+# opt_declarator: declarator | $empty;
+
 ---
-declarator:
-        "(" declarator ")"
-    | "(" declarator ")" declarator
+E:
+      "a" F
+    | "(" E ")" F
     ;
 
-opt_declarator: declarator | $empty;
+F:
+      "*" F
+    | "a" F
+    | "|" E F
+    | $empty
+    ;
+

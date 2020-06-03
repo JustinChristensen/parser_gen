@@ -85,7 +85,7 @@ START_TEST(test_scanner_is_reentrant) {
     int tokens[] = { 2, 7, 3, 7, 5, 7, 4, 6, RX_EOF, ENDT };
 
     struct nfa_match match = {0};
-    ck_assert(nfa_start_match(input, &match, &context));
+    ck_assert(nfa_start_match(input, NULL, &match, &context));
 
     for (int i = 0; i < 3; i++) {
         int expected = 0;
@@ -141,7 +141,7 @@ START_TEST(test_scans_simple_expression) {
     };
 
     struct nfa_match match = {0};
-    ck_assert_msg(nfa_start_match(expr, &match, &context), "init match state failed");
+    ck_assert_msg(nfa_start_match(expr, NULL, &match, &context), "init match state failed");
 
     int expected = 0;
     for (int j = 0; (expected = tokens[j]) != ENDT; j++) {

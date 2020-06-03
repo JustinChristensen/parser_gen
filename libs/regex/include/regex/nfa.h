@@ -49,6 +49,7 @@ extern struct regex_parse_interface const nfa_parse_iface;
 // matcher construction
 bool nfa_context(struct nfa_context *context, struct regex_pattern const *patterns);
 bool nfa_add_patterns(struct regex_pattern const *patterns, struct nfa_context *context);
+bool nfa_loc_regex(int sym, char *tag, char *pattern, struct regex_loc loc, struct nfa_context *context);
 bool nfa_regex(int sym, char *tag, char *pattern, struct nfa_context *context);
 struct nfa nfa_gmachine(struct nfa_context *context);
 bool nfa_has_error(struct nfa_context *context);
@@ -56,7 +57,7 @@ struct regex_error nfa_error(struct nfa_context *context);
 void free_nfa_context(struct nfa_context *context);
 
 // matching
-bool nfa_start_match(char *input, struct nfa_match *match, struct nfa_context *context);
+bool nfa_start_match(char *input, char *path, struct nfa_match *match, struct nfa_context *context);
 int nfa_match(struct nfa_match *match);
 struct regex_loc nfa_match_loc(struct nfa_match *match);
 void nfa_match_lexeme(char *lexeme, struct nfa_match *match);

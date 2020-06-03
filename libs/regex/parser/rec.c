@@ -13,8 +13,8 @@ static bool parse_char_class(struct regex_parse_context *context);
 static bool parse_factor(struct regex_parse_context *context);
 static bool parse_unops(struct regex_parse_context *context);
 
-static bool parse_regex_rec(char *pattern, struct regex_parse_context *context) {
-    start_scanning(pattern, context);
+static bool parse_regex_rec(char *pattern, struct regex_loc loc, struct regex_parse_context *context) {
+    start_scanning(pattern, loc, context);
 
     return (parse_expr(context) &&
         expect(RX_EOF_T, context) &&

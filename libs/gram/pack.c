@@ -29,7 +29,7 @@ static gram_sym_no detnum(struct gram_symbol_entry *sym, struct gram_stats stats
     return offs(i);
 }
 
-static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern) {
+static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *pattern, struct regex_loc loc) {
     debug("packing pattern: %d, %s, %s\n", sym, tag, pattern);
 
     if (tag && ((tag = strdup(tag)) == NULL)) return false;
@@ -38,7 +38,10 @@ static bool alloc_pattern(struct regex_pattern *pat, int sym, char *tag, char *p
         return false;
     }
 
-    *pat = regex_pattern(sym, tag, pattern);
+    // account for surrounding delimiters
+    loc.col++;
+
+    *pat = regex_loc_pattern(sym, tag, pattern, loc);
 
     return true;
 }
@@ -87,7 +90,7 @@ static struct gram_symbol *pack_symbols(gram_rule_no **dps, struct hash_table *s
     return symbols;
 }
 
-static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
+static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str, struct regex_loc loc) {
     // the pattern was already added
     if (pat->sym == sym) return true;
 
@@ -97,7 +100,7 @@ static bool pack_rhs_pattern(struct regex_pattern *pat, int sym, char *str) {
     strip_quotes(buf);
     regex_escape(buf);
 
-    if (!alloc_pattern(pat, sym, NULL, buf))
+    if (!alloc_pattern(pat, sym, NULL, buf, loc))
         return false;
 
     return true;
@@ -116,7 +119,7 @@ static struct regex_pattern *pack_patterns(struct regex_pattern *pat, struct has
             else sym = detnum(entry, stats);
         }
 
-        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex))
+        if (!alloc_pattern(pat, sym, pdef->id, pdef->regex, pdef->rloc))
             return NULL;
 
         strip_quotes(pat->pattern);
@@ -191,7 +194,7 @@ static gram_sym_no **pack_rules(
                 // add pattern
                 if (rhs->type == GM_STRING_RHS && !packed[sym]) {
                     packed[sym] = true;
-                    if (!pack_rhs_pattern((*patp)++, sym, rhs->str)) goto oom;
+                    if (!pack_rhs_pattern((*patp)++, sym, rhs->str, rhs->loc)) goto oom;
                 }
             }
         }

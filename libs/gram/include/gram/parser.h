@@ -92,17 +92,17 @@ struct gram_spec_parser {
 };
 
 bool gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser);
-bool gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_spec_parser *parser);
+bool gram_start_scanning(struct gram_parse_error *error, char *input, char *path, struct gram_spec_parser *parser);
 enum gram_parser_symbol gram_scan(struct gram_spec_parser *parser);
 enum gram_parser_symbol gram_lookahead(struct gram_spec_parser *parser);
 struct regex_loc gram_location(struct gram_spec_parser *parser);
 void gram_lexeme(char *lexeme, struct gram_spec_parser *parser);
 bool gram_parse(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
-    char *input, struct gram_spec_parser *parser
+    char *input, char *path, struct gram_spec_parser *parser
 );
 void free_gram_spec_parser(struct gram_spec_parser *parser);
 void print_gram_parse_error(FILE *handle, struct gram_parse_error error);
-void print_gram_tokens(FILE *handle, char *spec);
+void print_gram_tokens(FILE *handle, char *spec, char *path);
 
 #endif // GRAM_PARSER_H_

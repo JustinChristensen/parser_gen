@@ -32,7 +32,7 @@ struct gram_parser_spec gram_packed_spec(
 #define N_(next) (1 + (next ? next->n : 0))
 
 struct gram_pattern_def *init_gram_pattern_def(
-    struct regex_loc loc,
+    struct regex_loc loc, struct regex_loc rloc,
     char *id, char *regex, bool skip,
     struct gram_pattern_def *next
 ) {
@@ -52,7 +52,8 @@ struct gram_pattern_def *init_gram_pattern_def(
     }
 
     *pdef = (struct gram_pattern_def) {
-        loc, id, regex,
+        loc, rloc,
+        id, regex,
         .skip = skip,
         next, N_(next)
     };

@@ -58,6 +58,12 @@ enum regex_symbol {
     RX_DO_REPEAT_EXACT
 };
 
+struct regex_loc {
+    char *path;
+    int line;
+    int col;
+};
+
 enum regex_error_type {
     RX_SYNTAX_ERROR,
     RX_OUT_OF_MEMORY,
@@ -71,7 +77,7 @@ struct regex_error {
     enum regex_error_type type;
     union {
         struct {
-            int lexeme_col;
+            struct regex_loc lexeme_loc;
             enum regex_symbol actual;
             enum regex_symbol const *expected;
         };
@@ -175,15 +181,11 @@ union regex_result {
 
 static union regex_result const RX_NULL_RESULT = { 0 };
 
-struct regex_loc {
-    int line;
-    int col;
-};
-
 struct regex_pattern {
     int sym;
     char *tag;
     char *pattern;
+    struct regex_loc loc;
 };
 
 #define RX_PATTERNS (struct regex_pattern[])
@@ -202,10 +204,10 @@ enum {
 #define RX_ALNUM(sym)        { sym, "alnum",        "[0-9A-Za-z]"           }
 #define RX_ALNUM_(sym)       { sym, "alnum_",       "[0-9A-Za-z_]"          }
 #define RX_SPACE(sym)        { sym, "space",        "[\t\n\v\f\r ]"         }
-#define RX_LINE_COMMENT(sym) { sym, "line_comment", "#[^\n]*\n"             }
+#define RX_LINE_COMMENT(sym) { sym, "line_comment", "//[^\n]*\n"            }
 #define RX_REGEX(sym)        { sym, "regex",        "/(\\\\.|[^\n/])*/"     }
 
-struct regex_error regex_syntax_error(enum regex_symbol const actual, int lexeme_col, enum regex_symbol const *expected);
+struct regex_error regex_syntax_error(enum regex_symbol const actual, struct regex_loc lexeme_loc, enum regex_symbol const *expected);
 struct regex_error regex_oom_error();
 struct regex_error regex_repeat_zero_error();
 struct regex_error regex_missing_tag_error(char *tag);
@@ -213,7 +215,8 @@ struct regex_error regex_tag_exists_error(char *tag);
 struct regex_error regex_duplicate_pattern_error(char *pattern);
 struct regex_error regex_nullerror();
 void regex_escape(char *pattern);
-struct regex_loc regex_loc(int line, int col);
+struct regex_loc regex_loc(char *path, int line, int col);
+struct regex_pattern regex_loc_pattern(int sym, char *tag, char *pattern, struct regex_loc loc);
 struct regex_pattern regex_pattern(int sym, char *tag, char *pattern);
 bool regex_null_pattern(struct regex_pattern const *pattern);
 struct regex_loc bump_regex_loc(char c, struct regex_loc loc);

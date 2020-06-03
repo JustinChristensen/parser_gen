@@ -50,7 +50,7 @@ void print_ll_parser(FILE *handle, struct ll_parser const *parser);
 void free_ll_parser(struct ll_parser *parser);
 
 struct ll_parser_state ll_parser_state(struct ll_parser const *parser);
-bool ll_parse(struct ll_error *error, char *input, struct ll_parser_state *state);
+bool ll_parse(struct ll_error *error, char *input, char *path, struct ll_parser_state *state);
 void free_ll_parser_state(struct ll_parser_state *state);
 
 void print_ll_error(FILE *handle, struct ll_error error);

@@ -282,8 +282,8 @@ static void push_rule(gram_rule_no r, gram_sym_no **rtable, struct array *syms) 
     while (*s) apush(s, syms), s++;
 };
 
-static bool start_scanning(char *input, struct ll_parser_state *state) {
-    if (nfa_start_match(input, &state->match, &state->parser->scanner)) {
+static bool start_scanning(char *input, char *path, struct ll_parser_state *state) {
+    if (nfa_start_match(input, path, &state->match, &state->parser->scanner)) {
         state->lookahead = nfa_match(&state->match);
         debug("initial lookahead: %u\n", state->lookahead);
         return true;
@@ -321,10 +321,10 @@ static void debug_syms(struct array *syms) {
 }
 
 #define SYM_STACK_SIZE 7
-bool ll_parse(struct ll_error *error, char *input, struct ll_parser_state *state) {
+bool ll_parse(struct ll_error *error, char *input, char *path, struct ll_parser_state *state) {
     assert(state != NULL);
 
-    if (!start_scanning(input, state)) return oom_error(error, NULL);
+    if (!start_scanning(input, path, state)) return oom_error(error, NULL);
 
     struct array *syms = init_array(sizeof (gram_sym_no), SYM_STACK_SIZE, 0, 0);
     if (!syms) return oom_error(error, NULL);

@@ -228,7 +228,7 @@ static struct lr_action const **make_action_table(
 
     if (conflicts) {
         fprintf(stderr, "%u conflicts\n", conflicts);
-        // abort();
+        abort();
     }
 
     *nstates = _nstates;
@@ -394,8 +394,8 @@ struct lr_parser_state lr_parser_state(struct lr_parser const *parser) {
     return (struct lr_parser_state) { .parser = (struct lr_parser *) parser };
 }
 
-static bool start_scanning(char *input, struct lr_parser_state *state) {
-    if (nfa_start_match(input, &state->match, &state->parser->scanner)) {
+static bool start_scanning(char *input, char *path, struct lr_parser_state *state) {
+    if (nfa_start_match(input, path, &state->match, &state->parser->scanner)) {
         state->lookahead = nfa_match(&state->match);
         debug("initial lookahead: %u\n", state->lookahead);
         return true;
@@ -434,10 +434,10 @@ static void debug_parser_state(struct array *states, struct lr_parser_state *sta
 }
 
 #define STATES_STACK_SIZE 7
-bool lr_parse(struct lr_error *error, char *input, struct lr_parser_state *state) {
+bool lr_parse(struct lr_error *error, char *input, char *path, struct lr_parser_state *state) {
     assert(state != NULL);
 
-    if (!start_scanning(input, state)) return oom_error(error, NULL);
+    if (!start_scanning(input, path, state)) return oom_error(error, NULL);
 
     struct array *states = init_array(sizeof (gram_state_no), STATES_STACK_SIZE, 0, 0);
     if (!states) return oom_error(error, NULL);

@@ -1,15 +1,16 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include "regex/base.h"
 
 struct regex_error regex_syntax_error(
     enum regex_symbol const actual,
-    int lexeme_col,
+    struct regex_loc lexeme_loc,
     enum regex_symbol const *expected
 ) {
     return (struct regex_error) {
         .type = RX_SYNTAX_ERROR,
         .actual = actual,
-        .lexeme_col = lexeme_col,
+        .lexeme_loc = lexeme_loc,
         .expected = expected
     };
 }
@@ -88,12 +89,16 @@ struct regex_loc bump_regex_loc(char c, struct regex_loc loc) {
     return loc;
 }
 
-struct regex_loc regex_loc(int line, int col) {
-    return (struct regex_loc) { line, col };
+struct regex_loc regex_loc(char *path, int line, int col) {
+    return (struct regex_loc) { path, line, col };
+}
+
+struct regex_pattern regex_loc_pattern(int sym, char *tag, char *pattern, struct regex_loc loc) {
+    return (struct regex_pattern) { sym, tag, pattern, loc };
 }
 
 struct regex_pattern regex_pattern(int sym, char *tag, char *pattern) {
-    return (struct regex_pattern) { sym, tag, pattern };
+    return regex_loc_pattern(sym, tag, pattern, regex_loc(NULL, 1, 1));
 }
 
 bool regex_null_pattern(struct regex_pattern const *pattern) {
@@ -164,20 +169,23 @@ static void print_symbol_list(FILE *handle, enum regex_symbol const *sym) {
     }
 }
 
-#define SYNERR_FMT "| Syntax Error\n|\n| Got: %s\n| Expected: "
-#define SYNERR_FMT_END "\n|\n| At Column: %d\n|\n"
-#define OOM_FMT "| OOM Error\n|\n"
-#define REPEAT_ZERO_FMT "| Repeat Zero Error\n|\n"
-#define TAG_EXISTS_FMT "| Tag Exists Error\n|\n| Pattern %s already tagged\n|\n"
-#define MISSING_TAG_FMT "| Missing Tag Error\n|\n| Pattern %s not tagged\n|\n"
-#define DUPLICATE_PATTERN_FMT "| Duplicate Pattern Error\n|\n| Pattern %s duplicated\n|\n"
+#define SYNERR_FMT "| Regex Syntax Error\n|\n| Got: %s\n| Expected: "
+#define SYNERR_FMT_AT "\n|\n| At: "
+#define SYNERR_FMT_END "\n|\n"
+#define OOM_FMT "| Regex OOM Error\n|\n"
+#define REPEAT_ZERO_FMT "| Regex Repeat Zero Error\n|\n"
+#define TAG_EXISTS_FMT "| Regex Tag Exists Error\n|\n| Pattern %s already tagged\n|\n"
+#define MISSING_TAG_FMT "| Regex Missing Tag Error\n|\n| Pattern %s not tagged\n|\n"
+#define DUPLICATE_PATTERN_FMT "| Regex Duplicate Pattern Error\n|\n| Pattern %s duplicated\n|\n"
 
 void print_regex_error(FILE *handle, struct regex_error error) {
     switch (error.type) {
         case RX_SYNTAX_ERROR:
             fprintf(handle, SYNERR_FMT, str_for_regex_sym(error.actual));
             print_symbol_list(handle, error.expected);
-            fprintf(handle, SYNERR_FMT_END, error.lexeme_col);
+            fprintf(handle, SYNERR_FMT_AT);
+            print_regex_loc(handle, error.lexeme_loc);
+            fprintf(handle, SYNERR_FMT_END);
             break;
         case RX_OUT_OF_MEMORY:
             fprintf(handle, OOM_FMT);
@@ -198,6 +206,7 @@ void print_regex_error(FILE *handle, struct regex_error error) {
 }
 
 void print_regex_loc(FILE *handle, struct regex_loc loc) {
+    if (loc.path) fprintf(handle, "%s:", loc.path);
     fprintf(handle, "%d:%d", loc.line, loc.col);
 }
 

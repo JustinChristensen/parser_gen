@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
         char *regex = args.regex[0] ? args.regex : "(a|b)*abbc?";
         struct regex_parse_context pcontext = regex_parse_context(&econtext, expr_parse_iface);
 
-        if (parse_regex(regex, &pcontext)) {
+        if (parse_regex(regex, regex_loc("stdin", 1, 1), &pcontext)) {
             struct regex_expr *expr = gexpr(&econtext);
 
             if (args.output == OUTPUT_DOT) {
@@ -368,6 +368,7 @@ int main(int argc, char *argv[]) {
                 struct nfa mach = nfa_gmachine(&ncontext);
                 nfa_to_graph(mach.start, ncontext.num_states);
             } else {
+                char *file = "stdin";
                 FILE *in = NULL;
 
                 if (args.posc == 0) {
@@ -375,6 +376,7 @@ int main(int argc, char *argv[]) {
                         in = stdin;
                     }
                 } else {
+                    file = args.pos[0];
                     in = fopen(args.pos[0], "r");
                 }
 
@@ -387,7 +389,7 @@ int main(int argc, char *argv[]) {
 
                     struct nfa_match match;
 
-                    if (nfa_start_match(buf, &match, &ncontext)) {
+                    if (nfa_start_match(buf, file, &match, &ncontext)) {
                         int sym = 0;
 
                         while ((sym = nfa_match(&match)) != RX_EOF) {
@@ -525,7 +527,7 @@ int main(int argc, char *argv[]) {
 
                 input[nread] = '\0';
 
-                if (!nfa_start_match(input, &match, &context)) {
+                if (!nfa_start_match(input, files[i], &match, &context)) {
                     fprintf(stderr, "could not initialize scanner\n");
                     fclose(fi);
                     result = EXIT_FAILURE;

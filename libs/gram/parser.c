@@ -203,8 +203,9 @@ gram_spec_parser(struct gram_parse_error *error, struct gram_spec_parser *parser
     struct nfa_context scanner = { 0 };
     if (!nfa_context(&scanner, RX_PATTERNS {
         RX_ALPHA_(RX_TAG_ONLY), RX_ALNUM_(RX_TAG_ONLY),
-        RX_SPACE(RX_TAG_ONLY), RX_LINE_COMMENT(RX_SKIP),
+        RX_SPACE(RX_TAG_ONLY),
         RX_REGEX(GM_REGEX_T),
+        { RX_SKIP, NULL, "#[^\n]*\n" },
         { GM_SKIP_T, NULL, "-" },
         // FIXME: really, this should be handled by composing scanners,
         // i.e. root scanner: (patterns scanner, grammar scanner)
@@ -304,13 +305,12 @@ print_gram_parse_error(FILE *handle, struct gram_parse_error error) {
     }
 }
 
-bool
-gram_start_scanning(struct gram_parse_error *error, char *input, struct gram_spec_parser *parser) {
+bool gram_start_scanning(struct gram_parse_error *error, char *input, char *path, struct gram_spec_parser *parser) {
     struct nfa_match match = { 0 };
 
     prod(error, ((struct gram_parse_error) { 0 }));
 
-    if (nfa_start_match(input, &match, &parser->scanner)) {
+    if (nfa_start_match(input, path, &match, &parser->scanner)) {
         htclear(parser->symtab);
         parser->stats = (struct gram_stats) { 0 };
 
@@ -343,12 +343,11 @@ void gram_lexeme(char *lexeme, struct gram_spec_parser *parser) {
     nfa_match_lexeme(lexeme, &parser->match);
 }
 
-void
-print_gram_tokens(FILE *handle, char *spec) {
+void print_gram_tokens(FILE *handle, char *spec, char *path) {
     struct gram_spec_parser parser = { 0 };
     struct gram_parse_error error;
 
-    if (gram_spec_parser(&error, &parser) && gram_start_scanning(&error, spec, &parser)) {
+    if (gram_spec_parser(&error, &parser) && gram_start_scanning(&error, spec, path, &parser)) {
         enum gram_parser_symbol sym = gram_lookahead(&parser);
         char buf[BUFSIZ];
 
@@ -585,15 +584,14 @@ parse_rhses(struct gram_parse_error *error, struct gram_rhs **rhses, struct gram
 static bool
 parse_rhs(struct gram_parse_error *error, struct gram_rhs **rhs, struct gram_spec_parser *parser);
 
-bool
-gram_parse(
+bool gram_parse(
     struct gram_parse_error *error, struct gram_parser_spec *spec,
-    char *input, struct gram_spec_parser *parser
+    char *input, char *path, struct gram_spec_parser *parser
 ) {
     assert(error != NULL);
     assert(spec != NULL);
 
-    if (!gram_start_scanning(error, input, parser)) return false;
+    if (!gram_start_scanning(error, input, path, parser)) return false;
 
     prod(spec, ((struct gram_parser_spec) { 0 }));
 
@@ -673,8 +671,9 @@ parse_pattern_def(
             if (!insert_pattern(error, patbuf, false, parser)) return false;
         }
 
+        struct regex_loc pat_loc = gram_location(parser);
         return expect(error, GM_REGEX_T, parser) &&
-            tryinit(error, pdef, init_gram_pattern_def, loc, idbuf, patbuf, skip, NULL);
+            tryinit(error, pdef, init_gram_pattern_def, loc, pat_loc, idbuf, patbuf, skip, NULL);
     }
 
     return false;

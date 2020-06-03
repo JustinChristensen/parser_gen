@@ -154,7 +154,7 @@ bool parse_spec(struct args args, bool (*with_spec)(struct args const args, stru
     struct gram_parse_error parser_error = { 0 };
     struct gram_parser_spec spec = { 0 };
 
-    if (gram_spec_parser(&parser_error, &parser) && gram_parse(&parser_error, &spec, specfile, &parser)) {
+    if (gram_spec_parser(&parser_error, &parser) && gram_parse(&parser_error, &spec, specfile, args.spec, &parser)) {
         free_gram_spec_parser(&parser);
         bool result = (*with_spec)(args, &spec);
         free_gram_parser_spec(&spec);
@@ -199,7 +199,7 @@ bool make_ll_parser_state(
 bool parse_file_ll(void *parser_state, char *filename, char *contents) {
     struct ll_error parse_error = { 0 };
 
-    if (ll_parse(&parse_error, contents, parser_state)) {
+    if (ll_parse(&parse_error, contents, filename, parser_state)) {
         printf("parsed %s\n", filename);
         return true;
     }
@@ -250,7 +250,7 @@ bool make_lr_parser_state(
 bool parse_file_lr(void *parser_state, char *filename, char *contents) {
     struct lr_error parse_error = { 0 };
 
-    if (lr_parse(&parse_error, contents, parser_state)) {
+    if (lr_parse(&parse_error, contents, filename, parser_state)) {
         printf("parsed %s\n", filename);
         return true;
     }
@@ -356,9 +356,9 @@ bool analyze(struct args const _, struct gram_parser_spec *spec) {
     return true;
 }
 
-bool scan(void *_1, char *_2, char *contents) {
-    UNUSED(_1); UNUSED(_2);
-    print_gram_tokens(stdout, contents);
+bool scan(void *_1, char *filename, char *contents) {
+    UNUSED(_1);
+    print_gram_tokens(stdout, contents, filename);
     return true;
 }
 

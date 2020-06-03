@@ -69,6 +69,7 @@ struct gram_parser_spec {
 
 struct gram_pattern_def {
     struct regex_loc loc;
+    struct regex_loc rloc;
     char *id;
     char *regex;
     bool skip;
@@ -116,7 +117,7 @@ struct gram_parser_spec gram_packed_spec(
     gram_sym_no **rules, struct gram_stats stats
 );
 struct gram_pattern_def *init_gram_pattern_def(
-    struct regex_loc loc,
+    struct regex_loc loc, struct regex_loc rloc,
     char *id, char *regex, bool skip,
     struct gram_pattern_def *next
 );

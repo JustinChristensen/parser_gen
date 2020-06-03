@@ -14,15 +14,15 @@ static union regex_result get_result(struct regex_parse_context *context);
 static bool result_has_error(struct regex_parse_context *context);
 static struct regex_error result_error(struct regex_parse_context *context);
 static bool do_action(enum regex_symbol action, union regex_result val, struct regex_parse_context *context);
-static void start_scanning(char *input, struct regex_parse_context *context);
+static void start_scanning(char *input, struct regex_loc loc, struct regex_parse_context *context);
 static bool peek(enum regex_symbol expected, struct regex_parse_context *context);
 static bool expect(enum regex_symbol expected, struct regex_parse_context *context);
 static enum regex_symbol lookahead(struct regex_parse_context *context);
 static union regex_result lookahead_val(struct regex_parse_context *context);
 static union regex_result tag_val(char *tag, struct regex_parse_context *context);
 static bool set_syntax_error(enum regex_symbol expected, struct regex_parse_context *context);
-static bool parse_regex_rec(char *pattern, struct regex_parse_context *context);
-static bool parse_regex_nonrec(char *pattern, struct regex_parse_context *context);
+static bool parse_regex_rec(char *pattern, struct regex_loc loc, struct regex_parse_context *context);
+static bool parse_regex_nonrec(char *pattern, struct regex_loc loc, struct regex_parse_context *context);
 
 #define sdebug(...) debug_ns("regex_scanner", __VA_ARGS__)
 #define pdebug(...) debug_ns("regex_parser", __VA_ARGS__)
@@ -67,7 +67,7 @@ static enum regex_symbol const *first_set(enum regex_symbol sym) {
 static struct regex_token consume(struct regex_token token, char c) {
     while (*token.input == c || isblank(*token.input)) {
         token.input++;
-        token.input_col++;
+        token.input_loc.col++;
     }
 
     return token;
@@ -75,7 +75,7 @@ static struct regex_token consume(struct regex_token token, char c) {
 
 static struct regex_token scan_escape(struct regex_token token) {
     char *ip = token.input;
-    int ic = token.input_col;
+    int ic = token.input_loc.col;
     enum regex_symbol type = RX_ERROR;
     char ch = '\0';
 
@@ -99,7 +99,7 @@ static struct regex_token scan_escape(struct regex_token token) {
     token.val.ch = ch;
     token.type = type;
     token.input = ip;
-    token.input_col = ic;
+    token.input_loc.col = ic;
 
     return token;
 }
@@ -115,7 +115,7 @@ static struct regex_token scan_range(struct regex_token token) {
 
         if (*token.input == '-') {
             token.input++;
-            token.input_col++;
+            token.input_loc.col++;
 
             token = scan_escape(token);
             range.end = token.val.ch;
@@ -134,10 +134,10 @@ static struct regex_token scan_range(struct regex_token token) {
     return token;
 }
 
-struct regex_token regex_token(char *pattern) {
+struct regex_token regex_token(char *pattern, struct regex_loc loc) {
     return regex_scan((struct regex_token) {
         .input = pattern,
-        .input_col = 1,
+        .input_loc = loc,
         .in_class = false,
         .in_braces = false
     });
@@ -145,11 +145,11 @@ struct regex_token regex_token(char *pattern) {
 
 struct regex_token regex_scan(struct regex_token token) {
     char *ip = token.input;
-    int ic = token.input_col;
+    int ic = token.input_loc.col;
     enum regex_symbol type = RX_ERROR;
 
     token.lexeme = ip;
-    token.lexeme_col = ic;
+    token.lexeme_loc = token.input_loc;
 
     if (*ip == '\0') {
         type = RX_EOF_T;
@@ -161,7 +161,7 @@ struct regex_token regex_scan(struct regex_token token) {
         } else {
             token = scan_range(token);
             ip = token.input;
-            ic = token.input_col;
+            ic = token.input_loc.col;
             type = token.type;
         }
     } else if (token.in_braces) {
@@ -187,15 +187,15 @@ struct regex_token regex_scan(struct regex_token token) {
         if (*ip == '*') {
             token = consume(token, '*');
             type = RX_STAR_T;
-            ip = token.input, ic = token.input_col;
+            ip = token.input, ic = token.input_loc.col;
         } else if (*ip == '+') {
             token = consume(token, '+');
             type = RX_PLUS_T;
-            ip = token.input, ic = token.input_col;
+            ip = token.input, ic = token.input_loc.col;
         } else if (*ip == '?') {
             token = consume(token, '?');
             type = RX_OPTIONAL_T;
-            ip = token.input, ic = token.input_col;
+            ip = token.input, ic = token.input_loc.col;
         } else {
             switch (*ip) {
                 case '.':
@@ -235,18 +235,18 @@ struct regex_token regex_scan(struct regex_token token) {
                     break;
                 default:
                     token = scan_escape(token);
-                    type = token.type, ip = token.input, ic = token.input_col;
+                    type = token.type, ip = token.input, ic = token.input_loc.col;
                     break;
             }
         }
     }
 
     token.input = ip;
-    token.input_col = ic;
+    token.input_loc.col = ic;
     token.type = type;
 
     sdebug("column: %d, token: %s, remaining input: %s\n",
-        token.lexeme_col, str_for_regex_sym(token.type), ip);
+        token.lexeme_loc.col, str_for_regex_sym(token.type), ip);
 
     return token;
 }
@@ -259,8 +259,8 @@ union regex_token_val regex_token_val(struct regex_token token) {
     return token.val;
 }
 
-int regex_token_col(struct regex_token token) {
-    return token.lexeme_col;
+struct regex_loc regex_token_loc(struct regex_token token) {
+    return token.lexeme_loc;
 }
 
 void regex_token_lexeme(char *lexeme, struct regex_token token) {
@@ -282,15 +282,16 @@ static void print_token_val(struct regex_token token) {
 void print_regex_token(struct regex_token token) {
     char lexeme[BUFSIZ] = "";
     regex_token_lexeme(lexeme, token);
-    printf("%3d %-17s %-20s ", regex_token_col(token), str_for_regex_sym(token.type), lexeme);
+    struct regex_loc loc = regex_token_loc(token);
+    printf("%-3d  %-17s  %-20s  ", loc.col, str_for_regex_sym(token.type), lexeme);
     print_token_val(token);
     printf("\n");
 }
 
 void print_regex_token_table(char *regex) {
-    struct regex_token token = regex_token(regex);
+    struct regex_token token = regex_token(regex, regex_loc(NULL, 1, 1));
 
-    printf("%-3s %-17s %-20s %-s\n", "col", "symbol", "lexeme", "value");
+    printf("%-3s  %-17s  %-20s  %-s\n", "loc", "symbol", "lexeme", "value");
     while (true) {
         print_regex_token(token);
         if (token.type == RX_EOF_T) break;
@@ -338,19 +339,19 @@ struct regex_parse_context regex_parse_context(
     return context;
 }
 
-bool parse_regex(char *pattern, struct regex_parse_context *context) {
+bool parse_regex(char *pattern, struct regex_loc loc, struct regex_parse_context *context) {
     if (getenv("USE_NONREC")) {
-        return parse_regex_nonrec(pattern, context);
+        return parse_regex_nonrec(pattern, loc, context);
     } else {
-        return parse_regex_rec(pattern, context);
+        return parse_regex_rec(pattern, loc, context);
     }
 }
 
-static void start_scanning(char *input, struct regex_parse_context *context) {
-    struct regex_token token = regex_token(input);
+static void start_scanning(char *input, struct regex_loc loc, struct regex_parse_context *context) {
+    struct regex_token token = regex_token(input, loc);
     context->token = token;
     context->lookahead = regex_token_type(token);
-    context->lookahead_col = regex_token_col(token);
+    context->lookahead_loc = regex_token_loc(token);
     context->lookahead_val = regex_token_val(token);
     context->has_error = false;
 }
@@ -375,7 +376,7 @@ static bool expect(enum regex_symbol expected, struct regex_parse_context *conte
 
         context->token = token;
         context->lookahead = regex_token_type(token);
-        context->lookahead_col = regex_token_col(token);
+        context->lookahead_loc = regex_token_loc(token);
         context->lookahead_val = regex_token_val(token);
 
         return true;
@@ -404,7 +405,7 @@ static bool set_syntax_error(enum regex_symbol expected, struct regex_parse_cont
     if (!context->has_error) {
         pdebug("parse error %s\n", str_for_regex_sym(expected));
         context->has_error = true;
-        context->error = regex_syntax_error(context->lookahead, context->lookahead_col, first_set(expected));
+        context->error = regex_syntax_error(context->lookahead, context->lookahead_loc, first_set(expected));
     }
 
     return false;

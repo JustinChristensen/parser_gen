@@ -238,7 +238,7 @@ static char const *str_for_prod(enum regex_production p) {
 
 static bool is_terminal(int sym) { return sym < RX_REGEX_NT; }
 static bool is_action(int sym) { return sym >= RX_DO_REGEX; }
-static bool parse_regex_nonrec(char *pattern, struct regex_parse_context *context) {
+static bool parse_regex_nonrec(char *pattern, struct regex_loc loc, struct regex_parse_context *context) {
     bool success = true;
     struct array
         *stack = init_array(sizeof(enum regex_symbol), PARSE_STACK_SIZE, 0, 0),
@@ -247,7 +247,7 @@ static bool parse_regex_nonrec(char *pattern, struct regex_parse_context *contex
     char tagbuf[BUFSIZ] = "";
     int prevres = 0;
 
-    start_scanning(pattern, context);
+    start_scanning(pattern, loc, context);
     push_sym(RX_REGEX_NT, stack);
 
     while (success && !aempty(stack)) {

@@ -663,9 +663,10 @@ bool nfa_add_patterns(struct regex_pattern const *pat, struct nfa_context *conte
     if (!pat) return true;
 
     bool success = true;
+    struct regex_loc defloc = regex_loc(NULL, 1, 1);
 
     while (!regex_null_pattern(pat) && success) {
-        success = nfa_loc_regex(pat->sym, pat->tag, pat->pattern, pat->loc, context);
+        success = nfa_loc_regex(pat->sym, pat->tag, pat->pattern, pat->loc.line ? pat->loc : defloc, context);
         pat++;
     }
 

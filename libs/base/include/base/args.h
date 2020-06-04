@@ -104,10 +104,12 @@ void run_args(
     struct cmd *cmd
 );
 int readarg(struct args_context *context);
+int numarg(struct args_context *context);
 char *argval();
 char **argv(struct args_context *context);
 int argc(struct args_context *context);
 void print_usage(FILE *handle, struct args_context *context);
+void print_usage_exit(FILE *handle, struct args_context *context);
 void print_version(struct args_context *context);
 void help_found(struct args_context *context);
 void version_found(struct args_context *context);

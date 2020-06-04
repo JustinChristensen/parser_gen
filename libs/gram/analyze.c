@@ -507,17 +507,13 @@ static struct gram_conflict *null_ambiguity_conflict(
 
 static struct gram_conflict *left_recursion_conflict(
     struct gram_conflict *last, struct array *derivs,
-    struct gram_stats stats, struct gram_analysis *an
+    struct gram_analysis *an
 ) {
     struct gram_conflict *conf = malloc(sizeof *conf);
     if (!conf) return NULL;
 
     gram_sym_no *dlist = alist(derivs);
     if (!dlist) return free(conf), NULL;
-
-    // shift everything back over
-    for (unsigned i = 0; i < asize(derivs); i++)
-        dlist[i] -= stats.terms;
 
     *conf = (struct gram_conflict) {
         GM_LEFT_RECURSION,
@@ -571,7 +567,7 @@ SYMBOL_LEFT_RECURSION(symbol_left_recursion) {
     if (added[sym.num]) {
         if (sym.type == GM_NONTERM && sym.num == nt) {
             apush(&sym.num, derivs);
-            last = left_recursion_conflict(last, derivs, spec->stats, an);
+            last = left_recursion_conflict(last, derivs, an);
             apop(&sym.num, derivs);
         }
         return last;
@@ -614,8 +610,6 @@ bool gram_analyze(
     if (!gram_analyze_rules(&ran, san, spec))
         return false;
 
-    struct gram_stats stats = spec->stats;
-
     bool *rnullable = ran.nullable,
          *snullable = san->nullable;
     struct bitset **rfirsts = ran.firsts,
@@ -636,7 +630,6 @@ bool gram_analyze(
         struct gram_symbol *nt = gram_nonterm0(spec);
         while (!gram_symbol_null(nt)) {
             gram_rule_no *rules = nt->derives;
-            gram_sym_no ntnum = nt->num - stats.terms;
             unsigned n = nderives(rules);
             unsigned nnulls = 0;
 
@@ -650,7 +643,7 @@ bool gram_analyze(
                     gram_rule_no t = rules[j];
 
                     if (!bsdisjoint(rfirsts[r], rfirsts[t])) {
-                        if (!(conflict = first_first_conflict(conflict, ntnum, i, j, an)))
+                        if (!(conflict = first_first_conflict(conflict, nt->num, i, j, an)))
                             goto free;
                     }
                 }
@@ -659,13 +652,13 @@ bool gram_analyze(
 
                 // first-follows conflicts
                 if (!bsdisjoint(rfirsts[r], sfollows[nt->num])) {
-                    if (!(conflict = first_follows_conflict(conflict, ntnum, i, an)))
+                    if (!(conflict = first_follows_conflict(conflict, nt->num, i, an)))
                         goto free;
                 }
             }
 
             // null ambiguity
-            if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, ntnum, an)))
+            if (nnulls > 1 && !(conflict = null_ambiguity_conflict(conflict, nt->num, an)))
                 goto free;
 
             // left recursion
@@ -705,15 +698,23 @@ void free_gram_analysis(struct gram_analysis *an) {
     *an = (struct gram_analysis) { 0 };
 }
 
+static char *sym_str(gram_sym_no s, struct gram_parser_spec const *spec) {
+    struct gram_symbol sym = spec->symbols[s];
+    if (sym.str) return sym.str;
+    static char str[11] = "";
+    sprintf(str, "%d", s);
+    return str;
+}
+
 #define GRAMMAR_TITLE_FMT "grammar:\n"
 #define HEADER_INDENT_FMT "  "
 #define CONF_INDENT_FMT "    "
 #define CONFLICTS_TITLE_FMT "conflicts:\n"
-#define FIRST_FIRST_FMT "first-first conflict for non-terminal %u on rules %u and %u\n"
-#define FIRST_FOLLOWS_FMT "first-follows conflict for non-terminal %u on rule %u\n"
-#define NULL_AMBIGUITY_FMT "non-terminal %u is null ambiguous\n"
-#define LEFT_RECURSION_FMT "non-terminal %u is left recursive: "
-void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
+#define FIRST_FIRST_FMT "first-first conflict for non-terminal %s on rules %u and %u\n"
+#define FIRST_FOLLOWS_FMT "first-follows conflict for non-terminal %s on rule %u\n"
+#define NULL_AMBIGUITY_FMT "non-terminal %s is null ambiguous\n"
+#define LEFT_RECURSION_FMT "non-terminal %s is left recursive: "
+void print_gram_analysis(FILE *handle, struct gram_analysis *an, struct gram_parser_spec const *spec) {
     assert(an != NULL);
 
     fprintf(handle, GRAMMAR_TITLE_FMT);
@@ -746,19 +747,19 @@ void print_gram_analysis(FILE *handle, struct gram_analysis *an) {
 
         switch (conf->type) {
             case GM_FIRST_FIRST:
-                fprintf(handle, FIRST_FIRST_FMT, conf->nonterm, conf->rules[0], conf->rules[1]);
+                fprintf(handle, FIRST_FIRST_FMT, sym_str(conf->nonterm, spec), conf->rules[0], conf->rules[1]);
                 break;
             case GM_FIRST_FOLLOWS:
-                fprintf(handle, FIRST_FOLLOWS_FMT, conf->nonterm, conf->rule);
+                fprintf(handle, FIRST_FOLLOWS_FMT, sym_str(conf->nonterm, spec), conf->rule);
                 break;
             case GM_NULL_AMBIGUITY:
-                fprintf(handle, NULL_AMBIGUITY_FMT, conf->nonterm);
+                fprintf(handle, NULL_AMBIGUITY_FMT, sym_str(conf->nonterm, spec));
                 break;
             case GM_LEFT_RECURSION:
-                fprintf(handle, LEFT_RECURSION_FMT, conf->derivations[0]);
-                fprintf(handle, "%u", conf->derivations[0]);
+                fprintf(handle, LEFT_RECURSION_FMT, sym_str(conf->derivations[0], spec));
+                fprintf(handle, "%s", sym_str(conf->derivations[0], spec));
                 for (unsigned i = 1; i < conf->n; i++) {
-                    fprintf(handle, " -> %u", conf->derivations[i]);
+                    fprintf(handle, " -> %s", sym_str(conf->derivations[i], spec));
                 }
                 fprintf(handle, "\n");
                 break;

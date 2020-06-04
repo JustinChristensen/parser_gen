@@ -73,7 +73,7 @@ void print_gram_rule_analysis(FILE *handle, struct gram_rule_analysis const *an)
 
 bool gram_analyze(struct gram_analysis *an, struct gram_symbol_analysis *san, struct gram_parser_spec const *spec);
 void free_gram_analysis(struct gram_analysis *an);
-void print_gram_analysis(FILE *handle, struct gram_analysis *an);
+void print_gram_analysis(FILE *handle, struct gram_analysis *an, struct gram_parser_spec const *spec);
 
 #endif // GRAM_ANALYZE_H_
 

@@ -167,6 +167,16 @@ int readarg(struct args_context *context) {
     return key;
 }
 
+int numarg(struct args_context *context) {
+    char *end = optarg;
+    int n = strtol(optarg, &end, 10);
+
+    if (optarg == end)
+        print_usage_exit(stderr, context);
+
+    return n;
+}
+
 char *argval() {
     return optarg;
 }
@@ -245,6 +255,11 @@ void print_usage(FILE *handle, struct args_context *context) {
 
         fprintf(handle, "\n");
     }
+}
+
+void print_usage_exit(FILE *handle, struct args_context *context) {
+    print_usage(handle, context);
+    exit(EXIT_FAILURE);
 }
 
 void print_version(struct args_context *context) {

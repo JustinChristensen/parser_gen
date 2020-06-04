@@ -46,38 +46,51 @@ struct args {
     char **pos;
 };
 
+bool handle_spec_file(int key, struct args *args) {
+    if (key == SPEC_FILE) return strcpy(args->spec, argval()), true;
+    return false;
+}
+
+bool handle_type(int key, struct args *args) {
+    if (key == PARSER_TYPE && streq("ll", argval())) {
+        args->type = LL;
+        return true;
+    }
+
+    args->type = SLR;
+
+    if (streq("slr", argval())) {
+        args->type = SLR;
+        return true;
+    } else if (streq("lr1", argval())) {
+        args->type = LR1;
+        return true;
+    }
+
+    return false;
+}
+
 void read_args(struct args *args, int cmd, struct args_context *context) {
     int key;
 
     while ((key = readarg(context)) != END) {
-        if (cmd == SCAN) continue;
-
-        if (key == SPEC_FILE) {
-            strcpy(args->spec, argval());
-        } else if (key == TEXT) {
-            args->text = true;
-        } else if (key == PARSER_TYPE || key == LR_TYPE) {
-            if (key == PARSER_TYPE && streq("ll", argval())) {
-                args->type = LL;
-                continue;
-            }
-
-            if (key == LR_TYPE) args->type = SLR;
-
-            if (streq("slr", argval())) {
-                args->type = SLR;
-            // } else if (streq("lalr", argval())) {
-            //     args->type = LALR;
-            } else if (streq("lr1", argval())) {
-                args->type = LR1;
-            } else {
-                print_usage(stderr, context);
-                exit(EXIT_FAILURE);
-            }
-        } else {
-            print_usage(stderr, context);
-            exit(EXIT_FAILURE);
-        }
+        if (cmd == ANALYZE) {
+            if (handle_spec_file(key, args));
+            else print_usage_exit(stderr, context);
+        } else if (cmd == AUTOMATA) {
+            if (handle_spec_file(key, args));
+            else if (handle_type(key, args));
+            else if (key == TEXT) args->text = true;
+            else print_usage_exit(stderr, context);
+        } else if (cmd == GEN_PARSER) {
+            if (handle_spec_file(key, args));
+            else if (handle_type(key, args));
+            else print_usage_exit(stderr, context);
+        } else if (cmd == TABLES) {
+            if (handle_spec_file(key, args));
+            else if (handle_type(key, args));
+            else print_usage_exit(stderr, context);
+        } else print_usage_exit(stderr, context);
     }
 
     args->cmd = cmd;
@@ -349,7 +362,8 @@ bool analyze(struct args const _, struct gram_parser_spec *spec) {
     if (!gram_analyze(&gan, &san, spec))
         return free_gram_symbol_analysis(&san), false;
 
-    print_gram_analysis(stdout, &gan);
+    print_gram_analysis(stdout, &gan, spec);
+
     free_gram_analysis(&gan);
     free_gram_symbol_analysis(&san);
 

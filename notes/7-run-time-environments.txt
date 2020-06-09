@@ -338,8 +338,70 @@ The simplest cache is a 1-way associative cache, AKA *direct-mapped*
 See: https://en.wikipedia.org/wiki/Cache_placement_policies
 See: https://en.wikipedia.org/wiki/CPU_cache
 
+7.4.4 Reducing Fragmentation
 
+At the beginning of execution, the heap is a contiguous block of free space.
+As the program allocates and deallocates, the block will be broken down into smalelr units.
+Chunks of free memory are called *holes*.
+With each allocation, the memorhy manager must *place* the request chunk of memory into a large enough hole (thus shrinking the size of the hole).
+Unless the hole is the same size as the request, we then need to *split* the hole.
+With each deallocation, chunks of freed memory are added back to the pool.
+We *coalesce* contiguous holes into larger holes, as the holes get smaller otherwise
+If we're not careful, free memory gets *fragmented*.
 
+*Fragmentation* is when you arrive at a state where you've got a large number of small, noncontiguous holes
+which has the net effect of making it more challenging to find a hole large enough to servicer a request,
+and is thus undesirable.
+
+Best-Fit and Next-Fit
+
+Empirically it's been shown that a good strategy is to allocate space from the smallest available hole that is large enough to service the request
+- This is known as *best fit*
+
+An alternative, *next fit*, takes the first available hole that is large enough. In the simple case it'll be faster to locate a hole for allocation,
+but when fragmentation is taken into account best fit has been shown to have better overall performance.
+
+We can track the size of our free space chunks with *bins* where each bin keeps a list of holes of a certain size.
+Doug Lea's memory manager aligns chunks on 8 byte boundaries, and there is a bin for each multiple of 8 byte chunks from 16 to 512 bytes.
+
+- So if there's a bin that corresponds to the requested size, we can take a chunk from that bin.
+- For sizes taht do not have a private bin, we find a bin larger than that size, and we look for either the next fit or best fit chunk within that bin.
+    - Note that for a chunk larger than the request size, we need to split, and the remainder will be added to a bin of a smaller size
+- If the bin is empty, we move up a size and try to find either the next or best fit in that bin.
+- If we can't find a bin with a chunk big enough to service the request, then we reach for the "wilderness" chunk (which can pull memory from teh OS).
+- We can improve spatial locality by using next fit along with best fit when consecutive requests are of the same size.
+
+Coalescing
+
+If the user deallocates a chunk, we may or may not prefer to coalesce it together with other chunks depending on how our bins are organized, and how many remaining chunks are in our bins.
+
+*Boundary Tags*
+- at the low or high end of a chunk, we maintain metadata about the state of the chunk.
+
+Automatic GC can help eliminate fragmentation altogether
+
+7.4.5 Manual Deallocation Requests
+
+- If a programmer fails to delete memory before it can no longer be referenced in the
+  program it is known as a *memory leak*
+- Referencing deleted meory is known as a *dangling pointer dereference error*
+
+It is critical that long-running programs not have leaks, as they can build up over time.
+Leaks generally do not impact the correctness of the program, provided the operating system doesn't run out of memory to allocate.
+Accessing an illegal address is another error that leads to bugs and security concerns.
+
+Historical Note: Rational's Purify helps find memory access errors and memory leaks (similar to Valgrind)
+
+Tools:
+
+Reference counting
+- keeping track of how many reachable references the program has to a block of allocated memory
+- this has a problem with circular data structures
+- expensive, because it presupposes that you can increment and decrement on every pointer creation and deletion.
+
+Region based allocation
+- when objects are created to be used only within some step of a computation we can allocation all such objects to a region
+- and when the phase of computation has ended, we can delete the region all at once
 
 
 

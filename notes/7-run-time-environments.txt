@@ -1,0 +1,345 @@
+7. Run Time Environments
+
+Storage
+
+Typically run-time memory is partioned into two main segments: Code and Data
+
+A byte is the smallest addressable unit of memory.
+
+Addressing constraints of the target machine may require that the storage
+layout of data objects be *aligned*, i.e. placed at an address divisible by 4
+
+A compiler may allocate more storage then is needed to ensure proper alignment.
+
+For instance, allocating an array of 10 characters may only require 10 bytes,
+but a compiler may choose to allocate 12 bytes to align the data on 4 byte boundaries.
+
+Unused storage allocated in this way is called *padding*.
+
+Where space is at a premium, a compiler may instead choose to *pack* the data
+so that none of the allocated space goes unused, but this will likely come at the cost
+of additional instructions to be executed at runtime to ensure the packed data is properly
+positioned for operation.
+
+Size of target code is fixed at compile time, and is placed in a
+statically determined area, *Code*.
+
+Where the size of data objects is known at compile time, some global objects
+may be placed in a statically determined area called *Static*.
+
+*Stack* and *Heap* are positioned at the end of the remaining address space for the process.
+
+So it's:
+
+Code < Static < Heap -> [ Free Memory ] <- Stack
+
+(Of course this implies that the Heap is already part of the processes' allocated address space)
+
+Stack stores *activation records* that get generated during procedure calls
+In practice the stack grows downward, that is towards LOWER addresses
+The heap grows towards higher addresses
+
+When handling procedure calls there's this idea of a "control". Control
+can be given and returned to procedures, and we store things like the program
+counter and the values of registers just before shifting control to a called procedure.
+Then, when control is returned we can restore the state of the registers in the calling procedure.
+
+Programming languages allow the programmer to allocate and deallocate memory
+from the heap.
+
+7.1.1 Static Versus Dynamic Storage Allocation
+
+Layout and allocation of data to memory locations in the RTE are key issues in storage management.
+
+"Static" and "Dynamic" distinguish between compile-time and run-time, respectively.
+
+A storage allocation decision is *static* if it can be made by the compiler looking only at the source
+of the program, not at what the program does during execution.
+
+A storage allocation decision is *dynamic* only if it can be made while the program is running.
+
+Dynamic storage allocation usually falls two either of:
+1. Stack storage (aka. the run-time stack) or
+2. Heap storage
+
+The heap is an area of virtual memory
+
+7.2 Stack Allocation
+
+Activations (stack frames) of procedures nest in time.
+
+We can represent the activations of procedures with a tree.
+Node corresponds to an activation, where the root node is the main procedure.
+Child nodes correspond to activations of the procedures called by this activation.
+A child must finish before it's sibling can begin.
+
+The sequence of procedure calls corresponds to a PREORDER traversal of the activation tree
+The sequence of returns corresponds to a POSTORDER traversal of the tree
+Activations that are LIVE for a given node N are itself, and it's ancestors
+
+Procedure calls and returns are managed by a run-time stack called the *control stack*
+
+The *control stack* has an *activation record* (stack frame) for each live activation.
+
+Activation records (stack frames) may contain all or any of the following:
+- Parameters
+- Returned Values
+- Control Link
+- Access Link
+- Saved Machine Status
+- Local Data
+- Temporaries
+
+* Temporary values for intermediate values in expressions when register space is limited
+* Saved Machine Status typically includes the *return address* (value of the program counter to which the procedure must return),
+    and the contents of registers that were in use by the calling procedure and must be restored
+* Access links point to data needed by the current procedure that may be stored elsewhere
+* Control links point to the activation record of the calling procedure
+* Potentially space for the return value, if register storage is not preferred for some reason
+* Parameters if we don't have enough registers for them
+
+7.2.3 Calling Sequences
+
+Procedure calls are implemented by what are known as *calling sequences*.
+    - allocates an activation record on the stack, and populates it
+
+A *return sequence* restores the state of the machine, so the calling sequence can continue
+
+Calling sequences and activation records (stack frame) differ from language to language and compiler to compiler.
+
+Design principles for calling sequences/stack frames:
+    - Values transferred from the caller to the callee are placed at the beginning of the stack frame.
+        The caller can compute the values without having to create the entire next allocation record,
+        and it allows for procedures that take variadic arguments like printf
+    - Fixed-length items are generally placed in the middle. I.e. the control link, access link, and
+        machine status fields.
+    - While local variables typically have a fixed size according to their types, some locals may be dynamically
+        sized (like C's VLAs), and the number of temporaries needed may depend on how code generation allocates registers.
+        So local variables typically go at the end of the frame.
+    - Generally the top of the stack pointer points to the top of the fixed length fields, just before local data and temporaries
+        which again, may be of a variable size.
+
+The calling sequence generally goes as follows:
+1. Caller evaluates the parameters
+2. Caller stores a return address and the old value of _top_ into the callee's activation
+    record. _top_ is then advanced past the caller's local data and the callee's parameters and status fields
+3. Callee saves the register values and status information
+4. Callee initializes local data and starts executing
+
+An example corresponding return sequence:
+1. Callee places the return value next to the parameters
+2. Callee restores _top_ back to where it was, and restores machine registers.
+    Then, it jumps to the return address provided by the caller.
+3. The caller is now free to make use of the return value
+
+Run-time memory management must deal with allocating space for objects of sizes not known at compile time.
+That is, objects of a dynamic size.
+
+Variable length data can be allocated based on the value of one or of the accompanying parameters from the caller.
+
+7.3 Access to Nonlocal Data on the Stack
+
+How do procedures access data?
+What mechanism is used for finding data for a procedure that doesn't belong to that procedure,
+    or when nested declarations are allowed, how to access data from enclosing procedures.
+
+7.3.1 Without Nested Procedures
+
+Languages like C, without nested procedures, have two main scopes: global and local.
+    - Globals are allocated as static storage, and the locations are fixed and known at compile time
+    - Other names are local to the stack frame, and are accessed through the _top_ pointer
+
+7.3.2 With Nested Procedures
+
+First off, knowing that a procedure's declaration is nested inside of another procedure tells us nothing
+about the relative position of the activation records for the procedures at runtime.
+
+7.3.3 Languages w/ Nested Procedures
+
+ALGOL 60 had nested procedures.
+
+See: https://en.wikipedia.org/wiki/Nested_function
+See: https://en.wikipedia.org/wiki/Funarg_problem
+
+7.3.5 Access Links
+
+If p is nested in q, then the access link in a stack frame will point to the most
+    recent activation of q on the stack
+Access links then form a chain from stack frames at the top of the stack to lower stack frames
+    - Along this chain are the activations of procedures whose data are accessible by the currently
+        live stack frame
+    - So a search for the value of x within the current procedure requires a traversal of the access links
+        from the top of the stack downward through the access links
+
+So if procedure A contains procedure B and C, and procedure C contains procedure D, which calls procedure B,
+    B's activation record will point to the most recent stack frame for procedure A, even though it was called
+    from procedure D
+
+The more difficult case comes in with higher order functions, where a procedure parameter may vary
+
+When a procedure A calls another procedure B as a parameter, it won't know how to set the access link,
+    because it doesn't know where B is declared.
+To solve this, the caller needs to pass the proper access link along with the parameter.
+
+As an example:
+fun a(x) =
+    let fun b(f) = ... f(...) ...
+        fun c(y) =
+            let fun d(z) = ...
+            in ... b(d) ...
+            end
+    in
+        ... c(1) ...
+    end;
+
+Calling a:
+
+1. Push a's activation record on the stack
+2. Push c's activation record on the stack, w/ access link pointing to previous stack frame for a
+4. When c calls b, it passes the access link pointing to it's activation record along with d on the call.
+3. Push b's activation record on the stack, w/ access link pointing to a's recent activation record
+5. When d is called through a parameter from b, it sets to access link pointing to c that was provided along with the parameter
+
+So the parameter f is actually a 2-tuple with a pointer to d, and the access link
+
+7.3.8 Displays
+
+Another solution for keeping track of where a nested procedure should look for data is to use *displays*
+
+The display array stores pointers to the highest activation record at each nesting depth level.
+So if s calls q which calls q, and q has nesting depth 2, display[2] will point to the latter q, and the activation
+record for the previous q call will be stored in that activation record
+
+7.4 Heap Management
+
+Used for data that lives indefinitely or until it's explicitly deleted.
+Languages like C++ and Java provide new, which lets the programmer create objects that live longer than the frame that creates them.
+
+A *memory manager* allocates and deallocates space within the heap, and it's an interface
+    between applications and the operating system.
+
+Languages like C and C++ are said to allocate and deallocate *manually* by operations like free and delete.
+
+*Garbage collection* is the process of finding spaces within the heap that are no longer being used
+
+Memory Manager performs:
+
+Allocation
+    - if no chunk is vailable, it requests virtual memory from the operating system
+    - if space is exhausted, it passes that information along to the program
+Deallocation
+    - returns space to the pool of free space for reuse, but that memory is typically not
+      returned to the operating system, even if the heap usage drops
+
+Lisp makes all memory chunks the same size by using a two-pointer cell, from which all structures are built
+
+A memory manager must be prepared to service in any order allocations and deallcations of a variety of sizes,
+    and it must be prepared to service requests for one byte all the way to the program's entire address space (?)
+
+Properties:
+
+Space Efficiency
+- a memory manager should minimize the total heap space needed by the program (potentially by reducing *fragmentation*)
+
+Program Efficiency
+- it should make use of the memory subsystem to make programs run faster
+- the time taken to execute an instruction can depend on where the object is located in memory
+
+Low Overhead
+- the operations that implement allocation and deallocation must be efficient, because they'll be executed often
+- the fraction of time spent executing the allocation and deallocation routines must be kept to a minimum
+    TODO: profile time spent in allocation routines in the memory manager in a couple of programming languages
+- as the size of allocations decreases, the more relative time the program will spend within the allocation routines
+
+See: http://gee.cs.oswego.edu/dl/html/malloc.html
+See: https://en.wikipedia.org/wiki/C_dynamic_memory_allocation
+
+7.4.2 Memory Hierarchy of a Computer
+
+The time taken to execute an instruction can vary significantly, because the time taken
+to access various parts of memory can vary from nanoseconds to milliseconds.
+
+Data-intensive programs can benefit significantly from optimizations that make good use of the memory subsystem,
+    (and they can also make use of locality, which is the property of nonrandom access to memory)
+
+Peter Norvig says it takes 100 nanoseconds (1/10 of a microsecond, and 1/10000 of a millsecond) to fetch a word from memory.
+
+** The current limitations on hardware mandate that we can only build small and fast storage, or large and slow storage. **
+
+At the time of the writing of the book it was impossible to build gigabyte storage with nanosecond access times
+
+Almost all computers arrange their storage in a *memory hierarchy*, which is a series of storage elements
+    with smaller and faster elements closer to the processor, and larger and slower elements further away.
+- A processor has a number of registers, whose contents are under software control
+- Then, it has one or more levels of cache, usually made out of SRAM (at the time of the writing), that range from kilobytes to megabytes of size
+- Then, it has a main memory, size typically measured in gigabytes of DRAM
+- The physical memory is then backed up by virtual memory, implemented as gigabytes of disk space.
+- When memory is accessed, the processor looks at each step of the hierarchy to locate it, starting from the registers and moving upwards
+
+Registers are scarce, so the code that the compiler generates manages their use, but higher levels of the hierarchy are managed automatically.
+This way, a program can work in a variety of memory hierarchies.
+
+Virtual memory is managed by the operating system, with the assistance of hardware structures like a *translation lookaside buffer*
+
+See: https://en.wikipedia.org/wiki/Translation_lookaside_buffer
+
+An example hierarchy:
+
+    Level           Access Time
+Virtual Memory      3-15ms
+Physical Memory     100-150ns
+2nd-Level Cache     40-60ns
+1st-Level Cache     5-10ns
+Registers           1ns
+
+Between main memory and cache, memory is transferred in blocks known as *cache lines* which range in size.
+Between virtual memory and main memory, data is transferred in blocks known as *pages*, typically measured in KB (at the time of writing)
+
+See: https://en.wikipedia.org/wiki/Virtual_memory
+
+7.4.3 Locality in Programs
+
+Most programs exhibit high locality, meaning they only touch a small fraction of code and data.
+
+A program has *temporaral locality* if the memory locations it accesses are likely to be accessed again in a short period of time
+A program has *spatial locality* if the memory locations likely to be accessed are close to each other
+
+The convential wisdom is that programs spend 90% of their time executing 10% of the code. Here's why:
+
+- Only a small fraction of the code that could be invoked is actually executed, because many routines go unexecuted and many branches untaken
+  in a typical run of the program.
+- A typical program spends most of it's time in the innermost loop
+
+** Locality allows us to keep the most commonly used data and instructions in the fastest cache tiers at all times **
+
+For Ex. Say I've got a parser table stored in a contiguous memory block. How would I measure if this resides in a cache while the parser executes?
+
+*Dynamic* Memory (DRAM) loses it's charge and needs to be periodically refreshed
+*Static* Memory (SRAM) is made from a more complex circuit that retains it's charge
+
+Typically faster circuits are made from SRAM, while main memory is made from DRAM
+
+With instructions, the past is a good predictor for the future. If an instruction is recently executed,
+then there's a high probability that it will again be executed.
+
+This is an example of spatial locality at work. To improve it, we can place blocks that are executed frequently adjacent to eachother in memory.
+
+To leverage cache efficiently, it's better if we can move data close together in memory, so that it can be read into cache from main memory,
+and then to perform as many computations as possible on that cached memory before flushing it back to main memory.
+
+Where in a cache a line is located can be restricted with *set associativity*
+A cache is k-way set associative if a cache line can reside only in k locations
+The simplest cache is a 1-way associative cache, AKA *direct-mapped*
+- with direct-mapped cache, data with address n is placed at n mod s where s is the cache size
+- k-way set associative cache is subdivided into k sets, and memory is mapped at n mod (s / k) in each set
+- most instruction and data caches have associativity between 1 and 8.
+- if none of the possible locations in each set is available, the least recently used cache line is evicted
+
+See: https://en.wikipedia.org/wiki/Cache_placement_policies
+See: https://en.wikipedia.org/wiki/CPU_cache
+
+
+
+
+
+

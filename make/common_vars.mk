@@ -5,7 +5,11 @@ LIBGRAM_DIR := $(LIB_DIR)/gram
 LIBREGEX_DIR := $(LIB_DIR)/regex
 INCLUDE_DIR := include
 GRAPHVIZ_INCLUDES := -I/usr/local/include/graphviz -I/usr/include/graphviz
-override CFLAGS := $(CFLAGS) -Wall -Wextra -Wno-missing-field-initializers -g -O0
+DEBUG_FLAGS := -g -O0
+ifdef OPTIMIZE
+    DEBUG_FLAGS := -O3
+endif
+override CFLAGS := $(CFLAGS) -Wall -Wextra -Wno-missing-field-initializers $(DEBUG_FLAGS)
 # -fsanitize=address
 LDFLAGS +=
 INCLUDEPATHS += -I$(LIBBASE_DIR)/$(INCLUDE_DIR) -I$(LIBGRAM_DIR)/$(INCLUDE_DIR) -I$(LIBREGEX_DIR)/$(INCLUDE_DIR) $(GRAPHVIZ_INCLUDES)

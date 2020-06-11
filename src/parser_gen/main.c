@@ -52,6 +52,8 @@ bool handle_spec_file(int key, struct args *args) {
 }
 
 bool handle_type(int key, struct args *args) {
+    if (key != LR_TYPE && key != PARSER_TYPE) return false;
+
     if (key == PARSER_TYPE && streq("ll", argval())) {
         args->type = LL;
         return true;
@@ -340,8 +342,8 @@ bool automata(struct args const args, struct gram_parser_spec *spec) {
     return result;
 }
 
-bool analyze(struct args const _, struct gram_parser_spec *spec) {
-    UNUSED(_);
+bool analyze(struct args const args, struct gram_parser_spec *spec) {
+    UNUSED(args);
     print_gram_stats(stdout, spec->stats);
     print_gram_parser_spec(stdout, spec);
 

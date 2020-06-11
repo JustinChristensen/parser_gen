@@ -253,6 +253,8 @@ Low Overhead
 
 See: http://gee.cs.oswego.edu/dl/html/malloc.html
 See: https://en.wikipedia.org/wiki/C_dynamic_memory_allocation
+See: https://sourceware.org/glibc/wiki/MallocInternals
+See: https://stackoverflow.com/questions/8866790/do-shared-libraries-use-the-same-heap-as-the-application
 
 7.4.2 Memory Hierarchy of a Computer
 
@@ -402,6 +404,69 @@ Reference counting
 Region based allocation
 - when objects are created to be used only within some step of a computation we can allocation all such objects to a region
 - and when the phase of computation has ended, we can delete the region all at once
+
+7.5 Garbage Collection
+
+Unreferencable memory is known as *garbage*
+
+Garbage collection dates back to 1958 with the initial implementation of LISP.
+
+Reference Counting
+Trace-Based
+
+Garbage collection is the reclamation of the chunks of storage holding objects that can no longer be accessed by the program.
+
+Design Goals:
+- The objects need to have a deep that can be determined by the GC at runtime.
+- From the type we can determine the size of the object and whether or not that object contains references to other objects.
+- We also assume that references are always to the beginning of an object's address space.
+- A user program is a *mutator* in the context of garbage collection.
+- A mutator acquires objects from the memory manager.
+- A mutator may create and destroy references to an object.
+- Objects become garbage when the mutator cannot *reach* them anymore.
+- The garbage collector then hands the unreachable objects back to the memory manager.
+
+Not all languages are good candidates for automatic garbage collection
+- A language in which the type of any data component can be determined is *type safe*
+- Languages where types are determined at runtime is said to be *dynamically typed*
+- A language where you can't determine the type at either compile time or runtime is *unsafe*
+
+Unsafe languages like C and C++ aren't great candidates for garbage collection.
+- In unsafe languages pointer's can be manipulated arbitrarily (pointer arithmetic), and so it's
+    difficult to enforce the invariant that references must point to the beginning of an object's memory
+- Theoretically, a language that allows for pointer arithmetic could have a reference to any memory location at any time.
+- A theoretically unsound GC does exist for C and C++
+
+GC is computationally expensive.
+
+Performance Considerations:
+- Overall Execution Time: if slow, it will dramaticalluy impact the overall running time of the program
+- Space usage: it must avoid fragmentation and make the best use of available memory
+- Pause Time: GCs are notorious for causing mutators to pause for an extremely long time while they reconcile what's still in use, and what should be reclaimed.
+    - we need to minimize the maximum pause time (maybe by splitting up and partially reclaiming)
+    - in real-time applications the pause time may be untenable
+- Program Locality: the GC controls the placement of data, and so unless it's carefully designed to maximize locality it may make matters worse
+
+Objects of different characteristics may favor different treatments by the GC
+
+
+*** As an example of tradeoffs: ***
+
+The longer we wait to garbage collect with a trace based collector, the greater fraction of objects will be collected.
+Objects often die young, so we wait to build up a good chunk of reclaimable objects,
+    and this decreases the overall time spent collecting on average.
+On the other hand, infrequent collection will increase the overall memory usage of the program,
+    will decrease it's data locality, and will increase the length of pauses.
+
+A reference counter adds a constant overhead to many of the mutators operations (for instance, those that create and destroy references),
+    which may greatly slow down program execution speed.
+But it won't create long pauses and is generally memory efficient.
+
+Functional languages may create many more intermediate values to avoid mutation, and thus generate more garbage.
+And languages like Java may create heap allocated objects regardless of lifespan, which also create lots of garbage.
+
+
+
 
 
 

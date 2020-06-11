@@ -4,3 +4,48 @@ S: L "=" R | R ;
 L: "*" R | id ;
 R: L ;
 
+
+# • S eof
+# ↓
+# ├─ L • "=" R  shift?
+# └─ • R
+#      ↓
+#      L • { = }  reduce?
+
+# GOTO(#0, L)
+#
+# SHIFT
+# GOTO
+# REDUCE
+# ACCEPT
+#
+# Ok, there is a conflict, but how did I get here through the automaton?
+#
+# After popping L -> |w| symbols off the stack, I can GOTO on L
+#
+# So at this point, if the result of goto L is state #6 the stack looks like
+# 0, 6        aw
+#
+# 0 has me at the start of all rules derivable from S
+#
+# Unfortunately the states have flattened the relationship of what derives what
+#
+# For the above grammar I would need to identify a path of reductions to the start symbol
+#
+# Maybe I use *=> notation instead for compactness?
+#
+# Basically from the given inadequate state I need to walk backwards along
+# the path and figure out what sequence of derivations gets me to that state
+#
+
+# →
+#
+# if row[sym] is not error
+#     I've got a conflict, and I need to resolve the list of reductions that would take me back to the start symbol
+#     Starting from the current state,
+#         Until the non-terminal is not the start symbol
+#             Map the item's rule back to it's non-terminal
+#             kj
+#
+#
+#

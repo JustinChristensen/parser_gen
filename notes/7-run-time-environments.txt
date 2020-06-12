@@ -465,8 +465,118 @@ But it won't create long pauses and is generally memory efficient.
 Functional languages may create many more intermediate values to avoid mutation, and thus generate more garbage.
 And languages like Java may create heap allocated objects regardless of lifespan, which also create lots of garbage.
 
+7.5.2 Reachability
 
+Data that can be directly accessed by the program without having to dereference a
+pointer is known as the *root set*.
 
+In Java, this consists of static field members, stack variables, or register variables.
+
+Any object that is stored in a field of a reachable object is itself reachable.
+
+Compiler optimization makes this a bit more complex.
+- A compiler may keep referenced variables in registers (which are part of the root set)
+- Even though type safe language programmers do not manipulate addresses, the compiler may do so for optimization
+- Thus, registers may violate the invariant about pointing to the beginning of an allocated object
+
+An optimizing compiler can do the following to find the correct root set:
+- Retrict garbage collection to only certain code points in the program
+- The compiler can provide the GC with metadata about where referenced objects are located
+- It can ensure that there is a reference to every base address for all in-use objects
+
+The four basic operations a mutator performs that can change the set of reachable objects are:
+1. Allocations
+    - the memory manager assigns a new block of storage and the initial reference to the mutator
+2. Passing parameters, and returning values
+    - each of these potentially creates new references when a reference object becomes a parameter or return value
+3. Assignment
+    - assignment has the potential to create a new reference if the right hand side is a reference
+    - if the left hand side was originally a reference, that reference is now gone
+4. Returns
+    - if a procedure returns, the locals are popped off the stack, and if these are references then they're gone too.
+
+With a reference counting garbage collector, we can keep track of when an object becomes unreachable
+    when it's reference counter hits 0.
+With a trace-based garbage collector, we need to discover our reachable objects in a *marking* phase, and then conclude
+    that every object not in our marked set is unreachable.
+
+An object must have a field for the reference count in a reference counting GC
+
+**RefCounts**
+Object Allocation: Set RefCount to 1
+Parameter Passing: Increment RefCount
+Reference Assignments: For u = v, if u is a reference Decrement u's Refcount, finally Increment v's RefCount
+Procedure Returns: Decrement the RefCount for all variables in the procedure's stack frame
+Transitive Loss of Reachability: Whenever a RefCount reaches 0 we need to Decrement the RefCount for all of the objects it points to
+
+Two Disadvantages:
+- It cannot collect unreachable cyclic data structures, unless the programmer explicitly breaks the cycle,
+    or the GC uses a hybrid mark/sweep approach
+- It's expensive
+- The overhead is high because additional operations are introduced for each of the above cases mentioned in **RefCounts**
+
+Advantages include:
+- Collection can be performed incrementally
+- Modifying RefCounts while collecting can be deferred and spread across multiple pauses
+- The ability to control the precise amount and number of pauses is attractive for UI and realtime applications
+
+7.6 Trace Based Garbage Collection
+
+Mark and Sweep
+1. Mark all reachable objects
+2. Sweep the heap to free unreachable objects
+
+Trace-Based algorithm common states:
+1. A chunk is in the *free* state if it is ready to be allocated
+2. Chunks are unreachable unless proven reachable by tracing, and are in the *unreached* state.
+3. Chunks that are reachable are either *unscanned* or scanned during the tracing process.
+4. Unscanned objects become *scanned* when we process adding the pointed to objects it contains to the unscanned list.
+
+Free -> Unreached
+Trace Begins
+Unreached -> Unscanned -> Scanned
+Trace Ends
+Scanned -> Unreached -> Freed
+
+The final step of mark and sweep (the sweep) is expensive because there's no easy way to find the unmarked unreachable items without
+examining the entire heap.
+
+One improvement, by Baker, keeps a list of allocated objects.
+Then we can take the set difference of allocated / reachable.
+
+AKA "Baker's Mark and Sweep Collector"
+
+Chunks returned to the free list remain as they were before deallocation, but to avoid fragmentation
+we may seek to merge chunks together.
+
+7.6.4 Mark and Compact Garbage Collectors
+
+*Relocating* collectors move reachable objects around in the heap to eliminate fragmentation.
+
+***
+It is common that space occupied by reachable objects is much smaller than freed space,
+and a key optimization of a relocating collector is that it may choose to relocate all of the
+reachable objects to one end of the heap, instead of individually freeing and merging unreachable chunks.
+***
+* And as an added bonus, instead of maintaining a list of free chunks, we just need a single pointer to the start of the single huge free chunk.
+
+As you discover reachable objects, compute the relocation address and store it in a table,
+then relocate reachable objects.
+
+Reference Counting /
+Mark and Sweep /
+Mark and Sweep w/ Relocation (Compact) /
+Mark and Sweep w/ Copying
+
+7.6.5 Copying Collectors
+
+A copying collector reserves ahead of time a space to which the objects can move,
+which absolves the collector of having to find free space while tracing.
+
+Memory space is partitioned into two semispaces, A and B. When the GC pauses and copies, the roles of each reverse.
+The mutator allocates objects in one space or the other, depending on role.
+
+Cheney's Copying Collector
 
 
 

@@ -578,5 +578,122 @@ The mutator allocates objects in one space or the other, depending on role.
 
 Cheney's Copying Collector
 
+7.7 Short-Pause Garbage Collection
+
+Trace-Based allocators use *stop-the-world* style garbage collection, which
+has the unwanted side effect of sometimes introducing long pauses to user programs.
+
+We reduce the length of pauses by doing the work incrementally or partially.
+
+In *partial collection*, we collect only a subset of the garbage at a time, and reduce the space requirements of the garbage collector during any given pause.
+in *incremental collection*, we interleave the work of collection and allowing the mutator to return, thus reducing the time requirements of the garbage collector during the pause.
+
+Incremental collection breaks up reachability analysis into smaller units, and interleaves mutator execution. The mutator can modify what is/isn't reachable at any time, so this is complex.
+The best known partial collection algorithm is *generational garbage collection*.
+
+A *generational garbage collector* partitions allocated objects based on age, and attempts to collect on newer objects before older objects (because new objects tend to have shorter life times).
+
+There's also the *train algorithm* for partial collection.
+
+***
+A garbage collector must NOT collect objects that are not garbage.
+But a *conservative* garbage collector, may choose not to collect all of the objects that are garbage in a given round.
+***
+
+Garbage left behind with a *conservative* garbage collector is known as *floating garbage*.
+
+Incremental *conservative* garbage collectors play it safe by overestimating the reachability of objects in a given round.
+
+An incremental collector atomically adds the root set to the unscanned list, and then interleaves mutator execution with scanning for reachability.
+Any actions taken during mutation that change the reachable set are recorded in a side table, and this side table is used to make necessary adjustments
+as the garbage collector continues execution.
+The expense comes in when the mutator loses the ability to reference an object. It would be expensive to re-establish reachability between pauses, so generally this floating garbage slips through the cracks.
+New objects allocated between pauses can immediately be added to the unscanned list with very little expense.
+
+***
+The *conservative* part refers to the fact that it may not determine the reachability of references that have been dropped between incremental pauses, and then may leave behind some floating garbage.
+***
+
+7.7.2 Incremental Reachability Analysis
+
+The problem is that actions of the mutator can violate the invariant of the tracing algorithm:
+A _scanned_ object can only contain references to other _scanned_ or _unscanned_ objects, and never to _unreachable_ objects.
+
+A more precise trace can be implemented by modifying the actions that the mutator takes that have the ability to impact reachability:
+
+1. Write Barriers
+   Intercept writes to references into a _scanned_ object, when the reference
+   is to an unreached object. I.e. mark it for rescanning.
+2. Read Barriers
+   Intercept reads to references in Unreached or Unscanned objects, and mark the object
+   as reachable and transition it to unscanned (ready to be scanned) state.
+3. Transfer Barriers
+   Intercept the loss of the original reference in the Unreached or Unscanned object
+
+None of these finds the smallest set of reachable objects.
+
+Implementing Write Barriers:
+Remember all new references written into scanned objects.
+It's up to the implementer to remember just how much detail they want about what regions of the address space contain "dirty" objects between mutations.
+
+80-90% of all newly allocated objects die young, so it's best to structure your GC algorithm around that.
+Objects that survive a collection once are more likely to survive successive collections.
+Generational garbage collection works on the area of the heap that contains the youngest objects.
+Once a small object has become sufficiently mature we might want to move it to a separate area of the heap and manage it with another algorithm, like the "train" algorithm.
+
+A set of objects to be collected on a round of partial collection is referred to as a *target set*.
+
+*Generational* garbage collection is an effective way to exploit the property that most objects die young.
+
+Eventually collection of the oldest generation occurs, and this requires the full tracing step from a standard mark and sweep collector,
+and so generational collectors may introduce long pauses.
+
+The train algorithm handles only mature objects instead of all objects during a collection as a means of reducing the pause.
+
+7.8 Advanced Topics in GC
+
+1. GC in parallel environments
+2. Partial relocations of objects
+3. Garbage collection for languages that are not type-safe
+4. Manual vs GC interaction
+
+In a parallel environment each individual thread becomes a mutator.
+In a parallel environment the root set becomes larger, because every thread has it's own stack and register set, and potentially global variables.
+
+The set of objects reached by the root can be very large, and so it may be infeasible to compute reachability while all mutations case.
+
+So we use garbage-collecting threads concurrently with mutator threads to trace most of the reachable objects.
+Then stop all of the mutators, and quickly find the remaining.
+
+Outline:
+1. Scan the root set for each mutator thread, and put all objects directly reachable
+   into the unscanned state.
+2. Scan objects in the unscanned state. Use a work-queue of fixed-size work packets.
+   Threads will then dequeue the work packets, and trace the unscanned objects within.
+   If the system runs out of space we simply mark the cards holding the objects and force scanning.
+   Because we're out of space, we can't allocate work packets, but the bit array for determining dirty cards has already been allocated.
+3. Scan the objects in dirty cards. When interleaving this with mutation we need some criterion to determine when to stop the trace.
+4. Stop all mutators, and use all threads to do a final rescan and.
+
+Unsafe Languages
+Because languages like C and C++ can always compute addresses with arithmetic operations .
+A conservative collector that works with such a language assumes we cannot fabricate an address,
+or derive the address of an allocated chunk of memory without an address pointing somewhere in the chunk.
+We then treat as a valid address any bit pattern found anywhere in reachable memory, as long as that bit pattern may be interpreted as a memory location.
+Object relocation is incompatible with this form of conservative garbage collection,
+    because it can't know for sure if a particular bit pattern is an address that may need to be updated to point to a relocated object.
+
+Conservative GC with type unsafe languages:
+
+1. Memory manager keeps a *data map* of all of the allocated chunks of memory,
+   which allows us to find the starting and ending boundary of a chunk of memory that spans a certain address.
+2. Tracing starts by scanning the program's root set to find any bit pattern that looks like a memory location,
+   without worrying about it's type, and if any of these bit patterns point to allocated chunks we conclude that that chunk is _reachable_.
+3. Then we scan all of the _reachable_ and _unscanned_ objects to find more reachable chunks that we then place on the work queue.
+4. We then sweep through the heap storage using the data map to locate and free all unreachable chunks of memory.
+
+TODO: read more about weak references
+
+
 
 

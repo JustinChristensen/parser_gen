@@ -1,4 +1,5 @@
 OS := $(shell uname)
+CC := /usr/local/opt/llvm/bin/clang
 LIB_DIR := $(TOPDIR)/libs
 LIBBASE_DIR := $(LIB_DIR)/base
 LIBGRAM_DIR := $(LIB_DIR)/gram
@@ -11,9 +12,9 @@ ifdef OPTIMIZE
 endif
 override CFLAGS := $(CFLAGS) -Wall -Wextra -Wno-missing-field-initializers $(DEBUG_FLAGS)
 # -fsanitize=address
-LDFLAGS +=
-INCLUDEPATHS += -I$(LIBBASE_DIR)/$(INCLUDE_DIR) -I$(LIBGRAM_DIR)/$(INCLUDE_DIR) -I$(LIBREGEX_DIR)/$(INCLUDE_DIR) $(GRAPHVIZ_INCLUDES)
-LIBPATHS += -L$(LIBBASE_DIR) -L$(LIBGRAM_DIR) -L$(LIBREGEX_DIR)
+override LDFLAGS := $(LDFLAGS)
+INCLUDEPATHS += -I/usr/local/include -I$(LIBBASE_DIR)/$(INCLUDE_DIR) -I$(LIBGRAM_DIR)/$(INCLUDE_DIR) -I$(LIBREGEX_DIR)/$(INCLUDE_DIR) $(GRAPHVIZ_INCLUDES)
+LIBPATHS += -L/usr/local/lib -L$(LIBBASE_DIR) -L$(LIBGRAM_DIR) -L$(LIBREGEX_DIR)
 LIBS += -lbase
 VALGRIND := valgrind
 DOT := dot

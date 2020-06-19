@@ -1,0 +1,267 @@
+Most common target-machine architectures are:
+RISC (reduced instruction set computer)
+CISC (complex instruction set computer)
+stack based
+
+RISC typically has many registers, three-address instructions, simple addressing modes,
+    and a relatively simple instruction set architecture
+CISC typically has few registers, two-address instructions, a variety of addressing modes, several register classes,
+    variable-length instructions, and instructions with side effects
+Stack-based machines push operands onto a stack, and then perform the oeprations by popping the operands and applying an operation.
+    - they declined in popularity, but the JVM revived them
+
+A relocatable machine-language program is sometimes called an object
+
+Producing an absolute machine language progrgram as output has the advantage of being immediately placeable at a fixed location in memory and executed
+
+If the target machine does not handle relocation automatically, the compiler must provide explicit relocation information to the
+    loader to link the separately compiled objects.
+
+Producing assembly makes code generation somewhat easier, at the cost of inserting the assembler between the compiler and the target machine.
+
+8.1.3 Instruction Selection
+
+The complexity of mapping an IR to machine language is determined by:
+- level of the IR
+- nature of the instruction-set architecture
+- desired quality of the generated code
+
+The uniformity and completeness are important factors in selecting instructions,
+    because the instruction set may not support each data type as the intermediate representation
+
+For straightforward, non-optimized, instruction selection we can for instance translate a statement of the form x = y + z into:
+
+LD R0, y        // RO = y
+ADD R0, R0, z   // R0 = R0 = z
+ST x, R0        // x = R0
+
+Unfortunately a subsequent addition where the first operand in the second addition statement is the same as the location that
+was just written to, will result in redundant instructions with that straightfoward translation:
+
+a = b + c
+d = a + e
+
+LD R0, b
+ADD R0, R0, c
+ST a, R0
+LD R0, a            <-- redundant
+ADD R0, R0, e
+ST d, R0
+
+Because of the redundant instructions, we might call this translation "naive"
+
+** The quality of generated code comes down to two factors: speed, and size. **
+
+The example above is of a lower quality than the equivalent program that doesn't have the redundant instruction.
+
+Another example is systems that have an INC (increment) instruction. Using INC will be more efficient than the typical sequence of assembly instructions for addition and assignment.
+
+We can know instruction *costs*, which can be difficult to find.
+Also, the "best" sequence may be context-dependent.
+
+8.1.4 Register Allocation
+
+- Key problem, deciding which registers hold which values.
+- Registers are the fastest computational unit on the target machine, but we don't have many available
+- Values not held in registers need to reside in memory
+- Instructions with register operands are invariably shorter and faster than those involving memory operands
+- So at all points in time we want to use as many of the available registers as possible during the current computation
+
+Two subproblems:
+- Register allocation: choosing which values get registers
+- Register assignment: picking the specific register
+
+Apparently the problem is hard, and further complicated by hardware and operating system register-use conventions
+
+Certain machines require register pairs, an even and then odd numbered register for operands and results.
+The product then occupies the entire even/odd pair.
+
+Register-pair division, quotient and remainder respectively
+
+Optimal Examples:
+t = a + b                   L  R1, a
+t = t * c       ->          A  R1, b
+t = t / c                   M  R0, c
+                            D  R0, d
+                            ST R1, t
+
+t = a + b                   L     R0, a
+t = t + c       ->          A     R0, b
+t = t / c                   A     R0, c
+                            SRDA  R0, 32
+                            D     R0, d
+                            ST    R1, t
+
+
+8.2 Target Language
+Byte addressable
+n general-purpose registers
+instructions of the form: INS TARGET OPERAND_1 OPERAND_2
+A *label* may proceed an instruction
+
+LD r x               // r = x
+LD r2 r1             // r2 = r1, register to register copy
+ST x r               // Store r in x
+OP dst src1 src2     // unary operators don't have a src2
+BR l                 // unconditional BRanch instruction
+B_cond_ r l          // cond stands for any of the common tests on on the value of register r
+                     // for ex. BLTZ for "branch if less than or zero"
+
+Addressing modes:
+
+x       variable name of memory location
+a(r)    indexed addr: a + r
+100(r)  integer indexed by register: 100 + r
+*r      indirect addressing, i.e. take the address by following the address that r contains
+#100    immediate constant, always prefixed by #
+
+Each target-language instruction associated with a cost
+For simplicity, 1 + cost of the addressing modes of the operands
+    - which corresponds to the length in words of the instruction
+    - register cost: 0
+    - memory location/constant: 1
+For example:
+    LD R0 R1       // 1
+    LD R0 M        // 2
+    LD R1 *100(R2) // 2
+
+The *cost* of the target language program is the sum of all of the costs of it's individual instructions
+
+We can statically allocate or stack allocate activation records
+
+Example translation for actions...; call p; actions...; halt
+
+100     actions...
+c:
+120     ST 364 #140     // store the return address in the statically allocated stack frame
+132     BR 200          // jump to the start of p
+140     actions...
+160     HALT            // end program execution
+...
+p:
+200     actions...
+220     BR *364         //
+...                     // activation records
+300                     // return address
+...
+364                     // return address
+
+Stack Allocation
+
+With stack allocation the address of a stack frame can only be known at runtime.
+We can use offsets from a special register, SP, that points to the beginning of the activation record on top of the stack
+When a procedure call happens, the caller increments SP and transfers control to the callee.
+After control returns, we decrement SP to the previous position.
+
+SP initialization:
+LD SP #stackStart
+// code for first procedure
+HALT
+
+Procedure call:
+ADD SP SP #caller.recordSize
+ST O(SP), #here + 16            // store return address
+BR callee.codeArea
+
+Return to caller:
+BR *0(SP)                       // return
+
+Decrement SP:
+SUB SP SP #caller.recordSize
+
+Flow Graph (branches are edges)
+
+Next-Use information
+Knowing when the value of a variable will be used is essential for register allocation.
+
+***
+*use* is defined as:
+i   x = ...
+    actions...  // as long as nothing modifies x in the intervening instructions
+                // we can say that statement j uses x computed at statement i
+j   y = x + z
+
+We can then determine what the *next-use* of each variable is by following
+the flow graph.
+
+Optimizing basic blocks of three-address code
+
+Optimization can be classified as *local* within a basic block or *global* on the whole program.
+
+A DAG of a basic block can help us implement:
+- local common subexpression elimination
+- dead code elimination
+- reordering for statements that do not depend on eachother
+- apply algebraic laws to reorder operands
+
+Local Common Subexpressions
+
+a = b + c
+b = a - d'  <--
+c = b + c       both refer to the same a and d', so we only need to perform this computation once
+d = a - d'  <--
+
+This can be implemented by creating that DAG of the basic block and using the _value number_ method of detecting common subexpressions.
+
+TODO: figure out what "live on exit" means
+
+If b and d are "live on exit" from the block, we need a copy the value, but we don't ned to perform the subtraction twice.
+So, best case we need three op instructions, and worst case we need 3 op instructions and a copy instruction.
+
+See: https://en.wikipedia.org/wiki/Common_subexpression_elimination
+
+We'd need to apply algebraic identities to detect equivalent expressions in situations like:
+
+a = b + c
+b = b - d
+c = c + d
+e = b + c
+
+b + c = (b - d) + (c + d)
+
+Dead Code Elimination
+
+Just delete from the DAG any root that has no *live* variables attached.
+
+Algebraic Identities
+
+"identities" optimization:
+
+x + 0 = 0 + x = x
+x - 0 = x
+x * 1 = 1 * x = x
+x / 1 = x
+
+Another class of optimizations along this line are "reductions in strength"
+Such as replacing the more expensive x ^ 2 with x * x, 2 * x with x + x, and x / 2 with x * 0.5.
+
+See: https://en.wikipedia.org/wiki/Strength_reduction
+See: https://github.com/llvm/llvm-project/blob/master/llvm/lib/Transforms/Scalar/StraightLineStrengthReduce.cpp
+
+The third class is "constant folding", whereby we replace constant expressions by their values.
+- on an important note, arithmetic at compile time and runtime must be evaluated the same way
+- but on another important note, if I wanted to make my evil counterintuitive compiler it would be a good start to not have this be so
+
+For commutativity we could implement the check by sorting the children of the commutative node, before checking equivalence.
+
+There's a trick to array references with x = a[i]; a[j] = y; z = a[i]; where j == i
+
+"killed" node.
+
+Pointer Assignments and Procedure Calls
+
+In
+x = *p
+*q = y
+We don't know what q and p point to, and so we don't know if *p and *q are the same value or not
+
+In effect, x = *p is the use of any variable whatsoever (because p can point to any variable whatsoever).
+
+This says that we must assume procedure calls can change any data to which they have access.
+
+Reassembling
+
+After performing the optimizations we can reconstitute the three address code list.
+
+See: https://en.wikipedia.org/wiki/Basic_block
+

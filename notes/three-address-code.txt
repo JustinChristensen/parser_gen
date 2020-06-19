@@ -1,0 +1,23 @@
+Three Address Code
+
+addresses are:
+- name
+- constant
+- a temporary
+
+where x, y, z are addresses
+where L represents a label:
+where relop is a relational operator like == or >=
+
+assignment              x = y op z
+unary assignment        x = op y
+copy                    x = y
+indexed copy            x = y[i], x[i] = y
+address/pointer         x = &y, x = *y, *x = y
+unconditional jump      goto L
+conditional jump        if x goto L, ifFalse x goto L
+                        if x relop y goto L
+procedure calls         param x
+                        call p n, y = call p, n
+                        return y
+

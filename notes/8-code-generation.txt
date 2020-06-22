@@ -339,7 +339,89 @@ Use of Machine Idioms
 - some machines have special instructions that implement common operations more efficiently, prefer these
 
 
+Register *Spill* is to be avoided
 
+Register Allocation by Graph Coloring
+- the predominant algorithm for register selection
+See: https://en.wikipedia.org/wiki/Register_allocation#Graph-coloring_allocation
 
+Instruction Selection By Tree Rewriting
+- Tree Translation Scheme
+- replacement <- template { action }
 
+We can use a shift-reduce machine to implement tree translation
+Apparently each stage of a parser seems to correspond to translation schemes!
 
+Semantic Checking
+Semantic predicates on intermediate representation attributes
+
+i.e.
+if (a == 1) output INC Ri
+else        output ADD Ri Ri #a
+
+Neat idea:
+Come up with a functional API for describing a grammar where the terminal symbols can be anything (not just words in a language):
+It would need to:
+1. Describe the grammar rules
+2. Describe the translator actions
+3. Describe the terminal symbols. Really a terminal is a predicate: isTokenA :: Thing -> True
+4. Describe the conflict resolution actions i.e. shift/reduce and reduce/reduce
+5. Generate the translator
+
+The thing that's cool is that grammar rules are fairly easy to write.
+
+See figure 8.21 in the book
+
+Tree-Rewriting Code Generation
+Dynamic Programming Code Generation
+
+A *retargetable* compiler is one that can generate code for multiple instruction sets
+A *virtual machine* is an interpreter for an intermediate language
+*Spill code* is an instruction sequence that stores a value in a register into memory to make room for another value into that register.
+
+Back to the idea of using a DPDA to perform tree-rewriting...
+
+If you've got
+
+     D
+   /   \
+  B     E
+ / \
+A   C
+
+And the sequence A B C forms the right hand side of a rewrite rule of the form:
+W -> A B C
+
+Then we can rewrite the above tree by matching the right hand side with a state machine, and rewrite:
+
+     D
+   /   \
+  W     E
+
+And then if you've got the rules:
+
+X -> E
+Y -> W D X
+
+The next two rewrites become:
+
+     D
+   /   \
+  W     X
+
+And
+
+     Y
+
+So the lexical units are:
+A B C D E
+
+The formal definition for the grammar is:
+V = { X, Y, Z }
+T = { A, B, C, D, E }
+R = {
+    Y -> W D X
+    X -> E
+    W -> A B C
+}
+S = Y

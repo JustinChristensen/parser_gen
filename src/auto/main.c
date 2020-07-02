@@ -177,7 +177,7 @@ enum cfile_symbol {
     C_WS
 };
 
-static int const NUM_CSYMS = C_WS + 1;
+#define NUM_CSYMS (C_WS + 1)
 
 static char *str_for_csym(enum cfile_symbol sym) {
     switch (sym) {
@@ -505,8 +505,8 @@ int main(int argc, char *argv[]) {
             struct nfa_match match = {0};
             char **files = args.pos;
             FILE *fi;
-            static int const bufsize = BUFSIZ * 32;
-            char input[bufsize] = "";
+#define BUFFER (BUFSIZ * 32)
+            char input[BUFFER] = "";
 
             for (int i = 0; i < args.posc; i++) {
                 int nread = 0;
@@ -517,7 +517,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                nread = fread(input, sizeof *input, bufsize, fi);
+                nread = fread(input, sizeof *input, BUFFER, fi);
                 if (ferror(fi)) {
                     fprintf(stderr, "reading file %s failed\n", files[i]);
                     fclose(fi);

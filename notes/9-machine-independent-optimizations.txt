@@ -1,0 +1,58 @@
+Global optimizations are usually based on *data flow analysis*
+- they usually have the same form: for each instruction, some property that must host each time the instruction is executed
+
+A few different types of data-flow analyses:
+
+* constant propagation analysis
+    - at each point in the program and for each variable in use, does that variable hold a unique constant value
+    - we can use this information to replace variable references (with might involve loading the value from memory into a register) with constant values
+* liveness analysis
+    - at each point in the program, is the value held by a particular variable sure to be overwritten before it's read
+    - we then have no need to preserve that value in a register or in memory
+* hierarchical analysis
+    - used to eliminate "induction" variables (variables that count the number of iterations around a loop)
+
+It's all about gathering information globally about the program.
+
+***A compiler MUST preserve the semantics of the original program.***
+
+In general, a compiler cannot understand enough context about a programmer's algorithm and it's intent
+to replace it with a substantially different or better algorithm. We're confined to low-level transformations
+involving algebraic identities or semantic properties.
+
+Redundancy elimination can and should be opaque to the programmer
+
+A compiler can improve a program without changing what it computes by:
+* common-subexpression elimination
+    - if none of the values E depends on change between E's computation and the next time E is encountered, we can just re-use E.
+* copy-propagation
+    - u = v is a _copy statement_
+    - by replacing subsequent uses of u in the block with v, we set the stage for removing the copy instruction altogether
+* dead-code elimination
+    - a variable is _live_ if it's value can be used subsequently, otherwise it's _dead_
+    - _dead code_ is statements that computed a value that is never used
+    - after applying copy propagation and constant folding we might arrive in a situation where a block
+        is wrapped in an if (false) { ... which means the entire block is dead code and thus eliminatable.
+* constant folding
+    - deducing that the value of an expression is constant, and replacing the expression with the constant
+
+These are _semantics preserving_ transformations
+
+Loops are important for optimization. Moving code out of the inner loop, even if it bloats the outer code, will reduce the running time of the algorithm
+
+Code motion:
+    while (i <= limit - 1)      <-- limit - 1 executed many times
+vs
+    l = limit - 1               <-- limit - 1 executed once
+    while (i <= l)
+
+Induction Variables
+Strength Reduction
+
+Intro to Data-Flow Analysis
+
+
+
+
+
+

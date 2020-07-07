@@ -49,7 +49,144 @@ vs
 Induction Variables
 Strength Reduction
 
-Intro to Data-Flow Analysis
+Data Flow Analysis
+- A body of techniques that derive information about the flow of data along program execution paths
+- the execution of a program can be viewed as a sequence of transformations on the program _state_
+- Each instruction results in a transformation from State -> State
+- So we build up all of the possible sequences of states, and then extract the data we need from the states to perform the transformations
+
+An _execution path_ from point (state) p1 to point pn to be a sequence of points such that for each
+i = 1, 2, ..., n - 1 either:
+1. p(i) is the point immediately preceding a statement, s, and p(i + 1) is the point immediately following s
+2. p(i) is the end of a block, and p(i + 1) is the beginning of a successor block
+
+In general, there's an infinite number of execution paths through a program and no defined upper bound on the length of a particular execution path.
+Also in general, it is not possible to keep track of all of the program states for all possible paths.
+- so we keep track of only what must be kept track of to perform the analysis that we're trying to do.
+
+Definitions that _may_ reach a program point along some path are known as _reaching_ definitions.
+
+Denotation for data-flow values before and after statements:
+IN[s], OUT[s]
+
+*** The data-flow _problem_ is to find a solution to a set of constraints on the IN[s] and OUT[s] for all statements s.***
+Two sets of constraints:
+1. Semantics of the statements ("transfer functions")
+2. Flow of control
+
+Data flow values before and after a statement are constrained by the semantics of the statement
+The relation between state s and state t, f(s) = t is known as the _transfer function_
+- We can also define the inverse transfer function g(t) = s
+
+Within a basic block, control-flow constraints:
+IN[s(i + 1)] = OUT[s(i)]
+Between basic blocks:
+If we're interested in collecting the definitions that may reach a program point,
+    then the set of definitions reaching the leader statement of a basic block is the union of the definitions
+    after the last statements of each of the predecessor blocks.
+
+What goes on inside of a basic block is quite simple, so we can save time and space by defining the data-flow
+    schema in terms of data values entering and leaving basic blocks
+
+The transfer function for an entire block is the composition of the transfer functions of the statements the block contains:
+f(B) = f(sn) . f(s(n - 1)) . ... . f(s2) . f(s1)
+
+Thus, f(IN[B]) = OUT[B]
+
+Reaching Definitions
+A definition d _reaches_ p if there is a path from the point immediately following d to p,
+    such that d is not _killed_ along the path.
+A definition d is _killed_ if it is redefined along the path.
+A _definition_ of x is a statement that assigns, or may assign, a value to x
+
+Program analysis must be conservative: If we don't know whether or not a statement is assigning a value to the variable x, we must ASSUME that it does.
+
+One trick for detecting variables used before they're defined:
+- introduce dummy definitions for all variables that have been used.
+- if one of those dummy definitions reaches a point where the variable is used without being
+    killed by the real definition, then we've probably got a use-before-definition situation on our hands
+
+To decide whether each path in a flow graph can be taken is undecidable
+So we must assume that every path can be taken.
+
+It is always unacceptable for an optimization to change what the program computes, and so optimizations must be conservative.
+
+Constraints for the Reaching Definitions Problem:
+
+d: u = v + w "generates" a definition of u and "kills" other definitions of u in the program
+
+So the transfer function for this definition is:
+
+f(x) = gen U (x - kill) where gen is { d } and kill is all of the other definitions of u in the program
+
+This can be defined for statements by using the composition rule above.
+
+Like a statement, a basic block also generates a set of definitions and kills a set of definitions.
+
+Constraints for Control-Flow
+
+The "meet" operator for reaching definitions is the confluence of different paths merging together in the flow graph.
+
+***
+The reaching definitions problem equations are then:
+OUT[ENTRY] = {}
+OUT[B] = gen(B) U (IN[B] - KILL(B))
+IN[B] = U(P is a predecessor of B) OUT[P]
+***
+
+The Algorithm for Reaching Definitions
+In:
+    Flow graph for which the kill set and the gen set have been computed for each block
+Out:
+    IN[B] and OUT[B] the set of definitions "reaching" the entry and exit of each block
+
+Least fixed-point. Start with OUT[B] = {} for all blocks, and then converge on the desired values
+
+Until the set of OUT[B] for each block does not change:
+
+OUT[ENTRY] = {}
+for each basic block B other than ENTRY: OUT[B] = {}
+while changes to the set of OUT[B] sets occur
+    for each basic block B other than ENTRY
+        IN[B] = UNION(each predecessor P of B: OUT[P])
+        OUT[B] = genB U (IN[B] - killB)
+
+If the basic blocks are properly ordered for the inner for loop, empirical evidence shows that the while loop will only iterate at most 5 times.
+
+The book represents representing definition sets as bit vectors (and I agree).
+
+Live-Variable Analysis
+
+We wish to know whether the value of variable x at point p could be used along any of the paths leading from point p
+If it can be used, we say the variable is _live_
+Otherwise, it's _dead_
+
+In:
+    Flow graph with def and use computed for each block
+Out:
+    IN[B] and OUT[B] the set of variables live on entry and exit of each block B in the flow graph
+
+IN[EXIT] = {}
+for each basic block B other than EXIT: IN[B] = {}
+while changes to the set of IN[B] sets occur
+    for each basic block B other than EXIT:
+        OUT[B] = UNION(each succcessor S of B: IN[S])
+        IN[B] = useB U (OUT[B] - defB)
+
+Available Expressions
+
+Used for finding common subexpressions across blocks. Similar to the above.
+
+Each data-flow problem is defined by:
+1. The domain of the data-flow values
+2. The direction of the data-flow
+3. The family of transfer functions
+4. The boundary condition
+5. The meet operator
+
+Figure 9.21 summarizes each for the reaching definitions, live variables, and availabe expression data-flow analysis problems
+
+
 
 
 

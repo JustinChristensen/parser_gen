@@ -186,10 +186,67 @@ Each data-flow problem is defined by:
 
 Figure 9.21 summarizes each for the reaching definitions, live variables, and availabe expression data-flow analysis problems
 
+Data Flow Analysis Framework
 
+A 4-tuple: (D, V, ∧, F)
+1. the direction of the data flow, D
+2. A semilattice consisting of the domain of values V and the meet operator ∧
+3. Family F of transfer functions from V to V
+    - must include functions suitable for boundary conditions, i.e. constant transfer functions
 
+A *Semilattice* is a set V with a binary operator ∧ such that for all x, y, and z in V:
+1. x ∧ x = x                        idempotency
+2. x ∧ y = y ∧ x                    commutativity
+3. x ∧ (y ∧ z) = (x ∧ y) ∧ z        associativity
+4. A _top_ element, denoted ⊤, such that
+        for all x in V, ⊤ ∧ x = x   identity?
+5. Optionally, a _bottom_ element, denoted ⊥, such that:
+        for all x in V, ⊥ ∧ x = ⊥   absorption?
 
+A picture is worth 1000 words. Just look at 9.22 and the paragraph below for an intuition on all of this mumbo jumbo.
 
+0 1 2
+{} 0 1 2 {0,1} {0,2} {1,2} {0,1,2}
+
+The family of transfer functions F: V -> V has the following properties:
+1. F has an identity function I, such that I(x) = x for all x in V
+2. F is closed under composition, that is for any two functions f and g in F, the function h is defined by h(x) = g ∘ f
+
+The Iterative Algorithm for General Frameworks
+
+In:
+    Data-Flow Framework with the following components
+    1. A Data-Flow Graph, with ENTRY and EXIT nodes
+    2. A direction for the data-flow, D
+    3. A set of values V (where a value is a set in situations like reachability analysis and variable liveness)
+    4. A meet operator ∧
+    5. A set of functions F, where f in F is the transfer function for a block, B
+    6. A constnat value entry or exit in V, representing the boundary condition for forward and backward frameworks, respectively
+
+Out:
+    Values in V for IN[B] and OUT[B] for each block B in the data-flow graph
+
+Method:
+    First, note that the meet operator and transfer functions can be implemented as parameters to higher order functions,
+    and so the iterative traversal of the graph can be shared between data-flow analysis problems.
+
+    D is Forward:
+        OUT[ENTRY] = entry value
+        for each basic block B other than ENTRY: OUT[B] = ⊤
+        while changes to any OUT occur:
+            for each basic block B other than ENTRY:
+                IN[B] = ∧ for each P such that P is a predecessor of B: OUT[P]
+                OUT[B] = f(IN[B])
+
+    D is Backward:
+        IN[EXIT] = exit value
+        for each basic block B other than EXIT: IN[B] = ⊤
+        while changes to any IN occur:
+            for each basic block B other than EXIT:
+                OUT[B] = ∧ for each S such that S is a successor of B: IN[S]
+                IN[B] = f(OUT[B])
+
+See the breakdown near the end of "The Maximum Fixedpoint Versus the MOP Solution"
 
 
 

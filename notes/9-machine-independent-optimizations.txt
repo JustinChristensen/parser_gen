@@ -248,5 +248,102 @@ Method:
 
 See the breakdown near the end of "The Maximum Fixedpoint Versus the MOP Solution"
 
+Constant Propagation
+- has an unbounded set of possible data-flow values
+- is not distributive
+
+A single variable is in one of three states: Associated with a list of all constants appropriate for it's type, not-a-constant, or undefined
+
+Data-flow values for the constant propagation framework are maps of each variable in the program to one of the values in the constant semilattice
+
+The transfer function from map S to map T for a statement, s, is as follows:
+T = f(S) = {
+    S,                      if s is not an assignment statement
+    S(v) = T(v)             if s is an assignment statement to variable x and x != v
+    S(x) = c                if the RHS of statement s is a constant c
+    S(x) = S(y) + S(z)      if the RHS has the form y + z and S(y) and S(z) are constants
+        NAC                     if either S(y) or S(z) is NAC
+        UNDEF                   otherwise
+    NAC                     if the RHS is any other expression
+}
+
+Partial Redundancy Elimination
+
+- used to minimize the number of expression evaluations
+- the number of statements that evaluate x + y may be increased, but the goal is that for any given
+    path the total number of evaluations of x + y is reduced
+- this improves performance, because an operation is never applied unless it has to be
+- requires 4 different kinds of data flow analysis
+
+Redundancy exists in several forms:
+- global common subexpressions
+- loop invariant expressions
+- partially redundant expressions
+
+***
+Note on loop invariant expressions:
+if none of the expression's dependencies change within a loop, we can move it out of the loop
+    UNLESS it's possible that the expression would not have been evaluated, so in the case where a loop condition
+    isn't met. If the program would've never entered the loop, it would change the meaning of the program
+    to execute the inner expression outside of the loop
+
+    - the instruction throwing an exception is an exception that would not have arisen in the original program
+    - when the loop exits early the newly "optimized" program would take more time - hardly an optimization
+***
+
+We can't eliminate all redundancy unless the compiler has the ability to add new blocks at-will
+
+A _critical edge_ is an edge from a block with two or more successors to a block with two or more predecessors
+
+The Lazy Code Motion Problem
+
+Programs optimized to remove partial redundancies should result in the following:
+- redundant computations that can be eliminated without duplicating code are eliminated
+- the optimized program does not perform any computation that is not in the original program execution
+- expressions are computed at the latest possible time
+
+The goal is to compute a value as late as possible to minimize it's lifetime, and the amount of time it spends occupying a register
+
+Full Redundancy:
+An expression e in block B is redundant if along all paths reaching B, e has been evaluated and the operands of e
+haven not been subsequently redefined.
+
+Partial Redundancy:
+The goal is to render partially redundant expressions fully redundant by copying them to other blocks in the flow graph
+
+Anticipation of Expressions
+- Copies of an expression must only be placed at points where the expression is _anticipated_.
+- An expression is _anticipated_ at point p if all paths leading from the point p eventually compute the value of the expression b + c
+    from the values b and c that are available at point p
+
+Lazy Code Motion Algorithm
+
+Almost all data flow analysis can be placed into one of four groups:
+forwards, backwards, union, intersection
+
+Loops in Flow Graphs
+
+Programs spend most of their time executing loops, and so optimizing them can have a significant impact.
+
+Node d in a flow graph _dominates_ node n, written d dom n, if every path from the entry node of the flow
+    graph to n goes through d
+
+A dominator tree can be used to represent this relationship in the flow graph
+- nodes in the tree _dominate_ their descendants
+
+A _natural loop_:
+- must have a single entry node, called the _header_, which dominates all nodes in the loop
+- A back edge must enter the loop header, i.e. form the loop
+- this definition gives us the notion of an _innermost_ loop
+
+Speed of Convergence of Iterative Data-Flow Algorithms
+- the maximum number of iterations is the product of the height of the lattice and the number of nodes in the flow graph
+- for many data-flow analysis it is possible to order the evaluation such that the algorithm
+    converges in a much smaller number of iterations
+- if useful information propagates along all acyclic paths, then we have the opportunity to tailor the order in which
+    we visit nodes in the algorithms
+
+
+
 
 

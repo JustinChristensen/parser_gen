@@ -343,6 +343,13 @@ Speed of Convergence of Iterative Data-Flow Algorithms
 - if useful information propagates along all acyclic paths, then we have the opportunity to tailor the order in which
     we visit nodes in the algorithms
 
+Region-Based Analysis
+- instead of creating transfer functions for blocks, region based analysis seeks to build up transfer functions for larger and large regions of the program
+- ultimately we arrive data-flow values for entire procedures
+- requires a semilattice of data-flow values and a semilattice of transfer functions that possess a meet operator, a composition operator, and a closure operator
+- a program is viewed as a hierarchy of regions, i.e. portions of the flow graph with only one entry
+
+
 
 
 

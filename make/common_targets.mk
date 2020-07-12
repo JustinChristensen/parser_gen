@@ -3,5 +3,5 @@ all: $(PROG)
 
 .PHONY: clean
 clean:
-	rm -rf *.o $(PROG) *.dSYM $(CLEAN)
+	rm -rf *.opt.yaml *.o $(PROG) *.dSYM $(CLEAN)
 

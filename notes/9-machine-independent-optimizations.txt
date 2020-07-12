@@ -349,8 +349,9 @@ Region-Based Analysis
 - requires a semilattice of data-flow values and a semilattice of transfer functions that possess a meet operator, a composition operator, and a closure operator
 - a program is viewed as a hierarchy of regions, i.e. portions of the flow graph with only one entry
 
-
-
-
-
+Symbolic Analysis
+- _affine_ expressions of _reference variables_
+- an expression is affine with respect to v1,v2,...,vn if it can be expressed as c0 + c1v1 + ... + cnvn, where c0,c1,...,cn are constants
+- "linear" expressions
+- if we determine that the locations a loop writes to are different on every iteration, than the assignments may be candidates for parallelization
 

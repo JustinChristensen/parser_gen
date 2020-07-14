@@ -108,7 +108,7 @@ To:
 
 - without the JMP statements this can become part of a larger basic block, and the processor doesn't have a chance to mispredict
 
-Static vs Dynamically Schedule machines:
+Static vs Dynamically Scheduled machines:
 - statically schedule machines explicitly define what can execute in parallel in the instruction set
 - dynamically scheduled machines analyze data dependencies and schedule on-the-fly, and this is not reflected in the instruction set
 
@@ -124,3 +124,70 @@ M = (R, T)
 resource usage for each machine operation type t is modeled by a two dimensional _resource-reservation table_, _RT_.
 - the width of the table is the number of kinds of resources in the machine, and it's length is the duration over which resources are used by the operation
 - Entry RT(t)[i, j] is the number of units of the jth resource used by an operation of type t, i ticks after it is issued
+
+Basic Block Scheduling
+- _list scheduling_ for scheduling operations within a basic block
+- a data dependence graph G = (N, E) where the nodes are operations n in N and
+- the edges are labeled with a delay d, indicating the detination node must be issues no earlier than de clocks after the source node is issued
+
+Fully pipelined operations are operations that can be issued every tick, even though their results are not available until some number of clocks later
+
+OP dst src1 src2
+LD dst addr
+ST addr src
+
+So within a given sequence of instructions, there are potentially multiple valid orders based on data dependencies and resource availability, and the challenge
+    is to pick one of those orders. AKA "scheduling"
+
+See figure 10.9 for an example output schedule, consisting of a table where columns are indexed by resources (alu, mem), and rows are the instructions being executed
+- if instructions dependent on distinct resources, then they can be executed "at the same time"
+- the "critical" path is the longest path through a data-dependence graph
+
+Global scheduling requires that we consider not only data dependencies, but also control dependencies
+- all instructions in the original program are executed in the optimized program
+- optimized program may execute extra instructions speculatively as long as they don't have unwanted side effects
+- generally speaking, the end goal for a set of blocks is to arrive at a state where the loads happen before operations and branches, and then to execute the appropriate
+    store operation based on the result of the branching instruction
+
+TODO: think about what it means for an instruction to have "side effects"
+
+SEE ALSO: Intel Optimization Guide:
+https://software.intel.com/sites/default/files/managed/9e/bc/64-ia-32-architectures-optimization-manual.pdf
+https://en.wikichip.org/w/images/7/7e/skylake_block_diagram.svg
+
+There's references in the above to the cost of individual instructions and the number of cycles it takes to access L1, L2, and L3 caches.
+OSX CPU brand: sysctl -a machdep.cpu.brand_string
+
+Compilers have techniques to estimate execution frequencies
+The conventional wisdom says that 90% of a program's execution time is spent executing 10% of the code
+- Reasonable to assume that instructions in innermost loops are executed more frequently
+- Also reasonable to assume that backwards paths from branches are executed more frequently
+- Best technique for frequency estimates is dynamic profiling, wherein you instrument the code to record paths taken, and then test it out
+
+Nothing Follows
+
+Loop unrolling:
+    for (i = 0; i < N; i++)
+        S(i);
+To
+    for (i = 0; i + 4 < N; i += 4)
+        S(i), S(i + 1), S(i + 2), S(i + 3);
+    for (; i < N; i++)
+        S(i);
+
+This creates more instructions within the loop body, and helps with scheduling
+
+TODO: look into dynamic schedulers again
+
+Branch misprediction is an important cause of loss of performance
+Because of the long misprediction pentalty, instructions on rarely executed paths can still have a significant effect on the total execution time
+
+Static - Compiler chooses order of execution
+Dynamic - Hardware chooses order of execution
+Again, VLIW vs Superscalar
+Out of order execution
+See: https://www.cs.umd.edu/~meesh/cmsc411/website/projects/dynamic/intro.html#:~:text=Dynamic%20scheduling%2C%20as%20its%20name,determines%20the%20order%20of%20execution.&text=(All%20of%20this%20is%20assuming,the%20same%20instruction%20set%20architecture.
+
+
+
+

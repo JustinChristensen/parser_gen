@@ -224,3 +224,5 @@ software pipelining
 
 There have been attempts at hardware support for software pipelining, like the rotating register file in Itananium
 
+IDEA: before diving into all of these optimization techniques, first figure out how to write an "ideal" assembly-only program for a common architecture,
+    and then use this ideal program to determine where we're falling short in optimization, i.e. actual vs ideal

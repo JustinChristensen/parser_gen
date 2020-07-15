@@ -188,6 +188,38 @@ Again, VLIW vs Superscalar
 Out of order execution
 See: https://www.cs.umd.edu/~meesh/cmsc411/website/projects/dynamic/intro.html#:~:text=Dynamic%20scheduling%2C%20as%20its%20name,determines%20the%20order%20of%20execution.&text=(All%20of%20this%20is%20assuming,the%20same%20instruction%20set%20architecture.
 
+Software Pipelining
+- do-all loops are loops where the iterations are independent of eachother
+- software pipelining schedules an entire loop at a time, and takes full advantage of parallelism across iterations
 
+example:
+    for (i = 0; i < n; i++)
+        D[i] = A[i] * B[i] + c
+
+target machine
+1 clock = all of:
+    1 load
+    1 store
+    1 arithmetic
+    1 branch
+loop-back operation:
+    BL R L      // decrement R, if R != 0 jump to L
+memory ops have auto-increment addressing mode, denoted by R++
+    access, followed by increment
+arithmetic ops are fully pipelined, but have a latency of 2 ticks
+    other ops have a single-tick latency
+
+Unrolling is a tradeoff between increasing the total size of the code and getting the most out of the hardware
+
+So by unrolling the above loop 4 times, we get a schedule that executes in 13 ticks
+And 13/4 is 3.25 ticks for every iteration, as opposed to the 7 ticks it would take without any unrolling or parallelism
+See 10.13 for a discussion of the # of instructions vs. optimal parallelism
+
+software pipelining
+- lines to fill the pipeline form the prologue
+- lines with a full pipeline is the steady state
+- lines that drain the pipeline form the epilogue
+- the primary goal is to maximize throughput of the long-running loop
+- secondary goal is to keep the binary size reasonably small
 
 

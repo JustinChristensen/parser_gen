@@ -222,4 +222,5 @@ software pipelining
 - the primary goal is to maximize throughput of the long-running loop
 - secondary goal is to keep the binary size reasonably small
 
+There have been attempts at hardware support for software pipelining, like the rotating register file in Itananium
 

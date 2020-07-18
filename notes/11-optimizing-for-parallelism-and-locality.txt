@@ -1,0 +1,120 @@
+Optimizing for Parallelism and Locality
+
+- dividing a computation into units that can execute in parallel is hard
+- and even if you do, that doesn't guarantee a speedup
+- interprocessor communication can actually make a parallel program run slower than standard sequential execution
+- minimizing communication is a special case of improving a program's data locality
+- in general, a program has good data locality if it often accesses the same data it uses recently
+- data-flow analysis is inadequate for determining how to parallelize a program
+- we need to be able to reason about when the same statement might be able to be executed on different processors simultaneously
+
+This chapter studies programs that have _affine_ array access patterns with respect to surrounding loop indexes.
+For example:
+For i and j, Z[i][j] and Z[i][i + j] are affine accesses
+Affine functions are functions that are expressed as a sum of a constant and constant multiples of variable terms
+For example:
+3x + 5y + 9z + 12
+
+It's a question of understanding the write behavior of the program in question.
+- are we writing to the same location?
+
+- theory is grounded in linear algebra and integer programming techniques
+- two transformations discussed here:
+    * affine partitionining
+        - splits up polyhedra of iterations into components
+    * blocking
+        - creates a hierarchy of iterations
+
+If data dependencies dictate instructions be executed in sequential order, then there's no room for parallelism
+To minimize interprocessor communication, group together related operations and assign them to a processor where each group exhibits data locality
+
+UNRELATED: https://en.wikipedia.org/wiki/Page_replacement_algorithm
+
+Most popular architecture is the symmetric multiprocessor (SMP).
+- the multiple processors share the same address space
+- to communicate, a processor simply writes to a memory location, which can then be read by any of the processors
+- named symmetric because of the property that allows them to access memory in equal time
+- coherent cache protocol to hide presence of caches from programmer
+- each processor gets it's own caches, and can keep copies of the same cache line at the same time, providing that they are only reading the data
+- time taken for one processor to communicate with another is about twice the cost of memory access
+- it's twice, because cached data must first be written back to memory, and then read into the cache of the destination processor
+- compared to cache hit, a memory access can be 100 time slower
+- to allow having many processors to scale, architects associated individual memories with each processor, instead of having all memory be equidistant
+- this is known as a distributed memory system
+- two variants: NUMA (non-uniform memory access) and message-passing machines.
+- NUMA provides a shared address space to the software, allowing processors to communicate by reading and writing shared memory
+- message-passing machines use a disjoint address space
+
+Application Parallelism:
+- two metrics:
+- parallelism coverage, which is the percentage of the program that runs in parallel
+- granularity of parallelism, which is the amount of the computation that each processor can execute without synchronizing or communicating
+
+Amdahl's Law
+- states that, if f is the fraction of code parallelized, and if the parallelized version runs on a p-processor machine with no communication or parallelization overhead
+- the speed up is then:
+    let f be the fraction of code parallelized
+    and p be the number of processors in
+    1 / ((1 - f) + (f / p))
+
+SETI (Search for Extra-Terrestrial Intelligence) project
+
+Loop-Level Parallelism
+- partitioning arrays and loop iterations into chunks
+- assigning function invocations or different loops to two processors is known as _task_ parallelism
+- task level parallelism is less attractive than loop parallelism, because tasks don't scale with the data like loops do
+- in general, we divide the number of iterations by the number of processors
+- at the end of each parallelized region of code, all of the processors participate in a _barrier synchronization_
+- FFT is a good example of a computation that exhibits good data locality and can be parallelized 100%
+
+Data Locality
+- temporal locality occurs when the same data is used many times within a short time period
+- spatial locality occurs when different data elements that are near eachother are used within a short time period
+- a special instance of spatial locality is when one element of a cache line is needed, and the rest of the cache line is available for further computations
+- vector machines perform operations across vectors
+- _fusion_ is combining the bodies of two loops into one
+
+Zero Row-By-Row in Parallel:
+
+Let M be the number of CPUs available
+    n be the dimension of a square grid
+    p be the id of a CPU
+In
+    b = ceil(n / M);
+    for (i = b * p; i < min(n, b * (p + 1)); i++) {
+        for (j = 0; j < n; j++)
+            Z[i][j] = 0
+    }
+For n = 10 and p = 1
+    for (i = 3 * 1; i < min(10, 3 * (1 + 1)); i++)
+    for (i = 3 * 1; i < min(10, 3 * 2); i++)
+    for (i = 3 * 1; i < min(10, 6); i++)
+All p's:
+    p = 0; for (i = 0; i < 3; i++)
+    p = 1; for (i = 3; i < 6; i++)
+    p = 2; for (i = 6; i < 9; i++)
+    p = 3; for (i = 9; i < 10; i++)
+
+- this version exhibits better data locality, because we're reading entire rows into the cache
+- the above sets of iterations can be executed in any order to arrive at the final computation
+
+Affine Transform Theory
+- it gets harder to write correct parallel code as the level of granularity of parallelism descreases
+- debugging a parallel program is harder than a sequential one, because the errors tend to be nondeterministic
+- ideally a parallelizing compiler would be able to translate an ordinary sequential program into an efficient parallel program,
+    and then optimize it for locality, but in practice this is hard to do without high-level knowledge of the program and the programmer may
+    make arbitrary decisions that limit the compilers ability to do this
+- the problem of optimizing a looop with array accesses can be modeled with three spaces:
+    * the iteration space is the set of dynamic execution instances in a computation, that is, the set of combinations of values taken on by loop indexes:
+        { (i, j), (i, j + 1), (i, j + 2), ..., (i + 2, j), (i + 2, j + 1), ... (i + n, j + m) }
+    * the data space is the set of array elements accessed
+    * the processor space is the set of processors in the system
+- the output is a set of affine functions that specify what each process does and when
+- each iteration index is mapped to data elements, e.g. i = 0 -> Z[0], Z[0 + 10], i = 5 -> Z[5], Z[5 + 10]
+- if there was an overlap for data elements being accessed (specifically, written) for two more iteration indexes, then we'd have a data dependency and it would be difficult to parallelize
+- formulating the problem in terms of spaces lets us use mathematical techniques to solve the parallelization and locality optimization problem generally
+
+Matrix Multiplication: Example
+
+
+

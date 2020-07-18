@@ -226,3 +226,10 @@ There have been attempts at hardware support for software pipelining, like the r
 
 IDEA: before diving into all of these optimization techniques, first figure out how to write an "ideal" assembly-only program for a common architecture,
     and then use this ideal program to determine where we're falling short in optimization, i.e. actual vs ideal
+
+Summary:
+- several instructions at different stages of execution in a pipeline
+- some machines can begin execution of multiple instructions at the same time
+- "do all" loops have no data dependencies between iterations
+- "do across" loops do have data dependencies between iterations
+- hennessy and patternson for processor architecture and design

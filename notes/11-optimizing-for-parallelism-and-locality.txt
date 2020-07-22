@@ -178,5 +178,33 @@ Types of Reuse
 See: https://en.wikipedia.org/wiki/Automatic_parallelization
 
 Array Data-Dependence Analysis
+- equations with the stipulation that solutions must be integers are known as diophantine equations
+- to prove there are no data dependencies you can simply do as follows:
+
+for (i = 1; i < 10; i++) {
+    Z[2 * i] = 10
+}
+
+for (j = 1; j < 10; j++) {
+    Z[2 * i + 1] = 10
+}
+
+    2i = 2j + 1
+=   i = j + 1/2
+    solving this would require j or i to be a real number
+    so for the set of integers, you might try something like:
+    3 or 4 = 3 + 1/2
+    3 != 3.5
+    4 != 3.5
+
+So the above loops share no data dependencies
+
+Heuristics for Solving Integer Linear Programs
+- independent variables test
+- acyclic test
+- loop-residue test
+
+ϝ = (F, f, B, b)
+
 
 

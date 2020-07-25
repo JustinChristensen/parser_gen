@@ -206,5 +206,18 @@ Heuristics for Solving Integer Linear Programs
 
 ϝ = (F, f, B, b)
 
+Sychronization-Free Parallelism
 
+SEE: https://en.wikipedia.org/wiki/OpenMP
+SEE: https://en.wikipedia.org/wiki/Embarrassingly_parallel
 
+Primitive affine transformations:
+- fusion
+- fission
+- re-indexing
+- scaling
+- reversal
+- permutation
+- skewing
+
+Pipelining

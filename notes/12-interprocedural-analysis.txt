@@ -1,0 +1,53 @@
+Interprocedural Analysis
+
+- for programming languages like C or Java pointer aliasing is key to analyzing interprocedural analysis
+- datalog, a notation that greatly hides the complexity of efficient pointer analysis
+- BDD, binary decision diagram
+- most compiler optimizations performed on the contents of procedures, one at a time
+- these optimizations are known as intra-procedural analysis
+- inter-procedural analysis operate across the entire program
+- inlining replaces the invocation of a procedure with the body of the procedure itself
+- this method can only be used if we know the target of the procedure call
+- if procedures are invoked indirectly through a pointer, analysis can in some cases determine the unique target of the invocation for inlining
+
+Basic Concepts
+- call graphs, which procedure calls which
+- context sensitivity requires that data-flow analysis determine the order of procedure calls
+- a call graph is a set of nodes and edges such that
+    * there are nodes for procedures in the program
+    * and nodes for individual call sites
+    * if call site c may call procedure p, then there is an edge from c to p
+- for static invocations, there is exactly one edge from a call site to a procedure (a call site has one and belongs to a procedure)
+- for dynamic invocations, like those through a function pointer or function parameter, there may be potentially many edges from a single call site to the procedures in the graph
+- indirect calls are the norm for OOP languages
+- virtual method invocations requires the type of the receiver object before we can determine which procedure is being invoked
+- the presence of indirect calls through pointers to procedures requires us to do interprocedural analysis to determine the values that the pointers can take on through the life of the program
+
+Context Sensitivity
+- the main challenge of inter-procedural analysis is that each procedure is dependent upon it's context.
+- context-insensitive analysis treats each call and return as goto operations.
+- to do this, we create an alternate control flow graph where
+    * call sites have edges to the beginning of the procedure being called (as if a goto)
+    * edges leading back from the return statement back to the instruction after the call site
+- the string of call sites on the stack is known as the call string
+- for situations where we may have an unbounded number of calls, such as recursive invocation, we can use a technique to limit the context
+    called k-limiting the call string (just use the k most recent calls)
+- another option is to be fully context-sensitive for acyclic call strings, and k-limited for cyclic ones
+
+Cloning-Based Context-Sensitive Analysis
+- another option is to clone the procedure for each unique context of interest
+- in reality, we attach multiple instances of context information to a single procedure
+
+Summary-Based Context-Sensitive Analysis
+- each procedure has a summary attached that describes some observable behavior about the procedure
+- compute the transfer function for regions and attach it as a summary to the procedure
+- then walk through the call graph and compute the effect of the computation
+
+Why?
+- for virtual method invocation in an OOP language we can identify commonly-used receiver types and potentially inline that type's instance of the method.
+- we can improve intraprocedural analysis to determine whether or not pointers are aliases of variables
+- identify further routines for parallelization
+- static analysis to avoid bugs
+- detecting buffer overflows
+
+Logical Representation of Data Flow

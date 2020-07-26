@@ -51,3 +51,54 @@ Why?
 - detecting buffer overflows
 
 Logical Representation of Data Flow
+- rather than expressing "definition D is in set IN[B]" we use notation like in(B, D)
+- it generalizes the bit-vector approach to set operations
+
+Datalog
+- a language that uses Prolog-like notation
+- elements of Datalog are atoms of the form p(X1, X2, ..., Xn)
+- p is a predicate that represents a statement such as "a definition reaches the beginning of a block"
+- X1, ... are terms such as variables or constants, or simple expressions
+- a ground atom is a predicate with only constants as arguments
+- a predicate can be represented by a relation, that is, a table of it's true ground atoms
+- each row is a tuple of the relation
+- each ground atom (row) in a relation is true
+
+For example, predicate in(B, D) means "definition D reaches the beginning of block B"
+    B | D
+   -------
+    a | w       definition w reaches the beginning of block a
+    b | y
+    c | z
+
+- comparison predicates operate differently than the above "fact" atoms
+- A literal is either an atom or a negated atom
+- NOT in(B, D)
+- variables begin with a capital letter, other symbols don't
+
+SEE: https://en.wikipedia.org/wiki/Datalog
+
+- rules have the form H :- B1 & B2 & B3 & ... & Bn
+- where the B's are subgoals of the head, H, of the rule
+- "the head is true if the body is true"
+- facts can then be composed of other facts, but if one of the subgoals in the body is not a fact (perhaps it's a comparison), then we can't determine that the header is a fact
+
+Directed graph example:
+path(X, Y) :- edge(X, Y)                # fact "there is a path from x to y because there is an edge from x to y
+path(X, Y) :- path (X, Z) & path(Z, Y)  # fact "there is a path from x to y, because there is a path from x to z, and a path from z to y"
+    # transitive closure
+
+- some predicates are assumes to exist beforehand, and are known as EDB or extensional database predicates
+- IDB, or intensional database predicates, are defined by the rules of the Datalog program
+
+def(b1, 1, x)       # x is defined at position 1 in block b1
+def(b1, 2, Y)       # any possible variable, Y, is defined at point 2 in b1
+succ(B, N, C)       # true if block C is a successor of block B in the flow graph, and B has N statements
+rd(B, N, C, M, X)   # true if variable X, at statement M, in block C, reaches point N, in block B
+
+
+
+
+
+
+

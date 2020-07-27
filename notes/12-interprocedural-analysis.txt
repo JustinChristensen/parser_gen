@@ -84,6 +84,7 @@ SEE: https://en.wikipedia.org/wiki/Datalog
 - facts can then be composed of other facts, but if one of the subgoals in the body is not a fact (perhaps it's a comparison), then we can't determine that the header is a fact
 
 Directed graph example:
+
 path(X, Y) :- edge(X, Y)                # fact "there is a path from x to y because there is an edge from x to y
 path(X, Y) :- path (X, Z) & path(Z, Y)  # fact "there is a path from x to y, because there is a path from x to z, and a path from z to y"
     # transitive closure
@@ -96,8 +97,131 @@ def(b1, 2, Y)       # any possible variable, Y, is defined at point 2 in b1
 succ(B, N, C)       # true if block C is a successor of block B in the flow graph, and B has N statements
 rd(B, N, C, M, X)   # true if variable X, at statement M, in block C, reaches point N, in block B
 
+Basic Execution:
+So for the above directed graph example, the first rule establishes the fact that all edges are paths,
+and then on subsequent iterations of the ruleset we form paths of length 2, then 3, then 4, etc...
+So the number of iterations
 
+- efficiency enhancement possible through incremental form, look it up
 
+Problematic Datalog rules
+- unsafe rules are those that have a variable in the head that does not appear in the body in a way that constrains that variable to take on only values that appear in the EDB
+- unstratified programs are those sets of rules that have a recursion involving negation
+
+For example,
+p(X, Y) :-= q(Z) & NOT r(X) & X != Y is unsafe because, if r(X) is false, then p is true for an infinite number of pairs X and Y where X does not equal Y
+
+TODO: understand strata as it applies to recursion and negation
+- ultimately the effect is that the program fails to converge (infinite loop)
+
+p(X) :- e(X) & NOT p(X)
+
+SEE: https://en.wikipedia.org/wiki/Pointer_analysis
+SEE: https://en.wikipedia.org/wiki/Alias_analysis
+
+Pointer-Analysis Algorithm
+- the fundamental question we're answering is: are a given pair of pointers aliased?
+- one way to answer this is to compute the set of objects that a pointer can point to at a point in the program
+- pointer analysis is difficult in languages that allow pointer arithmetic
+- indirect function calls present another problem in determining what the value of a pointer can be
+- if we can't determine which function is being called, then we must assume that the function can change the value of the pointer to anything
+- the goal of this analysis is to determine what each variable and each field of an object can point to
+    also known as "points-to analysis"
+- flow-insensitive analysis ignores control flow, i.e. it treats every statement as being executed in any order
+
+Datalog Formulation for Flow-Insensitive Pointer-Alias Analysis
+Four kinds of statements (excluding procedure calls):
+- object creation, h: T v = new T();
+- copy statement, v = w;
+- field store, v.f = w;
+- field load, v = w.f;
+
+IDB predicates we need to compute:
+pts(V, H)       # variable V can point to heap object H
+hpts(H, F, G)   # field F of heap object H can point to object G
+
+EDB predicate object creation example:
+H : T V = new T     # at statement H there is an assignment that makes variable V point to a new object of type T
+    or new=(H, V, T)
+
+pts(V, H)       :- H : T V = new T        # V can point to heap object H if H is an assignment of a new object to V
+pts(V, H)       :- V = W & pts(W, H)      # V can point to heap object H if there is a copy statement V = W and W can point to H
+hpts(H, F, G)   :- V.F = W &              # field F of heap object H can point to object G if
+                   pts(W, G) &            #     there is an assigment of W to V.F and W can point to G and V can point to H
+                   pts(V, H)
+pts(V, H)       :- V = W.F &
+                   pts(W, G) &
+                   hpts(G, F, H)
+
+Context-Insensitive Analysis
+- for procedure calls, parameters and return values are modeled by copy statements
+- for x = y.n(z)
+    * this = y
+    * z = ?
+    * x = y.n(z)
+
+actual(S, I, V) says V is the Ith actual parameter used in call site S
+formal(M, I, V) says that V is the I'th formal parameter declared in method M
+cha(T, N, M) says that M is the method called when N is invoked on a receiver object of type T (class hierarchy analysis)
+--
+invokes(S, M)   :- "S: V.N(...)" &
+                   pts(V, H) &
+                   hType(H, T) &
+                   cha(T, N, M)
+pts(V, H)       :- invokes(S, M) &
+                   formal(M, I, V) &
+                   actual(S, I, W) &
+                   pts(W, H)
+
+- in Java, reflection will thwart any attempts to state conclusively that an object is of a certain type, or that a method invocation is to a specific procedure
+
+Context-Sensitive Pointer Analysis
+- computing procedure summaries for context sensitive analysis is difficult for a few reasons:
+    * each method's summary must include the effects of all updates that the function itself and all of it's callees make to
+        reachable static variables, incoming parameters, and all objects created by the method and it's callees
+    * solutions at the time of this book's writing didn't scale up to large programs
+- this approach uses cloning-based context-sensitive analysis
+- there will likely be exponentially many contexts of interest when dealing with the cloned call graph
+- so we apply the context-insensitive algorithm after representing the information for the contexts in a binary decision diagram
+- a precondition to this approach is to compute the call graph initially before we start
+
+Getting Started
+- *** a context is a representation of the call string that forms the history of the active function calls ***
+- begin by finding all of the mutually recursive sets of functions in the program
+- strongly connected components that are recursive or mutually recursive functions are dubbed non-trivial components
+- strongly connected components that are nonrecursive are dubbed trivial components
+- we can omit some call strings from the set of contexts
+
+Adding Context to Datalog Rules
+
+CSinvokes(S, C, M, D) is true if the call site S in context C calls the D context of method M
+pts(V, C, H) is true if variable V in context C can point to heap object H
+
+Datalog Implementation by BDDs
+- a binary decision diagram (BDD) represents a boolean function by a rooted DAG
+- interior nodes are labeled by one of the variables of the represented function
+- two leaves, 0 and 1
+- interior nodes have edges labeled "low" and "high"
+- low edge is associated with the case that the variable at the node has value 0
+- high case is 1
+- f(X, Y, Z) would then have 8 possible interior nodes and 2 leaves, because 2^3 = 8 + 2 leaves
+- binary decision diagrams have built in short-circuiting, for example:
+- if w x y z = 0 1 0 1 and w && x = 0, then we can short circuit
+- interior nodes have ranked, where each rank contains a particular variable
+- two transformations on BDDs:
+    * short circuiting, if node N has both edges pointing to M, then we may redirect N's in-edges to M and delete N
+    * node-merging, if N and M have low edges pointing to the same node, and high edges pointing to the same node, then we can merge the two
+- a domain for a component of a relation is the set of possible values that tuples can have in that component
+
+SEE: https://en.wikipedia.org/wiki/Finitary_relation
+
+- the relation pts(V, H) has the domain of all program variables for it's first argument, and the domain of all object-creating statements for it's second
+- x OR y `union` NOT x AND NOT y
+
+Call graphs are bipartite graphs
+SEE: https://en.wikipedia.org/wiki/Bipartite_graph
+Steensgaard for scalable pointer-alias analysis
+Fahndrich, Rehof, and Das for a context-sensitive, flow insensitive, equivalence-based analysis that scales to use cases like GCC's
 
 
 

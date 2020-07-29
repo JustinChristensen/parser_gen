@@ -214,6 +214,7 @@ Datalog Implementation by BDDs
 - a domain for a component of a relation is the set of possible values that tuples can have in that component
 
 SEE: https://en.wikipedia.org/wiki/Finitary_relation
+SEE: https://en.wikipedia.org/wiki/Binary_decision_diagram
 
 - the relation pts(V, H) has the domain of all program variables for it's first argument, and the domain of all object-creating statements for it's second
 - x OR y `union` NOT x AND NOT y
@@ -222,7 +223,3 @@ Call graphs are bipartite graphs
 SEE: https://en.wikipedia.org/wiki/Bipartite_graph
 Steensgaard for scalable pointer-alias analysis
 Fahndrich, Rehof, and Das for a context-sensitive, flow insensitive, equivalence-based analysis that scales to use cases like GCC's
-
-
-
-

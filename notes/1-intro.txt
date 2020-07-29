@@ -43,8 +43,6 @@ Translate RTL (register transfer level) descriptions into gates
 1. Verilog
 2. VHDL (very high speed integrated circuit hardware description language)
 
-
-
 Static vs Dynamic
 static - compiler making decisions
 dynamic - decisions made at runtime
@@ -54,7 +52,7 @@ names -> locations -> values
 x        0x...        "hello"
 
 Call By Value:
-The value of the variable is copied in memory to the called procedure. 
+The value of the variable is copied in memory to the called procedure.
 
 Call By Reference:
 The address of the variable is passed to the called procedure

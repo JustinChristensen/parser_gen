@@ -1,7 +1,4 @@
 OS := $(shell uname)
-ifeq ($(OS),Darwin)
-CC := /usr/local/opt/llvm/bin/clang
-endif
 LIB_DIR := $(TOPDIR)/libs
 LIBBASE_DIR := $(LIB_DIR)/base
 LIBGRAM_DIR := $(LIB_DIR)/gram

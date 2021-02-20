@@ -223,3 +223,5 @@ Call graphs are bipartite graphs
 SEE: https://en.wikipedia.org/wiki/Bipartite_graph
 Steensgaard for scalable pointer-alias analysis
 Fahndrich, Rehof, and Das for a context-sensitive, flow insensitive, equivalence-based analysis that scales to use cases like GCC's
+
+https://en.wikipedia.org/wiki/Automatic_vectorization

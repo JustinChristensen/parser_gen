@@ -1,2 +1,2 @@
+allow-newer: all
 tests: True
-optimization: True

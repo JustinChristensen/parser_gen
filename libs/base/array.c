@@ -153,6 +153,5 @@ void *alist(struct array const *arr) {
 
 void free_array(struct array *arr) {
     free(arr->buf);
-    arr->buf = NULL;
     free(arr);
 }

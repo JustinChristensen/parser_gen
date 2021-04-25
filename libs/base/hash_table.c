@@ -55,7 +55,6 @@ static struct hash_entry *hash_entry(
     struct hash_table const *table
 ) {
     struct hash_entry *entry = malloc(_entrysize(table));
-    assert(entry != NULL);
     *entry = (struct hash_entry ) { next, (char *) key };
     setval(val, entry, table);
     return entry;
@@ -91,7 +90,6 @@ static void free_buckets(struct hash_table *table) {
 
 static struct hash_entry **allocate_buckets(unsigned size) {
     struct hash_entry **buckets = calloc(sizeof *buckets, size);
-    assert(buckets != NULL);
     return buckets;
 }
 
@@ -177,7 +175,6 @@ static void check_load(struct hash_table *table) {
 static void init_hash_table(struct hash_table *table, size_t valsize, unsigned *size) {
     size = size ? size : (unsigned *) start_prime;
     struct hash_entry **buckets = allocate_buckets(*size);
-    assert(buckets != NULL);
 
     *table = (struct hash_table) {
         .valsize = valsize,
@@ -190,7 +187,6 @@ static void init_hash_table(struct hash_table *table, size_t valsize, unsigned *
 
 static struct hash_table *_hash_table(size_t valsize, unsigned *size) {
     struct hash_table *table = malloc(sizeof *table);
-    assert(table != NULL);
     init_hash_table(table, valsize, size);
     return table;
 }
@@ -218,7 +214,6 @@ void htinsert(char const *key, void *val, struct hash_table *table) {
     assert(key != NULL);
     check_load(table);
     key = strdup(key);
-    assert(key != NULL);
     _htinsert(key, val, table);
 }
 

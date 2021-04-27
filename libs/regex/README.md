@@ -1,40 +1,42 @@
-Library for generating lexical analyzers
-TODO improvements:
+# libregex.so
 
-1. Construct a DFA, both from the initial NFA using the on-the-fly subset construction technique,
-   and also directly from the regular expression while parsing
-2. Consider changing the parser API to combinators that support parser "descriptors" that can be composed
-   together, and then compute the LL or LR parser and error handling from the descriptors
-3. Optimizations:
-    1. Figure out a way to re-use existing sub-machines within the larger NFA instead of cloning
-       when handling quantifiers, i.e. a{N} or tagging. A given machine would then have to be made
-       independent of it's context. That is, I'd have to take as input: 
-        - the context-independent new machine (meaning pointing to nothing)
-        - the start states of the following machine, should the context-independent machine accept the input
-        - the number of times to repeat (in the case of quantification)
-    2. Machine prefix sharing. That is, re-using states when building a branched machine for patterns like
+An implementation of regular expressions that supports alternation, catenation, unary operators, 
+and character classes.
+
+## Building
+
+```bash
+# note that this creates a symlink to libregex.so at ~/libs/libregex.so
+make
 ```
-        (then|there|think), t -> h -> e -> n  -> accept
-                                      |    |
-                                      |    r -> e -> accept
-                                      |
-                                      i -> n -> k -> accept
+
+## Usage
+
+```c
+#include <regex/nfa.h>
+
+// initialize a context
+struct nfa_context context = { 0 };
+nfa_context(&ncontext, NULL);
+
+// add one or more patterns
+enum { T_SPACE = RX_START, T_IF, T_ELSE };
+nfa_regex(T_SPACE, NULL, " *", &ncontext);
+nfa_regex(T_IF, NULL, "if", &ncontext);
+nfa_regex(T_ELSE, NULL, "else", &ncontext);
+// ...
+
+// start matching
+struct nfa_match match = { 0 };
+char *input = "if else";
+nfa_start_match(input, "input.txt", &match, &ncontext); 
+
+// match
+printf("%d\n", nfa_match(&match)); // prints T_IF
+printf("%d\n", nfa_match(&match)); // prints T_SPACE
+printf("%d\n", nfa_match(&match)); // prints T_ELSE
+printf("%d\n", nfa_match(&match)); // prints RX_EOF (1)
 ```
-4. For multiple patterns, identify which pattern is causing the error for the syntax error
-5. Make the overall API more "monadic"
-6. Make the resulting scanner handle escape sequences
-7. Add the ability to "fold" over the input characters as the automaton recognizes the input prefix.
-    i.e. (previous value, current input symbol) -> next value
-    union val val;
-    int sym = nfa_match(&val, match)
-    if (sym == FLOAT) {
-        float x = val.f;
-    }
 
-Notes:
-
-The NFA context can be considered "online" in the sense that calling nfa_match_state copies the current machine
-to the nfa match state, and nodes reachable from the start state of that machine should be immutable until freed
-    
-
-
+See [nfa.h](include/regex/nfa.h) for the API.  
+See [auto](../../src/auto/main.c) for more advanced usage examples.

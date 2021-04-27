@@ -1,6 +1,32 @@
-# Automata Simulation Test Program
+# auto
 
-## Known Issues
+An executable for testing [libregex.so](../../libs/regex/).
 
-- The NFA simulation uses a buffer that can only contain a limited number of states (see nfa.h),
-    and I haven't implemented bounds checking, so it'll overflow if too many states are created.
+## Building
+
+```bash
+# build libbase.so and libregex.so first
+# it's on my TODO list to have this makefile do that for you
+make 
+```
+
+## Running
+
+```
+usage: ./auto [subcommand] [options]
+
+Construct and simulate automata
+
+subcommands:
+  print                     Print the syntax tree for each regular expression
+  nfa                       Construct and simulate an NFA
+  scan                      Run the scanner standalone
+  cfile                     Scan a C file
+
+options:
+  --help                    Print help
+  --version                 Print version
+
+environment variables:
+  DEBUG                     Print debug output
+```

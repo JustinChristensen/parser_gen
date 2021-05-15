@@ -1,4 +1,4 @@
-# Parser generation, regular expressions, and more
+# Parser generator, lexical analyzer generator, and more
 
 ## Projects
 

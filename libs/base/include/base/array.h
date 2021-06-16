@@ -37,8 +37,8 @@ bool arrayeq(
 );
 void aresize(unsigned size, struct array *arr);
 void adel(void *elem, struct array *arr);
-void *aptr(int i, struct array const *arr);
-void at(void *out, int i, struct array const *arr);
+void *aptr(unsigned i, struct array const *arr);
+void at(void *out, unsigned i, struct array const *arr);
 void apush(void *elem, struct array *arr);
 void apop(void *out, struct array *arr);
 void apeek(void *out, struct array const *arr);

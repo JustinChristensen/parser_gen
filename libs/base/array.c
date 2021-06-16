@@ -100,11 +100,11 @@ void adel(void *elem, struct array *arr) {
     ensure_memory(arr);
 }
 
-void *aptr(int i, struct array const *arr) {
+void *aptr(unsigned i, struct array const *arr) {
     return arr->buf + i * arr->elem_size;
 }
 
-void at(void *out, int i, struct array const *arr) {
+void at(void *out, unsigned i, struct array const *arr) {
     memcpy(out, aptr(i, arr), arr->elem_size);
 }
 
